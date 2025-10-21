@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
+import { BentoGrid, BentoCard, BentoIcon, BentoTitle, BentoDescription } from '@/components/shared/BentoGrid';
 
 export default function HomePage() {
   const t = useTranslations('home');
@@ -60,7 +61,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Bento Grid */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
           <div className="mx-auto mb-14 max-w-3xl text-center">
@@ -72,54 +73,68 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-[1px]">
-              <div className="h-full rounded-[calc(theme(borderRadius.3xl)-1px)] bg-black/60 p-8 transition-all duration-300 group-hover:bg-black/40">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/20 text-2xl">
-                  📰
-                </div>
-                <h3 className="text-2xl font-semibold text-white">
-                  {t('features.news.title')}
-                </h3>
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {t('features.news.description')}
-                </p>
+          <BentoGrid>
+            {/* Large feature card - News (2x2) */}
+            <BentoCard colSpan={2} rowSpan={2}>
+              <BentoIcon>📰</BentoIcon>
+              <BentoTitle>{t('features.news.title')}</BentoTitle>
+              <BentoDescription>
+                {t('features.news.description')}
+              </BentoDescription>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs text-primary">
+                  50+ Sources
+                </span>
+                <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-xs text-cyan-400">
+                  Auto-curated
+                </span>
+                <span className="rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 px-3 py-1 text-xs text-fuchsia-400">
+                  Bilingual
+                </span>
               </div>
-            </div>
+            </BentoCard>
 
-            <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-[1px]">
-              <div className="h-full rounded-[calc(theme(borderRadius.3xl)-1px)] bg-black/60 p-8 transition-all duration-300 group-hover:bg-black/40">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-fuchsia-500/25 text-2xl">
-                  🎓
-                </div>
-                <h3 className="text-2xl font-semibold text-white">
-                  {t('features.courses.title')}
-                </h3>
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {t('features.courses.description')}
-                </p>
-              </div>
-            </div>
+            {/* AI Courses (1x1) */}
+            <BentoCard>
+              <BentoIcon>🎓</BentoIcon>
+              <BentoTitle>{t('features.courses.title')}</BentoTitle>
+              <BentoDescription>
+                {t('features.courses.description')}
+              </BentoDescription>
+            </BentoCard>
 
-            <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-[1px]">
-              <div className="h-full rounded-[calc(theme(borderRadius.3xl)-1px)] bg-black/60 p-8 transition-all duration-300 group-hover:bg-black/40">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/25 text-2xl">
-                  🤖
-                </div>
-                <h3 className="text-2xl font-semibold text-white">
-                  {t('features.learning.title')}
-                </h3>
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {t('features.learning.description')}
-                </p>
-                <div className="mt-6">
-                  <Link href="/kg" className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-white">
-                    Knowledge Graph →
-                  </Link>
-                </div>
+            {/* Learning AI (1x1) */}
+            <BentoCard>
+              <BentoIcon>🤖</BentoIcon>
+              <BentoTitle>{t('features.learning.title')}</BentoTitle>
+              <BentoDescription>
+                {t('features.learning.description')}
+              </BentoDescription>
+            </BentoCard>
+
+            {/* Knowledge Graph (2x1) */}
+            <BentoCard colSpan={2}>
+              <BentoIcon>🕸️</BentoIcon>
+              <BentoTitle>Knowledge Graph</BentoTitle>
+              <BentoDescription>
+                Explore AI entities, relationships, and real-time insights with interactive visualizations.
+              </BentoDescription>
+              <div className="mt-6">
+                <Link href="/kg" className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-white">
+                  Explore Graph →
+                </Link>
               </div>
-            </div>
-          </div>
+            </BentoCard>
+
+            {/* Trending Topics (1x1) */}
+            <BentoCard>
+              <BentoIcon>📈</BentoIcon>
+              <BentoTitle>Trending</BentoTitle>
+              <BentoDescription>
+                Real-time AI trends detected automatically from multiple sources.
+              </BentoDescription>
+            </BentoCard>
+          </BentoGrid>
         </div>
       </section>
     </main>
