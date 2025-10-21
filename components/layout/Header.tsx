@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 
-const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'courses' | 'about'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
   { key: 'home', href: '/' },
   { key: 'news', href: '/news' },
   { key: 'courses', href: '/courses' },
+  { key: 'trending', href: '/trending' },
+  { key: 'kg', href: '/kg' },
   { key: 'about', href: '/about' },
 ];
 

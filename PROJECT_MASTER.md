@@ -14,14 +14,21 @@ Asumimos simultáneamente los siguientes roles para cada decisión y entrega den
 
 Todas las recomendaciones, planes e implementaciones deben reflejar esta combinación de perspectivas de manera integrada.
 
+ 
 ### Objetivo Principal
+ 
 Crear una plataforma web bilingüe (inglés/español) que combine:
+
 1. **Portal de Noticias de IA** - Actualización continua y curación inteligente
+
 2. **Plataforma de Aprendizaje** - Generación automática de cursos sobre cualquier tema de IA
 3. **Sistema de IA Autónomo** - Gestión, mejora continua y administración automática
 
+ 
 ### Propuesta de Valor Única
+ 
 - **100% Gratuito para usuarios** durante fase de crecimiento
+ 
 - **Gestión autónoma por IA** que aprende y mejora constantemente
 - **Diseño revolucionario** con las técnicas más avanzadas de UX/UI
 - **Generación de cursos on-demand** sobre cualquier tema de IA
@@ -31,8 +38,11 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
 
 ## 🎯 PROPUESTAS DE NOMBRE
 
+ 
 ### Top 10 (Verificar disponibilidad de dominio)
+ 
 1. **NeuralLearn** - neurallearn.ai / neurallearn.io
+ 
 2. **SynapticNews** - synapticnews.com / synapticnews.ai
 3. **AIFlux** - aiflux.io / aiflux.ai
 4. **CognitoHub** - cognitohub.io / cognitohub.ai
@@ -43,20 +53,26 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
 9. **ThinkFlow** - thinkflow.ai / thinkflow.io
 10. **PulseAI** - pulseai.io / pulseai.news
 
+ 
 ### Criterios de Selección
+ 
 - Memorable y pronunciable en inglés y español
+ 
 - Transmite conocimiento + tecnología
 - Dominio .ai o .io disponible (más económicos)
 - Sin conflictos de marca registrada
 
 ---
 
-## 💰 ESTRATEGIA COSTO $0 
+## 💰 ESTRATEGIA COSTO $0
 
 ### Hosting y Infraestructura (GRATIS)
 
+ 
 #### Frontend
+ 
 - **Vercel** (Plan gratuito)
+ 
   - 100 GB bandwidth/mes
   - Despliegues ilimitados
   - SSL automático
@@ -65,8 +81,11 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
   
 - **Alternativa**: Netlify, Cloudflare Pages, GitHub Pages
 
+ 
 #### Backend y Base de Datos
+ 
 - **Supabase** (Plan gratuito)
+ 
   - PostgreSQL completo
   - 500 MB database
   - 1 GB file storage
@@ -76,8 +95,11 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
   
 - **Alternativa**: Firebase, PocketBase (self-hosted en Railway)
 
+ 
 #### IA y LLMs (GRATIS)
+ 
 1. **Modelos Open Source vía HuggingFace**
+ 
    - Llama 3.1 (8B/70B) - vía API gratuita
    - Mistral 7B - inference gratuita
    - BLOOM - multilingüe gratuito
@@ -92,30 +114,47 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
    - **Ollama** (si tienes GPU local)
    - **LM Studio** (desarrollo local)
 
+ 
 #### Vector Database (Embeddings)
+ 
 - **Supabase pgvector** (incluido gratis)
+ 
 - **Alternativa**: Pinecone (plan gratuito 100K vectores)
 
+ 
 #### CDN y Assets
+ 
 - **Cloudflare** (Plan gratuito)
+ 
   - CDN global ilimitado
   - DDoS protection
   - SSL universal
   - Analytics básicos
 
+ 
 #### Email Transaccional
+ 
 - **Resend** - 3,000 emails/mes gratis
+ 
 - **Alternativa**: Brevo (300 emails/día gratis)
 
+ 
 #### Analytics
+ 
 - **Plausible** (self-hosted) o **Umami** (gratis en Vercel)
+ 
 - **Google Analytics 4** (gratis, completo)
 
+ 
 #### CI/CD
+ 
 - **GitHub Actions** - 2,000 minutos/mes gratis
+ 
 - **Vercel auto-deploy** (integración directa)
 
+ 
 ### Resumen de Costos
+ 
 | Servicio | Plan | Costo Mensual |
 |----------|------|---------------|
 | Vercel | Free | $0 |
@@ -135,8 +174,10 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
 
 ### Stack Tecnológico
 
+ 
 #### Frontend (Mobile-First)
-```
+ 
+```tsx
 Next.js 14+ (App Router)
 ├── React 18+
 ├── TypeScript
@@ -148,6 +189,7 @@ Next.js 14+ (App Router)
 
 **Diseño Revolucionario con:**
 - **Bento Grid Layouts** (estilo Apple)
+ 
 - **Glassmorphism avanzado**
 - **Micro-interacciones** con Framer Motion
 - **Animaciones con GSAP ScrollTrigger**
@@ -157,8 +199,10 @@ Next.js 14+ (App Router)
 - **Skeleton loaders** personalizados
 - **Gestos táctiles** optimizados
 
+ 
 #### Backend Architecture
-```
+ 
+```ts
 Next.js API Routes (Serverless)
 ├── tRPC (Type-safe APIs)
 ├── Zod (Validation)
@@ -166,7 +210,9 @@ Next.js API Routes (Serverless)
 └── Edge Runtime (cuando sea posible)
 ```
 
+ 
 #### Database Schema (Supabase/PostgreSQL)
+ 
 ```sql
 -- Usuarios
 users (
@@ -222,7 +268,7 @@ content_embeddings (
   id, content_type, content_id,
   embedding vector(1536), metadata jsonb
 )
-```
+```sql
 
 #### AI Agent Architecture
 
@@ -256,10 +302,176 @@ AI Orchestrator (Python/TypeScript)
     └── Strategy Optimizer
 ```
 
+---
+
+## 🛰️ FASE 5: EXPANSIÓN REVOLUCIONARIA (Visión y Arquitectura)
+
+Objetivo: convertir AINews en la plataforma número 1 mundial de noticias y aprendizaje de IA mediante un ecosistema de agentes, un grafo de conocimiento en vivo, experiencias interactivas y aprendizaje personalizado que operan con costo $0.
+
+### 1) Multi‑Agent Newsroom (autónomo y auditable)
+
+Nuevos agentes (GitHub Actions programadas, free tier):
+
+- TrendDetector Agent: detecta tendencias en tiempo real con análisis de bursts en RSS + embeddings clustering.
+- FactChecker Agent: verificación cruzada multi‑fuente, enlaza citas y genera "confidence score" y "claim graph".
+- Bias&Sentiment Auditor: clasifica tono/bias por categoría y emite etiquetas de imparcialidad.
+- MultiPerspective Summarizer: genera resúmenes comparativos por fuente/país/empresa.
+- Translation Quality Agent: verificación de traducción EN↔ES con QA heurística + LLM.
+
+Resultados clave:
+
+- "Confidence badge" en cada artículo (citations count, cross‑source agreement, freshness).
+- "Perspective switcher": ver el mismo hecho desde distintas fuentes.
+
+### 2) Grafo de Conocimiento Vivo (Entities & Relations)
+
+Construimos un grafo dinámico de:
+
+- Entidades: personas, empresas, modelos, datasets, papers, productos.
+- Relaciones: "lanzó", "adquirió", "financió", "publicó", "compitió", "colaboró".
+
+Usaremos Supabase (JSONB + tablas de relaciones) para mantener $0. Proveeremos:
+
+- Visualización interactiva (force‑directed) y búsqueda semántica por entidad.
+- Navegación por eventos: "todo lo relacionado con GPT‑5 en las últimas 48h".
+- RAG por entidad para cursos y explicaciones.
+
+### 3) Copiloto de Aprendizaje + Spaced Repetition
+
+En cada artículo/curso:
+
+- Tutor Chat contextual con herramientas: "explica", "ejemplifica", "genera quiz", "crea flashcards".
+- Sistema de repetición espaciada (SM‑2) con revisiones diarias (PWA + background sync).
+- Modo "Practice": preguntas activas, evaluación automática y feedback.
+
+### 4) PWA “First‑Class” + Offline Total
+
+- Cache offline de artículos, resúmenes, audio TTS y módulos de curso.
+- Background sync para progreso y métricas.
+- Instalación en móvil y desktop con Web App Manifest avanzado.
+- Web Push opcional (VAPID + Supabase) para alertas de nuevas tendencias o revisiones SRS.
+
+### 5) Ingesta Multimodal (gratis)
+
+- YouTube (transcripción oficial) → indexación + resúmenes con timestamps.
+- PDFs públicos → texto + secciones, extracción de figures/footnotes.
+- Imágenes (capturas de paper) → OCR ligero (Tesseract.js en cliente, opcional).
+
+### 6) On‑Device LLM (sin costo de inferencia)
+
+- Integración opcional con WebLLM/transformers.js para pequeñas tareas (resumen local, flashcards) en dispositivos modernos, preservando privacidad y $0.
+
+### 7) Comunidad y Credibilidad
+
+- Notas y subrayados públicos/privados.
+- Curación colaborativa con votos y razonamientos.
+- "Explain Battles": dos explicaciones de la comunidad, los usuarios votan la más clara.
+- "Credibility score" de fuentes y autores (histórico de aciertos, correcciones, sesgo).
+
+---
+
+## 📐 Diseño Técnico de Fase 5
+
+### Nuevas Tablas (Supabase)
+
+```sql
+-- Entidades del grafo
+entities (
+  id uuid pk, type text, name text, aliases text[], description text,
+  metadata jsonb, embedding vector(1536), created_at timestamptz
+)
+
+-- Relaciones dirigidas entre entidades
+entity_relations (
+  id uuid pk, source_id uuid, target_id uuid, rel_type text,
+  weight numeric, evidence jsonb, first_seen timestamptz, last_seen timestamptz
+)
+
+-- Evidencias (citas) por relación/entidad
+citations (
+  id uuid pk, entity_id uuid null, relation_id uuid null,
+  article_id uuid, quote text, source_url text, published_at timestamptz
+)
+
+-- Flashcards + Spaced Repetition
+flashcards (
+  id uuid pk, user_id uuid, content_id uuid, front text, back text,
+  ease_factor numeric default 2.5, interval_days int default 1,
+  repetitions int default 0, due_at timestamptz
+)
+
+-- User notes & highlights
+user_highlights (
+  id uuid pk, user_id uuid, content_id uuid, selection text, note text,
+  created_at timestamptz
+)
+```
+
+Índices: GIN para arrays, IVFFlat para embeddings de entidades, compuestos por (type,name) y (source_id,target_id,rel_type).
+
+RLS: usuarios ven sus flashcards/notas; público ve entidades/relaciones; servicio escribe.
+
+### Nuevos Agentes (GitHub Actions)
+
+- EntityExtractor Agent: NER + linking de nuevas entidades desde artículos recientes.
+- RelationMiner Agent: detecta relaciones y las normaliza con evidencia.
+- CitationBuilder Agent: agrega citas con fragmentos textuales y URLs.
+- KGMaintainer Agent: consolida duplicados, recalcula pesos, caducidad.
+- SRSPlanner Agent: genera/actualiza flashcards diarias del usuario.
+- MultimodalIngestor Agent: YouTube/PDF pipeline (resúmenes + índices).
+
+Todos operan en ventanas horarias distintas para distribuir minutos de Actions.
+
+### APIs Nuevas (Next.js)
+
+- `/api/kg/entities` GET/POST: búsqueda/alta de entidades.
+- `/api/kg/relations` GET/POST: consulta/alta de relaciones con evidencia.
+- `/api/flashcards` GET/POST/PATCH: gestión y scheduling SRS.
+- `/api/notes` GET/POST: notas y subrayados.
+- `/api/multimodal/youtube` POST: indexa videos por URL (con límites free).
+
+### UI/UX Nuevas
+
+- Knowledge Graph Explorer: vista de grafo con filtros por tipo y periodo.
+- Panel "Perspectivas": comparar fuentes para un mismo evento.
+- Tutor Dock: chat anclado con acciones (quiz, ejemplos, flashcards).
+- Modo Offline: indicador de sincronización y gestor de almacenamiento.
+- Modo Accesibilidad+: tema dislexia, control de espaciado, TTS integrado.
+
+### Rendimiento y $0‑Cost Mapping
+
+- Heavy compute en cliente (on‑device LLM, OCR) opcional.
+- Agentes batch vía GitHub Actions (minutos gratuitos) y caching agresivo.
+- Supabase gratis con índices bien pensados y pruning de datos antiguos.
+- YouTube API y web push bajo cuotas free.
+
+---
+
+## ✅ Criterios de Éxito de Fase 5
+
+- +40% tiempo de sesión por exploración del grafo.
+- >50% usuarios usan Tutor o flashcards semanales.
+- >30% artículos con "confidence badge" alto y citas.
+- 95% operaciones offline sin errores en PWA.
+
+---
+
+## 🔜 Roadmap Operativo (6–10 semanas)
+
+1) KG básico (entidades + relaciones + explorer).
+2) TrendDetector + FactChecker + citations.
+3) Tutor Dock + flashcards + SRS.
+4) PWA completo + offline + push.
+5) Multimodal YouTube + PDFs.
+6) On‑device LLM (pilot) + Accesibilidad+.
+
+Todo con coste $0 manteniendo la filosofía original.
+
 ### Flujo de Datos Principal
 
 #### 1. Curación de Noticias (Automático cada 6h)
-```
+
+```text
 GitHub Actions Trigger
   → Python Script (scrape RSS feeds)
     → LLM Filter (quality + relevance)
@@ -270,7 +482,8 @@ GitHub Actions Trigger
 ```
 
 #### 2. Generación de Cursos (On-Demand)
-```
+
+```text
 User Request (topic)
   → AI Course Generator
     → RAG Query (existing knowledge)
@@ -282,7 +495,8 @@ User Request (topic)
 ```
 
 #### 3. Mejora Continua (Daily)
-```
+
+```text
 Collect Feedback & Metrics
   → Analyze Patterns (LLM)
     → Generate Insights
@@ -296,6 +510,7 @@ Collect Feedback & Metrics
 ## 🎨 DISEÑO UI/UX REVOLUCIONARIO
 
 ### Principios de Diseño
+
 1. **Brutalist meets Minimalism** - Tipografía bold + espacios generosos
 2. **Kinetic Typography** - Texto que responde al scroll
 3. **Liquid Morphism** - Formas orgánicas y fluidas
@@ -306,7 +521,8 @@ Collect Feedback & Metrics
 ### Componentes Clave
 
 #### Homepage
-```
+
+```text
 Hero Section
 ├── Animated Gradient Background (GSAP)
 ├── 3D Floating Elements (Three.js)
@@ -332,7 +548,8 @@ AI Insights Section
 ```
 
 #### Course Page
-```
+
+```text
 Immersive Header
 ├── Parallax Background
 ├── Progress Bar (sticky)
@@ -359,7 +576,7 @@ AI Tutor Chat
 
 ### Responsive Strategy (Mobile-First)
 
-```
+```text
 Breakpoints:
 ├── xs: 320px (mobile small)
 ├── sm: 640px (mobile)
@@ -383,6 +600,7 @@ Mobile Optimizations:
 ### Agente Principal: "Nexus" (el cerebro)
 
 #### Capacidades
+
 1. **Auto-Curación de Noticias**
    - Scraping inteligente de 50+ fuentes RSS
    - Detección de duplicados (embeddings similarity)
@@ -411,6 +629,7 @@ Mobile Optimizations:
 ### Implementación Técnica
 
 #### Framework de Agentes
+
 ```typescript
 // lib/ai/agent-framework.ts
 
@@ -540,7 +759,8 @@ jobs:
 
 ### Módulo de Noticias
 
-#### Features
+#### Features (News)
+
 - [x] Feed infinito con lazy loading
 - [x] Filtros por categoría (Machine Learning, NLP, Computer Vision, etc.)
 - [x] Búsqueda semántica (embeddings)
@@ -552,7 +772,8 @@ jobs:
 - [x] Comments system (opcional)
 
 #### UI Components
-```
+
+```text
 ArticleCard
 ├── Thumbnail (lazy loaded, optimized)
 ├── Category Badge
@@ -575,7 +796,8 @@ ArticleDetail
 
 ### Módulo de Cursos
 
-#### Features
+#### Features (Courses)
+
 - [x] Catálogo de cursos (grid + list view)
 - [x] Búsqueda y filtros avanzados
 - [x] Generación de curso on-demand (AI)
@@ -588,7 +810,8 @@ ArticleDetail
 - [x] Offline mode (PWA)
 
 #### Course Generator UI
-```
+
+```text
 CourseRequestForm
 ├── Topic Input (autocomplete)
 ├── Difficulty Selector
@@ -615,7 +838,8 @@ CourseViewer
 ### Sistema de IA Visible
 
 #### Transparency Dashboard (Admin)
-```
+
+```text
 /admin/ai-dashboard
 
 Metrics:
@@ -635,7 +859,8 @@ Controls:
 ```
 
 #### User-Facing AI Indicators
-```
+
+```text
 "AI-Generated" Badge
 ├── Tooltip (how it was made)
 └── Quality Score (stars)
@@ -653,6 +878,7 @@ Controls:
 ### Estrategia Bilingüe
 
 #### Framework: next-intl
+
 ```typescript
 // app/[locale]/layout.tsx
 import {NextIntlClientProvider} from 'next-intl';
@@ -689,7 +915,8 @@ export default async function LocaleLayout({
 ```
 
 #### Estructura de Traducciones
-```
+
+```text
 messages/
 ├── en.json
 │   ├── common: { nav, footer, buttons }
@@ -700,6 +927,7 @@ messages/
 ```
 
 #### Contenido en BD (Dual Column)
+
 ```typescript
 // Modelo con i18n
 interface Article {
@@ -724,6 +952,7 @@ function getTranslatedArticle(article: Article, locale: string) {
 ```
 
 #### SEO Multilingüe
+
 ```typescript
 // app/[locale]/news/[slug]/page.tsx
 export async function generateMetadata({ params }) {
@@ -749,11 +978,13 @@ export async function generateMetadata({ params }) {
 ## 💸 ESTRATEGIA DE MONETIZACIÓN (Futuro)
 
 ### Fase 1: Crecimiento (6-12 meses) - GRATIS
+
 - Objetivo: 10,000+ usuarios activos mensuales
 - Inversión: $0 (tier gratuito de servicios)
 - Métricas clave: Engagement, retención, NPS
 
 ### Fase 2: Monetización Suave (12-18 meses)
+
 1. **Freemium Model**
    - Gratis: Noticias + 3 cursos/mes + AI tutor básico
    - Pro ($9.99/mes): Cursos ilimitados + AI tutor avanzado + certificados + sin ads

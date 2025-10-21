@@ -4,6 +4,8 @@
       "home": "Home",
       "news": "News",
       "courses": "Courses",
+      "trending": "Trending",
+      "kg": "Knowledge Graph",
       "about": "About"
     },
     "footer": {
@@ -24,6 +26,31 @@
       "en": "English",
       "es": "Español",
       "switchTo": "Switch to"
+    }
+  },
+  "kg": {
+    "title": "Knowledge Graph",
+    "searchPlaceholder": "Search entities...",
+    "noResults": "No results.",
+    "back": "Back",
+    "graphVisualization": "Graph Visualization",
+    "filters": {
+      "allTypes": "All types",
+      "apply": "Apply",
+      "prev": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "person": "Person",
+      "organization": "Organization",
+      "model": "Model",
+      "company": "Company",
+      "paper": "Paper",
+      "concept": "Concept"
+    },
+    "relations": {
+      "outgoing": "Outgoing Relations",
+      "incoming": "Incoming Relations",
+      "none": "No relations"
     }
   },
   "home": {
@@ -141,5 +168,10 @@
         "viewLogs": "View Logs"
       }
     }
+  },
+  "flashcards": {
+    "title": "Flashcards",
+    "subtitle": "Master AI concepts with spaced repetition",
+    "description": "Review and master AI concepts using spaced repetition flashcards"
   }
 }

@@ -236,3 +236,34 @@ All core features are **complete and production-ready**:
 ---
 
 **🎯 Mission Accomplished!** The platform is now a **self-improving AI news hub** that operates at **$0 cost** with **world-class UX**.
+
+---
+
+## 🔄 Status Update (Current Repository State)
+
+### Phase 4 – Completed in repo
+
+- Personalization Engine (backend/API/UI) with explainability
+- Smart Summarization (multi-level + cache-first API)
+- Voice Assistant (Web Speech API)
+- Learning Path Generator (backend/API)
+- Supabase migration for Phase 4 features and RLS
+- Docs updated (Phase 4 complete and next steps)
+
+### Phase 5 – Planned/In Progress
+
+- Architecture and roadmap added to `PROJECT_MASTER.md`
+- Priorities:
+  1) Knowledge Graph (entities, relations, citations) + Explorer UI
+  2) TrendDetector + FactChecker + Citation Builder (GitHub Actions)
+  3) Tutor Dock + flashcards + SRS scheduler
+  4) PWA offline + background sync (+ push opcional)
+- Supporting: multimodal ingestion, on-device LLM, community & credibility
+
+### Deployment Checklist
+
+- [ ] Apply Phase 4 migration in Supabase
+- [ ] Configure `.env.local` with Supabase and LLM keys
+- [ ] Manual QA of Phase 4 features
+- [ ] Deploy to Vercel and verify both locales
+- [ ] Verify analytics and error tracking

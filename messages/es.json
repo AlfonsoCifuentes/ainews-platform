@@ -4,6 +4,8 @@
       "home": "Inicio",
       "news": "Noticias",
       "courses": "Cursos",
+      "trending": "Tendencias",
+      "kg": "Grafo de Conocimiento",
       "about": "Acerca de"
     },
     "footer": {
@@ -24,6 +26,31 @@
       "en": "English",
       "es": "Español",
       "switchTo": "Cambiar a"
+    }
+  },
+  "kg": {
+    "title": "Grafo de Conocimiento",
+    "searchPlaceholder": "Buscar entidades...",
+    "noResults": "Sin resultados.",
+    "back": "Volver",
+    "graphVisualization": "Visualización del Grafo",
+    "filters": {
+      "allTypes": "Todos los tipos",
+      "apply": "Aplicar",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "page": "Página {{page}}",
+      "person": "Persona",
+      "organization": "Organización",
+      "model": "Modelo",
+      "company": "Empresa",
+      "paper": "Artículo",
+      "concept": "Concepto"
+    },
+    "relations": {
+      "outgoing": "Relaciones salientes",
+      "incoming": "Relaciones entrantes",
+      "none": "Sin relaciones"
     }
   },
   "home": {
@@ -141,5 +168,11 @@
         "viewLogs": "Ver Registros"
       }
     }
+  },
+  "flashcards": {
+    "title": "Tarjetas de Repaso",
+    "subtitle": "Domina conceptos de IA con repetición espaciada",
+    "description": "Repasa y domina conceptos de IA usando tarjetas con repetición espaciada"
   }
 }
+

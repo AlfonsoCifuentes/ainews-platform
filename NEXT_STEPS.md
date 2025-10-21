@@ -1,198 +1,55 @@
 # Next Steps - AINews Platform 🚀
 
-**Current Status**: Phase 4 Complete (Revolutionary Features Implemented)  
-**Ready for**: Database Migration → Testing → Deployment
+Current Status: Phase 4 Complete (Revolutionary Features Implemented)
+
+This document outlines the immediate next steps after Phase 4 and the execution plan for Phase 5.
 
 ---
 
-## 🎯 Immediate Actions Required
+## Immediate Actions (This Week)
 
-### 1. Apply Database Migration (Critical) ⚠️
+- Apply Phase 4 Supabase migration
+- Configure `.env.local` with Supabase and LLM keys
+- Manual QA: recommendations, summaries, voice, learning paths
+- Deploy to Vercel and verify both locales (EN/ES)
 
-The Phase 4 features require new database tables. Apply the migration in Supabase:
+## Short Term (2–4 Weeks)
 
-```bash
-# Option A: Supabase Dashboard (Recommended)
-1. Go to https://supabase.com/dashboard/project/YOUR_PROJECT/sql
-2. Copy contents of: supabase/migrations/20250101000004_phase4_revolutionary_features.sql
-3. Paste and click "Run"
+- Start Phase 5 execution
+- Priorities:
+  1. Knowledge Graph: tables, indexes, RLS, APIs (`/api/kg/entities`, `/api/kg/relations`, `/api/kg/search`)
+  2. Knowledge Graph Explorer UI (filters by type/time; semantic search)
+  3. Agents: TrendDetector + FactChecker + Citation Builder (GitHub Actions) with logs
+  4. Tutor Dock + flashcards + SRS scheduler (SM-2)
+  5. PWA offline cache + background sync (optional push)
 
-# Option B: Supabase CLI
-supabase db push
-```
+## Acceptance Criteria (Phase 5)
 
-**Tables Created**:
-- `user_interests` - Tracks user interactions for personalization
-- `article_summaries` - Caches multi-level summaries
-- `learning_paths` - Stores AI-generated curricula
-- `learning_path_progress` - Tracks module completion
+1. Knowledge Graph MVP
+   - Entities, relations, citations tables with indexes and RLS
+   - CRUD/Search APIs with Zod validation and auth
+   - Explorer page renders entities/relations; filters by type/time; semantic search (basic)
 
-### 2. Fix Type Errors in PersonalizedFeed ⚠️
+2. Trend & Fact Agents
+   - TrendDetector detects clusters from last 48h and emits topics
+   - FactChecker adds citations and confidence scores (cross-source agreement)
+   - Citation Builder stores quotes and source URLs
 
-**Issue**: `PersonalizedFeed.tsx` has type mismatch with `ArticleCard` component.
+3. Tutor + SRS
+   - Tutor dock available on articles/courses with quizzes and explanations
+   - Flashcards created and scheduled (SM-2)
+   - Daily due list served by API; review UX works offline
 
-**Problem**: `ArticleCard` expects full article object but `Recommendation.content` provides partial data.
+4. PWA Offline
+   - Articles/summaries/audio cached offline; course modules supported
+   - Background sync uploads progress and notes
+   - Optional push notifications configured
 
-**Missing Properties**:
-- `tags: string[]`
-- `source_url: string`
-- `ai_generated: boolean`
-- `quality_score: number`
-- `reading_time_minutes: number`
-- `content_en: string`
-- `content_es: string`
+## Tracking & Observability
 
-**Fix Options**:
-
-**Option A**: Refactor ArticleCard to accept partial data (Recommended)
-```typescript
-// components/news/ArticleCard.tsx
-interface ArticleCardProps {
-  article: {
-    id: string;
-    title_en: string;
-    title_es: string;
-    summary_en: string;
-    summary_es: string;
-    image_url: string | null;
-    category: string;
-    published_at: string;
-    // Optional fields
-    tags?: string[];
-    source_url?: string;
-    ai_generated?: boolean;
-    quality_score?: number;
-    reading_time_minutes?: number;
-  };
-  locale: 'en' | 'es';
-}
-```
-
-**Option B**: Fetch full article objects in recommendation API
-```typescript
-// lib/ai/personalization-engine.ts - getRecommendations()
-// After scoring, fetch complete article data:
-const fullArticles = await this.db
-  .from('news_articles')
-  .select('*')
-  .in('id', topRecommendations.map(r => r.content.id));
-```
-
-### 3. Environment Variables Check
-
-Ensure all required environment variables are set in `.env.local`:
-
-```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# LLM APIs (at least one required)
-OPENROUTER_API_KEY=your_openrouter_key  # Preferred
-GROQ_API_KEY=your_groq_key  # Fallback
-
-# Email (Phase 3)
-RESEND_API_KEY=your_resend_key
-
-# Analytics (Phase 3 - Optional)
-NEXT_PUBLIC_UMAMI_URL=your_umami_url
-NEXT_PUBLIC_UMAMI_SITE_ID=your_site_id
-```
-
-**Get Free API Keys**:
-- **OpenRouter**: https://openrouter.ai/ (free tier: meta-llama/llama-3.1-8b-instruct:free)
-- **Groq**: https://console.groq.com/ (free tier: llama3-8b-8192)
-- **Resend**: https://resend.com/ (free tier: 3000 emails/month)
-
----
-
-## 🧪 Testing Phase 4 Features
-
-### Test 1: AI Personalization Engine
-
-```typescript
-// 1. Track user interactions
-await fetch('/api/recommendations', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    userId: 'test-user-123',
-    contentType: 'article',
-    contentId: 'article-id-here',
-    interactionType: 'like'  // Options: view, search, like, bookmark, complete
-  })
-});
-
-// 2. Get personalized recommendations
-const response = await fetch('/api/recommendations?userId=test-user-123&limit=10');
-const { data } = await response.json();
-
-console.log('Recommendations:', data);
-// Each recommendation includes:
-// - content: article/course object
-// - score: relevance score
-// - reasoning: ["Matches your interest in Machine Learning", ...]
-```
-
-**Expected Behavior**:
-- After 5+ interactions, recommendations should match user's interests
-- Cold start: Should return trending content
-- Explanations should be clear and accurate
-
-### Test 2: Smart Summarization
-
-```typescript
-// 1. Generate summary (cache-first)
-const response = await fetch('/api/summarize?contentId=article-id&level=quick');
-const { data } = await response.json();
-
-console.log('Summary:', data);
-// Returns: { summary_text, key_points: [...], reading_time_seconds }
-
-// 2. Batch generate all levels
-await fetch('/api/summarize', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    contentId: 'article-id',
-    contentType: 'article',
-    contentText: '...full article text...'
-  })
-});
-```
-
-**Expected Behavior**:
-- TL;DR: ~50-100 words (30s read)
-- Quick: ~200-300 words (2min read)
-- Standard: ~400-600 words (5min read)
-- Key points: 3-5 bullet points
-- Second fetch should be instant (cached)
-
-### Test 3: Voice AI Assistant
-
-```tsx
-// Add to any article page
-import VoiceAssistant from '@/components/shared/VoiceAssistant';
-
-<VoiceAssistant
-  content={article.content_en}  // or content_es
-  locale={locale}
-  title={article.title_en}
-/>
-```
-
-**Manual Testing**:
-1. Click floating voice button (bottom-right)
-2. Click Play → should read article aloud
-3. Test Pause, Skip Forward/Back (10s jumps)
-4. Open Settings → adjust Speed (0.5x - 2x), Pitch, Volume
-5. Verify progress bar updates in real-time
-
-**Browser Support**:
-- ✅ Chrome/Edge: Full support
-- ⚠️ Firefox: Limited voices
-- ❌ Safari iOS: No speech synthesis
+- Log to `ai_system_logs` for new agents
+- Minimal admin view to monitor agent health and KG size
+- Track Lighthouse mobile score (>90) after PWA shipment
 
 ### Test 4: Learning Path Generator
 
@@ -232,6 +89,7 @@ console.log('Generated Path:', learningPath);
 ## 🚀 Deployment Checklist
 
 ### Pre-Deployment
+
 - [ ] Database migration applied successfully
 - [ ] All environment variables set in Vercel
 - [ ] Type errors in PersonalizedFeed fixed
@@ -240,6 +98,7 @@ console.log('Generated Path:', learningPath);
 - [ ] No console errors or warnings
 
 ### Vercel Deployment
+
 ```bash
 # 1. Connect GitHub repo to Vercel (if not already)
 # https://vercel.com/new
@@ -256,6 +115,7 @@ git push origin main
 ```
 
 ### Post-Deployment
+
 - [ ] Test all features on production URL
 - [ ] Verify Supabase RLS policies work
 - [ ] Check LLM API calls (should be minimal due to caching)

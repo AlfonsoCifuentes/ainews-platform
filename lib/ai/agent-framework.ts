@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LLMClient } from './llm-client';
 
 export interface AgentMetrics {
+  agent?: string;
   actionType: string;
   modelUsed: string;
   inputTokens: number;
@@ -10,6 +11,8 @@ export interface AgentMetrics {
   errorMessage?: string;
   executionTime: number;
   cost: number;
+  topics_found?: number;
+  articles_stored?: number;
 }
 
 export abstract class AIAgent {

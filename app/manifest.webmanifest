@@ -1,0 +1,9 @@
+{
+  "name": "AINews",
+  "short_name": "AINews",
+  "start_url": "/en",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#6750A4",
+  "icons": []
+}

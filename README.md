@@ -230,6 +230,24 @@ npm run test:coverage  # Coverage report
 - [Supabase Setup](./docs/supabase-setup.md) - Configuración de base de datos
 - [AI Agents Guide](./docs/ai-agents.md) - Guía de agentes de IA
 
+### Estado (Fase 4 Completada, Fase 5 en Marcha)
+
+- Fase 4 implementada: Motor de Personalización, Smart Summaries, Voice Assistant, Learning Paths, migración de BD y docs.
+- Fase 5 planificada en `PROJECT_MASTER.md`:
+  - Multi-Agent Newsroom (trends, fact-check, bias/sentiment, multi-perspective, translation QA)
+  - Knowledge Graph (entidades, relaciones, citas) + Explorer y RAG por entidad
+  - Tutor Dock + Spaced Repetition (flashcards SM-2)
+  - PWA offline total + background sync (+ push opcional)
+  - Ingesta multimodal (YouTube, PDFs) y on-device LLM opcional
+
+### Roadmap Corto (Próximos pasos)
+
+1) Aplicar migración de Fase 4 en Supabase y configurar `.env.local`; probar y desplegar a Vercel.
+2) Implementar Knowledge Graph (tablas, APIs, Explorer).
+3) TrendDetector + FactChecker + Citation Builder (agentes en GitHub Actions).
+4) Tutor Dock + flashcards + SRS scheduler.
+5) PWA offline + background sync (+ push opcional).
+
 ## 🤝 Contribuir
 
 ¡Contribuciones bienvenidas! Por favor:
@@ -260,6 +278,6 @@ MIT License - ver [LICENSE](./LICENSE) para detalles.
 
 ---
 
-**Built with ❤️ and 🤖 AI**
+Built with ❤️ and 🤖 AI
 
 ⭐ Si te gusta el proyecto, dale una estrella en GitHub!

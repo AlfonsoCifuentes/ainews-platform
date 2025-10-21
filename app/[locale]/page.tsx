@@ -78,6 +78,11 @@ export default function HomePage() {
               <p className="text-muted-foreground">
                 {t('features.learning.description')}
               </p>
+              <div className="mt-6">
+                <Link href="/kg" className="inline-flex items-center gap-2 text-primary hover:underline">
+                  Knowledge Graph →
+                </Link>
+              </div>
             </div>
           </div>
         </div>

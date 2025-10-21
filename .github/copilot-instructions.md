@@ -139,6 +139,15 @@ The platform has **autonomous AI agents** that run on schedule (GitHub Actions):
    - Logs improvements
    - Self-optimizes strategies
 
+4. **Phase 5 Agents (planned)**
+  - TrendDetector: detect bursty topics from recent RSS + embeddings clusters
+  - FactChecker: cross-source validation and confidence scoring with citations
+  - Bias&Sentiment Auditor: bias/tonality labeling across categories
+  - MultiPerspective Summarizer: source/region/company comparative summaries
+  - CitationBuilder: attach quotes, URLs, and timestamps to entities/relations
+  - KG Maintainer: dedupe entities, normalize relations, decay outdated edges
+  - SRSPlanner: generate user flashcards and schedules (SM-2)
+
 ### Agent Implementation Pattern
 ```typescript
 // lib/ai/agent-framework.ts
@@ -196,6 +205,13 @@ export class LLMClient {
 - `user_progress` - Tracking + gamification
 - `ai_system_logs` - All AI operations logged
 - `ai_feedback` - User feedback for learning agent
+
+### Phase 5 Tables (planned)
+- `entities` - id, type, name, aliases[], description, metadata jsonb, embedding
+- `entity_relations` - source_id, target_id, rel_type, weight, evidence jsonb
+- `citations` - (entity_id|relation_id|article_id), quote, source_url, published_at
+- `flashcards` - user_id, content_id, front, back, ease_factor, interval_days, repetitions, due_at
+- `user_highlights` - user_id, content_id, selection, note, created_at
 
 ### Embeddings + RAG
 ```typescript
@@ -374,6 +390,12 @@ const CourseGenerator = dynamic(
 - Tree-shake unused code
 - Code-split by route (automatic with App Router)
 - Target: <150KB initial JS bundle
+
+### PWA & Offline (Phase 5)
+- Service worker to cache articles, summaries, audio TTS, and course modules
+- Background sync for progress and notes; retry on reconnect
+- Web App Manifest for installability; optional web push using VAPID
+- Respect storage quotas and provide offline storage UI
 
 ---
 
