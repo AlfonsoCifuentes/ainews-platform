@@ -1,0 +1,140 @@
+{
+  "common": {
+    "nav": {
+      "home": "Home",
+      "news": "News",
+      "courses": "Courses",
+      "about": "About"
+    },
+    "footer": {
+      "copyright": "© 2025 AINews. All rights reserved.",
+      "builtWith": "Built with AI"
+    },
+    "buttons": {
+      "readMore": "Read More",
+      "learnMore": "Learn More",
+      "startCourse": "Start Course",
+      "generate": "Generate",
+      "loading": "Loading...",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete"
+    },
+    "language": {
+      "en": "English",
+      "es": "Español",
+      "switchTo": "Switch to"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "AI News & Learning",
+      "subtitle": "Stay updated with the latest AI innovations and learn with AI-generated courses",
+      "cta": "Explore News",
+      "ctaSecondary": "Browse Courses"
+    },
+    "features": {
+      "title": "Powered by AI",
+      "subtitle": "A platform that learns and improves continuously",
+      "news": {
+        "title": "Curated News",
+        "description": "Automatically curated AI news from 50+ sources every 6 hours"
+      },
+      "courses": {
+        "title": "AI-Generated Courses",
+        "description": "Create comprehensive courses on any AI topic instantly"
+      },
+      "learning": {
+        "title": "Self-Improving",
+        "description": "Our AI learns from feedback and gets better every day"
+      }
+    }
+  },
+  "news": {
+    "title": "Latest AI News",
+    "categories": {
+      "all": "All",
+      "machinelearning": "Machine Learning",
+      "nlp": "NLP",
+      "computervision": "Computer Vision",
+      "robotics": "Robotics",
+      "ethics": "Ethics"
+    },
+    "filters": {
+      "search": "Search articles...",
+      "category": "Category",
+      "sortBy": "Sort by",
+      "newest": "Newest",
+      "popular": "Popular",
+      "trending": "Trending"
+    },
+    "card": {
+      "readTime": "{{minutes}} min read",
+      "aiGenerated": "AI Generated",
+      "bookmark": "Bookmark",
+      "share": "Share"
+    },
+    "detail": {
+      "relatedArticles": "Related Articles",
+      "aiSummary": "AI Summary",
+      "showSummary": "Show Summary",
+      "hideSummary": "Hide Summary"
+    }
+  },
+  "courses": {
+    "title": "AI Courses",
+    "catalog": {
+      "title": "Course Catalog",
+      "filterByDifficulty": "Difficulty",
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced",
+      "filterByDuration": "Duration",
+      "short": "< 1 hour",
+      "medium": "1-3 hours",
+      "long": "> 3 hours"
+    },
+    "generator": {
+      "title": "Generate a New Course",
+      "subtitle": "Our AI will create a comprehensive course on any AI topic",
+      "topicLabel": "Course Topic",
+      "topicPlaceholder": "e.g., Transformers Architecture, GANs, Reinforcement Learning",
+      "difficultyLabel": "Difficulty Level",
+      "durationLabel": "Preferred Duration",
+      "generateButton": "Generate Course",
+      "generating": "Generating your course...",
+      "progress": {
+        "analyzing": "Analyzing topic...",
+        "outline": "Creating outline...",
+        "content": "Generating content...",
+        "quizzes": "Creating quizzes...",
+        "finalizing": "Finalizing course..."
+      }
+    },
+    "viewer": {
+      "progress": "Progress",
+      "modules": "Modules",
+      "resources": "Resources",
+      "quiz": "Quiz",
+      "completed": "Completed",
+      "certificate": "Get Certificate",
+      "askAI": "Ask AI Tutor"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "AI Dashboard",
+      "metrics": {
+        "articlesCurated": "Articles Curated",
+        "coursesGenerated": "Courses Generated",
+        "apiCalls": "API Calls",
+        "qualityScore": "Quality Score"
+      },
+      "actions": {
+        "triggerCuration": "Trigger Curation",
+        "testGenerator": "Test Generator",
+        "viewLogs": "View Logs"
+      }
+    }
+  }
+}

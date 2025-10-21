@@ -1,0 +1,140 @@
+{
+  "common": {
+    "nav": {
+      "home": "Inicio",
+      "news": "Noticias",
+      "courses": "Cursos",
+      "about": "Acerca de"
+    },
+    "footer": {
+      "copyright": "© 2025 AINews. Todos los derechos reservados.",
+      "builtWith": "Construido con IA"
+    },
+    "buttons": {
+      "readMore": "Leer Más",
+      "learnMore": "Aprender Más",
+      "startCourse": "Comenzar Curso",
+      "generate": "Generar",
+      "loading": "Cargando...",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "delete": "Eliminar"
+    },
+    "language": {
+      "en": "English",
+      "es": "Español",
+      "switchTo": "Cambiar a"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "Noticias de IA y Aprendizaje",
+      "subtitle": "Mantente actualizado con las últimas innovaciones en IA y aprende con cursos generados por IA",
+      "cta": "Explorar Noticias",
+      "ctaSecondary": "Ver Cursos"
+    },
+    "features": {
+      "title": "Impulsado por IA",
+      "subtitle": "Una plataforma que aprende y mejora continuamente",
+      "news": {
+        "title": "Noticias Curadas",
+        "description": "Noticias de IA curadas automáticamente de más de 50 fuentes cada 6 horas"
+      },
+      "courses": {
+        "title": "Cursos Generados por IA",
+        "description": "Crea cursos completos sobre cualquier tema de IA al instante"
+      },
+      "learning": {
+        "title": "Auto-mejorante",
+        "description": "Nuestra IA aprende del feedback y mejora cada día"
+      }
+    }
+  },
+  "news": {
+    "title": "Últimas Noticias de IA",
+    "categories": {
+      "all": "Todas",
+      "machinelearning": "Aprendizaje Automático",
+      "nlp": "PLN",
+      "computervision": "Visión por Computadora",
+      "robotics": "Robótica",
+      "ethics": "Ética"
+    },
+    "filters": {
+      "search": "Buscar artículos...",
+      "category": "Categoría",
+      "sortBy": "Ordenar por",
+      "newest": "Más reciente",
+      "popular": "Popular",
+      "trending": "Tendencia"
+    },
+    "card": {
+      "readTime": "{{minutes}} min de lectura",
+      "aiGenerated": "Generado por IA",
+      "bookmark": "Guardar",
+      "share": "Compartir"
+    },
+    "detail": {
+      "relatedArticles": "Artículos Relacionados",
+      "aiSummary": "Resumen IA",
+      "showSummary": "Mostrar Resumen",
+      "hideSummary": "Ocultar Resumen"
+    }
+  },
+  "courses": {
+    "title": "Cursos de IA",
+    "catalog": {
+      "title": "Catálogo de Cursos",
+      "filterByDifficulty": "Dificultad",
+      "beginner": "Principiante",
+      "intermediate": "Intermedio",
+      "advanced": "Avanzado",
+      "filterByDuration": "Duración",
+      "short": "< 1 hora",
+      "medium": "1-3 horas",
+      "long": "> 3 horas"
+    },
+    "generator": {
+      "title": "Generar un Nuevo Curso",
+      "subtitle": "Nuestra IA creará un curso completo sobre cualquier tema de IA",
+      "topicLabel": "Tema del Curso",
+      "topicPlaceholder": "ej., Arquitectura de Transformers, GANs, Aprendizaje por Refuerzo",
+      "difficultyLabel": "Nivel de Dificultad",
+      "durationLabel": "Duración Preferida",
+      "generateButton": "Generar Curso",
+      "generating": "Generando tu curso...",
+      "progress": {
+        "analyzing": "Analizando tema...",
+        "outline": "Creando estructura...",
+        "content": "Generando contenido...",
+        "quizzes": "Creando cuestionarios...",
+        "finalizing": "Finalizando curso..."
+      }
+    },
+    "viewer": {
+      "progress": "Progreso",
+      "modules": "Módulos",
+      "resources": "Recursos",
+      "quiz": "Cuestionario",
+      "completed": "Completado",
+      "certificate": "Obtener Certificado",
+      "askAI": "Preguntar al Tutor IA"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Panel de IA",
+      "metrics": {
+        "articlesCurated": "Artículos Curados",
+        "coursesGenerated": "Cursos Generados",
+        "apiCalls": "Llamadas API",
+        "qualityScore": "Puntuación de Calidad"
+      },
+      "actions": {
+        "triggerCuration": "Activar Curación",
+        "testGenerator": "Probar Generador",
+        "viewLogs": "Ver Registros"
+      }
+    }
+  }
+}
