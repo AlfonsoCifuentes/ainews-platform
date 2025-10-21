@@ -2,13 +2,13 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import type { INewsArticle } from '@/lib/types/news';
+import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 
 type ArticleCardProps = {
-  article: INewsArticle;
+  article: INewsArticle | IArticlePreview;
   locale: Locale;
   priority?: boolean;
   translations: {
@@ -104,7 +104,7 @@ export function ArticleCard({
             <span>
               {translations.readTime.replace(
                 '{{minutes}}',
-                String(article.reading_time_minutes),
+                String(article.reading_time_minutes ?? 5),
               )}
             </span>
             {article.ai_generated && (

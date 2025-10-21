@@ -30,6 +30,12 @@ Una plataforma revolucionaria que combina curación automática de noticias de I
 - 📈 **Analytics Dashboard** - Métricas de plataforma y engagement en tiempo real
 - ⚡ **Automated Jobs** - Digest semanal, registro de XP diario, refresh de analytics
 
+### Revolutionary Features (Phase 4) 🚀
+- 🧠 **AI Personalization Engine** - Netflix-style recommendations (content-based + collaborative)
+- 📝 **Smart Summarization** - 3-level summaries (TL;DR 30s / Quick 2min / Standard 5min)
+- 🎙️ **Voice AI Assistant** - Read articles aloud with full voice controls (Web Speech API)
+- 🎓 **Learning Path Generator** - AI-powered personalized curricula with skill gap analysis
+
 ## 🛠️ Stack Tecnológico
 
 ### Frontend

@@ -32,4 +32,19 @@ export const newsArticleSchema = z
 
 export type INewsArticle = z.infer<typeof newsArticleSchema>;
 
+// Partial article type for recommendations (only required fields)
+export type IArticlePreview = Pick<
+  INewsArticle,
+  'id' | 'title_en' | 'title_es' | 'summary_en' | 'summary_es' | 'category' | 'published_at'
+> & {
+  image_url?: string | null;
+  tags?: string[];
+  source_url?: string;
+  ai_generated?: boolean;
+  quality_score?: number;
+  reading_time_minutes?: number;
+  content_en?: string;
+  content_es?: string;
+};
+
 export const newsArticleArraySchema = z.array(newsArticleSchema);
