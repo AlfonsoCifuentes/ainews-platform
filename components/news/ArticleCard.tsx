@@ -51,7 +51,7 @@ export function ArticleCard({
       variants={cardVariants}
       initial="rest"
       whileHover="hover"
-      className="glass group relative flex flex-col overflow-hidden rounded-3xl shadow-lg transition-shadow duration-300 hover:shadow-2xl"
+      className="group relative flex flex-col overflow-hidden rounded-3xl backdrop-blur-xl bg-white/5 dark:bg-black/20 border border-white/10 dark:border-white/5 shadow-[0_25px_65px_-35px_rgba(14,15,45,0.75)] transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_45px_120px_-45px_rgba(104,58,255,0.3)]"
       style={{
         transformStyle: 'preserve-3d',
         perspective: 1000,

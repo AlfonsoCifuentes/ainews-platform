@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
   { key: 'home', href: '/' },
@@ -73,6 +74,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <LanguageSwitcher />
         </div>
       </div>

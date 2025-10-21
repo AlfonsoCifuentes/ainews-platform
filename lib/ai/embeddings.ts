@@ -11,26 +11,149 @@ export interface EmbeddingResult {
   };
 }
 
-/**
- * Generate embedding using a free/open API or local model
- * For now, returns a mock embedding. In production, use:
- * - HuggingFace Inference API (free tier)
- * - OpenRouter with embedding models
- * - Local ONNX models
- */
-export async function generateEmbedding(_text: string): Promise<number[]> {
-  // Mock embedding for development
-  // TODO: Replace with actual embedding generation
-  const dim = 1536;
-  const embedding = Array.from({ length: dim }, () => Math.random() * 2 - 1);
-  
-  // Normalize
-  const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  return embedding.map((val) => val / norm);
+export interface ArticleEmbeddingResult {
+  id: string;
+  title_en: string;
+  title_es: string;
+  content_en: string;
+  content_es: string;
+  summary_en?: string;
+  summary_es?: string;
+  category: string;
+  image_url?: string;
+  published_at: string;
+  similarity: number;
 }
 
 /**
- * Semantic search using pgvector cosine similarity
+ * Generate embedding using OpenRouter API
+ * Uses OpenAI's text-embedding-ada-002 model via OpenRouter
+ */
+export async function generateEmbedding(text: string): Promise<number[] | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('[Embeddings] OPENROUTER_API_KEY not configured, skipping embedding generation');
+    return null;
+  }
+  
+  if (!text || text.trim().length === 0) {
+    console.warn('[Embeddings] Empty text provided');
+    return null;
+  }
+  
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.app',
+        'X-Title': 'AINews Platform'
+      },
+      body: JSON.stringify({
+        model: 'openai/text-embedding-ada-002',
+        input: text.slice(0, 8000) // Limit to 8k chars to avoid token limits
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Embeddings] API request failed:', response.status, errorText);
+      return null;
+    }
+    
+    const data = await response.json();
+    const embedding = data?.data?.[0]?.embedding;
+    
+    if (!Array.isArray(embedding) || embedding.length !== 1536) {
+      console.error('[Embeddings] Invalid embedding response format');
+      return null;
+    }
+    
+    return embedding as number[];
+  } catch (error) {
+    console.error('[Embeddings] Failed to generate embedding:', error);
+    return null;
+  }
+}
+
+/**
+ * Semantic search for articles using pgvector cosine similarity
+ */
+export async function searchArticles(
+  query: string,
+  options: {
+    limit?: number;
+    threshold?: number;
+    category?: string;
+  } = {}
+): Promise<ArticleEmbeddingResult[]> {
+  const { limit = 10, threshold = 0.75, category } = options;
+  
+  try {
+    const queryEmbedding = await generateEmbedding(query);
+    
+    if (!queryEmbedding) {
+      return [];
+    }
+    
+    const db = getSupabaseServerClient();
+    
+    const { data, error } = await db.rpc('match_documents', {
+      query_embedding: queryEmbedding,
+      match_threshold: threshold,
+      match_count: limit
+    });
+    
+    if (error) {
+      console.error('[Embeddings] Semantic search error:', error);
+      return [];
+    }
+    
+    let results = (data || []) as ArticleEmbeddingResult[];
+    
+    // Filter by category if specified
+    if (category && category !== 'all') {
+      results = results.filter((r) => r.category === category);
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('[Embeddings] Search failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Find related articles using similarity
+ */
+export async function findRelatedArticles(
+  articleId: string,
+  limit: number = 5
+): Promise<ArticleEmbeddingResult[]> {
+  try {
+    const db = getSupabaseServerClient();
+    
+    const { data, error } = await db.rpc('find_related_articles', {
+      article_id: articleId,
+      match_count: limit
+    });
+    
+    if (error) {
+      console.error('[Embeddings] Related articles error:', error);
+      return [];
+    }
+    
+    return (data || []) as ArticleEmbeddingResult[];
+  } catch (error) {
+    console.error('[Embeddings] Find related failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Semantic search for entities (Knowledge Graph)
  */
 export async function semanticSearch(
   query: string,
@@ -44,20 +167,21 @@ export async function semanticSearch(
   
   try {
     const queryEmbedding = await generateEmbedding(query);
+    
+    if (!queryEmbedding) {
+      return [];
+    }
+    
     const db = getSupabaseServerClient();
     
-    // Use pgvector's <-> operator for cosine distance
-    // Note: 1 - (embedding <-> query) gives similarity
-    const rpcQuery = db.rpc('match_entities', {
+    const { data, error } = await db.rpc('match_entities', {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: limit,
     });
     
-    const { data, error } = await rpcQuery;
-    
     if (error) {
-      console.error('Semantic search error:', error);
+      console.error('[Embeddings] Entity search error:', error);
       return [];
     }
     
@@ -70,8 +194,50 @@ export async function semanticSearch(
     
     return results;
   } catch (error) {
-    console.error('Embedding generation error:', error);
+    console.error('[Embeddings] Entity search failed:', error);
     return [];
+  }
+}
+
+/**
+ * Store embedding for content
+ */
+export async function storeEmbedding(
+  contentId: string,
+  contentType: 'article' | 'course' | 'entity',
+  text: string,
+  metadata: Record<string, unknown> = {}
+): Promise<boolean> {
+  try {
+    const embedding = await generateEmbedding(text);
+    
+    if (!embedding) {
+      console.warn('[Embeddings] Failed to generate embedding for', contentId);
+      return false;
+    }
+    
+    const db = getSupabaseServerClient();
+    
+    const { error } = await db
+      .from('content_embeddings')
+      .upsert({
+        content_id: contentId,
+        content_type: contentType,
+        embedding,
+        metadata
+      }, {
+        onConflict: 'content_id,content_type'
+      });
+    
+    if (error) {
+      console.error('[Embeddings] Store error:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('[Embeddings] Store failed:', error);
+    return false;
   }
 }
 

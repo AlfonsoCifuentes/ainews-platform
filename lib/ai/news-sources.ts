@@ -66,4 +66,21 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'OpenAI Research Publications', url: 'https://openai.com/research/feed', category: 'research', language: 'en' },
   { name: 'DeepMind Blog', url: 'https://deepmind.com/blog/feed/basic', category: 'company', language: 'en' },
   { name: 'NVIDIA Technical Blog – AI', url: 'https://developer.nvidia.com/blog/tag/artificial-intelligence/feed/', category: 'company', language: 'en' },
+  
+  // Additional sources from PROJECT_MASTER
+  { name: 'Papers with Code', url: 'https://paperswithcode.com/latest', category: 'research', language: 'en', notes: 'ML papers with implementations' },
+  { name: 'The Batch (DeepLearning.AI)', url: 'https://www.deeplearning.ai/the-batch/feed/', category: 'newsletter', language: 'en', notes: 'Andrew Ng weekly insights' },
+  { name: 'Reddit r/MachineLearning', url: 'https://www.reddit.com/r/MachineLearning/.rss', category: 'community', language: 'en', notes: 'Technical ML discussions' },
+  
+  // Latin America sources
+  { name: 'Clarín Tecnología', url: 'https://www.clarin.com/rss/tecnologia/', category: 'news', language: 'es', notes: 'Argentine tech coverage' },
+  { name: 'El Tiempo Tecnología', url: 'https://www.eltiempo.com/rss/tecnologia.xml', category: 'news', language: 'es', notes: 'Colombian tech news' },
+  { name: 'La Vanguardia Tecnología', url: 'https://www.lavanguardia.com/rss/tecnologia/index.xml', category: 'news', language: 'es', notes: 'Spanish tech coverage' },
+  { name: 'ABC Tecnología', url: 'https://www.abc.es/rss/feeds/abc_tecnologia.xml', category: 'news', language: 'es', notes: 'Spanish mainstream tech' },
+  { name: 'El Mundo Tecnología', url: 'https://www.elmundo.es/rss/tecnologia.xml', category: 'news', language: 'es', notes: 'Spanish tech and science' },
+  
+  // Spanish learning & community
+  { name: 'Genbeta', url: 'https://www.genbeta.com/tag/inteligencia-artificial/feed', category: 'tutorials', language: 'es', notes: 'Software and productivity guides' },
+  { name: 'Hipertextual IA', url: 'https://hipertextual.com/tag/inteligencia-artificial/feed', category: 'news', language: 'es', notes: 'Tech culture and AI applications' },
+  { name: 'Diseña con IA', url: 'https://disenaconia.com/feed/', category: 'tutorials', language: 'es', notes: 'AI tools comparisons and tutorials' },
 ] as const;

@@ -7,6 +7,8 @@ import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
+import { MatrixRain } from '@/components/shared/MatrixRain';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -41,9 +43,9 @@ export default async function LocaleLayout({
   const umamiScriptSrc = `${umamiBaseUrl}/script.js`;
 
   return (
-    <html lang={locale} className="dark" data-theme="dark" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${inter.className} bg-background text-foreground antialiased selection:bg-primary/40 selection:text-primary-foreground`}
+        className={`${inter.className} bg-black text-white antialiased selection:bg-purple-500/40 selection:text-white`}
       >
         {umamiSiteId ? (
           <Script
@@ -52,16 +54,23 @@ export default async function LocaleLayout({
             data-website-id={umamiSiteId}
           />
         ) : null}
-        <NextIntlClientProvider messages={messages} locale={locale}>
-          <div className="relative flex min-h-screen flex-col">
-            <div className="pointer-events-none fixed inset-0 opacity-80 mix-blend-screen" aria-hidden>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.18),transparent_55%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.12),transparent_45%)]" />
+        <ThemeProvider>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <div className="relative flex min-h-screen flex-col">
+              {/* Matrix Rain Background */}
+              <MatrixRain />
+              
+              {/* Gradient Overlay */}
+              <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+              </div>
+              
+              <Header />
+              <main className="flex-1 relative z-10">{children}</main>
+              <Footer />
             </div>
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-        </NextIntlClientProvider>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
