@@ -141,7 +141,13 @@
         "content": "Generando contenido...",
         "quizzes": "Creando cuestionarios...",
         "finalizing": "Finalizando curso..."
-      }
+      },
+      "successTitle": "¡Curso listo!",
+      "successDescription": "El curso \"{{title}}\" está disponible con {{modules}} módulos (~{{minutes}} minutos).",
+      "viewCourse": "Ir al panel",
+      "errorTitle": "La generación falló",
+      "errorDescription": "No pudimos generar el curso. Inténtalo nuevamente en unos instantes.",
+      "retry": "Intentar de nuevo"
     },
     "viewer": {
       "progress": "Progreso",

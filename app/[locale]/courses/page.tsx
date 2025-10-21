@@ -65,6 +65,14 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
               quizzes: tCourses('generator.progress.quizzes'),
               finalizing: tCourses('generator.progress.finalizing'),
             },
+            result: {
+              successTitle: tCourses('generator.successTitle'),
+              successDescription: tCourses('generator.successDescription'),
+              viewCourse: tCourses('generator.viewCourse'),
+              errorTitle: tCourses('generator.errorTitle'),
+              errorDescription: tCourses('generator.errorDescription'),
+              retry: tCourses('generator.retry'),
+            },
           }}
         />
 

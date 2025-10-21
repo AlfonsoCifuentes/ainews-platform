@@ -141,7 +141,13 @@
         "content": "Generating content...",
         "quizzes": "Creating quizzes...",
         "finalizing": "Finalizing course..."
-      }
+      },
+      "successTitle": "Course ready!",
+      "successDescription": "Course \"{{title}}\" is live with {{modules}} modules (~{{minutes}} minutes).",
+      "viewCourse": "Go to dashboard",
+      "errorTitle": "Generation failed",
+      "errorDescription": "We couldn't generate the course. Please try again in a moment.",
+      "retry": "Try again"
     },
     "viewer": {
       "progress": "Progress",

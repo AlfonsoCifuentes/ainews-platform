@@ -2,8 +2,31 @@
 
 import { useState, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+
+type CourseGenerationResult = {
+  course_id: string;
+  title: string;
+  modules_count: number;
+  estimated_duration_minutes: number;
+};
+
+type CourseGenerationResponse = {
+  success: boolean;
+  data?: CourseGenerationResult;
+  error?: string;
+  message?: string;
+};
+
+function formatTemplate(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
+    const value = values[key];
+    return value === undefined ? '' : String(value);
+  });
+}
 
 type CourseGeneratorProps = {
   translations: {
@@ -28,6 +51,14 @@ type CourseGeneratorProps = {
       quizzes: string;
       finalizing: string;
     };
+    result: {
+      successTitle: string;
+      successDescription: string;
+      viewCourse: string;
+      errorTitle: string;
+      errorDescription: string;
+      retry: string;
+    };
   };
 };
 
@@ -40,10 +71,13 @@ const progressSteps = [
 ] as const;
 
 export function CourseGenerator({ translations }: CourseGeneratorProps) {
+  const locale = useLocale();
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');
   const [currentStep, setCurrentStep] = useState(0);
+  const [result, setResult] = useState<CourseGenerationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const handleGenerate = () => {
@@ -52,22 +86,62 @@ export function CourseGenerator({ translations }: CourseGeneratorProps) {
     }
 
     startTransition(async () => {
-      // Simulate generation with step progression
-      for (let i = 0; i < progressSteps.length; i++) {
-        setCurrentStep(i);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/courses/generate', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ topic, difficulty, duration }),
-      // });
-
+      setError(null);
+      setResult(null);
       setCurrentStep(0);
-      alert('Course generation complete! (Mock)');
+
+      const progressTimer = window.setInterval(() => {
+        setCurrentStep((prev) => (prev < progressSteps.length - 1 ? prev + 1 : prev));
+      }, 1600);
+
+      try {
+        const response = await fetch('/api/courses/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ topic, difficulty, duration, locale })
+        });
+
+        let payload: CourseGenerationResponse | null = null;
+
+        try {
+          payload = (await response.json()) as CourseGenerationResponse;
+        } catch (parseError) {
+          console.error('[CourseGenerator] Failed to parse response', parseError);
+        }
+
+        if (!payload || !response.ok || !payload.success || !payload.data) {
+          const errorMessage =
+            (payload && (payload.error || payload.message)) || translations.result.errorDescription;
+          throw new Error(errorMessage);
+        }
+
+        setResult(payload.data);
+        setCurrentStep(progressSteps.length - 1);
+        setTopic('');
+      } catch (generationError) {
+        console.error('[CourseGenerator] Generation failed', generationError);
+        const fallback = translations.result.errorDescription;
+        const message =
+          generationError instanceof Error && generationError.message && generationError.message !== fallback
+            ? generationError.message
+            : fallback;
+        setError(message);
+      } finally {
+        window.clearInterval(progressTimer);
+        setCurrentStep(0);
+      }
     });
   };
+
+  const successDescription = result
+    ? formatTemplate(translations.result.successDescription, {
+        title: result.title,
+        modules: result.modules_count,
+        minutes: result.estimated_duration_minutes
+      })
+    : '';
 
   return (
     <div className="glass rounded-3xl p-8 shadow-xl">
@@ -184,6 +258,51 @@ export function CourseGenerator({ translations }: CourseGeneratorProps) {
                   </span>
                 </div>
               ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {result && !isPending && (
+            <motion.div
+              key="generation-success"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              className="mt-6 rounded-3xl border border-primary/40 bg-primary/10 p-6 text-left shadow-lg"
+            >
+              <h3 className="text-xl font-bold text-primary">{translations.result.successTitle}</h3>
+              <p className="mt-2 text-sm text-primary-foreground/80 md:text-base">{successDescription}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/${locale}/dashboard`}
+                  className="rounded-full border border-primary/50 bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:shadow-lg hover:shadow-primary/40"
+                >
+                  {translations.result.viewCourse}
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {error && !isPending && (
+            <motion.div
+              key="generation-error"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              className="mt-6 rounded-3xl border border-destructive/40 bg-destructive/10 p-6 text-left"
+            >
+              <h3 className="text-xl font-bold text-destructive">{translations.result.errorTitle}</h3>
+              <p className="mt-2 text-sm text-destructive/90 md:text-base">{error}</p>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="mt-4 rounded-full border border-destructive/40 px-5 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive/10"
+              >
+                {translations.result.retry}
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
