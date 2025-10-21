@@ -1,283 +1,444 @@
-# AINews Platform 🤖📰
+<div align="center">
 
-> Plataforma bilingüe de noticias de IA y aprendizaje automatizado con gestión autónoma por inteligencia artificial.
+# 🤖 AINews Platform
 
-## 🎯 Visión
+### *The Ultimate AI News & Learning Hub*
 
-Una plataforma revolucionaria que combina curación automática de noticias de IA, generación de cursos on-demand, y un sistema de inteligencia artificial que aprende y mejora continuamente.
+[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**100% gratuito de construir y operar** usando tiers gratuitos de servicios cloud.
+**[Live Demo](https://ainews-platform.vercel.app)** • **[Documentation](#-documentation)** • **[Contributing](#-contributing)**
 
-## 🚀 Características
+*A revolutionary bilingual platform combining AI-powered news curation, personalized learning paths, and gamified knowledge acquisition — all at $0 infrastructure cost.*
 
-### Core Features
-- 📰 **Curación Automática de Noticias** - Actualización cada 6 horas con IA
-- 🎓 **Generación de Cursos** - Crea cursos sobre cualquier tema de IA al instante
-- 🌐 **Bilingüe** - Inglés y español con UX perfecta
-- 🎨 **Diseño Revolucionario** - Mobile-first con animaciones avanzadas
-- 🤖 **IA Autónoma** - Sistema que se administra y mejora solo
-- 💰 **Costo $0** - Infraestructura completamente gratuita
+</div>
 
-### Advanced Features (Phase 2)
-- 🔐 **Autenticación** - Email/password + OAuth (Google, GitHub)
-- 📊 **Dashboard Personal** - Stats, progreso, badges, artículos guardados
-- 🎮 **Gamificación** - Sistema de XP, niveles, rachas, y 12 tipos de badges
-- 🔍 **Búsqueda Avanzada** - Búsqueda semántica + filtros (categoría, fecha, calidad)
-- 🏆 **Leaderboard** - Tabla de clasificación semanal con top 100 usuarios
+---
 
-### Email & Analytics (Phase 3)
-- 📧 **Email Notifications** - Bienvenida, resúmenes semanales, completación de cursos
-- 📈 **Analytics Dashboard** - Métricas de plataforma y engagement en tiempo real
-- ⚡ **Automated Jobs** - Digest semanal, registro de XP diario, refresh de analytics
+## ✨ Features
 
-### Revolutionary Features (Phase 4) 🚀
-- 🧠 **AI Personalization Engine** - Netflix-style recommendations (content-based + collaborative)
-- 📝 **Smart Summarization** - 3-level summaries (TL;DR 30s / Quick 2min / Standard 5min)
-- 🎙️ **Voice AI Assistant** - Read articles aloud with full voice controls (Web Speech API)
-- 🎓 **Learning Path Generator** - AI-powered personalized curricula with skill gap analysis
+### 🗞️ **Intelligent News Curation**
+- **50+ Premium Sources** — Automated aggregation from top AI publications
+- **AI-Powered Filtering** — LLM-based relevance scoring and quality assessment
+- **Dual Language** — Complete English/Spanish content with automatic translation
+- **Real-time Updates** — Scheduled curation every 6 hours via GitHub Actions
 
-## 🛠️ Stack Tecnológico
+### 🎓 **AI Course Generator**
+- **On-Demand Courses** — Generate structured curricula on any AI topic instantly
+- **RAG-Enhanced** — Context-aware content using pgvector embeddings
+- **Interactive Quizzes** — Automated assessment generation
+- **Progress Tracking** — Gamified learning experience with XP rewards
 
-### Frontend
-- **Next.js 14+** (App Router) - Framework React con SSR/SSG
-- **TypeScript** - Type safety completo
-- **Tailwind CSS 4.0** - Utility-first CSS
-- **Framer Motion** - Animaciones revolucionarias
-- **Radix UI** - Componentes accesibles
+### 🧠 **Knowledge Graph**
+- **Entity Recognition** — Automatic extraction of people, companies, concepts
+- **Relationship Mapping** — Visual exploration of AI ecosystem connections
+- **Fact-Checking** — Multi-source validation with confidence scoring
+- **Citations** — Full source attribution with timestamps and quotes
 
-### Backend
-- **Supabase** - PostgreSQL + Auth + Storage (gratis)
-- **Next.js API Routes** - Serverless functions
-- **tRPC** - Type-safe APIs
-- **pgvector** - Embeddings para RAG
+### 🎮 **Gamification System**
+- **16 Achievement Badges** — Learning, streak, engagement, and mastery categories
+- **XP & Leveling** — Exponential progression system (1.15x multiplier)
+- **Leaderboards** — Real-time ranking with materialized views
+- **Daily Streaks** — Consistency rewards with longest streak tracking
 
-### AI/ML
-- **OpenRouter / Groq** - LLM APIs (tier gratuito)
-- **LangChain** - Framework de agentes
-- **GitHub Actions** - Automatización de tareas IA
+### 📚 **Flashcard SRS**
+- **Spaced Repetition** — SM-2 algorithm implementation
+- **Due Date Scheduling** — Optimized review intervals
+- **Performance Analytics** — Ease factor and repetition tracking
+- **Auto-Generation** — Create flashcards from articles with AI
 
-## 📦 Instalación
+### 🔍 **Advanced Search**
+- **Semantic Search** — pgvector similarity matching
+- **Multi-Language** — Search across EN/ES content simultaneously
+- **Trend Detection** — Discover emerging topics and bursty keywords
+- **Global Search** — Unified search across articles, courses, and entities
+
+### 🎨 **Revolutionary Design**
+- **Mobile-First** — Optimized for all screen sizes
+- **Brutalist Minimalism** — Bold typography with kinetic elements
+- **3D Interactions** — Perspective transforms and tilt effects
+- **Glassmorphism** — Backdrop blur with frosted glass aesthetics
+- **Dark Mode** — Eye-friendly reading experience
+
+### 🔐 **Authentication & Security**
+- **Supabase Auth** — Email, OAuth providers
+- **Row-Level Security** — PostgreSQL RLS policies on all tables
+- **JWT Tokens** — Secure API authentication
+- **Rate Limiting** — Protection against abuse
+
+### 📊 **Analytics & Insights**
+- **User Behavior** — Reading patterns and engagement metrics
+- **Content Performance** — Article popularity and effectiveness
+- **Learning Analytics** — Course completion and quiz scores
+- **Trend Analysis** — Topic momentum and emerging themes
+
+### 🌐 **PWA Support**
+- **Offline Access** — Service worker with cache-first strategy
+- **Installable** — Add to home screen on mobile devices
+- **Background Sync** — Queue actions for later submission
+- **Web Push** — Notifications for new content (optional)
+
+---
+
+## 🚀 Tech Stack
+
+### **Frontend**
+- **[Next.js 14+](https://nextjs.org/)** — React framework with App Router
+- **[TypeScript 5.0+](https://www.typescriptlang.org/)** — Type-safe development
+- **[Tailwind CSS 4.0](https://tailwindcss.com/)** — Utility-first styling
+- **[Framer Motion](https://www.framer.com/motion/)** — Animation library
+- **[next-intl](https://next-intl-docs.vercel.app/)** — Internationalization (i18n)
+- **[Radix UI](https://www.radix-ui.com/)** — Accessible component primitives
+
+### **Backend**
+- **[Supabase](https://supabase.com/)** — PostgreSQL database + Auth + Storage
+- **[tRPC](https://trpc.io/)** — Type-safe API routes
+- **[Zod](https://zod.dev/)** — Schema validation
+- **Next.js API Routes** — Serverless functions
+
+### **AI/LLM**
+- **[OpenRouter](https://openrouter.ai/)** — Multi-model LLM access
+- **[Groq](https://groq.com/)** — Ultra-fast inference
+- **[pgvector](https://github.com/pgvector/pgvector)** — Vector embeddings for RAG
+- **[LangChain](https://www.langchain.com/)** — AI orchestration framework
+
+### **Deployment**
+- **[Vercel](https://vercel.com/)** — Zero-config Next.js hosting
+- **[GitHub Actions](https://github.com/features/actions)** — CI/CD automation
+- **[Cloudflare](https://www.cloudflare.com/)** — CDN and DNS
+
+### **Monitoring**
+- **[Sentry](https://sentry.io/)** — Error tracking (optional)
+- **[Umami](https://umami.is/)** — Privacy-focused analytics (optional)
+
+---
+
+## 📁 Project Structure
+
+```
+ainews-platform/
+├── app/
+│   ├── [locale]/              # Internationalized routes
+│   │   ├── news/             # News listing and articles
+│   │   ├── courses/          # Course generator and viewer
+│   │   ├── kg/               # Knowledge graph explorer
+│   │   ├── flashcards/       # Flashcard reviewer (SRS)
+│   │   ├── dashboard/        # User stats and gamification
+│   │   ├── trending/         # Trending topics detector
+│   │   └── search/           # Advanced search interface
+│   ├── api/                  # API routes (serverless)
+│   │   ├── news/            # News CRUD operations
+│   │   ├── courses/         # Course generation
+│   │   ├── kg/              # Knowledge graph queries
+│   │   ├── gamification/    # XP, badges, leaderboard
+│   │   └── search/          # Semantic search
+│   └── globals.css          # Global styles
+├── components/
+│   ├── layout/              # Header, Footer, Navigation
+│   ├── news/                # Article cards, filters
+│   ├── courses/             # Course modules, quizzes
+│   ├── kg/                  # Graph visualizer, entity forms
+│   ├── dashboard/           # Stats, badges, leaderboard
+│   ├── shared/              # Reusable UI components
+│   └── ui/                  # shadcn/ui primitives
+├── lib/
+│   ├── ai/                  # AI agents and utilities
+│   │   ├── news-curator.ts      # Automated news curation
+│   │   ├── course-generator.ts  # Course creation agent
+│   │   ├── learning-agent.ts    # Self-improvement system
+│   │   ├── fact-checker.ts      # Multi-source validation
+│   │   ├── trend-detector.ts    # Topic trend analysis
+│   │   └── embeddings.ts        # Vector generation
+│   ├── db/                  # Database queries
+│   ├── auth/                # Authentication helpers
+│   ├── types/               # TypeScript definitions
+│   └── utils/               # Utility functions
+├── supabase/
+│   └── migrations/          # 11 SQL migration files
+│       ├── 20250101000000_initial_schema.sql
+│       ├── 20250101000005_phase5_knowledge_graph.sql
+│       ├── 20250101000008_flashcards_srs.sql
+│       └── 20250101000010_gamification_system.sql
+├── scripts/
+│   ├── curate-news.ts              # Manual curation script
+│   └── weekly-digest-generator.ts  # Email digest generator
+├── messages/
+│   ├── en.json              # English translations
+│   └── es.json              # Spanish translations
+├── public/
+│   └── sw.js                # Service worker (PWA)
+└── tests/
+    └── e2e/                 # Playwright tests
+```
+
+---
+
+## 🛠️ Getting Started
+
+### **Prerequisites**
+- **Node.js 18+** — [Download](https://nodejs.org/)
+- **npm/yarn/pnpm** — Package manager
+- **Supabase Account** — [Sign up](https://supabase.com/)
+- **OpenRouter/Groq API Key** — [Get free tier](https://openrouter.ai/)
+
+### **Installation**
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/tu-usuario/ainews.git
-cd ainews
+# Clone the repository
+git clone https://github.com/AlfonsoCifuentes/ainews-platform.git
+cd ainews-platform
 
-# Instalar dependencias
+# Install dependencies
 npm install
 
-# Configurar variables de entorno
+# Copy environment variables
 cp .env.example .env.local
-# Edita .env.local con tus keys
+```
 
-# Ejecutar en desarrollo
+### **Environment Configuration**
+
+Edit `.env.local` with your credentials:
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# LLM APIs (use free tiers)
+OPENROUTER_API_KEY=your-openrouter-key
+GROQ_API_KEY=your-groq-key
+
+# Admin (for protected routes)
+ADMIN_TOKEN=your-secure-token
+
+# Optional: Analytics
+NEXT_PUBLIC_UMAMI_URL=https://analytics.yourdomain.com
+NEXT_PUBLIC_UMAMI_SITE_ID=your-site-id
+```
+
+### **Database Setup**
+
+Execute all migrations in Supabase SQL Editor:
+
+```bash
+# See MANUAL_MIGRATION_GUIDE.md for step-by-step instructions
+# Or use Supabase CLI:
+supabase db push
+```
+
+### **Development**
+
+```bash
+# Start development server
 npm run dev
+
+# Open browser
+open http://localhost:3000
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
-
-## 🔑 Variables de Entorno
-
-Necesitas crear un archivo `.env.local` con:
+### **Build**
 
 ```bash
-# Supabase (gratis en supabase.com)
-NEXT_PUBLIC_SUPABASE_URL=tu-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-key
-SUPABASE_SERVICE_ROLE_KEY=tu-service-key
-
-# LLM API (elige uno - ambos tienen tier gratuito)
-OPENROUTER_API_KEY=tu-key  # openrouter.ai
-# o
-GROQ_API_KEY=tu-key  # console.groq.com
-
-# Analytics (opcional)
-NEXT_PUBLIC_UMAMI_URL=tu-umami-url
-NEXT_PUBLIC_UMAMI_SITE_ID=tu-site-id
-
-# Email Notifications (Resend - 3,000 emails/month gratis)
-RESEND_API_KEY=tu-resend-key
-```
-
-## 📚 Scripts Disponibles
-
-```bash
-npm run dev          # Desarrollo local
-npm run build        # Build producción
-npm run start        # Servidor producción
-npm run lint         # ESLint
-npm run type-check   # TypeScript check
-
-# Scripts de IA
-npm run ai:curate    # Curación manual de noticias
-npm run ai:test      # Probar agente de IA
-
-# Scripts de Email & Analytics (Phase 3)
-npx ts-node scripts/weekly-digest-generator.ts send       # Enviar digests semanales
-npx ts-node scripts/weekly-digest-generator.ts record-xp  # Registrar XP diario
-```
-
-## 🏗️ Estructura del Proyecto
-
-```
-ainews/
-├── app/                    # Next.js App Router
-│   ├── [locale]/          # Rutas i18n (en/es)
-│   │   ├── news/          # Módulo de noticias
-│   │   ├── courses/       # Módulo de cursos
-│   │   └── admin/         # Panel admin
-│   └── api/               # API routes
-├── components/            # Componentes React
-│   ├── ui/               # shadcn/ui components
-│   ├── news/             # News components
-│   ├── courses/          # Course components
-│   └── layout/           # Layout components
-├── lib/                   # Utilidades
-│   ├── ai/               # Sistema de IA
-│   ├── db/               # Database queries
-│   └── utils/            # Helpers
-├── messages/             # Traducciones i18n
-│   ├── en.json
-│   └── es.json
-├── scripts/              # Scripts de automatización
-└── .github/              # CI/CD workflows
-```
-
-## 🤖 Sistema de IA
-
-El proyecto incluye 3 agentes autónomos:
-
-### 1. News Curator Agent
-Scrapes RSS feeds, filtra con IA, traduce, y publica automáticamente.
-
-```bash
-# Ejecutar manualmente
-npm run ai:curate
-
-# Se ejecuta automáticamente cada 6h vía GitHub Actions
-```
-
-### 2. Course Generator Agent
-Genera cursos completos sobre cualquier tema de IA.
-
-```typescript
-// Uso desde el código
-const course = await generateCourse({
-  topic: "Transformers Architecture",
-  difficulty: "intermediate",
-  locale: "es"
-});
-```
-
-### 3. Learning Agent
-Analiza feedback y mejora continuamente los prompts y estrategias.
-
-```bash
-# Ejecutar manualmente
-npm run ai:learn
-```
-
-## 🌐 Internacionalización
-
-Todos los contenidos existen en inglés y español:
-
-- Rutas: `/en/news` y `/es/news`
-- Base de datos: Columnas duales (`title_en`, `title_es`)
-- UI: `messages/en.json` y `messages/es.json`
-
-Cambiar idioma es instantáneo sin reload.
-
-## 🎨 Sistema de Diseño
-
-Diseño revolucionario con:
-- **Bento Grid Layouts** estilo Apple
-- **Glassmorphism avanzado**
-- **Animaciones 3D** con Framer Motion
-- **Dark/Light mode** fluido
-- **Mobile-first** responsive
-
-Ver `tailwind.config.ts` para tokens de diseño.
-
-## 📈 Despliegue
-
-### Vercel (Recomendado - Gratis)
-
-1. Push a GitHub
-2. Importa en [Vercel](https://vercel.com)
-3. Configura environment variables
-4. Deploy automático
-
-### Cloudflare Pages (Alternativa)
-
-```bash
+# Production build
 npm run build
-npx wrangler pages deploy .next
+
+# Start production server
+npm start
 ```
+
+---
+
+## 🗄️ Database Schema
+
+### **Core Tables**
+- `news_articles` — Bilingual content with embeddings
+- `courses` — Generated curricula with modules
+- `entities` — Knowledge graph nodes (people, companies, concepts)
+- `entity_relations` — Typed relationships with evidence
+- `citations` — Source attribution with confidence scores
+- `flashcards` — SRS flashcards with SM-2 parameters
+- `badges` — 16 achievement definitions (EN/ES)
+- `user_xp` — Level progression with streak tracking
+- `leaderboard` — Materialized view for performance
+
+### **Key Features**
+- **pgvector extension** — Semantic search and RAG
+- **RLS policies** — Row-level security on all tables
+- **Materialized views** — Optimized leaderboard queries
+- **SQL functions** — `award_xp()`, `update_streak()`, `refresh_leaderboard()`
+- **Triggers** — Automatic `updated_at` timestamps
+
+---
+
+## 🤖 AI Agents
+
+### **News Curator Agent**
+```typescript
+// Runs every 6 hours via GitHub Actions
+- Scrapes 50+ RSS feeds
+- Filters with LLM (relevance + quality)
+- Translates EN ↔ ES
+- Generates embeddings
+- Stores in Supabase
+```
+
+### **Course Generator Agent**
+```typescript
+// On-demand user requests
+- Uses RAG for context
+- Creates structured curriculum
+- Generates quizzes
+- Tracks user progress
+```
+
+### **Learning Agent**
+```typescript
+// Daily self-improvement
+- Analyzes user feedback
+- Updates prompt templates
+- Logs performance metrics
+- Self-optimizes strategies
+```
+
+### **Fact Checker Agent**
+```typescript
+// Real-time validation
+- Cross-source verification
+- Confidence scoring
+- Citation extraction
+- Bias detection
+```
+
+---
+
+## 💰 Zero-Cost Infrastructure
+
+This platform runs **100% free** using generous free tiers:
+
+| Service | Free Tier | Usage |
+|---------|-----------|-------|
+| **Vercel** | 100 GB bandwidth/month | Hosting + Edge Functions |
+| **Supabase** | 500 MB DB + 1 GB storage | PostgreSQL + Auth |
+| **OpenRouter** | Rate-limited free tier | LLM inference |
+| **Groq** | Free tier available | Ultra-fast inference |
+| **GitHub Actions** | 2,000 minutes/month | Scheduled curation |
+| **Cloudflare** | Unlimited | CDN + DDoS protection |
+
+**Only cost**: Domain name (~$10-15/year)
+
+---
+
+## 📚 Documentation
+
+- **[DEPLOYMENT_PHASE_1_COMPLETE.md](./DEPLOYMENT_PHASE_1_COMPLETE.md)** — Pre-deployment validation
+- **[DEPLOYMENT_PHASE_2_GUIDE.md](./DEPLOYMENT_PHASE_2_GUIDE.md)** — Database setup
+- **[MANUAL_MIGRATION_GUIDE.md](./MANUAL_MIGRATION_GUIDE.md)** — Step-by-step SQL execution
+- **[PROJECT_MASTER.md](./PROJECT_MASTER.md)** — Complete architecture overview
+- **[IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)** — Feature completion tracking
+
+---
 
 ## 🧪 Testing
 
 ```bash
-npm run test           # Unit tests (Jest)
-npm run test:e2e       # E2E tests (Playwright)
-npm run test:coverage  # Coverage report
+# Run all tests
+npm test
+
+# E2E tests with Playwright
+npm run test:e2e
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
-
-## 📖 Documentación Completa
-
-- [**PROJECT_MASTER.md**](./PROJECT_MASTER.md) - Plan completo del proyecto
-- [**.github/copilot-instructions.md**](./.github/copilot-instructions.md) - Guía para AI agents
-- [**Email & Analytics Setup**](./docs/EMAIL_AND_ANALYTICS.md) - Configuración de notificaciones y análisis
-- [Supabase Setup](./docs/supabase-setup.md) - Configuración de base de datos
-- [AI Agents Guide](./docs/ai-agents.md) - Guía de agentes de IA
-
-### Estado (Fase 4 Completada, Fase 5 en Marcha)
-
-- Fase 4 implementada: Motor de Personalización, Smart Summaries, Voice Assistant, Learning Paths, migración de BD y docs.
-- Fase 5 planificada en `PROJECT_MASTER.md`:
-  - Multi-Agent Newsroom (trends, fact-check, bias/sentiment, multi-perspective, translation QA)
-  - Knowledge Graph (entidades, relaciones, citas) + Explorer y RAG por entidad
-  - Tutor Dock + Spaced Repetition (flashcards SM-2)
-  - PWA offline total + background sync (+ push opcional)
-  - Ingesta multimodal (YouTube, PDFs) y on-device LLM opcional
-
-### Roadmap Corto (Próximos pasos)
-
-1) Aplicar migración de Fase 4 en Supabase y configurar `.env.local`; probar y desplegar a Vercel.
-2) Implementar Knowledge Graph (tablas, APIs, Explorer).
-3) TrendDetector + FactChecker + Citation Builder (agentes en GitHub Actions).
-4) Tutor Dock + flashcards + SRS scheduler.
-5) PWA offline + background sync (+ push opcional).
-
-## 🤝 Contribuir
-
-¡Contribuciones bienvenidas! Por favor:
-
-1. Fork el proyecto
-2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit cambios (`git commit -m 'Add amazing feature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📄 Licencia
-
-MIT License - ver [LICENSE](./LICENSE) para detalles.
-
-## 🙏 Agradecimientos
-
-- [Next.js](https://nextjs.org/) - Framework
-- [Supabase](https://supabase.com/) - Backend
-- [Vercel](https://vercel.com/) - Hosting
-- [OpenRouter](https://openrouter.ai/) - LLM APIs
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-
-## 📞 Contacto
-
-- Website: (pendiente)
-- Email: (pendiente)
-- Twitter: (pendiente)
 
 ---
 
-Built with ❤️ and 🤖 AI
+## 🚢 Deployment
 
-⭐ Si te gusta el proyecto, dale una estrella en GitHub!
+### **Vercel (Recommended)**
+
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variables
+4. Deploy automatically
+
+### **Manual**
+
+```bash
+# Build production bundle
+npm run build
+
+# Start server
+npm start
+```
+
+See **[DEPLOYMENT_PHASE_2_GUIDE.md](./DEPLOYMENT_PHASE_2_GUIDE.md)** for detailed instructions.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m '✨ Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### **Development Guidelines**
+- Follow TypeScript strict mode
+- Use conventional commits
+- Write tests for new features
+- Update documentation
+- Ensure `npm run build` succeeds
+
+---
+
+## 📝 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **OpenAI** — GPT models for content generation
+- **Anthropic** — Claude for advanced reasoning
+- **Supabase** — Amazing PostgreSQL platform
+- **Vercel** — Best Next.js hosting experience
+- **Open Source Community** — For incredible tools and libraries
+
+---
+
+## 📊 Project Stats
+
+![GitHub stars](https://img.shields.io/github/stars/AlfonsoCifuentes/ainews-platform?style=social)
+![GitHub forks](https://img.shields.io/github/forks/AlfonsoCifuentes/ainews-platform?style=social)
+![GitHub issues](https://img.shields.io/github/issues/AlfonsoCifuentes/ainews-platform)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/AlfonsoCifuentes/ainews-platform)
+
+---
+
+## 📧 Contact
+
+**Alfonso Cifuentes** — [@AlfonsoCifuentes](https://github.com/AlfonsoCifuentes)
+
+**Project Link**: [https://github.com/AlfonsoCifuentes/ainews-platform](https://github.com/AlfonsoCifuentes/ainews-platform)
+
+---
+
+<div align="center">
+
+### ⭐ If you find this project useful, please give it a star! ⭐
+
+**Built with ❤️ using AI-first principles**
+
+</div>
