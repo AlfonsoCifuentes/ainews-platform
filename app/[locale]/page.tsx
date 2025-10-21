@@ -4,6 +4,13 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
 import { BentoGrid, BentoCard, BentoIcon, BentoTitle, BentoDescription } from '@/components/shared/BentoGrid';
 import { ScrollReveal, ParallaxSection } from '@/components/shared/AnimatedHero';
+import dynamic from 'next/dynamic';
+
+// Lazy load 3D components for performance (client-only, no SSR)
+const FloatingObjects = dynamic(
+  () => import('@/components/shared/FloatingObjects').then((mod) => ({ default: mod.FloatingObjects })),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const t = useTranslations('home');
@@ -12,6 +19,9 @@ export default function HomePage() {
     <main className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 px-4 md:py-32">
+        {/* 3D Background Elements */}
+        <FloatingObjects />
+        
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(126,74,255,0.35),transparent_55%),radial-gradient(circle_at_top_right,rgba(14,255,255,0.25),transparent_45%)]" aria-hidden />
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(15,16,35,0.95) 0%,rgba(10,11,24,0.86) 60%,rgba(10,11,24,0.92) 100%)]" aria-hidden />
         <div className="relative container mx-auto grid gap-12 text-center md:grid-cols-[1.2fr_0.8fr] md:text-left">
