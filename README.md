@@ -10,12 +10,25 @@ Una plataforma revolucionaria que combina curación automática de noticias de I
 
 ## 🚀 Características
 
+### Core Features
 - 📰 **Curación Automática de Noticias** - Actualización cada 6 horas con IA
 - 🎓 **Generación de Cursos** - Crea cursos sobre cualquier tema de IA al instante
 - 🌐 **Bilingüe** - Inglés y español con UX perfecta
 - 🎨 **Diseño Revolucionario** - Mobile-first con animaciones avanzadas
 - 🤖 **IA Autónoma** - Sistema que se administra y mejora solo
 - 💰 **Costo $0** - Infraestructura completamente gratuita
+
+### Advanced Features (Phase 2)
+- 🔐 **Autenticación** - Email/password + OAuth (Google, GitHub)
+- 📊 **Dashboard Personal** - Stats, progreso, badges, artículos guardados
+- 🎮 **Gamificación** - Sistema de XP, niveles, rachas, y 12 tipos de badges
+- 🔍 **Búsqueda Avanzada** - Búsqueda semántica + filtros (categoría, fecha, calidad)
+- 🏆 **Leaderboard** - Tabla de clasificación semanal con top 100 usuarios
+
+### Email & Analytics (Phase 3)
+- 📧 **Email Notifications** - Bienvenida, resúmenes semanales, completación de cursos
+- 📈 **Analytics Dashboard** - Métricas de plataforma y engagement en tiempo real
+- ⚡ **Automated Jobs** - Digest semanal, registro de XP diario, refresh de analytics
 
 ## 🛠️ Stack Tecnológico
 
@@ -75,6 +88,9 @@ GROQ_API_KEY=tu-key  # console.groq.com
 # Analytics (opcional)
 NEXT_PUBLIC_UMAMI_URL=tu-umami-url
 NEXT_PUBLIC_UMAMI_SITE_ID=tu-site-id
+
+# Email Notifications (Resend - 3,000 emails/month gratis)
+RESEND_API_KEY=tu-resend-key
 ```
 
 ## 📚 Scripts Disponibles
@@ -89,6 +105,10 @@ npm run type-check   # TypeScript check
 # Scripts de IA
 npm run ai:curate    # Curación manual de noticias
 npm run ai:test      # Probar agente de IA
+
+# Scripts de Email & Analytics (Phase 3)
+npx ts-node scripts/weekly-digest-generator.ts send       # Enviar digests semanales
+npx ts-node scripts/weekly-digest-generator.ts record-xp  # Registrar XP diario
 ```
 
 ## 🏗️ Estructura del Proyecto
@@ -200,6 +220,7 @@ npm run test:coverage  # Coverage report
 
 - [**PROJECT_MASTER.md**](./PROJECT_MASTER.md) - Plan completo del proyecto
 - [**.github/copilot-instructions.md**](./.github/copilot-instructions.md) - Guía para AI agents
+- [**Email & Analytics Setup**](./docs/EMAIL_AND_ANALYTICS.md) - Configuración de notificaciones y análisis
 - [Supabase Setup](./docs/supabase-setup.md) - Configuración de base de datos
 - [AI Agents Guide](./docs/ai-agents.md) - Guía de agentes de IA
 
