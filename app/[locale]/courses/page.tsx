@@ -1,40 +1,94 @@
-"use client";
+import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { locales, type Locale } from '@/i18n';
+import { CourseGenerator } from '@/components/courses/CourseGenerator';
 
-import { useTranslations } from 'next-intl';
+type CoursesPageProps = {
+  params: {
+    locale: Locale;
+  };
+};
 
-export default function CoursesPage() {
-  const t = useTranslations('courses');
+function isLocale(value: string): value is Locale {
+  return (locales as readonly string[]).includes(value);
+}
+
+export default async function CoursesPage({ params }: CoursesPageProps) {
+  const locale = params.locale;
+
+  if (!isLocale(locale)) {
+    throw new Error('Invalid locale received for courses page.');
+  }
+
+  unstable_setRequestLocale(locale);
+
+  const tCourses = await getTranslations({ locale, namespace: 'courses' });
 
   return (
-    <main className="min-h-screen py-12 px-4">
-      <div className="container mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold mb-8">{t('title')}</h1>
-
-        {/* Course Generator CTA */}
-        <div className="glass p-8 rounded-3xl mb-12 text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            {t('generator.title')}
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            {t('generator.subtitle')}
+    <main className="min-h-screen px-4 py-12">
+      <div className="container mx-auto max-w-4xl">
+        <header className="mb-12 text-center">
+          <p className="mb-2 text-sm uppercase tracking-widest text-primary">
+            AI-Powered Learning
           </p>
-          <button className="px-8 py-3 bg-primary text-primary-foreground rounded-full font-semibold hover:scale-105 transition-transform">
-            {t('generator.generateButton')}
-          </button>
-        </div>
+          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
+            {tCourses('title')}
+          </h1>
+          <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+            {tCourses('catalog.title')}
+          </p>
+        </header>
 
-        {/* Placeholder for courses grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="glass p-6 rounded-3xl">
-            <div className="bg-muted rounded-xl h-32 mb-4"></div>
-            <h3 className="text-xl font-bold mb-2">Sample Course Title</h3>
-            <p className="text-muted-foreground mb-4">Sample description...</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">{t('catalog.beginner')}</span>
-              <span className="text-sm">2h 30min</span>
-            </div>
+        <CourseGenerator
+          translations={{
+            title: tCourses('generator.title'),
+            subtitle: tCourses('generator.subtitle'),
+            topicLabel: tCourses('generator.topicLabel'),
+            topicPlaceholder: tCourses('generator.topicPlaceholder'),
+            difficultyLabel: tCourses('generator.difficultyLabel'),
+            durationLabel: tCourses('generator.durationLabel'),
+            generateButton: tCourses('generator.generateButton'),
+            generating: tCourses('generator.generating'),
+            difficulties: {
+              beginner: tCourses('catalog.beginner'),
+              intermediate: tCourses('catalog.intermediate'),
+              advanced: tCourses('catalog.advanced'),
+            },
+            durations: {
+              short: tCourses('catalog.short'),
+              medium: tCourses('catalog.medium'),
+              long: tCourses('catalog.long'),
+            },
+            progress: {
+              analyzing: tCourses('generator.progress.analyzing'),
+              outline: tCourses('generator.progress.outline'),
+              content: tCourses('generator.progress.content'),
+              quizzes: tCourses('generator.progress.quizzes'),
+              finalizing: tCourses('generator.progress.finalizing'),
+            },
+          }}
+        />
+
+        {/* Course Catalog Placeholder */}
+        <section className="mt-16">
+          <h2 className="mb-6 text-2xl font-bold">
+            {tCourses('catalog.title')}
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="glass rounded-3xl p-6">
+                <div className="mb-4 h-32 rounded-xl bg-muted"></div>
+                <h3 className="mb-2 text-xl font-bold">Sample Course {i}</h3>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Sample description for course...
+                </p>
+                <div className="flex items-center justify-between text-sm">
+                  <span>{tCourses('catalog.beginner')}</span>
+                  <span>2h 30min</span>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
       </div>
     </main>
   );

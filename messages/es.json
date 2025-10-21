@@ -79,6 +79,11 @@
       "aiSummary": "Resumen IA",
       "showSummary": "Mostrar Resumen",
       "hideSummary": "Ocultar Resumen"
+    },
+    "empty": {
+      "title": "Aún no hay artículos",
+      "subtitle": "Estamos curando las últimas novedades de IA. Vuelve a revisar en unos minutos.",
+      "cta": "Actualizar feed"
     }
   },
   "courses": {

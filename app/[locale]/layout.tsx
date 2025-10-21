@@ -9,7 +9,13 @@ import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-const locales = ['en', 'es'];
+const locales = ['en', 'es'] as const;
+
+type Locale = (typeof locales)[number];
+
+function isLocale(maybeLocale: string): maybeLocale is Locale {
+  return (locales as readonly string[]).includes(maybeLocale);
+}
 
 export function generateStaticParams() {
   return locales.map((availableLocale) => ({ locale: availableLocale }));
@@ -22,7 +28,7 @@ export default async function LocaleLayout({
   children: ReactNode;
   params: { locale: string };
 }) {
-  if (!locales.includes(locale as any)) {
+  if (!locale || !isLocale(locale)) {
     notFound();
   }
 

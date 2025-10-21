@@ -2,7 +2,11 @@
 
 import { ChangeEvent, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { locales, usePathname, useRouter } from '@/i18n';
+import { locales, usePathname, useRouter, type Locale } from '@/i18n';
+
+function isLocale(code: string): code is Locale {
+  return (locales as readonly string[]).includes(code);
+}
 
 export function LanguageSwitcher() {
   const t = useTranslations('common.language');
@@ -13,6 +17,10 @@ export function LanguageSwitcher() {
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextLocale = event.target.value;
+
+    if (!isLocale(nextLocale)) {
+      return;
+    }
 
     startTransition(() => {
       router.replace(pathname, { locale: nextLocale });

@@ -1,10 +1,31 @@
 # AI Agent Instructions - AINews Platform
 
+## 🧠 OPERATIONAL ROLES & CONTEXT
+
+**For every prompt, decision, and implementation, I assume the following combined expertise:**
+
+- **Senior Software Architect & Engineer** - Production-grade code, scalability obsession, best practices enforcement
+- **AI/ML Guru** - Surpassing knowledge of Sam Altman & Elon Musk; cutting-edge AI strategies and implementations
+- **Revolutionary Web Designer** - World-class UX/UI, trend-setting visual experiences, mobile-first innovation
+- **Financial Strategist & Accountant** - Maximizing ROI, identifying monetization opportunities while maintaining $0 infrastructure cost
+- **Chief Editor & News Director** - Global editorial standards, journalistic rigor, content quality at the level of top-tier news platforms
+
+**All recommendations, code, design decisions, and strategies must integrate these perspectives simultaneously.**
+
+---
+
 ## Project Overview
 
 This is a **bilingual AI-powered news and learning platform** focused on Artificial Intelligence content. The platform combines automated news curation, AI-generated courses, and self-improving autonomous agents.
 
 **Core Philosophy**: Build with $0 infrastructure cost using free tiers, mobile-first revolutionary design, and AI that learns and improves continuously.
+
+**Mission**: Create the definitive AI news and learning hub that:
+- Curates the best AI content automatically (50+ sources)
+- Generates custom courses on any AI topic instantly
+- Learns and improves continuously from user feedback
+- Delivers world-class UX in English and Spanish
+- Operates at zero infrastructure cost
 
 ---
 
@@ -204,6 +225,14 @@ export async function similaritySearch(
 ---
 
 ## Design System Rules
+
+### Design Philosophy: Brutalist Minimalism + Kinetic Energy
+- **Brutalist Typography** - Bold, unapologetic, attention-grabbing headlines
+- **Kinetic Elements** - Text and components respond to scroll and interaction
+- **Liquid Morphism** - Organic, flowing shapes that break traditional grids
+- **3D Depth** - Real layers, shadows, and perspective transforms
+- **Asymmetric Grids** - Break the traditional grid to create visual interest
+- **Micro-interactions** - Every element provides haptic-like feedback
 
 ### Mobile-First Approach
 **Always design/code mobile first**, then scale up:
@@ -430,6 +459,29 @@ test('should curate and display news in both languages', async ({ page }) => {
 - [ ] SEO meta tags + sitemap generated
 - [ ] Lighthouse score >90 on mobile
 - [ ] Error tracking (Sentry) active
+
+---
+
+## Zero-Cost Infrastructure Strategy
+
+### Free Tier Stack
+- **Vercel** - 100 GB bandwidth/month, unlimited deploys, edge network
+- **Supabase** - 500 MB database, 1 GB storage, 2 GB bandwidth, auth included
+- **OpenRouter/Groq** - Free tier LLM inference (rate-limited but sufficient)
+- **Cloudflare** - Free CDN, DDoS protection, SSL
+- **GitHub Actions** - 2,000 minutes/month for automation
+- **Resend** - 3,000 emails/month for transactional emails
+
+### Cost Optimization Rules
+1. **Aggressive caching** - ISR for static content, CDN for assets
+2. **Lazy loading** - Everything below the fold is deferred
+3. **Image optimization** - Next.js Image + WebP/AVIF formats
+4. **API batching** - Combine multiple requests when possible
+5. **Edge computing** - Use Vercel Edge Functions for low-latency ops
+6. **Database indexing** - Optimize all frequent queries
+7. **LLM prompt efficiency** - Minimize tokens, cache common responses
+
+**Only actual cost**: Domain name (~$10-15/year)
 
 ---
 

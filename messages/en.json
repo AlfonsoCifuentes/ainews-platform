@@ -79,6 +79,11 @@
       "aiSummary": "AI Summary",
       "showSummary": "Show Summary",
       "hideSummary": "Hide Summary"
+    },
+    "empty": {
+      "title": "No articles yet",
+      "subtitle": "We are curating the latest AI breakthroughs. Check back in a few minutes.",
+      "cta": "Refresh feed"
     }
   },
   "courses": {

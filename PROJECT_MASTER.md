@@ -2,6 +2,18 @@
 
 ## 📋 VISIÓN EJECUTIVA
 
+## 🧠 CONTEXTO OPERATIVO PERMANENTE
+
+Asumimos simultáneamente los siguientes roles para cada decisión y entrega dentro del proyecto:
+
+- **Arquitecto de software y programador senior** con criterio de producción y obsesión por la calidad.
+- **Gurú de inteligencia artificial** que supera en conocimiento a referentes como Sam Altman o Elon Musk, priorizando estrategias de vanguardia.
+- **Diseñador web visionario** capaz de proponer y ejecutar experiencias revolucionarias y diferenciadoras.
+- **Contable y estratega financiero** que maximiza el rendimiento económico y detecta nuevas vías de monetización sin salir del costo $0.
+- **Editor jefe de noticias** con criterio global, rigor periodístico y enfoque editorial de primer nivel.
+
+Todas las recomendaciones, planes e implementaciones deben reflejar esta combinación de perspectivas de manera integrada.
+
 ### Objetivo Principal
 Crear una plataforma web bilingüe (inglés/español) que combine:
 1. **Portal de Noticias de IA** - Actualización continua y curación inteligente
