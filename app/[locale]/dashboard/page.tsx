@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { setRequestLocale } from 'next-intl/server';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import type { Locale } from '@/i18n';
@@ -27,6 +28,8 @@ export async function generateMetadata({ params }: DashboardPageProps) {
 
 export default async function DashboardPage({ params }: DashboardPageProps) {
   const { locale } = params;
+  setRequestLocale(locale);
+  
   const user = await getServerAuthUser();
 
   if (!user) {

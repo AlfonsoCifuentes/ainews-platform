@@ -1,6 +1,7 @@
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 export default async function AboutPage({ params }: { params: { locale: string } }) {
+  setRequestLocale(params.locale);
   const t = await getTranslations({ locale: params.locale, namespace: 'home' });
   return (
     <main className="container mx-auto px-4 py-12">

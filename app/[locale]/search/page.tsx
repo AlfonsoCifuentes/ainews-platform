@@ -1,3 +1,4 @@
+import { setRequestLocale } from 'next-intl/server';
 import { AdvancedSearch } from '@/components/search/AdvancedSearch';
 import type { Locale } from '@/i18n';
 
@@ -27,6 +28,7 @@ export async function generateMetadata({ params, searchParams }: SearchPageProps
 
 export default function SearchPage({ params, searchParams }: SearchPageProps) {
   const { locale } = params;
+  setRequestLocale(locale);
   const initialQuery = searchParams.q || '';
 
   return (

@@ -1,4 +1,4 @@
-import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { fetchLatestNews, deriveCategoriesFromArticles } from '@/lib/db/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
@@ -35,7 +35,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
     throw new Error('Invalid locale received for news page.');
   }
 
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
 
   const [tNews, tCommon] = await Promise.all([
     getTranslations({ locale, namespace: 'news' }),
@@ -61,8 +61,15 @@ export default async function NewsPage({ params }: NewsPageProps) {
   );
   const availableCategoryKeys: Array<'all' | ArticleCategoryKey> = ['all', ...categories];
 
-  const translateCategory = (category: string) =>
-    tNews(`categories.${isArticleCategoryKey(category) ? category : 'all'}`);
+  const translateCategory = (category: string) => {
+    const key = isArticleCategoryKey(category) ? category : 'all';
+    try {
+      return tNews(`categories.${key}`);
+    } catch (error) {
+      console.error(`Translation error for category.${key}:`, error);
+      return key.charAt(0).toUpperCase() + key.slice(1);
+    }
+  };
 
   return (
     <main className="min-h-screen px-4 py-12">

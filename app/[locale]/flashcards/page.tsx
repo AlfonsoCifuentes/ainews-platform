@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import { FlashcardReviewer } from '@/components/shared/FlashcardReviewer';
 
@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 }
 
 export default async function FlashcardsPage({ params }: { params: { locale: string } }) {
+  setRequestLocale(params.locale);
   const t = await getTranslations({ locale: params.locale, namespace: 'flashcards' });
 
   return (
