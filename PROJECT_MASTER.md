@@ -1284,14 +1284,87 @@ AINews/
 - [SiteInspire](https://www.siteinspire.com/)
 
 ### Fuentes de Noticias de IA
-- arXiv.org (ML papers)
-- Hugging Face Blog
-- OpenAI Blog
-- Google AI Blog
-- MIT Technology Review
-- The Batch (DeepLearning.AI)
-- Papers with Code
-- AI News (multiple aggregators)
+
+**Inglés**
+- **Artificial Intelligence News (TechForge)** — Tendencias de la industria y eventos de IA. RSS: `https://www.artificialintelligence-news.com/feed/rss/`
+- **VentureBeat AI** — Lanzamientos y estrategias transformadoras. RSS: `https://venturebeat.com/category/ai/feed/`
+- **MIT Technology Review** — Impacto de la IA en negocios, ética y ciencia. RSS: `https://www.technologyreview.com/feed/`
+- **The Guardian (AI)** — Cobertura global con enfoque periodístico. RSS: `https://www.theguardian.com/technology/artificialintelligenceai/rss`
+- **Wired (AI)** — Machine learning, visión artificial y producto. RSS: `https://www.wired.com/feed/tag/ai/latest/rss`
+- **Futurism (AI)** — Robótica y futuros posibles. RSS: `https://futurism.com/categories/ai-artificial-intelligence/feed`
+- **ScienceDaily (AI)** — Avances académicos y científicos. RSS: `https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml`
+- **Last Week in AI** — Resumen editorial semanal. RSS: `https://lastweekin.ai/feed`
+- **Reddit r/Artificial** — Debate comunitario con enlaces destacados. RSS: `https://www.reddit.com/r/artificial/.rss`
+- **Blogs clave** — OpenAI, Google AI, DeepMind, Hugging Face Blog, The Batch (DeepLearning.AI), Papers with Code.
+
+**Español**
+- **El País – Inteligencia Artificial** — Actualidad generalista con foco en IA. URL: `https://elpais.com/noticias/inteligencia-artificial/`
+- **Xataka – IA** — Novedades, guías y comparativas. URL: `https://www.xataka.com/tag/inteligencia-artificial`
+- **Agencia EFE – IA** — Cobertura oficial de lanzamientos y políticas. URL: `https://efe.com/noticias/inteligencia-artificial/`
+- **The AI Revolution News** — Portal dedicado 100% a IA, categorías temáticas. URL: `https://theairevolution.news/`
+- **SpacioIA** — Noticias, tutoriales y glosario en español. URL: `https://spacioia.com/`
+- **20minutos – IA** — Breves de actualidad tecnológica. URL: `https://www.20minutos.es/tags/temas/inteligencia-artificial.html`
+- **RTVE Tecnología** — Vídeo y audio sobre impacto social de la IA. URL: `https://www.rtve.es/noticias/tecnologia/`
+- **Medios Latam** — El Tiempo, Clarín, La Vanguardia, ABC, El Mundo (monitorizar secciones de tecnología con RSS).
+- **Comunidades** — ForosdeIA, Spain AI, directorios de feeds personalizados via Google News.
+
+**Automatización**
+- Priorizar ingesta vía RSS para scraping recurrente (GitHub Actions cada 6h).
+- Configurar alertas de palabras clave con Google News RSS en EN/ES.
+- Usar heurísticas de deduplicación por `source_url + published_at`.
+- Almacenar metadata (idioma, región, credibilidad) para filtros dinámicos.
+
+### Recursos Educativos y Cursos
+- **MOOCs de IA** — Coursera (Machine Learning Stanford, Deep Learning Specialization), edX (AI for Everyone), Udacity (Intro to ML, AI for Robotics), Fast.ai (Practical Deep Learning).
+- **Recursos prácticos** — Kaggle Learn, OpenAI Cookbook, Hugging Face tutorials, Machine Learning Mastery.
+- **En español** — SpacioIA formación, Xataka Basics, Genbeta guías, Diseña con IA comparativas.
+- **Catálogo dinámico** — Generar con IA planes personalizados (usuario introduce tema → `course-generator` propone módulos, recursos y ejercicios).
+- **Cursos adicionales** — Khan Academy, Codecademy, MIT OpenCourseWare para áreas complementarias (programación, data science, marketing digital).
+
+### Podcasts y Multimedia
+**Podcasts en Español**
+- Inteligencia Artificial (Pocho Costa)
+- Software 2.0 (Andrés Torrubia)
+- El Test de Turing
+- Monos Estocásticos
+- Lo que AI que oír
+- IA en Negocios, La Tertul-IA, xHub AI, Esperando a Skynet
+
+**Podcasts en Inglés**
+- The AI Podcast (NVIDIA)
+- Lex Fridman Podcast
+- TWIML AI (This Week in Machine Learning & AI)
+- Hard Fork (NYTimes)
+- The AI Breakdown
+
+**Canales de Video (ES)**
+- DotCSV, Xavier Mitjana, Gustavo Entrala, Migue Baena, Jon Hernández
+
+**Canales de Video (EN)**
+- Two Minute Papers, ColdFusion, Computerphile, TED AI playlists, canales oficiales de DeepMind, OpenAI y Google AI
+
+**Integración Multimedia**
+- Embeds de YouTube, Twitch y reproductores de podcast con feeds RSS.
+- Clips de TV/Radio (RTVE, CNN Español, BBC Mundo) con menciones a IA.
+- Destacar conferencias en vivo (Apple, Tesla, Google I/O) mediante streams embebidos.
+
+### Comunidades y Foros
+- **ForosdeIA.com** — Comunidad hispana con secciones de prompts, herramientas y debates.
+- **Spain AI** — Eventos, newsletters y meetups.
+- **Reddit** — `r/Artificial`, `r/MachineLearning` para seguimiento técnico.
+- **Discord** — Hugging Face, EleutherAI, comunidades de automatización (n8n, Zapier).
+- **Stack Exchange (AI)** — Resolución de dudas avanzadas.
+- **Eventos** — Calendario de World AI Forum, hackathons, webinars y encuentros locales (publicar en dashboard de comunidad).
+
+### Estrategias de Contenido Complementario
+- **Tutoriales y Guías** — Cómo registrarse en ChatGPT, Midjourney, uso responsable y configuración inicial.
+- **Comparativas** — Tablas EN/ES que contrasten modelos (ChatGPT vs Gemini vs Claude), asistentes virtuales y plataformas no-code.
+- **Workflows** — Recetas paso a paso que combinen múltiples herramientas (texto → imagen → vídeo, IA para productividad empresarial, automatizaciones con Zapier/n8n).
+- **Productividad y Automatismos** — Casos de estudio reales sobre integración de IA en procesos laborales.
+- **Integración Social** — Embeds de X/Twitter con líderes de IA, lista curada de newsletters (Import AI, Notion AI digest, Xatakaletter).
+- **Boletín semanal** — Resumen editorial bilingüe con top noticias, cursos y recursos (usar Supabase + Resend para envío).
+- **Comentarios y Foro Interno** — Permitir debates bajo artículos, hilos de preguntas y votación de contribuciones (incentiva retención).
+- **Calidad Editorial** — Etiquetas de bias, confianza y procedencia; añadir citas y timeline para hechos relevantes.
 
 ---
 

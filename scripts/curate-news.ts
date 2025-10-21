@@ -12,11 +12,22 @@
  * Runs on schedule via GitHub Actions or manually via `npm run ai:curate`
  */
 
+// Load environment variables for standalone script runs (prefers .env.local, falls back to .env)
+import { config as loadEnv } from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+const envLocal = resolve(process.cwd(), '.env.local');
+if (existsSync(envLocal)) {
+  loadEnv({ path: envLocal });
+} else {
+  loadEnv();
+}
+
 import Parser from 'rss-parser';
 import { load } from 'cheerio';
 import { createLLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
-import { AI_NEWS_SOURCES, NewsSource } from '../lib/ai/news-sources';
+import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { z } from 'zod';
 
 const parser = new Parser({
@@ -134,17 +145,19 @@ Classify its relevance, quality (0-1), and category.`,
 
 async function translateArticle(
   article: RawArticle,
-  llm: ReturnType<typeof createLLMClient>
+  llm: ReturnType<typeof createLLMClient>,
+  targetLanguage: 'en' | 'es'
 ) {
   const content = cleanContent(article.content) || article.contentSnippet || '';
   
   const result = await llm.classify(
-    `Translate this AI news article to Spanish. Maintain technical accuracy.
+    `Translate the following AI news article to ${targetLanguage === 'es' ? 'Spanish' : 'English'}.
+Maintain technical accuracy, names and figures.
     
-Title: ${article.title}
-Content: ${content}
+Original Title: ${article.title}
+Original Content: ${content}
 
-Provide translated title, summary (2-3 sentences), and full content.`,
+Provide the translated title, a concise summary (2-3 sentences), and the full translated content in ${targetLanguage}.`,
     TranslationSchema
   );
   
@@ -172,43 +185,63 @@ async function storeArticles(
   classified: Array<{
     article: RawArticle;
     classification: z.infer<typeof ArticleClassificationSchema>;
-    translation_es?: z.infer<typeof TranslationSchema>;
+    translation?: z.infer<typeof TranslationSchema>;
+    translationLanguage?: 'en' | 'es';
   }>,
   db: ReturnType<typeof getSupabaseServerClient>
 ) {
   console.log('[DB] Storing articles...');
   
-  for (const { article, classification, translation_es } of classified) {
+  for (const { article, classification, translation } of classified) {
     try {
-      const content_en = cleanContent(article.content) || article.contentSnippet || '';
-      const summary_en = article.contentSnippet?.slice(0, 300) || content_en.slice(0, 300);
+      const contentOriginal = cleanContent(article.content) || article.contentSnippet || '';
+      const summaryOriginal = article.contentSnippet?.slice(0, 300) || contentOriginal.slice(0, 300);
+      const originalLanguage: 'en' | 'es' = article.source.language === 'es' ? 'es' : 'en';
+
+      const bilingual = {
+        title_en: originalLanguage === 'en' ? article.title : translation?.title || article.title,
+        title_es: originalLanguage === 'es' ? article.title : translation?.title || article.title,
+        summary_en: originalLanguage === 'en' ? summaryOriginal : translation?.summary || summaryOriginal,
+        summary_es: originalLanguage === 'es' ? summaryOriginal : translation?.summary || summaryOriginal,
+        content_en: originalLanguage === 'en' ? contentOriginal : translation?.content || contentOriginal,
+        content_es: originalLanguage === 'es' ? contentOriginal : translation?.content || contentOriginal
+      };
+
+      const baseTags = new Set<string>([
+        article.source.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, ''),
+        `lang-${originalLanguage}`,
+        `source-lang-${article.source.language}`,
+        `source-category-${article.source.category}`
+      ]);
       
       const { data: insertedArticle, error: articleError } = await db
         .from('news_articles')
         .insert({
-          title_en: article.title,
-          title_es: translation_es?.title || article.title,
-          summary_en,
-          summary_es: translation_es?.summary || summary_en,
-          content_en,
-          content_es: translation_es?.content || content_en,
+          title_en: bilingual.title_en,
+          title_es: bilingual.title_es,
+          summary_en: bilingual.summary_en,
+          summary_es: bilingual.summary_es,
+          content_en: bilingual.content_en,
+          content_es: bilingual.content_es,
           category: classification.category,
-          tags: [article.source.name.toLowerCase().replace(/\s+/g, '-')],
+          tags: Array.from(baseTags),
           source_url: article.link,
           image_url: extractImageUrl(article),
           published_at: new Date(article.pubDate).toISOString(),
           ai_generated: false,
           quality_score: classification.quality_score,
-          reading_time_minutes: Math.ceil(content_en.split(' ').length / 200)
+          reading_time_minutes: Math.ceil(bilingual.content_en.split(' ').length / 200)
         })
         .select('id')
         .single();
       
       if (articleError) throw articleError;
       
-      const embedding = await generateEmbedding(
-        `${article.title} ${summary_en} ${content_en.slice(0, 1000)}`
-      );
+  const embeddingBase = `${bilingual.title_en} ${bilingual.summary_en} ${bilingual.content_en.slice(0, 1000)}`;
+      const embedding = await generateEmbedding(embeddingBase);
       
       await db.from('content_embeddings').insert({
         content_id: insertedArticle.id,
@@ -239,13 +272,16 @@ async function main() {
     const classified = await filterAndClassifyArticles(rawArticles, llm) as Array<{
       article: RawArticle;
       classification: z.infer<typeof ArticleClassificationSchema>;
-      translation_es?: z.infer<typeof TranslationSchema>;
+      translation?: z.infer<typeof TranslationSchema>;
+      translationLanguage?: 'en' | 'es';
     }>;
     
-    console.log('[Translation] Translating to Spanish...');
+    console.log('[Translation] Generating bilingual content...');
     for (const item of classified) {
       try {
-        item.translation_es = await translateArticle(item.article, llm);
+        const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
+        item.translation = await translateArticle(item.article, llm, targetLanguage);
+        item.translationLanguage = targetLanguage;
       } catch (error) {
         console.error('[Translation] ✗ Failed:', error);
       }

@@ -39,13 +39,15 @@ export function Header() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/80 border-b border-border/60">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
       <div className="container flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-          <span className="rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-2 text-white shadow-lg">
+        <Link href="/" className="group flex items-center gap-3 font-semibold text-lg tracking-tight">
+          <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-fuchsia-500 to-cyan-400 text-sm font-bold text-primary-foreground shadow-[0_8px_25px_rgba(104,58,255,0.55)] transition-transform group-hover:scale-105">
             AI
           </span>
-          <span className="hidden sm:inline">AINews</span>
+          <span className="hidden sm:inline text-base font-semibold uppercase tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">
+            AINEWS
+          </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
@@ -55,13 +57,15 @@ export function Header() {
               <Link
                 key={item.key}
                 href={item.href}
-                className={`relative transition-colors hover:text-primary ${
-                  isActive ? 'text-primary' : 'text-muted-foreground'
+                className={`relative px-1 transition-colors duration-300 ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-muted-foreground hover:text-white'
                 }`}
               >
                 {t(item.key)}
                 {isActive ? (
-                  <span className="absolute inset-x-0 -bottom-2 h-0.5 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+                  <span className="absolute inset-x-0 -bottom-2 h-0.5 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-400" />
                 ) : null}
               </Link>
             );
