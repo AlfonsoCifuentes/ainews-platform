@@ -25,12 +25,12 @@ const typeEmojis: Record<string, string> = {
   concept: '💡',
 };
 
-const typeColors: Record<string, string> = {
+const typeColors: Record<string, 'primary' | 'success' | 'warning' | 'error' | 'gradient'> = {
   person: 'primary',
   organization: 'success',
   model: 'warning',
-  company: 'danger',
-  paper: 'info',
+  company: 'error',
+  paper: 'primary',
   concept: 'gradient',
 };
 
@@ -61,7 +61,7 @@ export function EntityGrid({ entities, noResults }: EntityGridProps) {
         >
           <div className="mb-3 flex items-center justify-between">
             <Badge 
-              variant={typeColors[entity.type] as 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'gradient' || 'primary'} 
+              variant={typeColors[entity.type] || 'primary'} 
               size="sm"
             >
               {typeEmojis[entity.type] || '📌'} {entity.type}

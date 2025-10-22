@@ -11,8 +11,8 @@ import dynamic from 'next/dynamic';
 // THREE.JS COMPONENTS (Heavy - ~500KB)
 // ========================================
 
-export const AnimatedBackground = dynamic(
-  () => import('@/components/shared/AnimatedBackground').then(mod => ({ default: mod.AnimatedBackground })),
+export const BackgroundGeometry = dynamic(
+  () => import('@/components/shared/BackgroundGeometry').then(mod => ({ default: mod.BackgroundGeometry })),
   {
     ssr: false,
     loading: () => (
@@ -21,8 +21,8 @@ export const AnimatedBackground = dynamic(
   }
 );
 
-export const ZoomableGraph = dynamic(
-  () => import('@/components/kg/ZoomableGraph').then(mod => ({ default: mod.ZoomableGraph })),
+export const GraphVisualizer = dynamic(
+  () => import('@/components/kg/GraphVisualizer').then(mod => ({ default: mod.GraphVisualizer })),
   {
     ssr: false,
     loading: () => (
@@ -49,14 +49,6 @@ export const CourseGenerator = dynamic(
         </div>
       </div>
     ),
-  }
-);
-
-export const AITutorChat = dynamic(
-  () => import('@/components/courses/AITutor').then(mod => ({ default: mod.AITutor })),
-  {
-    ssr: false,
-    loading: () => null, // No loading state needed (opens on demand)
   }
 );
 
@@ -91,34 +83,10 @@ export const AuthModal = dynamic(
   }
 );
 
-export const ShareDialog = dynamic(
-  () => import('@/components/shared/ShareDialog').then(mod => ({ default: mod.ShareDialog })),
+export const GlobalSearch = dynamic(
+  () => import('@/components/shared/GlobalSearch').then(mod => ({ default: mod.GlobalSearch })),
   {
     ssr: false,
-  }
-);
-
-// ========================================
-// EDITOR COMPONENTS (Heavy - ~300KB)
-// ========================================
-
-export const RichTextEditor = dynamic(
-  () => import('@/components/shared/RichTextEditor').then(mod => ({ default: mod.RichTextEditor })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-64 animate-pulse rounded-xl border bg-muted"></div>
-    ),
-  }
-);
-
-export const CodeEditor = dynamic(
-  () => import('@/components/shared/CodeEditor').then(mod => ({ default: mod.CodeEditor })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-96 animate-pulse rounded-xl border bg-black/90"></div>
-    ),
   }
 );
 

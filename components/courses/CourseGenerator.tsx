@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -29,6 +28,7 @@ function formatTemplate(template: string, values: Record<string, string | number
 }
 
 type CourseGeneratorProps = {
+  locale: string;
   translations: {
     title: string;
     subtitle: string;
@@ -70,8 +70,7 @@ const progressSteps = [
   'finalizing',
 ] as const;
 
-export function CourseGenerator({ translations }: CourseGeneratorProps) {
-  const locale = useLocale();
+export function CourseGenerator({ locale, translations }: CourseGeneratorProps) {
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');

@@ -10,6 +10,10 @@ type CoursesPageProps = {
   };
 };
 
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
+
 function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
 }
@@ -31,6 +35,7 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
       subtitle={tCourses('catalog.title')}
     >
       <CourseGenerator
+          locale={locale}
           translations={{
             title: tCourses('generator.title'),
             subtitle: tCourses('generator.subtitle'),
