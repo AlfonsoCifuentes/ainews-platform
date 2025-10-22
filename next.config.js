@@ -25,10 +25,7 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  // Optimize fonts
-  optimizeFonts: true,
-  // Enable SWC minification
-  swcMinify: true,
+  // optimizeFonts and swcMinify are now default in Next.js 15
 };
 
 module.exports = withBundleAnalyzer(withNextIntl(nextConfig));
