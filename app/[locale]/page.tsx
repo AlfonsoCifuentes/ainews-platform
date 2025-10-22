@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
 import { BentoGrid, BentoCard, BentoIcon, BentoTitle, BentoDescription } from '@/components/shared/BentoGrid';
 import { ScrollReveal, ParallaxSection } from '@/components/shared/AnimatedHero';
+import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
+import { RippleButton } from '@/components/shared/InteractiveButtons';
 import dynamic from 'next/dynamic';
 
 // Lazy load 3D components for performance (client-only, no SSR)
@@ -32,8 +34,8 @@ export default function HomePage() {
               </p>
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.1}>
-              <h1 className="text-4xl font-black leading-tight text-white md:text-6xl lg:text-7xl">
-                {t('hero.title')}
+              <h1 className="text-4xl font-black leading-tight md:text-6xl lg:text-7xl">
+                <TextGradient>{t('hero.title')}</TextGradient>
               </h1>
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.2}>
@@ -43,19 +45,21 @@ export default function HomePage() {
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.3}>
               <div className="flex flex-wrap justify-center gap-4 md:justify-start">
-                <Link
-                  href="/news"
-                  className="group inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 px-8 py-3 text-base font-semibold text-primary-foreground shadow-[0_18px_45px_-20px_rgba(116,77,255,0.95)] transition-all hover:translate-y-[-2px]"
+                <RippleButton
+                  variant="primary"
+                  className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 px-8 py-3 text-base font-semibold text-primary-foreground shadow-[0_18px_45px_-20px_rgba(116,77,255,0.95)]"
+                  onClick={() => window.location.href = '/news'}
                 >
                   {t('hero.cta')}
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
-                </Link>
-                <Link
-                  href="/courses"
-                  className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-8 py-3 text-base font-semibold text-white/80 transition-all hover:border-white/25 hover:text-white"
+                  <span>→</span>
+                </RippleButton>
+                <RippleButton
+                  variant="ghost"
+                  className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-8 py-3 text-base font-semibold text-white/80"
+                  onClick={() => window.location.href = '/courses'}
                 >
                   {t('hero.ctaSecondary')}
-                </Link>
+                </RippleButton>
               </div>
             </ScrollReveal>
           </div>
@@ -90,7 +94,7 @@ export default function HomePage() {
           <ScrollReveal>
             <div className="mx-auto mb-14 max-w-3xl text-center">
               <h2 className="text-3xl font-bold text-white md:text-5xl">
-                {t('features.title')}
+                <TextSplit text={t('features.title')} by="word" stagger={0.1} />
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
                 {t('features.subtitle')}

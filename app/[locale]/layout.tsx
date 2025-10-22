@@ -9,6 +9,8 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { MatrixRain } from '@/components/shared/MatrixRain';
+import { ToastProvider } from '@/components/shared/ToastProvider';
+import { ScrollProgress } from '@/components/shared/ScrollEffects';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -55,21 +57,26 @@ export default async function LocaleLayout({
           />
         ) : null}
         <ThemeProvider>
-          <NextIntlClientProvider messages={messages} locale={locale}>
-            <div className="relative flex min-h-screen flex-col">
-              {/* Matrix Rain Background */}
-              <MatrixRain />
-              
-              {/* Gradient Overlay */}
-              <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+          <ToastProvider>
+            <NextIntlClientProvider messages={messages} locale={locale}>
+              <div className="relative flex min-h-screen flex-col">
+                {/* Matrix Rain Background */}
+                <MatrixRain />
+                
+                {/* Scroll Progress Indicator */}
+                <ScrollProgress />
+                
+                {/* Gradient Overlay */}
+                <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+                </div>
+                
+                <Header />
+                <main className="flex-1 relative z-10">{children}</main>
+                <Footer />
               </div>
-              
-              <Header />
-              <main className="flex-1 relative z-10">{children}</main>
-              <Footer />
-            </div>
-          </NextIntlClientProvider>
+            </NextIntlClientProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
