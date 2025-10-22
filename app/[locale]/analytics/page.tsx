@@ -8,8 +8,9 @@ export const metadata: Metadata = {
   description: 'Platform performance and user engagement metrics'
 };
 
-export default function AnalyticsPage({ params }: { params: { locale: string } }) {
-  setRequestLocale(params.locale);
+export default async function AnalyticsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   
   return (
     <AnalyticsPageClient>

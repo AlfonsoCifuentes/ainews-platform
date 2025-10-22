@@ -9,8 +9,9 @@ import { EntityGrid } from '@/components/kg/EntityGrid';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations({ locale: params.locale, namespace: 'kg' });
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'kg' });
   return {
     title: t('title'),
     alternates: {
@@ -44,11 +45,13 @@ async function fetchEntities(query?: string, type?: string, page = 1, pageSize =
   }
 }
 
-export default async function KGPage({ params, searchParams }: { params: { locale: string }; searchParams?: { q?: string; type?: string; page?: string } }) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'kg' });
-  const q = searchParams?.q ?? '';
-  const type = searchParams?.type ?? '';
-  const page = Math.max(1, parseInt(searchParams?.page ?? '1', 10) || 1);
+export default async function KGPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams?: Promise<{ q?: string; type?: string; page?: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'kg' });
+  const sp = await searchParams;
+  const q = sp?.q ?? '';
+  const type = sp?.type ?? '';
+  const page = Math.max(1, parseInt(sp?.page ?? '1', 10) || 1);
   const entities = await fetchEntities(q, type || undefined, page);
   
   return (

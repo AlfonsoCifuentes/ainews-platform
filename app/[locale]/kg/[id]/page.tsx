@@ -37,9 +37,10 @@ async function fetchEntityNames(ids: string[]): Promise<EntityMap> {
   return map;
 }
 
-export default async function EntityPage({ params }: { params: { locale: string; id: string } }) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'kg' });
-  const entity = await fetchEntity(params.id);
+export default async function EntityPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { locale, id } = await params;
+  const t = await getTranslations({ locale, namespace: 'kg' });
+  const entity = await fetchEntity(id);
   if (!entity) {
     return (
       <main className="container mx-auto px-4 py-8">

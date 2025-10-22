@@ -2,8 +2,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import { FlashcardReviewer } from '@/components/shared/FlashcardReviewer';
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations({ locale: params.locale, namespace: 'flashcards' });
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'flashcards' });
   return {
     title: t('title'),
     description: t('description'),
@@ -16,9 +17,10 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   };
 }
 
-export default async function FlashcardsPage({ params }: { params: { locale: string } }) {
-  setRequestLocale(params.locale);
-  const t = await getTranslations({ locale: params.locale, namespace: 'flashcards' });
+export default async function FlashcardsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'flashcards' });
 
   return (
     <main className="container mx-auto px-4 py-8">

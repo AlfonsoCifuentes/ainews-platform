@@ -8,13 +8,13 @@ import Link from 'next/link';
 type Locale = (typeof routing.locales)[number];
 
 type NewsPageProps = {
-  params: {
+  params: Promise<{
     locale: Locale;
-  };
+  }>;
 };
 
 export default async function NewsPage({ params }: NewsPageProps) {
-  const locale = params.locale;
+  const { locale } = await params;
 
   setRequestLocale(locale);
 

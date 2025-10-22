@@ -5,9 +5,9 @@ import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
 import { CourseCatalog } from '@/components/courses/CourseCatalog';
 
 type CoursesPageProps = {
-  params: {
+  params: Promise<{
     locale: Locale;
-  };
+  }>;
 };
 
 export function generateStaticParams() {
@@ -19,7 +19,7 @@ function isLocale(value: string): value is Locale {
 }
 
 export default async function CoursesPage({ params }: CoursesPageProps) {
-  const locale = params.locale;
+  const { locale } = await params;
 
   if (!isLocale(locale)) {
     throw new Error('Invalid locale received for courses page.');

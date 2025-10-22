@@ -5,8 +5,9 @@ import { Link } from '@/i18n';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminKGPage({ params }: { params: { locale: string } }) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'kg' });
+export default async function AdminKGPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'kg' });
   
   return (
     <main className="container mx-auto px-4 py-8">

@@ -10,13 +10,13 @@ import { SavedArticles } from '@/components/dashboard/SavedArticles';
 import { DashboardPageClient } from '@/components/dashboard/DashboardPageClient';
 
 interface DashboardPageProps {
-  params: {
+  params: Promise<{
     locale: Locale;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: DashboardPageProps) {
-  const { locale } = params;
+  const { locale } = await params;
 
   return {
     title: `${locale === 'en' ? 'Dashboard' : 'Panel'} | AINews`,
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: DashboardPageProps) {
 }
 
 export default async function DashboardPage({ params }: DashboardPageProps) {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   
   const user = await getServerAuthUser();

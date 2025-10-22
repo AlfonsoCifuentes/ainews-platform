@@ -7,8 +7,9 @@ import type { TrendingTopic } from '@/lib/ai/trending';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrendingPage({ params }: { params: { locale: string } }) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'common' });
+export default async function TrendingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'common' });
   
   let topics: TrendingTopic[] = [];
   try {

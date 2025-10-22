@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-export default async function AboutPage({ params }: { params: { locale: string } }) {
-  setRequestLocale(params.locale);
-  const t = await getTranslations({ locale: params.locale, namespace: 'home' });
+export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'home' });
   return (
     <main className="container mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold mb-4">AINews</h1>

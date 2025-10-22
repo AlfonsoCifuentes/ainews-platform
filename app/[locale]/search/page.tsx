@@ -3,17 +3,18 @@ import { AdvancedSearch } from '@/components/search/AdvancedSearch';
 import type { Locale } from '@/i18n';
 
 interface SearchPageProps {
-  params: {
+  params: Promise<{
     locale: Locale;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     q?: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params, searchParams }: SearchPageProps) {
-  const { locale } = params;
-  const query = searchParams.q || '';
+  const { locale } = await params;
+  const sp = await searchParams;
+  const query = sp.q || '';
 
   return {
     title: query
@@ -26,10 +27,11 @@ export async function generateMetadata({ params, searchParams }: SearchPageProps
   };
 }
 
-export default function SearchPage({ params, searchParams }: SearchPageProps) {
-  const { locale } = params;
+export default async function SearchPage({ params, searchParams }: SearchPageProps) {
+  const { locale } = await params;
   setRequestLocale(locale);
-  const initialQuery = searchParams.q || '';
+  const sp = await searchParams;
+  const initialQuery = sp.q || '';
 
   return (
     <main className="min-h-screen pt-20 pb-16">

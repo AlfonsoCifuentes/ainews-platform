@@ -17,8 +17,8 @@ import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const locale = params.locale;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
   
   // Default titles for homepage
   const titles: Record<string, string> = {
@@ -51,11 +51,13 @@ export function generateStaticParams() {
 
 export default async function LocaleLayout({
   children,
-  params: { locale },
+  params,
 }: {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+  
   // Validate that the incoming `locale` parameter is valid
   if (!routing.locales.includes(locale as Locale)) {
     notFound();
