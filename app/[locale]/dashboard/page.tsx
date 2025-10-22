@@ -7,6 +7,7 @@ import { UserStats } from '@/components/dashboard/UserStats';
 import { EnrolledCourses } from '@/components/dashboard/EnrolledCourses';
 import { BadgesCollection } from '@/components/dashboard/BadgesCollection';
 import { SavedArticles } from '@/components/dashboard/SavedArticles';
+import { DashboardPageClient } from '@/components/dashboard/DashboardPageClient';
 
 interface DashboardPageProps {
   params: {
@@ -95,53 +96,47 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }[locale];
 
   return (
-    <main className="min-h-screen pt-20 pb-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">
-            {t.welcome}, {user.name || user.email}! 👋
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">{t.overview}</p>
+    <DashboardPageClient
+      userName={user.name || user.email || 'User'}
+      welcomeText={t.welcome}
+      overviewText={t.overview}
+    >
+      {/* Stats Grid */}
+      <UserStats
+        profile={profile}
+        enrollments={enrollments || []}
+        locale={locale}
+        translations={t}
+      />
+
+      {/* Content Grid */}
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Enrolled Courses */}
+        <div className="lg:col-span-2">
+          <EnrolledCourses
+            enrollments={enrollments || []}
+            locale={locale}
+            translations={{ title: t.courses }}
+          />
         </div>
 
-        {/* Stats Grid */}
-        <UserStats
-          profile={profile}
-          enrollments={enrollments || []}
-          locale={locale}
-          translations={t}
-        />
+        {/* Sidebar */}
+        <div className="space-y-8">
+          {/* Badges */}
+          <BadgesCollection
+            badges={badges || []}
+            locale={locale}
+            translations={{ title: t.badges }}
+          />
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-          {/* Enrolled Courses */}
-          <div className="lg:col-span-2">
-            <EnrolledCourses
-              enrollments={enrollments || []}
-              locale={locale}
-              translations={{ title: t.courses }}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Badges */}
-            <BadgesCollection
-              badges={badges || []}
-              locale={locale}
-              translations={{ title: t.badges }}
-            />
-
-            {/* Saved Articles */}
-            <SavedArticles
-              articles={savedArticles || []}
-              locale={locale}
-              translations={{ title: t.saved }}
-            />
-          </div>
+          {/* Saved Articles */}
+          <SavedArticles
+            articles={savedArticles || []}
+            locale={locale}
+            translations={{ title: t.saved }}
+          />
         </div>
       </div>
-    </main>
+    </DashboardPageClient>
   );
 }

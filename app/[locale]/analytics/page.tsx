@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
+import { AnalyticsPageClient } from '@/components/analytics/AnalyticsPageClient';
 
 export const metadata: Metadata = {
   title: 'Analytics Dashboard - AINews',
@@ -9,5 +10,10 @@ export const metadata: Metadata = {
 
 export default function AnalyticsPage({ params }: { params: { locale: string } }) {
   setRequestLocale(params.locale);
-  return <AnalyticsDashboard />;
+  
+  return (
+    <AnalyticsPageClient>
+      <AnalyticsDashboard />
+    </AnalyticsPageClient>
+  );
 }
