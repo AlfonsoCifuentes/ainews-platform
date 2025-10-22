@@ -1,6 +1,6 @@
 import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
-import { CourseGenerator } from '@/components/courses/CourseGenerator';
+import { CourseGenerator } from '@/lib/lazy-components';
 import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
 import { CourseCatalog } from '@/components/courses/CourseCatalog';
 

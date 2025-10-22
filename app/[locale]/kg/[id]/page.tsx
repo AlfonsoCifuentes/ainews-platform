@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 import { Link } from '@/i18n';
-import { GraphVisualizer } from '@/components/kg/GraphVisualizer';
+import { GraphVisualizer } from '@/lib/lazy-components';
 
 type Entity = { id: string; name: string; type: string; description?: string | null };
 type Relation = { id: string; source_id: string; target_id: string; rel_type: string; weight?: number | null };

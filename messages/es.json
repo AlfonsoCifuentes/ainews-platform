@@ -143,7 +143,7 @@
         "finalizing": "Finalizando curso..."
       },
       "successTitle": "¡Curso listo!",
-      "successDescription": "El curso \"{{title}}\" está disponible con {{modules}} módulos (~{{minutes}} minutos).",
+      "successDescription": "¡Tu curso está listo! Ve a tu panel para comenzar a aprender.",
       "viewCourse": "Ir al panel",
       "errorTitle": "La generación falló",
       "errorDescription": "No pudimos generar el curso. Inténtalo nuevamente en unos instantes.",

@@ -91,6 +91,41 @@ export const GlobalSearch = dynamic(
 );
 
 // ========================================
+// HEAVY UI COMPONENTS (Lazy load for better perf)
+// ========================================
+
+export const FlashcardReviewer = dynamic(
+  () => import('@/components/shared/FlashcardReviewer').then(mod => ({ default: mod.FlashcardReviewer })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="glass rounded-3xl border border-white/10 p-8">
+        <div className="h-96 animate-pulse space-y-4">
+          <div className="h-12 w-full rounded bg-muted"></div>
+          <div className="h-64 rounded bg-muted"></div>
+        </div>
+      </div>
+    ),
+  }
+);
+
+export const FloatingObjects = dynamic(
+  () => import('@/components/shared/FloatingObjects').then(mod => ({ default: mod.FloatingObjects })),
+  {
+    ssr: false,
+    loading: () => <div className="absolute inset-0" />,
+  }
+);
+
+export const MatrixRain = dynamic(
+  () => import('@/components/shared/MatrixRain').then(mod => ({ default: mod.MatrixRain })),
+  {
+    ssr: false,
+    loading: () => <div className="absolute inset-0 bg-black/10" />,
+  }
+);
+
+// ========================================
 // USAGE NOTES
 // ========================================
 

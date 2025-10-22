@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-config';
+import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
 import { useRouter } from 'next/navigation';
 
 interface AuthModalProps {

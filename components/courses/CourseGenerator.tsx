@@ -20,13 +20,6 @@ type CourseGenerationResponse = {
   message?: string;
 };
 
-function formatTemplate(template: string, values: Record<string, string | number>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
-    const value = values[key];
-    return value === undefined ? '' : String(value);
-  });
-}
-
 type CourseGeneratorProps = {
   locale: string;
   translations: {
@@ -133,14 +126,6 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       }
     });
   };
-
-  const successDescription = result
-    ? formatTemplate(translations.result.successDescription, {
-        title: result.title,
-        modules: result.modules_count,
-        minutes: result.estimated_duration_minutes
-      })
-    : '';
 
   return (
     <div className="glass rounded-3xl p-8 shadow-xl">
@@ -271,7 +256,9 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
               className="mt-6 rounded-3xl border border-primary/40 bg-primary/10 p-6 text-left shadow-lg"
             >
               <h3 className="text-xl font-bold text-primary">{translations.result.successTitle}</h3>
-              <p className="mt-2 text-sm text-primary-foreground/80 md:text-base">{successDescription}</p>
+              <p className="mt-2 text-sm text-primary-foreground/80 md:text-base">
+                {translations.result.successDescription}
+              </p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Link
                   href={`/${locale}/dashboard`}
