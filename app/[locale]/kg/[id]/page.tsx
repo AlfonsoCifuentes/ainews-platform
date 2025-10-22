@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 import { Link } from '@/i18n';
-import { GraphVisualizer } from '@/lib/lazy-components';
+import { GraphVisualizerWrapper } from '@/components/kg/GraphVisualizerWrapper';
 
 type Entity = { id: string; name: string; type: string; description?: string | null };
 type Relation = { id: string; source_id: string; target_id: string; rel_type: string; weight?: number | null };
@@ -80,16 +80,9 @@ export default async function EntityPage({ params }: { params: { locale: string;
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-4">{t('graphVisualization')}</h2>
-        <GraphVisualizer
+        <GraphVisualizerWrapper
           nodes={graphNodes}
           edges={graphEdges}
-          width={800}
-          height={500}
-          onNodeClick={(node) => {
-            if (typeof window !== 'undefined' && node.id !== entity.id) {
-              window.location.href = `/kg/${node.id}`;
-            }
-          }}
         />
       </section>
 

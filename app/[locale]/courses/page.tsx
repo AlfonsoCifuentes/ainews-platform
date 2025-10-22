@@ -1,6 +1,6 @@
 import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
-import { CourseGenerator } from '@/lib/lazy-components';
+import { CourseGeneratorWrapper } from '@/components/courses/CourseGeneratorWrapper';
 import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
 import { CourseCatalog } from '@/components/courses/CourseCatalog';
 
@@ -34,7 +34,7 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
       title={tCourses('title')}
       subtitle={tCourses('catalog.title')}
     >
-      <CourseGenerator
+      <CourseGeneratorWrapper
           locale={locale}
           translations={{
             title: tCourses('generator.title'),
