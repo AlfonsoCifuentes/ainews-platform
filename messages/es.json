@@ -39,7 +39,7 @@
       "apply": "Aplicar",
       "prev": "Anterior",
       "next": "Siguiente",
-      "page": "Página {{page}}",
+      "page": "Página {page}",
       "person": "Persona",
       "organization": "Organización",
       "model": "Modelo",

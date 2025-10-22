@@ -3,12 +3,19 @@ import { Link } from '@/i18n';
 import { detectTrendingTopics } from '@/lib/ai/trending';
 import { TrendingPageClient } from '@/components/trending/TrendingPageClient';
 import { TrendingGrid } from '@/components/trending/TrendingGrid';
+import type { TrendingTopic } from '@/lib/ai/trending';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TrendingPage({ params }: { params: { locale: string } }) {
   const t = await getTranslations({ locale: params.locale, namespace: 'common' });
-  const topics = await detectTrendingTopics(24);
+  
+  let topics: TrendingTopic[] = [];
+  try {
+    topics = await detectTrendingTopics(24);
+  } catch (error) {
+    console.error('Failed to fetch trending topics:', error);
+  }
   
   return (
     <TrendingPageClient

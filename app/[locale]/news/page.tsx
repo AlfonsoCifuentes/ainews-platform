@@ -1,9 +1,11 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { locales, type Locale } from '@/i18n';
+import { routing } from '@/i18n/routing';
 import { fetchLatestNews } from '@/lib/db/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import Link from 'next/link';
+
+type Locale = (typeof routing.locales)[number];
 
 type NewsPageProps = {
   params: {
@@ -11,16 +13,8 @@ type NewsPageProps = {
   };
 };
 
-function isLocale(value: string): value is Locale {
-  return (locales as readonly string[]).includes(value);
-}
-
 export default async function NewsPage({ params }: NewsPageProps) {
   const locale = params.locale;
-
-  if (!isLocale(locale)) {
-    throw new Error('Invalid locale received for news page.');
-  }
 
   setRequestLocale(locale);
 

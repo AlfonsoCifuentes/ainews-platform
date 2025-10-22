@@ -30,10 +30,18 @@ async function fetchEntities(query?: string, type?: string, page = 1, pageSize =
   params.set('limit', String(pageSize));
   params.set('offset', String(offset));
   const search = `?${params.toString()}`;
-  const res = await fetch(`/api/kg/entities${search}`, { cache: 'no-store' });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return json.data as Array<{ id: string; name: string; type: string; description?: string | null }>;
+  
+  try {
+    // Use absolute URL for server-side fetch in SSR
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/kg/entities${search}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data as Array<{ id: string; name: string; type: string; description?: string | null }>;
+  } catch (error) {
+    console.error('Failed to fetch entities:', error);
+    return [];
+  }
 }
 
 export default async function KGPage({ params, searchParams }: { params: { locale: string }; searchParams?: { q?: string; type?: string; page?: string } }) {

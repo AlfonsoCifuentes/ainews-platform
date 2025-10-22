@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { setRequestLocale } from 'next-intl/server';
@@ -15,6 +16,32 @@ import { routing } from '@/i18n/routing';
 import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
+
+export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+  const locale = params.locale;
+  
+  // Default titles for homepage
+  const titles: Record<string, string> = {
+    en: 'AINews - Your AI News & Learning Hub',
+    es: 'AINews - Tu Hub de Noticias y Aprendizaje de IA'
+  };
+  
+  const descriptions: Record<string, string> = {
+    en: 'Stay updated with the latest AI news, learn from AI-generated courses, and explore the AI knowledge graph.',
+    es: 'Mantente actualizado con las últimas noticias de IA, aprende de cursos generados por IA y explora el grafo de conocimiento de IA.'
+  };
+  
+  return {
+    title: titles[locale] || titles.en,
+    description: descriptions[locale] || descriptions.en,
+    alternates: {
+      languages: {
+        en: '/en',
+        es: '/es',
+      },
+    },
+  };
+}
 
 type Locale = (typeof routing.locales)[number];
 

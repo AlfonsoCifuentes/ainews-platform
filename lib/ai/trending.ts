@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 
-interface TrendingTopic {
+export interface TrendingTopic {
   topic: string;
   count: number;
   articles: string[];
