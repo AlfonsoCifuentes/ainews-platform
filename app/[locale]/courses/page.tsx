@@ -1,6 +1,8 @@
 import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { CourseGenerator } from '@/components/courses/CourseGenerator';
+import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
+import { CourseCatalog } from '@/components/courses/CourseCatalog';
 
 type CoursesPageProps = {
   params: {
@@ -24,21 +26,11 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
   const tCourses = await getTranslations({ locale, namespace: 'courses' });
 
   return (
-    <main className="min-h-screen px-4 py-12">
-      <div className="container mx-auto max-w-4xl">
-        <header className="mb-12 text-center">
-          <p className="mb-2 text-sm uppercase tracking-widest text-primary">
-            AI-Powered Learning
-          </p>
-          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
-            {tCourses('title')}
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            {tCourses('catalog.title')}
-          </p>
-        </header>
-
-        <CourseGenerator
+    <CoursesPageClient 
+      title={tCourses('title')}
+      subtitle={tCourses('catalog.title')}
+    >
+      <CourseGenerator
           translations={{
             title: tCourses('generator.title'),
             subtitle: tCourses('generator.subtitle'),
@@ -76,28 +68,13 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
           }}
         />
 
-        {/* Course Catalog Placeholder */}
-        <section className="mt-16">
-          <h2 className="mb-6 text-2xl font-bold">
-            {tCourses('catalog.title')}
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="glass rounded-3xl p-6">
-                <div className="mb-4 h-32 rounded-xl bg-muted"></div>
-                <h3 className="mb-2 text-xl font-bold">Sample Course {i}</h3>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Sample description for course...
-                </p>
-                <div className="flex items-center justify-between text-sm">
-                  <span>{tCourses('catalog.beginner')}</span>
-                  <span>2h 30min</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
+        {/* Course Catalog */}
+        <CourseCatalog 
+          title={tCourses('catalog.title')}
+          beginner={tCourses('catalog.beginner')}
+          intermediate={tCourses('catalog.intermediate')}
+          advanced={tCourses('catalog.advanced')}
+        />
+    </CoursesPageClient>
   );
 }
