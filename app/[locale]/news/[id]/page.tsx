@@ -8,10 +8,10 @@ import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
 
 type NewsDetailPageProps = {
-  params: {
+  params: Promise<{
     locale: Locale;
     id: string;
-  };
+  }>;
 };
 
 function isLocale(value: string): value is Locale {
@@ -54,7 +54,7 @@ async function fetchRelatedArticles(category: string, currentId: string, limit =
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
-  const { locale, id } = params;
+  const { locale, id } = await params;
 
   if (!isLocale(locale)) {
     throw new Error('Invalid locale received for news detail page.');

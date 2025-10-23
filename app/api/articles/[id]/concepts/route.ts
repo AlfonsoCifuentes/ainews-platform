@@ -9,12 +9,12 @@ import { LLMClient } from '@/lib/ai/llm-client';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: articleId } = await params;
     const { searchParams } = new URL(req.url);
     const locale = (searchParams.get('locale') || 'en') as 'en' | 'es';
-    const articleId = params.id;
 
     const supabase = getSupabaseServerClient();
 

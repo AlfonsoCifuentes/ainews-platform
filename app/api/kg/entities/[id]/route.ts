@@ -4,9 +4,10 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = paramsSchema.parse(params);
+    const resolvedParams = await params;
+    const { id } = paramsSchema.parse(resolvedParams);
     const db = getSupabaseServerClient();
     const { data, error } = await db.from('entities').select('*').eq('id', id).single();
     if (error) throw error;

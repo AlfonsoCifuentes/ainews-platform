@@ -130,12 +130,13 @@ export default async function EntityPage({ params }: { params: Promise<{ locale:
   );
 }
 
-export async function generateMetadata({ params }: { params: { locale: string; id: string } }): Promise<Metadata> {
-  const t = await getTranslations({ locale: params.locale, namespace: 'kg' });
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }): Promise<Metadata> {
+  const { locale, id } = await params;
+  const t = await getTranslations({ locale, namespace: 'kg' });
   // Try to fetch to set a nice title; fall back if not available
   let title = t('title');
   try {
-    const res = await fetch(`/api/kg/entities/${params.id}`, { cache: 'no-store' });
+    const res = await fetch(`/api/kg/entities/${id}`, { cache: 'no-store' });
     if (res.ok) {
       const json = await res.json();
       if (json?.data?.name) title = `${json.data.name} — ${t('title')}`;
@@ -145,8 +146,8 @@ export async function generateMetadata({ params }: { params: { locale: string; i
     title,
     alternates: {
       languages: {
-        en: `/en/kg/${params.id}`,
-        es: `/es/kg/${params.id}`,
+        en: `/en/kg/${id}`,
+        es: `/es/kg/${id}`,
       },
     },
   };

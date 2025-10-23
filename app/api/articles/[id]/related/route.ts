@@ -3,10 +3,10 @@ import { findRelatedArticles } from '@/lib/ai/embeddings';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const limitParam = req.nextUrl.searchParams.get('limit');
     const localeParam = req.nextUrl.searchParams.get('locale') || 'en';
     
