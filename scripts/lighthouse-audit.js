@@ -1,176 +1,307 @@
-#!/usr/bin/env node#!/usr/bin/env node#!/usr/bin/env node
+#!/usr/bin/env node#!/usr/bin/env node
 
 
 
-/**// @ts-nocheck
+/**/**
 
- * Lighthouse Performance Audit Script (CommonJS)
+ * Lighthouse Performance Audit Script * Lighthouse Performance Audit Script
 
- */**
+ *  * 
 
- * Usage:
+ * Runs Lighthouse audits on key pages and generates a report. * Runs Lighthouse audits on key pages and generates a report.
 
- *   LIGHTHOUSE_URL="https://your-site" node scripts/lighthouse-audit.js * Lighthouse Performance Audit Script/**
+ * Targets: >90 mobile, >95 desktop * Targets: >90 mobile, >95 desktop
 
- */
+ *  * 
 
- *  * Lighthouse Performance Audit Script
+ * Usage: * Usage:
 
-const lighthouse = require('lighthouse');
+ *   node scripts/lighthouse-audit.js *   LIGHTHOUSE_URL="https://your-site" node scripts/lighthouse-audit.js
 
-const chromeLauncher = require('chrome-launcher'); * Runs Lighthouse audits on key pages and generates a report. * 
-
-const fs = require('fs/promises');
-
-const path = require('path'); * Targets: >90 mobile, >95 desktop * Runs Lighthouse audits on key pages and generates a report.
+ */ */
 
 
 
-const PAGES_TO_AUDIT = [ */ * Targets: >90 mobile, >95 desktop
+const lighthouse = require('lighthouse');const lighthouse = require('lighthouse');
 
-  '/',
+const chromeLauncher = require('chrome-launcher');const chromeLauncher = require('chrome-launcher');
 
-  '/en/news', */
+const fs = require('fs/promises');const fs = require('fs/promises');
 
-  '/en/courses',
-
-  '/en/kg',const lighthouse = require('lighthouse');
-
-  '/en/dashboard',
-
-  '/en/trending',const chromeLauncher = require('chrome-launcher');const lighthouse = require('lighthouse');
-
-  '/en/analytics'
-
-];const fs = require('fs/promises');const chromeLauncher = require('chrome-launcher');
+const path = require('path');const path = require('path');
 
 
 
-const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';const path = require('path');const fs = require('fs/promises');
+const PAGES_TO_AUDIT = [const PAGES_TO_AUDIT = [
+
+  '/',  '/',
+
+  '/en/news',  '/en/news',
+
+  '/en/courses',  '/en/courses',
+
+  '/en/kg',  '/en/kg',
+
+  '/en/dashboard',  '/en/dashboard',
+
+  '/en/trending',  '/en/trending',
+
+  '/en/analytics'  '/en/analytics'
+
+];];
 
 
 
-async function runAudit(url, device) {const path = require('path');
+const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';
 
-  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });
-
-const PAGES_TO_AUDIT = [
-
-  const options = {
-
-    logLevel: 'error',  '/',interface AuditResult {
-
-    output: 'json',
-
-    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],  '/en/news',  url: string;
-
-    port: chrome.port,
-
-    formFactor: device,  '/en/courses',  device: 'mobile' | 'desktop';
-
-    throttling: device === 'mobile'
-
-      ? {  '/en/kg',  performance: number;
-
-          rttMs: 150,
-
-          throughputKbps: 1638.4,  '/en/dashboard',  accessibility: number;
-
-          requestLatencyMs: 562.5,
-
-          downloadThroughputKbps: 1638.4,  '/en/trending',  bestPractices: number;
-
-          uploadThroughputKbps: 675,
-
-          cpuSlowdownMultiplier: 4  '/en/analytics',  seo: number;
-
-        }
-
-      : {];  fcp: number;
-
-          rttMs: 40,
-
-          throughputKbps: 10240,  lcp: number;
-
-          requestLatencyMs: 0,
-
-          downloadThroughputKbps: 0,const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';  cls: number;
-
-          uploadThroughputKbps: 0,
-
-          cpuSlowdownMultiplier: 1  tti: number;
-
-        }
-
-  };async function runAudit(url, device) {  tbt: number;
+const OUTPUT_DIR = path.join(__dirname, '..', 'lighthouse-results');
 
 
 
-  const runnerResult = await lighthouse(url, options);  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });}
+async function auditPage(url, device = 'mobile') {
 
-  await chrome.kill();
+  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });async function runAudit(url, device) {const path = require('path');
 
   
 
-  if (!runnerResult || !runnerResult.lhr) {
+  const options = {  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });
 
-    throw new Error('Lighthouse failed to generate report');  const options = {const PAGES_TO_AUDIT = [
+    port: chrome.port,
 
-  }
+    logLevel: 'error',const PAGES_TO_AUDIT = [
 
-    logLevel: 'error',  '/',
+    output: 'json',
 
-  const { lhr } = runnerResult;
-
-    output: 'json',  '/en/news',
-
-  return {
-
-    url,    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],  '/en/courses',
-
-    device,
-
-    performance: Math.round((lhr.categories.performance?.score || 0) * 100),    port: chrome.port,  '/en/kg',
-
-    accessibility: Math.round((lhr.categories.accessibility?.score || 0) * 100),
-
-    bestPractices: Math.round((lhr.categories['best-practices']?.score || 0) * 100),    formFactor: device,  '/en/dashboard',
-
-    seo: Math.round((lhr.categories.seo?.score || 0) * 100),
-
-    fcp: lhr.audits['first-contentful-paint']?.numericValue || 0,    throttling: device === 'mobile'   '/en/trending',
-
-    lcp: lhr.audits['largest-contentful-paint']?.numericValue || 0,
-
-    cls: lhr.audits['cumulative-layout-shift']?.numericValue || 0,      ? {  '/en/analytics',
-
-    tti: lhr.audits['interactive']?.numericValue || 0,
-
-    tbt: lhr.audits['total-blocking-time']?.numericValue || 0          rttMs: 150,];
+    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],  const options = {
 
   };
 
-}          throughputKbps: 1638.4,
+    logLevel: 'error',  '/',interface AuditResult {
+
+  if (device === 'mobile') {
+
+    options.formFactor = 'mobile';    output: 'json',
+
+    options.throttling = {
+
+      rttMs: 150,    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],  '/en/news',  url: string;
+
+      throughputKbps: 1638.4,
+
+      cpuSlowdownMultiplier: 4,    port: chrome.port,
+
+    };
+
+  } else {    formFactor: device,  '/en/courses',  device: 'mobile' | 'desktop';
+
+    options.formFactor = 'desktop';
+
+    options.throttling = {    throttling: device === 'mobile'
+
+      rttMs: 40,
+
+      throughputKbps: 10240,      ? {  '/en/kg',  performance: number;
+
+      cpuSlowdownMultiplier: 1,
+
+    };          rttMs: 150,
+
+  }
+
+          throughputKbps: 1638.4,  '/en/dashboard',  accessibility: number;
+
+  const fullUrl = `${BASE_URL}${url}`;
+
+  console.log(`Auditing ${fullUrl} (${device})...`);          requestLatencyMs: 562.5,
 
 
 
-async function main() {          requestLatencyMs: 562.5,const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';
+  try {          downloadThroughputKbps: 1638.4,  '/en/trending',  bestPractices: number;
 
-  console.log('🚀 Starting Lighthouse Performance Audit...\n');
+    const runnerResult = await lighthouse(fullUrl, options);
 
-  console.log(`Base URL: ${BASE_URL}\n`);          downloadThroughputKbps: 1638.4,
-
-
-
-  const results = [];          uploadThroughputKbps: 675,async function runAudit(url: string, device: 'mobile' | 'desktop'): Promise<AuditResult> {
+    await chrome.kill();          uploadThroughputKbps: 675,
 
 
+
+    const { categories } = runnerResult.lhr;          cpuSlowdownMultiplier: 4  '/en/analytics',  seo: number;
+
+    
+
+    return {        }
+
+      url,
+
+      device,      : {];  fcp: number;
+
+      performance: Math.round(categories.performance.score * 100),
+
+      accessibility: Math.round(categories.accessibility.score * 100),          rttMs: 40,
+
+      bestPractices: Math.round(categories['best-practices'].score * 100),
+
+      seo: Math.round(categories.seo.score * 100),          throughputKbps: 10240,  lcp: number;
+
+      metrics: {
+
+        fcp: runnerResult.lhr.audits['first-contentful-paint'].numericValue,          requestLatencyMs: 0,
+
+        lcp: runnerResult.lhr.audits['largest-contentful-paint'].numericValue,
+
+        tbt: runnerResult.lhr.audits['total-blocking-time'].numericValue,          downloadThroughputKbps: 0,const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';  cls: number;
+
+        cls: runnerResult.lhr.audits['cumulative-layout-shift'].numericValue,
+
+        si: runnerResult.lhr.audits['speed-index'].numericValue,          uploadThroughputKbps: 0,
+
+      }
+
+    };          cpuSlowdownMultiplier: 1  tti: number;
+
+  } catch (error) {
+
+    console.error(`Error auditing ${fullUrl}:`, error.message);        }
+
+    await chrome.kill();
+
+    return null;  };async function runAudit(url, device) {  tbt: number;
+
+  }
+
+}
+
+
+
+async function main() {  const runnerResult = await lighthouse(url, options);  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });}
+
+  console.log('🔍 Starting Lighthouse Performance Audit\n');
+
+  console.log(`Base URL: ${BASE_URL}`);  await chrome.kill();
+
+  console.log(`Pages: ${PAGES_TO_AUDIT.length}\n`);
+
+  
+
+  const results = [];
+
+  if (!runnerResult || !runnerResult.lhr) {
+
+  for (const page of PAGES_TO_AUDIT) {
+
+    const mobileResult = await auditPage(page, 'mobile');    throw new Error('Lighthouse failed to generate report');  const options = {const PAGES_TO_AUDIT = [
+
+    if (mobileResult) results.push(mobileResult);
+
+      }
+
+    const desktopResult = await auditPage(page, 'desktop');
+
+    if (desktopResult) results.push(desktopResult);    logLevel: 'error',  '/',
+
+  }
+
+  const { lhr } = runnerResult;
+
+  // Create output directory
+
+  await fs.mkdir(OUTPUT_DIR, { recursive: true });    output: 'json',  '/en/news',
+
+
+
+  // Save JSON report  return {
+
+  const reportPath = path.join(OUTPUT_DIR, `audit-${Date.now()}.json`);
+
+  await fs.writeFile(reportPath, JSON.stringify(results, null, 2));    url,    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],  '/en/courses',
+
+
+
+  // Generate summary    device,
+
+  console.log('\n📊 Audit Summary\n');
+
+  console.log('=' .repeat(80));    performance: Math.round((lhr.categories.performance?.score || 0) * 100),    port: chrome.port,  '/en/kg',
+
+  
+
+  for (const result of results) {    accessibility: Math.round((lhr.categories.accessibility?.score || 0) * 100),
+
+    const { url, device, performance, accessibility, bestPractices, seo, metrics } = result;
+
+    console.log(`\n${url} (${device})`);    bestPractices: Math.round((lhr.categories['best-practices']?.score || 0) * 100),    formFactor: device,  '/en/dashboard',
+
+    console.log(`  Performance:    ${performance}/100 ${performance >= 90 ? '✅' : '⚠️'}`);
+
+    console.log(`  Accessibility:  ${accessibility}/100 ${accessibility >= 90 ? '✅' : '⚠️'}`);    seo: Math.round((lhr.categories.seo?.score || 0) * 100),
+
+    console.log(`  Best Practices: ${bestPractices}/100 ${bestPractices >= 90 ? '✅' : '⚠️'}`);
+
+    console.log(`  SEO:            ${seo}/100 ${seo >= 90 ? '✅' : '⚠️'}`);    fcp: lhr.audits['first-contentful-paint']?.numericValue || 0,    throttling: device === 'mobile'   '/en/trending',
+
+    console.log(`  Metrics:`);
+
+    console.log(`    FCP: ${Math.round(metrics.fcp)}ms`);    lcp: lhr.audits['largest-contentful-paint']?.numericValue || 0,
+
+    console.log(`    LCP: ${Math.round(metrics.lcp)}ms`);
+
+    console.log(`    TBT: ${Math.round(metrics.tbt)}ms`);    cls: lhr.audits['cumulative-layout-shift']?.numericValue || 0,      ? {  '/en/analytics',
+
+    console.log(`    CLS: ${metrics.cls.toFixed(3)}`);
+
+    console.log(`    SI:  ${Math.round(metrics.si)}ms`);    tti: lhr.audits['interactive']?.numericValue || 0,
+
+  }
+
+    tbt: lhr.audits['total-blocking-time']?.numericValue || 0          rttMs: 150,];
+
+  console.log('\n' + '='.repeat(80));
+
+  console.log(`\n✅ Report saved to: ${reportPath}\n`);  };
+
+
+
+  // Check if targets are met}          throughputKbps: 1638.4,
+
+  const failedAudits = results.filter(r => 
+
+    (r.device === 'mobile' && r.performance < 90) ||
+
+    (r.device === 'desktop' && r.performance < 95)
+
+  );async function main() {          requestLatencyMs: 562.5,const BASE_URL = process.env.LIGHTHOUSE_URL || 'http://localhost:3000';
+
+
+
+  if (failedAudits.length > 0) {  console.log('🚀 Starting Lighthouse Performance Audit...\n');
+
+    console.log('⚠️  Some pages did not meet performance targets:');
+
+    failedAudits.forEach(r => {  console.log(`Base URL: ${BASE_URL}\n`);          downloadThroughputKbps: 1638.4,
+
+      console.log(`  - ${r.url} (${r.device}): ${r.performance}/100`);
+
+    });
+
+    process.exit(1);
+
+  } else {  const results = [];          uploadThroughputKbps: 675,async function runAudit(url: string, device: 'mobile' | 'desktop'): Promise<AuditResult> {
+
+    console.log('✅ All pages meet performance targets!');
+
+  }
+
+}
 
   for (const page of PAGES_TO_AUDIT) {          cpuSlowdownMultiplier: 4  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });
 
-    const fullUrl = `${BASE_URL}${page}`;
+main().catch(err => {
 
-        }  
+  console.error('Fatal error:', err);    const fullUrl = `${BASE_URL}${page}`;
+
+  process.exit(1);
+
+});        }  
+
 
     console.log(`📱 Auditing ${fullUrl} (mobile)...`);
 

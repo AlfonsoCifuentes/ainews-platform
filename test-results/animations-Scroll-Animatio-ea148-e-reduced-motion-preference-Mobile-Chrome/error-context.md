@@ -5,23 +5,19 @@
   - generic [active]:
     - generic [ref=e4]:
       - generic [ref=e5]:
-        - generic [ref=e6]:
-          - navigation [ref=e7]:
-            - button "previous" [disabled] [ref=e8]:
-              - img "previous" [ref=e9]
-            - generic [ref=e11]:
-              - generic [ref=e12]: 1/
-              - text: "1"
-            - button "next" [disabled] [ref=e13]:
-              - img "next" [ref=e14]
-          - img
-        - generic [ref=e16]:
-          - link "Next.js 15.5.6 (outdated) Webpack" [ref=e17] [cursor=pointer]:
-            - /url: https://nextjs.org/docs/messages/version-staleness
-            - img [ref=e18]
-            - generic "An outdated version detected (latest is 16.0.0), upgrade is highly recommended!" [ref=e20]: Next.js 15.5.6 (outdated)
-            - generic [ref=e21]: Webpack
-          - img
+        - navigation [ref=e7]:
+          - button "previous" [disabled] [ref=e8]:
+            - img "previous" [ref=e9]
+          - generic [ref=e11]:
+            - generic [ref=e12]: 1/
+            - text: "1"
+          - button "next" [disabled] [ref=e13]:
+            - img "next" [ref=e14]
+        - link "Next.js 15.5.6 (outdated) Webpack" [ref=e17] [cursor=pointer]:
+          - /url: https://nextjs.org/docs/messages/version-staleness
+          - img [ref=e18]
+          - generic "An outdated version detected (latest is 16.0.0), upgrade is highly recommended!" [ref=e20]: Next.js 15.5.6 (outdated)
+          - generic [ref=e21]: Webpack
       - dialog "Runtime TypeError" [ref=e23]:
         - generic [ref=e26]:
           - generic [ref=e27]:

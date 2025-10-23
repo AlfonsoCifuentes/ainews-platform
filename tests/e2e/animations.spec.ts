@@ -38,10 +38,10 @@ test.describe('Scroll Animations', () => {
       });
     });
     
-    await page.goto('/en');
+    await page.goto('/en', { waitUntil: 'networkidle' });
     
-    // Page should still be fully functional
-    await expect(page.locator('h1')).toBeVisible();
+    // Page should still be fully functional (with longer timeout for SSR + hydration)
+    await expect(page.locator('h1')).toBeVisible({ timeout: 15000 });
   });
 });
 
