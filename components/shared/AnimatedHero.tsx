@@ -24,6 +24,14 @@ export function AnimatedHero({ children }: AnimatedHeroProps) {
   useEffect(() => {
     if (!heroRef.current || !titleRef.current || !subtitleRef.current || !ctaRef.current) return;
 
+    // Check for reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    if (prefersReducedMotion) {
+      // Skip all animations for users who prefer reduced motion
+      return;
+    }
+
     const ctx = gsap.context(() => {
       // Hero fade in on load
       gsap.from(heroRef.current, {
@@ -99,6 +107,14 @@ export function ScrollReveal({ children, delay = 0, direction = 'up', className 
   useEffect(() => {
     if (!revealRef.current) return;
 
+    // Check for reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    if (prefersReducedMotion) {
+      // Skip animations for users who prefer reduced motion
+      return;
+    }
+
     const directionMap = {
       up: { y: 80 },
       down: { y: -80 },
@@ -143,6 +159,14 @@ export function ParallaxSection({ children, speed = 0.5, className }: ParallaxSe
 
   useEffect(() => {
     if (!sectionRef.current) return;
+
+    // Check for reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    if (prefersReducedMotion) {
+      // Skip parallax effects for users who prefer reduced motion
+      return;
+    }
 
     const ctx = gsap.context(() => {
       gsap.to(sectionRef.current, {

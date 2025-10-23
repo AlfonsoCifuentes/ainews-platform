@@ -133,13 +133,38 @@ function Scene() {
   );
 }
 
-// Canvas wrapper component
+// Canvas wrapper component with error handling
 export function FloatingObjects() {
+  const canvasRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-0 opacity-60">
+    <div 
+      ref={canvasRef}
+      className="pointer-events-none fixed inset-0 z-0 opacity-60"
+    >
       <Canvas
         camera={{ position: [0, 0, 8], fov: 45 }}
         dpr={[1, 1.5]} // Limit pixel ratio for performance
+        gl={{
+          // Prevent context loss
+          powerPreference: 'high-performance',
+          antialias: false, // Disable for better performance
+          alpha: true,
+          preserveDrawingBuffer: false,
+          // Handle context loss gracefully
+          failIfMajorPerformanceCaveat: false,
+        }}
+        onCreated={({ gl }) => {
+          // Handle context loss events
+          gl.domElement.addEventListener('webglcontextlost', (event) => {
+            event.preventDefault();
+            console.warn('WebGL context lost. Attempting recovery...');
+          });
+          
+          gl.domElement.addEventListener('webglcontextrestored', () => {
+            console.log('WebGL context restored successfully');
+          });
+        }}
       >
         <Scene />
       </Canvas>

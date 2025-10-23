@@ -91,7 +91,15 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
 
-    const context = await buildContext(db, params.topic);
+    // Build context with better error handling
+    let context = '';
+    try {
+      context = await buildContext(db, params.topic);
+    } catch (contextError) {
+      console.warn('[Course Generator] Context building failed, continuing without RAG:', contextError);
+      context = ''; // Continue without context
+    }
+    
     const languageName = localeLabels[params.locale];
 
     const outlinePrompt = `Create a cutting-edge AI course on "${params.topic}".
@@ -431,31 +439,39 @@ async function generateQueryEmbedding(query: string): Promise<number[] | null> {
     return null;
   }
 
-  const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'openai/text-embedding-ada-002',
-      input: query
-    })
-  });
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.vercel.app',
+        'X-Title': 'AI News Platform'
+      },
+      body: JSON.stringify({
+        model: 'openai/text-embedding-ada-002',
+        input: query
+      }),
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
 
-  if (!response.ok) {
-    const message = await response.text();
-    console.warn('[Course Generator] Embedding request failed:', message);
+    if (!response.ok) {
+      const message = await response.text();
+      console.warn('[Course Generator] Embedding request failed:', response.status, message);
+      return null;
+    }
+
+    const data = await response.json();
+    const embedding = data?.data?.[0]?.embedding;
+
+    if (!Array.isArray(embedding)) {
+      console.warn('[Course Generator] Embedding response malformed.');
+      return null;
+    }
+
+    return embedding as number[];
+  } catch (error) {
+    console.warn('[Course Generator] Embedding generation error:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
-
-  const data = await response.json();
-  const embedding = data?.data?.[0]?.embedding;
-
-  if (!Array.isArray(embedding)) {
-    console.warn('[Course Generator] Embedding response malformed.');
-    return null;
-  }
-
-  return embedding as number[];
 }

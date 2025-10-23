@@ -7,22 +7,37 @@ import { ScrollReveal, ParallaxSection } from '@/components/shared/AnimatedHero'
 import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
 import { RippleButton } from '@/components/shared/InteractiveButtons';
 import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
 
-// Lazy load 3D components for performance (client-only, no SSR)
+// Lazy load 3D components AFTER page is interactive (defer heavy Three.js)
 const FloatingObjects = dynamic(
   () => import('@/components/shared/FloatingObjects').then((mod) => ({ default: mod.FloatingObjects })),
-  { ssr: false }
+  { 
+    ssr: false,
+    loading: () => null // No loading state, just skip rendering initially
+  }
 );
 
 export default function HomePage() {
   const t = useTranslations('home');
+  const [showFloatingObjects, setShowFloatingObjects] = useState(false);
+
+  // Defer FloatingObjects until after page is interactive
+  useEffect(() => {
+    // Wait for page to be fully loaded and idle
+    const timer = setTimeout(() => {
+      setShowFloatingObjects(true);
+    }, 1500); // Defer by 1.5s to prioritize content
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <main className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 px-4 md:py-32">
-        {/* 3D Background Elements */}
-        <FloatingObjects />
+        {/* 3D Background Elements - deferred for performance */}
+        {showFloatingObjects && <FloatingObjects />}
         
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(126,74,255,0.35),transparent_55%),radial-gradient(circle_at_top_right,rgba(14,255,255,0.25),transparent_45%)]" aria-hidden />
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(15,16,35,0.95) 0%,rgba(10,11,24,0.86) 60%,rgba(10,11,24,0.92) 100%)]" aria-hidden />

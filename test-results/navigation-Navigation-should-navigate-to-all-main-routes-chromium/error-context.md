@@ -1,0 +1,98 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "AI AINEWS" [ref=e5] [cursor=pointer]:
+        - /url: /en
+        - generic [ref=e6]: AI
+        - generic [ref=e7]: AINEWS
+      - navigation [ref=e8]:
+        - link "Home" [ref=e9] [cursor=pointer]:
+          - /url: /en
+          - text: Home
+        - link "News" [ref=e11] [cursor=pointer]:
+          - /url: /en/news
+        - link "Courses" [ref=e12] [cursor=pointer]:
+          - /url: /en/courses
+        - link "Trending" [ref=e13] [cursor=pointer]:
+          - /url: /en/trending
+        - link "Knowledge Graph" [ref=e14] [cursor=pointer]:
+          - /url: /en/kg
+        - link "About" [ref=e15] [cursor=pointer]:
+          - /url: /en/about
+      - generic [ref=e18]:
+        - generic [ref=e19]: Switch to
+        - combobox "Switch to" [ref=e20]:
+          - option "English" [selected]
+          - option "Español"
+  - main [ref=e21]:
+    - main [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e26]:
+          - generic [ref=e28]: 🧠 AI Knowledge Graph
+          - heading "Knowledge Graph" [level=1] [ref=e29]
+          - paragraph
+          - generic [ref=e30]:
+            - generic [ref=e31]: Explore
+            - generic [ref=e32]: entities,
+            - generic [ref=e33]: relationships,
+            - generic [ref=e34]: and
+            - generic [ref=e35]: insights
+            - generic [ref=e36]: from
+            - generic [ref=e37]: the
+            - generic [ref=e38]: AI
+            - generic [ref=e39]: ecosystem
+          - paragraph
+        - generic [ref=e42]:
+          - button "📋 Grid View" [ref=e43] [cursor=pointer]
+          - button "🕸️ Graph View" [ref=e44] [cursor=pointer]
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: Search
+            - textbox "Search entities..." [ref=e50]
+          - generic [ref=e51]:
+            - generic [ref=e52]: Type
+            - combobox [ref=e53]:
+              - option "All types" [selected]
+              - option "Person"
+              - option "Organization"
+              - option "Model"
+              - option "Company"
+              - option "Paper"
+              - option "Concept"
+          - button "Apply" [ref=e54] [cursor=pointer]
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]: 🔍
+            - paragraph [ref=e58]: No results.
+          - generic [ref=e59]:
+            - link "← Previous" [disabled] [ref=e60] [cursor=pointer]:
+              - /url: /en/kg?q=&type=&page=1
+            - generic [ref=e61]: Page 1
+            - link "Next →" [ref=e62] [cursor=pointer]:
+              - /url: /en/kg?q=&type=&page=2
+  - contentinfo [ref=e63]:
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - paragraph [ref=e67]: AINews
+          - paragraph [ref=e68]: Built with AI
+        - navigation [ref=e69]:
+          - link "News" [ref=e70] [cursor=pointer]:
+            - /url: /en/news
+          - link "Courses" [ref=e71] [cursor=pointer]:
+            - /url: /en/courses
+          - link "About" [ref=e72] [cursor=pointer]:
+            - /url: /en/about
+      - generic [ref=e73]:
+        - paragraph [ref=e74]: © 2025 AINews. All rights reserved.
+        - generic [ref=e75]:
+          - link "GitHub" [ref=e76] [cursor=pointer]:
+            - /url: https://github.com
+          - link "X" [ref=e77] [cursor=pointer]:
+            - /url: https://twitter.com
+          - link "LinkedIn" [ref=e78] [cursor=pointer]:
+            - /url: https://linkedin.com
+```

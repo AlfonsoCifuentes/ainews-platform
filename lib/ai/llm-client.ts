@@ -56,6 +56,8 @@ export class LLMClient {
         presence_penalty: validatedOptions.presencePenalty,
         stop: validatedOptions.stop,
       }),
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(60000), // 60 seconds for LLM generation
     });
 
     if (!response.ok) {
@@ -88,15 +90,20 @@ export class LLMClient {
       ? `${systemPrompt}\n\nClassify the following:\n${text}`
       : text;
 
-    const response = await this.generate(prompt, {
-      temperature: 0.3,
-      maxTokens: 500,
-    });
-
     try {
+      const response = await this.generate(prompt, {
+        temperature: 0.3,
+        maxTokens: 2000, // Increased for complex schemas
+      });
+
       const parsed = JSON.parse(response.content);
       return schema.parse(parsed);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(
+          `LLM response doesn't match schema: ${JSON.stringify(error.errors.slice(0, 3))}`,
+        );
+      }
       throw new Error(
         `Failed to parse LLM classification response: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
