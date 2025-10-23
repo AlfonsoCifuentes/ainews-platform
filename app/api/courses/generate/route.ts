@@ -79,15 +79,23 @@ const localeLabels: Record<'en' | 'es', string> = {
   es: 'Spanish'
 };
 
+// Helper to send progress updates (for future SSE implementation)
+// type _ProgressCallback = (step: string, progress: number, message: string) => void;
+
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
 
   try {
     const body = await req.json();
+    console.log('[Course Generator] Request body:', JSON.stringify(body, null, 2));
+    
     const params = GenerateRequestSchema.parse(body);
+    console.log('[Course Generator] Validated params:', JSON.stringify(params, null, 2));
 
     const db = getSupabaseServerClient();
-    const llm = createLLMClient('groq');
+    
+    // Use OpenRouter (we have the API key for this one)
+    const llm = createLLMClient('openrouter', 'meta-llama/llama-3.1-8b-instruct:free');
 
     console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
 
@@ -276,8 +284,11 @@ Requirements:
     });
   } catch (error) {
     console.error('[Course Generator] ❌ Error:', error);
+    console.error('[Course Generator] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('[Course Generator] Error type:', error?.constructor?.name || typeof error);
 
     if (error instanceof z.ZodError) {
+      console.error('[Course Generator] Zod validation error:', JSON.stringify(error.errors, null, 2));
       return NextResponse.json(
         {
           success: false,
@@ -288,11 +299,15 @@ Requirements:
       );
     }
 
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Course Generator] Final error message:', errorMessage);
+
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to generate course',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: errorMessage,
+        hint: 'Check server logs for details'
       },
       { status: 500 }
     );

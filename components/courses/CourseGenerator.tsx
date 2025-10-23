@@ -56,11 +56,11 @@ type CourseGeneratorProps = {
 };
 
 const progressSteps = [
-  'analyzing',
-  'outline',
-  'content',
-  'quizzes',
-  'finalizing',
+  { key: 'analyzing', weight: 0.15, estimatedSeconds: 3 },
+  { key: 'outline', weight: 0.25, estimatedSeconds: 8 },
+  { key: 'content', weight: 0.40, estimatedSeconds: 25 },
+  { key: 'quizzes', weight: 0.15, estimatedSeconds: 8 },
+  { key: 'finalizing', weight: 0.05, estimatedSeconds: 2 },
 ] as const;
 
 export function CourseGenerator({ locale, translations }: CourseGeneratorProps) {
@@ -68,6 +68,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');
   const [currentStep, setCurrentStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [estimatedTimeLeft, setEstimatedTimeLeft] = useState(0);
   const [result, setResult] = useState<CourseGenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -81,10 +83,33 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       setError(null);
       setResult(null);
       setCurrentStep(0);
+      setProgress(0);
 
+      const startTime = Date.now();
+      const totalEstimatedTime = progressSteps.reduce((sum, step) => sum + step.estimatedSeconds, 0);
+      setEstimatedTimeLeft(totalEstimatedTime);
+
+      // Simulate realistic progress based on step timing
       const progressTimer = window.setInterval(() => {
-        setCurrentStep((prev) => (prev < progressSteps.length - 1 ? prev + 1 : prev));
-      }, 1600);
+        setCurrentStep((prevStep) => {
+          if (prevStep >= progressSteps.length - 1) {
+            return prevStep;
+          }
+
+          const nextStep = prevStep + 1;
+
+          // Calculate progress percentage
+          const completedWeight = progressSteps.slice(0, nextStep).reduce((sum, s) => sum + s.weight, 0);
+          setProgress(Math.min(completedWeight * 100, 95)); // Cap at 95% until done
+
+          // Update estimated time
+          const elapsed = (Date.now() - startTime) / 1000;
+          const remaining = Math.max(0, totalEstimatedTime - elapsed);
+          setEstimatedTimeLeft(Math.ceil(remaining));
+
+          return nextStep;
+        });
+      }, 2500); // Advance every 2.5 seconds
 
       try {
         const response = await fetch('/api/courses/generate', {
@@ -109,8 +134,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           throw new Error(errorMessage);
         }
 
-        setResult(payload.data);
+        // Success - set to 100%
+        setProgress(100);
         setCurrentStep(progressSteps.length - 1);
+        setEstimatedTimeLeft(0);
+        setResult(payload.data);
         setTopic('');
       } catch (generationError) {
         console.error('[CourseGenerator] Generation failed', generationError);
@@ -122,7 +150,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         setError(message);
       } finally {
         window.clearInterval(progressTimer);
-        setCurrentStep(0);
+        setTimeout(() => {
+          setCurrentStep(0);
+          setProgress(0);
+          setEstimatedTimeLeft(0);
+        }, 1000);
       }
     });
   };
@@ -218,30 +250,86 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="space-y-3 overflow-hidden rounded-2xl bg-background/50 p-6"
+              className="space-y-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 p-6 backdrop-blur-sm"
             >
-              {progressSteps.map((step, index) => (
-                <div key={step} className="flex items-center gap-3">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                      index < currentStep
-                        ? 'bg-primary text-primary-foreground'
-                        : index === currentStep
-                          ? 'animate-pulse bg-primary/50 text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {index < currentStep ? '✓' : index + 1}
-                  </div>
-                  <span
-                    className={`text-sm ${
-                      index <= currentStep ? 'font-semibold' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {translations.progress[step]}
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-foreground">
+                    {progress.toFixed(0)}%
                   </span>
+                  {estimatedTimeLeft > 0 && (
+                    <span className="text-muted-foreground">
+                      ~{estimatedTimeLeft}s remaining
+                    </span>
+                  )}
                 </div>
-              ))}
+                <div className="h-3 w-full overflow-hidden rounded-full bg-muted/30">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%]"
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: `${progress}%`,
+                      backgroundPosition: ['0% 0%', '100% 0%']
+                    }}
+                    transition={{ 
+                      width: { duration: 0.5, ease: 'easeOut' },
+                      backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-2">
+                {progressSteps.map((step, index) => (
+                  <motion.div
+                    key={step.key}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div
+                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all ${
+                        index < currentStep
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/50'
+                          : index === currentStep
+                            ? 'animate-pulse bg-primary/70 text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
+                            : 'bg-muted/50 text-muted-foreground'
+                      }`}
+                    >
+                      {index < currentStep ? (
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        >
+                          ✓
+                        </motion.span>
+                      ) : (
+                        index + 1
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <span
+                        className={`text-sm transition-all ${
+                          index <= currentStep ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {translations.progress[step.key]}
+                      </span>
+                      {index === currentStep && (
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: '100%' }}
+                          className="mt-1 h-0.5 rounded-full bg-gradient-to-r from-primary to-transparent"
+                        />
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
