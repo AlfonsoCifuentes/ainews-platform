@@ -20,7 +20,9 @@
       "loading": "Loading...",
       "cancel": "Cancel",
       "save": "Save",
-      "delete": "Delete"
+      "delete": "Delete",
+      "close": "Close",
+      "readOriginal": "Read Original Article"
     },
     "language": {
       "en": "English",

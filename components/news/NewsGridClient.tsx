@@ -5,8 +5,9 @@ import { useTranslations } from 'next-intl';
 import { type INewsArticle } from '@/lib/types/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import Link from 'next/link';
 import { type Locale } from '@/i18n';
+import { ArticleModal } from './ArticleModal';
+import Image from 'next/image';
 
 type NewsGridClientProps = {
   initialArticles: INewsArticle[];
@@ -21,6 +22,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(initialArticles.length);
+  const [selectedArticle, setSelectedArticle] = useState<INewsArticle | null>(null);
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -91,17 +93,34 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
 
   return (
     <>
+      <ArticleModal
+        article={selectedArticle}
+        locale={locale}
+        onClose={() => setSelectedArticle(null)}
+        translations={{
+          readTime: t('readTime'),
+          aiGenerated: t('aiGenerated'),
+          close: tCommon('buttons.close'),
+          category: translateCategory(selectedArticle?.category || 'machinelearning'),
+          readOriginal: tCommon('buttons.readOriginal'),
+        }}
+      />
+
       <div className="container mx-auto px-4 py-12">
         {/* HERO Article */}
-        <Link 
-          href={`/${locale}/news/${hero.id}`}
-          className="group mb-12 block"
+        <button 
+          onClick={() => setSelectedArticle(hero)}
+          className="group mb-12 block w-full text-left"
         >
           <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
             <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
-              <div
-                className="absolute inset-0 scale-110 bg-cover bg-center transition-transform duration-700 group-hover:scale-100"
-                style={{ backgroundImage: `url(${hero.image_url})` }}
+              <Image
+                src={hero.image_url || '/placeholder-news.jpg'}
+                alt={getLocalizedString(hero, 'title', locale)}
+                fill
+                priority
+                className="object-cover scale-110 transition-transform duration-700 group-hover:scale-100"
+                sizes="100vw"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
               
@@ -132,21 +151,24 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
               </div>
             </div>
           </article>
-        </Link>
+        </button>
 
         {/* FEATURED Articles */}
         <div className="mb-12 grid gap-6 md:grid-cols-3">
           {featured.map((article) => (
-            <Link 
+            <button 
               key={article.id}
-              href={`/${locale}/news/${article.id}`}
-              className="group"
+              onClick={() => setSelectedArticle(article)}
+              className="group w-full text-left"
             >
               <article className="relative h-full overflow-hidden rounded-3xl border border-border/50 bg-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10">
                 <div className="relative h-56 overflow-hidden">
-                  <div
-                    className="absolute inset-0 scale-105 bg-cover bg-center transition-transform duration-500 group-hover:scale-100"
-                    style={{ backgroundImage: `url(${article.image_url})` }}
+                  <Image
+                    src={article.image_url || '/placeholder-news.jpg'}
+                    alt={getLocalizedString(article, 'title', locale)}
+                    fill
+                    className="object-cover scale-105 transition-transform duration-500 group-hover:scale-100"
+                    sizes="(max-width: 768px) 100vw, 33vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
                   
@@ -171,7 +193,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                   </p>
                 </div>
               </article>
-            </Link>
+            </button>
           ))}
         </div>
 
@@ -184,16 +206,19 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
             const rowSpan = isLarge ? 'lg:row-span-2' : '';
 
             return (
-              <Link 
+              <button 
                 key={article.id}
-                href={`/${locale}/news/${article.id}`}
-                className={`group ${colSpan} ${rowSpan}`}
+                onClick={() => setSelectedArticle(article)}
+                className={`group w-full text-left ${colSpan} ${rowSpan}`}
               >
                 <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5">
                   <div className={`relative overflow-hidden ${isLarge ? 'h-80' : 'h-48'}`}>
-                    <div
-                      className="absolute inset-0 scale-105 bg-cover bg-center transition-transform duration-500 group-hover:scale-100"
-                      style={{ backgroundImage: `url(${article.image_url})` }}
+                    <Image
+                      src={article.image_url || '/placeholder-news.jpg'}
+                      alt={getLocalizedString(article, 'title', locale)}
+                      fill
+                      className="object-cover scale-105 transition-transform duration-500 group-hover:scale-100"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                     
@@ -226,7 +251,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                     </div>
                   </div>
                 </article>
-              </Link>
+              </button>
             );
           })}
         </div>

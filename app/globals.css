@@ -41,6 +41,29 @@
       radial-gradient(circle at 50% 90%, hsla(214, 92%, 55%, 0.12), transparent 45%);
     background-color: hsl(240 33% 6%);
   }
+
+  /* Custom scrollbar for modal */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-primary/30 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/50;
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.3) transparent;
+  }
 }
 
 /* Accessibility: Respect prefers-reduced-motion */

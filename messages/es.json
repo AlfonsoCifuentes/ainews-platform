@@ -14,13 +14,15 @@
     },
     "buttons": {
       "readMore": "Leer Más",
-      "learnMore": "Aprender Más",
+      "learnMore": "Saber Más",
       "startCourse": "Comenzar Curso",
       "generate": "Generar",
       "loading": "Cargando...",
       "cancel": "Cancelar",
       "save": "Guardar",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "close": "Cerrar",
+      "readOriginal": "Leer Artículo Original"
     },
     "language": {
       "en": "English",

@@ -28,7 +28,7 @@ async function checkArticles() {
   // Get sample of recent articles
   const { data, error } = await supabase
     .from('news_articles')
-    .select('id, title_en, published_at, category, ai_generated')
+    .select('id, title_en, published_at, category, ai_generated, image_url')
     .order('published_at', { ascending: false })
     .limit(5);
   
@@ -41,6 +41,7 @@ async function checkArticles() {
   data?.forEach((article, i) => {
     console.log(`  ${i + 1}. ${article.title_en.substring(0, 60)}...`);
     console.log(`     Category: ${article.category} | AI: ${article.ai_generated ? 'Yes' : 'No'} | Date: ${article.published_at}`);
+    console.log(`     Image: ${article.image_url ? article.image_url.substring(0, 80) + '...' : '❌ NO IMAGE'}`);
   });
 }
 

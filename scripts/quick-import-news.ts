@@ -31,30 +31,68 @@ const supabase = createClient(
 
 // Quick RSS sources (top AI news)
 const RSS_SOURCES = [
-  { url: 'https://www.artificialintelligence-news.com/feed/', category: 'machinelearning' },
   { url: 'https://machinelearningmastery.com/blog/feed/', category: 'machinelearning' },
-  { url: 'https://openai.com/blog/rss/', category: 'industry' },
   { url: 'https://deepmind.google/blog/rss.xml', category: 'research' },
   { url: 'https://www.technologyreview.com/feed/', category: 'industry' },
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/', category: 'industry' },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', category: 'industry' },
 ];
 
-function extractImageUrl(item: unknown): string {
-  // Try multiple image sources
-  if (item['media:content']?.$ && item['media:content'].$.url) {
-    return item['media:content'].$.url;
+function extractImageUrl(item: any): string {
+  // Try multiple image sources in order of preference
+  
+  // 1. Media content (RSS 2.0 media extension)
+  if (item['media:content']) {
+    if (Array.isArray(item['media:content'])) {
+      const imageContent = item['media:content'].find((m: any) => 
+        m.$?.url && (m.$.medium === 'image' || m.$.type?.startsWith('image/'))
+      );
+      if (imageContent?.$?.url) return imageContent.$.url;
+    } else if (item['media:content'].$?.url) {
+      return item['media:content'].$.url;
+    }
   }
-  if (item['media:thumbnail']?.$ && item['media:thumbnail'].$.url) {
-    return item['media:thumbnail'].$.url;
+  
+  // 2. Media thumbnail
+  if (item['media:thumbnail']) {
+    if (Array.isArray(item['media:thumbnail']) && item['media:thumbnail'][0]?.$?.url) {
+      return item['media:thumbnail'][0].$.url;
+    } else if (item['media:thumbnail'].$?.url) {
+      return item['media:thumbnail'].$.url;
+    }
   }
-  if (item.enclosure?.url) {
+  
+  // 3. Enclosure (common in podcasts/media feeds)
+  if (item.enclosure?.url && item.enclosure?.type?.startsWith('image/')) {
     return item.enclosure.url;
   }
-  if (item.content && item.content.includes('<img')) {
-    const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
-    if (imgMatch) return imgMatch[1];
+  
+  // 4. Parse content/description for img tags
+  const contentToSearch = item['content:encoded'] || item.content || item.description || '';
+  if (contentToSearch && typeof contentToSearch === 'string') {
+    // Look for img tags with src
+    const imgMatch = contentToSearch.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (imgMatch && imgMatch[1]) {
+      // Filter out tracking pixels and icons
+      const url = imgMatch[1];
+      if (!url.includes('1x1') && !url.includes('pixel') && !url.includes('icon')) {
+        return url;
+      }
+    }
+    
+    // Look for og:image meta tags
+    const ogMatch = contentToSearch.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+    if (ogMatch && ogMatch[1]) return ogMatch[1];
   }
-  // Default fallback
-  return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop';
+  
+  // 5. Default fallback (different per category)
+  const fallbacks: Record<string, string> = {
+    machinelearning: 'https://images.unsplash.com/photo-1555255707-c07966088b7b?w=800&auto=format&fit=crop', // ML/AI abstract
+    research: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop', // Research/science
+    industry: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop', // Tech/industry
+  };
+  
+  return fallbacks.machinelearning; // Default
 }
 
 async function quickImport() {
