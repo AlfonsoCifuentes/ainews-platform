@@ -131,9 +131,10 @@ export function createLLMClient(
       ? 'https://openrouter.ai/api/v1'
       : 'https://api.groq.com/openai/v1';
 
+  // Updated to working free models
   const defaultModel =
     provider === 'openrouter'
-      ? 'meta-llama/llama-3.1-8b-instruct:free'
+      ? 'google/gemini-2.0-flash-exp:free' // Gemini 2.0 Flash is fast and free
       : 'llama-3.1-8b-instant';
 
   return new LLMClient(apiKey, baseUrl, model ?? defaultModel);

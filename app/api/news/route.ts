@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { defaultLocale, locales, type Locale } from '@/i18n';
-import { fetchLatestNews } from '@/lib/db/news';
+import { defaultLocale, locales } from '@/i18n';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { newsArticleArraySchema } from '@/lib/types/news';
 
 const QuerySchema = z.object({
   locale: z.enum(locales).default(defaultLocale),
-  limit: z.coerce.number().min(1).max(50).default(12),
+  limit: z.coerce.number().min(1).max(50).default(20),
+  offset: z.coerce.number().min(0).default(0),
   category: z.string().min(1).optional(),
 });
 
@@ -15,18 +17,57 @@ export async function GET(request: NextRequest) {
     const parsed = QuerySchema.parse({
       locale: searchParams.get('locale') ?? undefined,
       limit: searchParams.get('limit') ?? undefined,
+      offset: searchParams.get('offset') ?? undefined,
       category: searchParams.get('category') ?? undefined,
     });
 
-    const { locale, limit, category } = parsed;
+    const { limit, offset, category } = parsed;
 
-    const articles = await fetchLatestNews({
-      locale: locale as Locale,
-      limit,
-      category,
+    const supabase = getSupabaseServerClient();
+    
+    let query = supabase
+      .from('news_articles')
+      .select(
+        `id,
+        title_en,
+        title_es,
+        summary_en,
+        summary_es,
+        content_en,
+        content_es,
+        category,
+        tags,
+        source_url,
+        image_url,
+        published_at,
+        ai_generated,
+        quality_score,
+        reading_time_minutes`
+      )
+      .order('published_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[API /api/news] Supabase error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch articles', details: error.message },
+        { status: 500 }
+      );
+    }
+
+    const articles = newsArticleArraySchema.parse(data || []);
+
+    return NextResponse.json({
+      data: articles,
+      hasMore: articles.length === limit,
+      nextOffset: offset + articles.length,
     });
-
-    return NextResponse.json({ data: articles });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -35,6 +76,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.error('[API /api/news] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 },

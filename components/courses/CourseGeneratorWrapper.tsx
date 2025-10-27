@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 const CourseGenerator = dynamic(
@@ -56,5 +57,24 @@ interface CourseGeneratorWrapperProps {
 }
 
 export function CourseGeneratorWrapper(props: CourseGeneratorWrapperProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch by rendering nothing on server
+  if (!isMounted) {
+    return (
+      <div className="glass rounded-3xl border border-white/10 p-8">
+        <div className="h-64 animate-pulse space-y-4">
+          <div className="h-8 w-3/4 rounded bg-muted"></div>
+          <div className="h-4 w-1/2 rounded bg-muted"></div>
+          <div className="h-32 rounded bg-muted"></div>
+        </div>
+      </div>
+    );
+  }
+
   return <CourseGenerator {...props} />;
 }
