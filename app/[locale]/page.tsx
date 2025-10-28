@@ -47,11 +47,12 @@ export default function HomePage() {
             <ScrollReveal direction="up">
               <div className="flex items-center justify-center md:justify-start gap-4 mb-2">
                 <Image 
-                  src="/images/AINEWS_logo.png" 
+                  src="/images/ainews-logo.png" 
                   alt="AINews Logo" 
                   width={56}
                   height={56}
                   className="drop-shadow-[0_0_25px_rgba(104,58,255,0.8)] animate-pulse"
+                  priority
                 />
               </div>
             </ScrollReveal>
