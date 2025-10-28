@@ -100,8 +100,8 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
         locale={locale}
         onClose={() => setSelectedArticle(null)}
         translations={{
-          readTime: t('readTime'),
-          aiGenerated: t('aiGenerated'),
+          readTime: t('card.readTime'),
+          aiGenerated: t('card.aiGenerated'),
           close: tCommon('buttons.close'),
           category: translateCategory(selectedArticle?.category || 'machinelearning'),
           readOriginal: tCommon('buttons.readOriginal'),
