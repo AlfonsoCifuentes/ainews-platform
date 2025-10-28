@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
+import Image from 'next/image';
 
 const FOOTER_LINKS = [
   { labelKey: 'news', href: '/news' },
@@ -16,11 +17,20 @@ export function Footer() {
     <footer className="border-t border-white/5 bg-black/40 backdrop-blur-2xl">
       <div className="container py-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-lg font-semibold text-white">AINews</p>
-            <p className="text-sm text-muted-foreground">
-              {t('footer.builtWith')}
-            </p>
+          <div className="flex items-center gap-3">
+            <Image 
+              src="/images/AINEWS_logo.png" 
+              alt="AINews Logo" 
+              width={32}
+              height={32}
+              className="drop-shadow-[0_0_10px_rgba(104,58,255,0.4)]"
+            />
+            <div>
+              <p className="text-lg font-semibold text-white">AINews</p>
+              <p className="text-sm text-muted-foreground">
+                {t('footer.builtWith')}
+              </p>
+            </div>
           </div>
 
           <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">

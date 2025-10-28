@@ -25,9 +25,9 @@ export function CoursesPageClient({ title, subtitle, children }: CoursesPageClie
               <h1 className="mb-4 text-4xl font-bold md:text-5xl">
                 <TextGradient>{title}</TextGradient>
               </h1>
-              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              <div className="mx-auto max-w-2xl text-lg text-muted-foreground">
                 <TextSplit text={subtitle} by="word" stagger={0.05} />
-              </p>
+              </div>
             </header>
           </ScrollAnimate>
 

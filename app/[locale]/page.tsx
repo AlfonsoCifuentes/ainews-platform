@@ -8,6 +8,7 @@ import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
 import { RippleButton } from '@/components/shared/InteractiveButtons';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 // Lazy load 3D components AFTER page is interactive (defer heavy Three.js)
 const FloatingObjects = dynamic(
@@ -43,6 +44,17 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(15,16,35,0.95) 0%,rgba(10,11,24,0.86) 60%,rgba(10,11,24,0.92) 100%)]" aria-hidden />
         <div className="relative container mx-auto grid gap-12 text-center md:grid-cols-[1.2fr_0.8fr] md:text-left">
           <div className="space-y-8">
+            <ScrollReveal direction="up">
+              <div className="flex items-center justify-center md:justify-start gap-4 mb-2">
+                <Image 
+                  src="/images/AINEWS_logo.png" 
+                  alt="AINews Logo" 
+                  width={56}
+                  height={56}
+                  className="drop-shadow-[0_0_25px_rgba(104,58,255,0.8)] animate-pulse"
+                />
+              </div>
+            </ScrollReveal>
             <ScrollReveal direction="up">
               <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
                 {t('features.subtitle')}

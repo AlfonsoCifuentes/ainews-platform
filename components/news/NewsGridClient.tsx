@@ -110,9 +110,9 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
 
       <div className="container mx-auto px-4 py-12">
         {/* HERO Article */}
-        <button 
+        <div 
           onClick={() => setSelectedArticle(hero)}
-          className="group mb-12 block w-full text-left"
+          className="group mb-12 block w-full cursor-pointer text-left"
         >
           <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
             <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
@@ -162,15 +162,15 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
               </div>
             </div>
           </article>
-        </button>
+        </div>
 
         {/* FEATURED Articles */}
         <div className="mb-12 grid gap-6 md:grid-cols-3">
           {featured.map((article) => (
-            <button 
+            <div 
               key={article.id}
               onClick={() => setSelectedArticle(article)}
-              className="group w-full text-left"
+              className="group w-full cursor-pointer text-left"
             >
               <article className="relative h-full overflow-hidden rounded-3xl border border-border/50 bg-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10">
                 <div className="relative h-56 overflow-hidden">
@@ -213,7 +213,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                   </p>
                 </div>
               </article>
-            </button>
+            </div>
           ))}
         </div>
 
@@ -226,10 +226,10 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
             const rowSpan = isLarge ? 'lg:row-span-2' : '';
 
             return (
-              <button 
+              <div 
                 key={article.id}
                 onClick={() => setSelectedArticle(article)}
-                className={`group w-full text-left ${colSpan} ${rowSpan}`}
+                className={`group w-full cursor-pointer text-left ${colSpan} ${rowSpan}`}
               >
                 <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5">
                   <div className={`relative overflow-hidden ${isLarge ? 'h-80' : 'h-48'}`}>
@@ -280,7 +280,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                     </div>
                   </div>
                 </article>
-              </button>
+              </div>
             );
           })}
         </div>
