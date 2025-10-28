@@ -92,14 +92,45 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 }
 
 function extractImageUrl(article: RawArticle): string | null {
-  if (article.enclosure?.url) return article.enclosure.url;
+  // Strategy 1: Check enclosure (most RSS feeds with media)
+  if (article.enclosure?.url) {
+    const url = article.enclosure.url;
+    if (url.startsWith('http') && (url.endsWith('.jpg') || url.endsWith('.png') || url.endsWith('.webp') || url.includes('image'))) {
+      return url;
+    }
+  }
   
+  // Strategy 2: Parse content HTML for images
   if (article.content) {
     const $ = load(article.content);
+    
+    // Try multiple selectors in priority order
+    const selectors = [
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]',
+      'img.featured-image',
+      'img.wp-post-image',
+      'article img',
+      'img'
+    ];
+    
+    for (const selector of selectors) {
+      const img = $(selector).first().attr(selector.startsWith('meta') ? 'content' : 'src');
+      if (img && img.startsWith('http') && !img.includes('avatar') && !img.includes('icon')) {
+        return img;
+      }
+    }
+  }
+  
+  // Strategy 3: Try to extract from description/content snippet
+  if (article.contentSnippet) {
+    const $ = load(article.contentSnippet);
     const img = $('img').first().attr('src');
     if (img && img.startsWith('http')) return img;
   }
   
+  // Fallback: Use a neutral AI/tech themed image from Unsplash
+  // This is better than null - provides visual consistency
   return `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80`;
 }
 
