@@ -2,12 +2,15 @@ import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { CourseGeneratorWrapper } from '@/components/courses/CourseGeneratorWrapper';
 import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
-import { CourseCatalog } from '@/components/courses/CourseCatalog';
+import { CourseLibrary } from '@/components/courses/CourseLibrary';
+import { Suspense } from 'react';
+import { CourseLibrarySkeleton } from '@/components/courses/CourseLibrarySkeleton';
 
 type CoursesPageProps = {
   params: Promise<{
     locale: Locale;
   }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export function generateStaticParams() {
@@ -18,8 +21,9 @@ function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
 }
 
-export default async function CoursesPage({ params }: CoursesPageProps) {
+export default async function CoursesPage({ params, searchParams }: CoursesPageProps) {
   const { locale } = await params;
+  const awaitedSearchParams = await searchParams;
 
   if (!isLocale(locale)) {
     throw new Error('Invalid locale received for courses page.');
@@ -73,13 +77,13 @@ export default async function CoursesPage({ params }: CoursesPageProps) {
           }}
         />
 
-        {/* Course Catalog */}
-        <CourseCatalog 
-          title={tCourses('catalog.title')}
-          beginner={tCourses('catalog.beginner')}
-          intermediate={tCourses('catalog.intermediate')}
-          advanced={tCourses('catalog.advanced')}
-        />
+        {/* Course Library */}
+        <Suspense fallback={<CourseLibrarySkeleton />}>
+          <CourseLibrary 
+            locale={locale}
+            searchParams={awaitedSearchParams}
+          />
+        </Suspense>
     </CoursesPageClient>
   );
 }

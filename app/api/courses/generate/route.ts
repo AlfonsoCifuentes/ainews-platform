@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback, getAvailableProviders } from '@/lib/ai/llm-client';
+import { categorizeCourse } from '@/lib/ai/course-categorizer';
 
 const JSON_SYSTEM_PROMPT = 'You are a world-class AI educator that responds with valid JSON only. The JSON must match the provided schema exactly. Never include markdown fences, commentary, or additional text.';
 
@@ -234,6 +235,10 @@ Requirements:
       0
     );
 
+    // Auto-categorize course based on topic and description
+    const category = categorizeCourse(params.topic, courseByLocale.en.description);
+    console.log(`[Course Generator] Auto-categorized as: ${category}`);
+
     const { data: course, error: courseError } = await db
       .from('courses')
       .insert({
@@ -244,9 +249,11 @@ Requirements:
         difficulty: params.difficulty,
         duration_minutes: durationMinutes,
         topics,
+        category,
         ai_generated: true,
         generation_prompt: buildGenerationMetadata(params, outline, context),
-        status: 'draft'
+        status: 'published', // Automatically publish generated courses
+        published_at: new Date().toISOString()
       })
       .select('id')
       .single();
