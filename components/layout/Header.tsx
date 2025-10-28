@@ -46,7 +46,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link href="/" className="group flex items-center gap-3 font-semibold text-lg tracking-tight">
           <Image 
-            src="/images/AINEWS_logo.png" 
+            src="/images/ainews-logo.png" 
             alt="AINews Logo" 
             width={40}
             height={40}

@@ -19,7 +19,7 @@ export function Footer() {
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <Image 
-              src="/images/AINEWS_logo.png" 
+              src="/images/ainews-logo.png" 
               alt="AINews Logo" 
               width={32}
               height={32}

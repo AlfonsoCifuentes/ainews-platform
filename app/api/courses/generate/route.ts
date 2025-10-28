@@ -4,6 +4,10 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback, getAvailableProviders } from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 
+// Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 const JSON_SYSTEM_PROMPT = 'You are a world-class AI educator that responds with valid JSON only. The JSON must match the provided schema exactly. Never include markdown fences, commentary, or additional text.';
 
 const GenerateRequestSchema = z.object({
