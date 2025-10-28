@@ -82,6 +82,8 @@
   },
   "news": {
     "title": "Últimas Noticias de IA",
+    "readTime": "min de lectura",
+    "aiGenerated": "Generado por IA",
     "categories": {
       "all": "Todas",
       "machinelearning": "Aprendizaje Automático",

@@ -93,10 +93,24 @@ export class LLMClient {
     try {
       const response = await this.generate(prompt, {
         temperature: 0.3,
-        maxTokens: 2000, // Increased for complex schemas
+        maxTokens: 4000, // Increased for complex schemas like course generation
       });
 
-      const parsed = JSON.parse(response.content);
+      // Clean up the response content to extract JSON
+      let jsonContent = response.content.trim();
+      
+      // Remove markdown code fences if present
+      if (jsonContent.startsWith('```')) {
+        jsonContent = jsonContent.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
+
+      // Try to find JSON object if there's extra text
+      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[0];
+      }
+
+      const parsed = JSON.parse(jsonContent);
       return schema.parse(parsed);
     } catch (error) {
       if (error instanceof z.ZodError) {

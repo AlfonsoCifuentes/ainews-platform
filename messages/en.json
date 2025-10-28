@@ -82,6 +82,8 @@
   },
   "news": {
     "title": "Latest AI News",
+    "readTime": "min read",
+    "aiGenerated": "AI Generated",
     "categories": {
       "all": "All",
       "machinelearning": "Machine Learning",

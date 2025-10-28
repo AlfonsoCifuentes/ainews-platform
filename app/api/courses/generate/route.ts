@@ -94,8 +94,37 @@ export async function POST(req: NextRequest) {
 
     const db = getSupabaseServerClient();
     
-    // Use OpenRouter (we have the API key for this one)
-    const llm = createLLMClient('openrouter', 'meta-llama/llama-3.1-8b-instruct:free');
+    // Check if API keys are configured
+    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+    const hasGroq = !!process.env.GROQ_API_KEY;
+    
+    if (!hasOpenRouter && !hasGroq) {
+      console.error('[Course Generator] No LLM API keys configured');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'LLM API not configured',
+          message: 'Please set OPENROUTER_API_KEY or GROQ_API_KEY in your .env.local file',
+          hint: 'Get a free API key from https://openrouter.ai or https://groq.com'
+        },
+        { status: 503 }
+      );
+    }
+    
+    // Use OpenRouter with better error handling
+    let llm;
+    try {
+      if (hasOpenRouter) {
+        llm = createLLMClient('openrouter', 'google/gemini-2.0-flash-exp:free');
+        console.log('[Course Generator] Using OpenRouter with Gemini 2.0 Flash');
+      } else {
+        llm = createLLMClient('groq', 'llama-3.1-8b-instant');
+        console.log('[Course Generator] Using Groq with Llama 3.1');
+      }
+    } catch (llmError) {
+      console.error('[Course Generator] Failed to create LLM client:', llmError);
+      throw new Error(`LLM client initialization failed: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`);
+    }
 
     console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
 
