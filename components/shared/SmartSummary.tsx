@@ -32,7 +32,7 @@ const summaryLevels: SummaryLevelOption[] = [
     icon: BookOpen,
     label: { en: 'Full Summary', es: 'Resumen Completo' },
     description: { en: '5 minutes', es: '5 minutos' },
-    color: 'from-purple-500 to-pink-500'
+    color: 'from-primary to-accent'
   }
 ];
 

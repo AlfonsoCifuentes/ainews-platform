@@ -28,7 +28,7 @@ export function Badge({
     success: 'bg-green-500/10 text-green-400 border-green-500/20',
     warning: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
     error: 'bg-red-500/10 text-red-400 border-red-500/20',
-    gradient: 'bg-gradient-to-r from-primary via-purple-500 to-pink-500 text-white'
+    gradient: 'bg-gradient-to-r from-primary via-accent to-primary text-white'
   };
 
   const sizes = {
@@ -90,7 +90,7 @@ export function Chip({
     success: 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/15',
     warning: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/15',
     error: 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/15',
-    gradient: 'bg-gradient-to-r from-primary via-purple-500 to-pink-500 text-white hover:opacity-90'
+    gradient: 'bg-gradient-to-r from-primary via-accent to-primary text-white hover:opacity-90'
   };
 
   const sizes = {

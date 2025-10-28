@@ -153,7 +153,7 @@ export function AdvancedSearch({ locale, initialQuery = '' }: AdvancedSearchProp
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-primary to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-primary to-accent text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t.searching : t.search}
           </button>
@@ -307,7 +307,7 @@ export function AdvancedSearch({ locale, initialQuery = '' }: AdvancedSearchProp
             <div className="flex justify-center mt-8">
               <button
                 onClick={() => performSearch(false)}
-                className="px-8 py-3 bg-gradient-to-r from-primary to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all"
+                className="px-8 py-3 bg-gradient-to-r from-primary to-accent text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all"
               >
                 {t.loadMore}
               </button>

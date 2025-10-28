@@ -72,7 +72,7 @@ interface TextGradientProps {
 export function TextGradient({ children, className = '' }: TextGradientProps) {
   return (
     <motion.span
-      className={`bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent ${className}`}
+      className={`bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent ${className}`}
       animate={{
         backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
       }}

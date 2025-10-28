@@ -1,5 +1,17 @@
 # AI Agent Instructions - AINews Platform
 
+## 📚 PERMANENT CONTEXT DOCUMENTS
+
+**CRITICAL**: Always reference these files as your permanent context:
+
+1. **PROJECT_MASTER.md** - Complete architecture, roadmap, and implementation guide
+2. **DESIGN_SYSTEM.md** - Black & Blue color palette, component patterns, accessibility rules
+3. **RSS_SOURCES.md** - All RSS feeds, import configuration, monitoring guidelines
+
+These documents contain the definitive truth about the project. When in doubt, consult them first.
+
+---
+
 ## 🧠 OPERATIONAL ROLES & CONTEXT
 
 **For every prompt, decision, and implementation, I assume the following combined expertise:**
@@ -242,7 +254,16 @@ export async function similaritySearch(
 
 ## Design System Rules
 
-### Design Philosophy: Brutalist Minimalism + Kinetic Energy
+### Design Philosophy: Black & Blue Minimalism + Kinetic Energy
+
+**NEW COLOR PALETTE** (Effective immediately):
+- **Primary**: `hsl(217 91% 60%)` - Vibrant blue (replaces purple)
+- **Background**: `hsl(222 47% 4%)` - Deep black-blue
+- **Accent**: `hsl(210 100% 50%)` - Electric blue
+- **Secondary**: `hsl(217 30% 15%)` - Dark blue-gray
+
+**No more purple!** All purple has been replaced with blue tones throughout the design system.
+
 - **Brutalist Typography** - Bold, unapologetic, attention-grabbing headlines
 - **Kinetic Elements** - Text and components respond to scroll and interaction
 - **Liquid Morphism** - Organic, flowing shapes that break traditional grids

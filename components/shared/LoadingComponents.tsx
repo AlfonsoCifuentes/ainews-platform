@@ -127,7 +127,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const barClasses = {
     primary: 'bg-primary',
-    gradient: 'bg-gradient-to-r from-primary via-purple-500 to-pink-500'
+    gradient: 'bg-gradient-to-r from-primary via-accent to-primary'
   };
 
   return (

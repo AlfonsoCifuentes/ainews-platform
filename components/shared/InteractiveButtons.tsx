@@ -169,7 +169,7 @@ export function GlowButton({ children, className = '', onClick }: MagneticButton
     >
       {/* Animated glow border */}
       <motion.div
-        className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-pink-500 opacity-0 blur-xl transition-opacity group-hover:opacity-100"
+        className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-accent to-primary opacity-0 blur-xl transition-opacity group-hover:opacity-100"
         animate={{
           rotate: 360
         }}
@@ -181,7 +181,7 @@ export function GlowButton({ children, className = '', onClick }: MagneticButton
       />
       
       {/* Inner content */}
-      <span className="relative z-10 bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+      <span className="relative z-10 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
         {children}
       </span>
     </motion.button>

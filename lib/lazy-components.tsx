@@ -16,7 +16,7 @@ export const BackgroundGeometry = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
     ),
   }
 );

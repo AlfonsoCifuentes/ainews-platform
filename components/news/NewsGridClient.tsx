@@ -112,7 +112,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
           onClick={() => setSelectedArticle(hero)}
           className="group mb-12 block w-full text-left"
         >
-          <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
+          <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
             <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
               <Image
                 src={hero.image_url || '/placeholder-news.jpg'}

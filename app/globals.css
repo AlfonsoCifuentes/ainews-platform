@@ -5,25 +5,25 @@
 @layer base {
   :root {
     color-scheme: dark;
-    --background: 240 33% 6%;
-    --foreground: 222 31% 92%;
-    --card: 240 35% 8%;
-    --card-foreground: 222 31% 92%;
-    --popover: 240 33% 7%;
-    --popover-foreground: 222 31% 92%;
-    --primary: 268 85% 68%;
-    --primary-foreground: 234 86% 16%;
-    --secondary: 215 44% 18%;
-    --secondary-foreground: 222 31% 92%;
-    --muted: 225 28% 18%;
-    --muted-foreground: 220 14% 66%;
-    --accent: 198 82% 57%;
-    --accent-foreground: 229 84% 12%;
+    --background: 222 47% 4%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 5%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 4%;
+    --secondary: 217 30% 15%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 20% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 210 100% 50%;
+    --accent-foreground: 222 47% 4%;
     --destructive: 0 84% 52%;
-    --destructive-foreground: 214 32% 92%;
-    --border: 222 32% 20%;
-    --input: 225 30% 22%;
-    --ring: 268 85% 68%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 217 25% 20%;
+    --input: 217 30% 18%;
+    --ring: 217 91% 60%;
     --radius: 0.75rem;
   }
 }
@@ -36,10 +36,10 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
     background-image:
-      radial-gradient(circle at 15% 20%, hsla(268, 85%, 60%, 0.18), transparent 55%),
-      radial-gradient(circle at 85% 15%, hsla(198, 80%, 60%, 0.16), transparent 40%),
-      radial-gradient(circle at 50% 90%, hsla(214, 92%, 55%, 0.12), transparent 45%);
-    background-color: hsl(240 33% 6%);
+      radial-gradient(circle at 15% 20%, hsla(217, 91%, 60%, 0.15), transparent 55%),
+      radial-gradient(circle at 85% 15%, hsla(210, 100%, 50%, 0.12), transparent 40%),
+      radial-gradient(circle at 50% 90%, hsla(217, 91%, 60%, 0.10), transparent 45%);
+    background-color: hsl(222 47% 4%);
   }
 
   /* Custom scrollbar for modal */

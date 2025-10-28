@@ -37,7 +37,7 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
     <main className="min-h-screen pt-20 pb-16">
       <div className="max-w-7xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             {locale === 'en' ? 'Search' : 'Buscar'}
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">

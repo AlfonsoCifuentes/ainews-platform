@@ -68,7 +68,7 @@ export function TrendingGrid({ topics, noResults }: TrendingGridProps) {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(100, (topic.momentum / 10) * 100)}%` }}
                 transition={{ delay: index * 0.05 + 0.2, duration: 0.8 }}
-                className="h-full bg-gradient-to-r from-primary to-purple-500"
+                className="h-full bg-gradient-to-r from-primary to-accent"
               />
             </div>
           </Link>

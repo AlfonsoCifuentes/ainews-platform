@@ -177,7 +177,7 @@ export default function VoiceAssistant({ content, locale, title }: VoiceAssistan
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl flex items-center justify-center text-white"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent shadow-2xl flex items-center justify-center text-white"
       >
         {isReading && !isPaused ? (
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }}>
@@ -212,7 +212,7 @@ export default function VoiceAssistant({ content, locale, title }: VoiceAssistan
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                       <Volume2 className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -229,7 +229,7 @@ export default function VoiceAssistant({ content, locale, title }: VoiceAssistan
                 <div className="space-y-2">
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                      className="h-full bg-gradient-to-r from-primary to-accent"
                       style={{ width: `${(currentPosition / content.length) * 100}%` }}
                     />
                   </div>
@@ -256,7 +256,7 @@ export default function VoiceAssistant({ content, locale, title }: VoiceAssistan
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={isReading ? resumeReading : startReading}
-                      className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg"
+                      className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg"
                     >
                       <Play className="w-8 h-8 text-white ml-1" />
                     </motion.button>
@@ -265,7 +265,7 @@ export default function VoiceAssistant({ content, locale, title }: VoiceAssistan
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={pauseReading}
-                      className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg"
+                      className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg"
                     >
                       <Pause className="w-8 h-8 text-white" />
                     </motion.button>

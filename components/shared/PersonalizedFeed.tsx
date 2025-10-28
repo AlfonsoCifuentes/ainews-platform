@@ -127,7 +127,7 @@ export default function PersonalizedFeed({ userId, locale, contentType, limit = 
             className="relative"
           >
             {/* AI Badge */}
-            <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+            <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-primary to-accent text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
               AI Pick
             </div>

@@ -140,16 +140,24 @@ export function ArticleModal({
               )}
 
               {/* Full Content */}
-              <div 
-                className="prose prose-lg dark:prose-invert max-w-none
-                  prose-headings:font-bold prose-headings:tracking-tight
-                  prose-p:leading-relaxed prose-p:text-foreground/90
-                  prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                  prose-img:rounded-xl prose-img:shadow-lg
-                  prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded
-                  prose-pre:bg-muted prose-pre:border prose-pre:border-border"
-                dangerouslySetInnerHTML={{ __html: content }}
-              />
+              {content && content.length > 100 ? (
+                <div 
+                  className="prose prose-lg dark:prose-invert max-w-none
+                    prose-headings:font-bold prose-headings:tracking-tight
+                    prose-p:leading-relaxed prose-p:text-foreground/90
+                    prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                    prose-img:rounded-xl prose-img:shadow-lg
+                    prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded
+                    prose-pre:bg-muted prose-pre:border prose-pre:border-border"
+                  dangerouslySetInnerHTML={{ __html: content }}
+                />
+              ) : (
+                <div className="prose prose-lg dark:prose-invert max-w-none">
+                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {content || summary}
+                  </p>
+                </div>
+              )}
 
               {/* Read Original Link */}
               {article.source_url && (

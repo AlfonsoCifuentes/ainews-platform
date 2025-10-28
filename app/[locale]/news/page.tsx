@@ -35,17 +35,17 @@ export default async function NewsPage({ params }: NewsPageProps) {
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Revolutionary Animated Header */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 px-4 py-16">
+      <section className="relative overflow-hidden border-b border-border/50 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/5 px-4 py-16">
         <div className="absolute inset-0 bg-grid-white/5 [mask-image:radial-gradient(white,transparent_70%)]" />
         <div className="container relative mx-auto">
           <div className="mb-8 flex items-center gap-3">
-            <div className="h-1 w-12 bg-gradient-to-r from-primary to-purple-500" />
+            <div className="h-1 w-12 bg-gradient-to-r from-primary to-accent" />
             <span className="text-sm font-bold uppercase tracking-wider text-primary">
               {locale === 'en' ? 'Latest Intelligence' : 'Última Inteligencia'}
             </span>
           </div>
           <h1 className="mb-4 text-5xl font-black tracking-tight md:text-7xl">
-            <span className="bg-gradient-to-r from-foreground via-primary to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
               {t('title')}
             </span>
           </h1>
