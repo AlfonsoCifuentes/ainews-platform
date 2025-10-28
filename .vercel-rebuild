@@ -1,0 +1,3 @@
+# Force rebuild - trigger new deployment
+Timestamp: 2025-10-28
+Reason: Clear production cache for translation keys and logo updates
