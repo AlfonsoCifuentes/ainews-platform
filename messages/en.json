@@ -131,6 +131,85 @@
       "medium": "1-3 hours",
       "long": "> 3 hours"
     },
+    "library": {
+      "title": "Course Library",
+      "subtitle": "Browse our collection of AI courses",
+      "searchPlaceholder": "Search courses...",
+      "allCategories": "All Categories",
+      "allDifficulties": "All Levels",
+      "filters": {
+        "category": "Category",
+        "difficulty": "Difficulty",
+        "sort": "Sort by"
+      },
+      "categories": {
+        "all": "All Categories",
+        "machine-learning": "Machine Learning",
+        "nlp": "Natural Language Processing",
+        "computer-vision": "Computer Vision",
+        "ai-fundamentals": "AI Fundamentals",
+        "data-science": "Data Science",
+        "neural-networks": "Neural Networks",
+        "generative-ai": "Generative AI",
+        "ai-agents": "AI Agents",
+        "prompt-engineering": "Prompt Engineering",
+        "ai-tools": "AI Tools & Platforms",
+        "ethics": "Ethics & Safety",
+        "research": "Research & Papers",
+        "general": "General"
+      },
+      "sort": {
+        "newest": "Newest First",
+        "popular": "Most Popular",
+        "rating": "Highest Rated",
+        "title": "Alphabetical"
+      },
+      "empty": {
+        "title": "No courses found",
+        "description": "Try adjusting your filters or search query",
+        "cta": "Clear Filters"
+      },
+      "stats": {
+        "courses": "{{count}} courses",
+        "enrolled": "{{count}} enrolled",
+        "rating": "{{rating}} rating",
+        "views": "{{count}} views"
+      }
+    },
+    "detail": {
+      "modules": "Modules",
+      "progress": "Your Progress",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started",
+      "startModule": "Start Module",
+      "continueModule": "Continue",
+      "markComplete": "Mark as Complete",
+      "markIncomplete": "Mark as Incomplete",
+      "previous": "Previous Module",
+      "next": "Next Module",
+      "backToCourses": "Back to Courses",
+      "overview": "Overview",
+      "curriculum": "Curriculum",
+      "reviews": "Reviews",
+      "about": "About this course",
+      "whatYouLearn": "What you'll learn",
+      "prerequisites": "Prerequisites",
+      "instructor": "Instructor",
+      "duration": "Duration",
+      "level": "Level",
+      "language": "Language",
+      "lastUpdated": "Last updated",
+      "enrolled": "students enrolled",
+      "certificate": "Certificate of completion",
+      "share": "Share course",
+      "bookmark": "Save course",
+      "enroll": "Enroll Now",
+      "startCourse": "Start Course",
+      "continueCourse": "Continue Learning",
+      "completionBadge": "Course Completed!",
+      "congratulations": "Congratulations! You've completed this course."
+    },
     "generator": {
       "title": "Generate a New Course",
       "subtitle": "Our AI will create a comprehensive course on any AI topic",

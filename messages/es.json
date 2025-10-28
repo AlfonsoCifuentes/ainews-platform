@@ -131,6 +131,85 @@
       "medium": "1-3 horas",
       "long": "> 3 horas"
     },
+    "library": {
+      "title": "Biblioteca de Cursos",
+      "subtitle": "Explora nuestra colección de cursos de IA",
+      "searchPlaceholder": "Buscar cursos...",
+      "allCategories": "Todas las Categorías",
+      "allDifficulties": "Todos los Niveles",
+      "filters": {
+        "category": "Categoría",
+        "difficulty": "Dificultad",
+        "sort": "Ordenar por"
+      },
+      "categories": {
+        "all": "Todas las Categorías",
+        "machine-learning": "Aprendizaje Automático",
+        "nlp": "Procesamiento de Lenguaje Natural",
+        "computer-vision": "Visión por Computadora",
+        "ai-fundamentals": "Fundamentos de IA",
+        "data-science": "Ciencia de Datos",
+        "neural-networks": "Redes Neuronales",
+        "generative-ai": "IA Generativa",
+        "ai-agents": "Agentes de IA",
+        "prompt-engineering": "Ingeniería de Prompts",
+        "ai-tools": "Herramientas y Plataformas de IA",
+        "ethics": "Ética y Seguridad",
+        "research": "Investigación y Artículos",
+        "general": "General"
+      },
+      "sort": {
+        "newest": "Más Recientes",
+        "popular": "Más Populares",
+        "rating": "Mejor Valorados",
+        "title": "Alfabético"
+      },
+      "empty": {
+        "title": "No se encontraron cursos",
+        "description": "Intenta ajustar tus filtros o búsqueda",
+        "cta": "Limpiar Filtros"
+      },
+      "stats": {
+        "courses": "{{count}} cursos",
+        "enrolled": "{{count}} inscritos",
+        "rating": "{{rating}} valoración",
+        "views": "{{count}} vistas"
+      }
+    },
+    "detail": {
+      "modules": "Módulos",
+      "progress": "Tu Progreso",
+      "completed": "Completado",
+      "inProgress": "En Progreso",
+      "notStarted": "No Iniciado",
+      "startModule": "Iniciar Módulo",
+      "continueModule": "Continuar",
+      "markComplete": "Marcar como Completado",
+      "markIncomplete": "Marcar como Incompleto",
+      "previous": "Módulo Anterior",
+      "next": "Siguiente Módulo",
+      "backToCourses": "Volver a Cursos",
+      "overview": "Resumen",
+      "curriculum": "Currículum",
+      "reviews": "Reseñas",
+      "about": "Acerca de este curso",
+      "whatYouLearn": "Lo que aprenderás",
+      "prerequisites": "Requisitos previos",
+      "instructor": "Instructor",
+      "duration": "Duración",
+      "level": "Nivel",
+      "language": "Idioma",
+      "lastUpdated": "Última actualización",
+      "enrolled": "estudiantes inscritos",
+      "certificate": "Certificado de finalización",
+      "share": "Compartir curso",
+      "bookmark": "Guardar curso",
+      "enroll": "Inscribirse Ahora",
+      "startCourse": "Comenzar Curso",
+      "continueCourse": "Continuar Aprendiendo",
+      "completionBadge": "¡Curso Completado!",
+      "congratulations": "¡Felicitaciones! Has completado este curso."
+    },
     "generator": {
       "title": "Generar un Nuevo Curso",
       "subtitle": "Nuestra IA creará un curso completo sobre cualquier tema de IA",

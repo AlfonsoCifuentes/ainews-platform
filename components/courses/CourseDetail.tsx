@@ -6,6 +6,8 @@ import {
   BookOpen, Clock, TrendingUp, Star, CheckCircle2,
   Play, ChevronRight, Award, BarChart3
 } from 'lucide-react';
+import { ShareCourse } from './ShareCourse';
+import { CourseRatings } from './CourseRatings';
 
 interface Module {
   id: string;
@@ -140,6 +142,15 @@ export function CourseDetail({ course, locale }: CourseDetailProps) {
           <p className="text-xl text-muted-foreground mb-6 max-w-3xl">
             {description}
           </p>
+
+          {/* Share Button */}
+          <div className="mb-6">
+            <ShareCourse 
+              courseId={course.id}
+              title={title}
+              locale={locale}
+            />
+          </div>
 
           {/* Stats */}
           <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
@@ -349,6 +360,20 @@ export function CourseDetail({ course, locale }: CourseDetailProps) {
             )}
           </motion.div>
         </div>
+
+        {/* Ratings & Reviews Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-12"
+        >
+          <CourseRatings 
+            courseId={course.id}
+            locale={locale}
+            userId={userId}
+          />
+        </motion.div>
       </div>
     </div>
   );
