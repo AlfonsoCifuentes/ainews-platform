@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/db/supabase';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 
 const ByIdsSchema = z.object({
   ids: z.array(z.string()).min(1).max(100),
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const params = ByIdsSchema.parse(body);
     
-    const supabase = createClient();
+    const supabase = getSupabaseServerClient();
     
     const { data, error } = await supabase
       .from('news_articles')

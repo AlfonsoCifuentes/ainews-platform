@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Search, Filter, BookOpen, Clock, TrendingUp, Star } from 'lucide-react';
 import { CourseCard } from './CourseCard';
