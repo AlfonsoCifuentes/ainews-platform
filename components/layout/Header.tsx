@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import Image from 'next/image';
+import { Logo } from '@/components/shared/Logo';
 
 const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
   { key: 'home', href: '/' },
@@ -45,16 +45,10 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link href="/" className="group flex items-center gap-3 font-semibold text-lg tracking-tight">
-          <div className="relative w-10 h-10">
-            <Image 
-              src="/images/ainews-logo.png" 
-              alt="AINews Logo" 
-              fill
-              className="object-contain transition-transform group-hover:scale-105 drop-shadow-[0_0_15px_rgba(104,58,255,0.6)]"
-              priority
-              sizes="40px"
-            />
-          </div>
+          <Logo 
+            size={40}
+            className="transition-transform group-hover:scale-105 drop-shadow-[0_0_15px_rgba(104,58,255,0.6)]"
+          />
           <span className="hidden sm:inline text-base font-semibold uppercase tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">
             AINEWS
           </span>
