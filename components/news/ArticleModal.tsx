@@ -8,6 +8,8 @@ import type { INewsArticle } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { ShareButtons } from '@/components/shared/ShareButtons';
+import { BookmarkButton } from '@/components/shared/BookmarkButton';
 
 type ArticleModalProps = {
   article: INewsArticle | null;
@@ -159,17 +161,31 @@ export function ArticleModal({
                 </div>
               )}
 
-              {/* Read Original Link */}
+              {/* Read Original Link + Actions */}
               {article.source_url && (
                 <div className="mt-12 pt-8 border-t border-border">
-                  <a
-                    href={article.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-lg"
-                  >
-                    {translations.readOriginal} →
-                  </a>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+                    <a
+                      href={article.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-lg"
+                    >
+                      {translations.readOriginal} →
+                    </a>
+                    
+                    <div className="flex items-center gap-3">
+                      <BookmarkButton 
+                        article={article} 
+                        locale={locale}
+                        showLabel
+                      />
+                      <ShareButtons 
+                        article={article} 
+                        locale={locale}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

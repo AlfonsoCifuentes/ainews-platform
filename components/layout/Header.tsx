@@ -6,9 +6,10 @@ import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
-const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
   { key: 'home', href: '/' },
   { key: 'news', href: '/news' },
+  { key: 'bookmarks', href: '/bookmarks' },
   { key: 'courses', href: '/courses' },
   { key: 'trending', href: '/trending' },
   { key: 'kg', href: '/kg' },

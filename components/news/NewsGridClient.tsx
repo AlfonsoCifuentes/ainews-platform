@@ -7,6 +7,8 @@ import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { type Locale } from '@/i18n';
 import { ArticleModal } from './ArticleModal';
+import { BookmarkButton } from '@/components/shared/BookmarkButton';
+import { MiniShareButtons } from '@/components/shared/ShareButtons';
 import Image from 'next/image';
 
 type NewsGridClientProps = {
@@ -130,6 +132,15 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                 </span>
               </div>
 
+              <div className="absolute right-8 top-8 flex items-center gap-3 z-10">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <BookmarkButton article={hero} locale={locale} />
+                </div>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <MiniShareButtons article={hero} locale={locale} />
+                </div>
+              </div>
+
               <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
                 <div className="mb-4 flex items-center gap-4 text-sm text-white/80">
                   <span>{formatRelativeTimeFromNow(hero.published_at, locale)}</span>
@@ -176,6 +187,15 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                     <span className="rounded-full bg-primary/90 px-3 py-1 text-xs font-bold text-primary-foreground backdrop-blur-sm">
                       {translateCategory(article.category)}
                     </span>
+                  </div>
+
+                  <div className="absolute right-4 top-4 flex items-center gap-2 z-10">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <BookmarkButton article={article} locale={locale} />
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <MiniShareButtons article={article} locale={locale} />
+                    </div>
                   </div>
                 </div>
 
@@ -229,6 +249,15 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                       <span className="text-xs text-white/80">
                         {formatRelativeTimeFromNow(article.published_at, locale)}
                       </span>
+                    </div>
+
+                    <div className="absolute right-3 top-3 flex items-center gap-2 z-10">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <BookmarkButton article={article} locale={locale} />
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <MiniShareButtons article={article} locale={locale} />
+                      </div>
                     </div>
                   </div>
 

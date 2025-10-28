@@ -3,6 +3,7 @@
     "nav": {
       "home": "Inicio",
       "news": "Noticias",
+      "bookmarks": "Guardados",
       "courses": "Cursos",
       "trending": "Tendencias",
       "kg": "Grafo de Conocimiento",
@@ -181,6 +182,16 @@
     "title": "Tarjetas de Repaso",
     "subtitle": "Domina conceptos de IA con repetición espaciada",
     "description": "Repasa y domina conceptos de IA usando tarjetas con repetición espaciada"
+  },
+  "bookmarks": {
+    "title": "Artículos Guardados",
+    "subtitle": "Tu colección de noticias e insights de IA guardados",
+    "description": "Accede a todos tus artículos marcados en un solo lugar",
+    "empty": {
+      "title": "Aún no tienes artículos guardados",
+      "description": "Comienza a marcar artículos que quieras leer más tarde. Tus artículos guardados aparecerán aquí.",
+      "cta": "Ver Noticias"
+    }
   }
 }
 
