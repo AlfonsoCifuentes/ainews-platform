@@ -96,6 +96,22 @@ export function BackgroundGeometry() {
       <Canvas
         camera={{ position: [0, 0, 10], fov: 50 }}
         dpr={[1, 1.5]} // Performance optimization
+        gl={{ 
+          preserveDrawingBuffer: true,
+          powerPreference: 'low-power',
+          antialias: false,
+          failIfMajorPerformanceCaveat: true
+        }}
+        onCreated={({ gl }) => {
+          // Handle context loss
+          gl.domElement.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            console.warn('WebGL context lost, attempting to restore...');
+          });
+          gl.domElement.addEventListener('webglcontextrestored', () => {
+            console.log('WebGL context restored');
+          });
+        }}
       >
         <Scene />
       </Canvas>

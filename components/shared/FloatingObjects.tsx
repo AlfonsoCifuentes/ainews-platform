@@ -147,12 +147,12 @@ export function FloatingObjects() {
         dpr={[1, 1.5]} // Limit pixel ratio for performance
         gl={{
           // Prevent context loss
-          powerPreference: 'high-performance',
+          powerPreference: 'low-power', // Changed from high-performance to reduce GPU usage
           antialias: false, // Disable for better performance
           alpha: true,
-          preserveDrawingBuffer: false,
+          preserveDrawingBuffer: true, // Changed to true to help with context recovery
           // Handle context loss gracefully
-          failIfMajorPerformanceCaveat: false,
+          failIfMajorPerformanceCaveat: true, // Changed to true for better fallback
         }}
         onCreated={({ gl }) => {
           // Handle context loss events
