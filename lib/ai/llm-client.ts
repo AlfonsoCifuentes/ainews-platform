@@ -22,11 +22,26 @@ export interface LLMResponse {
   finishReason: string;
 }
 
+/**
+ * Cleans LLM response content by removing markdown code fences and extracting JSON
+ */
+function cleanLLMResponse(content: string): string {
+  let cleaned = content.trim();
+  
+  // Remove markdown code fences if present (```json ... ``` or ``` ... ```)
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  }
+  
+  return cleaned.trim();
+}
+
 export class LLMClient {
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl: string,
     private readonly model: string,
+    private readonly provider: 'openrouter' | 'groq' | 'gemini' = 'openrouter',
   ) {}
 
   async generate(
@@ -35,11 +50,21 @@ export class LLMClient {
   ): Promise<LLMResponse> {
     const validatedOptions = generateOptionsSchema.parse(options ?? {});
 
+    // Gemini has a different API structure
+    if (this.provider === 'gemini') {
+      return this.generateGemini(prompt, validatedOptions);
+    }
+
+    // OpenRouter and Groq use OpenAI-compatible API
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
+        ...(this.provider === 'openrouter' && {
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews-platform.vercel.app',
+          'X-Title': 'AI News Platform'
+        })
       },
       body: JSON.stringify({
         model: this.model,
@@ -69,8 +94,10 @@ export class LLMClient {
 
     const data = await response.json();
 
+    const rawContent = data.choices[0]?.message?.content ?? '';
+    
     return {
-      content: data.choices[0]?.message?.content ?? '',
+      content: cleanLLMResponse(rawContent),
       model: data.model,
       usage: {
         promptTokens: data.usage?.prompt_tokens ?? 0,
@@ -78,6 +105,60 @@ export class LLMClient {
         totalTokens: data.usage?.total_tokens ?? 0,
       },
       finishReason: data.choices[0]?.finish_reason ?? 'unknown',
+    };
+  }
+
+  private async generateGemini(
+    prompt: string,
+    options: GenerateOptions,
+  ): Promise<LLMResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: options.temperature,
+            maxOutputTokens: options.maxTokens || 4000,
+            topP: options.topP,
+            stopSequences: options.stop,
+          },
+        }),
+        signal: AbortSignal.timeout(60000),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Gemini API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+      );
+    }
+
+    const data = await response.json();
+    const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    
+    return {
+      content: cleanLLMResponse(rawContent),
+      model: this.model,
+      usage: {
+        promptTokens: data.usageMetadata?.promptTokenCount ?? 0,
+        completionTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+        totalTokens: data.usageMetadata?.totalTokenCount ?? 0,
+      },
+      finishReason: data.candidates?.[0]?.finishReason ?? 'unknown',
     };
   }
 
@@ -96,15 +177,9 @@ export class LLMClient {
         maxTokens: 4000, // Increased for complex schemas like course generation
       });
 
-      // Clean up the response content to extract JSON
-      let jsonContent = response.content.trim();
-      
-      // Remove markdown code fences if present
-      if (jsonContent.startsWith('```')) {
-        jsonContent = jsonContent.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-      }
-
-      // Try to find JSON object if there's extra text
+      // Response content is already cleaned by generate()
+      // Just try to extract JSON object if there's extra text
+      let jsonContent = response.content;
       const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonContent = jsonMatch[0];
@@ -125,31 +200,76 @@ export class LLMClient {
   }
 }
 
+export type LLMProvider = 'openrouter' | 'groq' | 'gemini';
+
 export function createLLMClient(
-  provider: 'openrouter' | 'groq',
+  provider: LLMProvider,
   model?: string,
 ): LLMClient {
-  const apiKey =
-    provider === 'openrouter'
-      ? process.env.OPENROUTER_API_KEY
-      : process.env.GROQ_API_KEY;
+  let apiKey: string | undefined;
+  let baseUrl: string;
+  let defaultModel: string;
+
+  switch (provider) {
+    case 'openrouter':
+      apiKey = process.env.OPENROUTER_API_KEY;
+      baseUrl = 'https://openrouter.ai/api/v1';
+      defaultModel = 'google/gemini-2.0-flash-exp:free';
+      break;
+    
+    case 'groq':
+      apiKey = process.env.GROQ_API_KEY;
+      baseUrl = 'https://api.groq.com/openai/v1';
+      defaultModel = 'llama-3.1-8b-instant';
+      break;
+    
+    case 'gemini':
+      apiKey = process.env.GEMINI_API_KEY;
+      baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+      defaultModel = 'gemini-2.0-flash-exp';
+      break;
+  }
 
   if (!apiKey) {
     throw new Error(
-      `Missing API key for ${provider}. Set ${provider === 'openrouter' ? 'OPENROUTER_API_KEY' : 'GROQ_API_KEY'} environment variable.`,
+      `Missing API key for ${provider}. Set ${provider.toUpperCase()}_API_KEY environment variable.`,
     );
   }
 
-  const baseUrl =
-    provider === 'openrouter'
-      ? 'https://openrouter.ai/api/v1'
-      : 'https://api.groq.com/openai/v1';
+  return new LLMClient(apiKey, baseUrl, model ?? defaultModel, provider);
+}
 
-  // Updated to working free models
-  const defaultModel =
-    provider === 'openrouter'
-      ? 'google/gemini-2.0-flash-exp:free' // Gemini 2.0 Flash is fast and free
-      : 'llama-3.1-8b-instant';
+/**
+ * Create LLM client with automatic fallback to available providers
+ * Tries providers in order: Gemini → OpenRouter → Groq
+ */
+export function createLLMClientWithFallback(): LLMClient {
+  const providers: LLMProvider[] = ['gemini', 'openrouter', 'groq'];
+  
+  for (const provider of providers) {
+    try {
+      const client = createLLMClient(provider);
+      console.log(`[LLM] Using ${provider} provider`);
+      return client;
+    } catch (error) {
+      console.warn(`[LLM] ${provider} not available:`, error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
 
-  return new LLMClient(apiKey, baseUrl, model ?? defaultModel);
+  throw new Error(
+    'No LLM providers available. Please configure at least one: GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY'
+  );
+}
+
+/**
+ * Get list of available LLM providers
+ */
+export function getAvailableProviders(): LLMProvider[] {
+  const available: LLMProvider[] = [];
+  
+  if (process.env.GEMINI_API_KEY) available.push('gemini');
+  if (process.env.OPENROUTER_API_KEY) available.push('openrouter');
+  if (process.env.GROQ_API_KEY) available.push('groq');
+  
+  return available;
 }

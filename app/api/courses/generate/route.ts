@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { createLLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback, getAvailableProviders } from '@/lib/ai/llm-client';
 
 const JSON_SYSTEM_PROMPT = 'You are a world-class AI educator that responds with valid JSON only. The JSON must match the provided schema exactly. Never include markdown fences, commentary, or additional text.';
 
@@ -94,36 +94,30 @@ export async function POST(req: NextRequest) {
 
     const db = getSupabaseServerClient();
     
-    // Check if API keys are configured
-    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-    const hasGroq = !!process.env.GROQ_API_KEY;
+    // Check if any LLM provider is configured
+    const availableProviders = getAvailableProviders();
     
-    if (!hasOpenRouter && !hasGroq) {
+    if (availableProviders.length === 0) {
       console.error('[Course Generator] No LLM API keys configured');
       return NextResponse.json(
         {
           success: false,
           error: 'LLM API not configured',
-          message: 'Please set OPENROUTER_API_KEY or GROQ_API_KEY in your .env.local file',
-          hint: 'Get a free API key from https://openrouter.ai or https://groq.com'
+          message: 'Please set at least one LLM API key in your .env.local file',
+          hint: 'Configure GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY. Get free API keys from: https://aistudio.google.com/app/apikey, https://openrouter.ai, or https://groq.com'
         },
         { status: 503 }
       );
     }
     
-    // Use OpenRouter with better error handling
+    // Use automatic fallback system (Gemini → OpenRouter → Groq)
     let llm;
     try {
-      if (hasOpenRouter) {
-        llm = createLLMClient('openrouter', 'google/gemini-2.0-flash-exp:free');
-        console.log('[Course Generator] Using OpenRouter with Gemini 2.0 Flash');
-      } else {
-        llm = createLLMClient('groq', 'llama-3.1-8b-instant');
-        console.log('[Course Generator] Using Groq with Llama 3.1');
-      }
+      llm = createLLMClientWithFallback();
+      console.log(`[Course Generator] Using LLM with automatic fallback. Available providers: ${availableProviders.join(', ')}`);
     } catch (llmError) {
-      console.error('[Course Generator] Failed to create LLM client:', llmError);
-      throw new Error(`LLM client initialization failed: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`);
+      console.error('[Course Generator] All LLM providers failed:', llmError);
+      throw new Error(`LLM initialization failed: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`);
     }
 
     console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
@@ -398,7 +392,7 @@ function buildCourseBundle(
 }
 
 async function translateCourse(
-  llm: ReturnType<typeof createLLMClient>,
+  llm: ReturnType<typeof createLLMClientWithFallback>,
   sourceLocale: 'en' | 'es',
   targetLocale: 'en' | 'es',
   course: CourseContentBundle
