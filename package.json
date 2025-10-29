@@ -15,6 +15,7 @@
     "ai:test-rag": "tsx scripts/test-rag-system.ts",
     "ai:gen-embeddings": "tsx scripts/generate-embeddings.ts",
     "ai:analyze-articles": "tsx scripts/analyze-articles.ts analyze",
+    "ai:fix-images": "tsx scripts/fix-article-images.ts",
     "db:migrate": "supabase db push",
     "db:seed": "tsx scripts/seed-data.ts",
     "analyze": "cross-env ANALYZE=true next build",
