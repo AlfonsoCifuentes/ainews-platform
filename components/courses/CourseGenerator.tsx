@@ -353,7 +353,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Link
-                  href={`/${locale}/dashboard`}
+                  href={`/${locale}/courses/${result.course_id}`}
                   className="rounded-full border border-primary/50 bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:shadow-lg hover:shadow-primary/40"
                 >
                   {translations.result.viewCourse}
