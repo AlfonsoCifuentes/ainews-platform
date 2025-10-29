@@ -4,12 +4,6 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
 import Image from 'next/image';
 
-const FOOTER_LINKS = [
-  { labelKey: 'news', href: '/news' },
-  { labelKey: 'courses', href: '/courses' },
-  { labelKey: 'about', href: '/about' },
-];
-
 export function Footer() {
   const t = useTranslations('common');
 
@@ -36,11 +30,15 @@ export function Footer() {
           </div>
 
           <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            {FOOTER_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
-                {t(`nav.${link.labelKey}`)}
-              </Link>
-            ))}
+            <Link href="/news" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
+              {t('nav.news')}
+            </Link>
+            <Link href="/courses" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
+              {t('nav.courses')}
+            </Link>
+            <Link href="/about" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
+              {t('nav.about')}
+            </Link>
           </nav>
         </div>
 

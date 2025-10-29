@@ -73,9 +73,21 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const relatedArticles = await fetchRelatedArticles(article.category, article.id);
 
   const translateCategory = (category: string) => {
-    const validCategories = ['machinelearning', 'nlp', 'computervision', 'robotics', 'ethics'];
-    const key = validCategories.includes(category) ? category : 'all';
-    return t(`categories.${key}`);
+    // Map category to explicit translation keys
+    switch (category) {
+      case 'machinelearning':
+        return t('categories.machinelearning');
+      case 'nlp':
+        return t('categories.nlp');
+      case 'computervision':
+        return t('categories.computervision');
+      case 'robotics':
+        return t('categories.robotics');
+      case 'ethics':
+        return t('categories.ethics');
+      default:
+        return t('categories.all');
+    }
   };
 
   const title = getLocalizedString(article, 'title', locale);
