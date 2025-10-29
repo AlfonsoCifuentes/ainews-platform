@@ -178,11 +178,7 @@ async function fixDuplicateContent(articleId: string, content: string, _sourceUr
   console.log(`\n🔧 Attempting to fix duplicate content for article ${articleId}...`);
   
   try {
-    const llm = createLLMClient(
-      process.env.OPENROUTER_API_KEY || '',
-      'https://openrouter.ai/api/v1',
-      'google/gemini-2.0-flash-exp:free'
-    );
+    const llm = createLLMClient('openrouter', 'google/gemini-2.0-flash-exp:free');
 
     // Detect language
     const isSpanish = content.includes('ción') || content.includes('ñ') || 
