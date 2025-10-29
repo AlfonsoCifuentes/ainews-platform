@@ -7,7 +7,7 @@
   "theme_color": "#6750A4",
   "icons": [
     {
-      "src": "/images/AINEWS_logo.png",
+      "src": "/images/ainews-logo.png",
       "sizes": "any",
       "type": "image/png"
     }
