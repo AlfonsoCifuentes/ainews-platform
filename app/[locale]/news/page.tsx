@@ -20,7 +20,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
 
   setRequestLocale(locale);
 
-  const t = await getTranslations({ locale, namespace: 'news' });
+  const t = await getTranslations('news');
 
   // Fetch initial batch of articles (first 20 for SSR)
   const articles = await fetchLatestNews({ locale, limit: 20 });

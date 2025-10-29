@@ -107,18 +107,20 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
 
   return (
     <>
-      <ArticleModal
-        article={selectedArticle}
-        locale={locale}
-        onClose={() => setSelectedArticle(null)}
-        translations={{
-          readTime: t('card.readTime'),
-          aiGenerated: t('card.aiGenerated'),
-          close: tCommon('buttons.close'),
-          category: translateCategory(selectedArticle?.category || 'machinelearning'),
-          readOriginal: tCommon('buttons.readOriginal'),
-        }}
-      />
+      {selectedArticle && (
+        <ArticleModal
+          article={selectedArticle}
+          locale={locale}
+          onClose={() => setSelectedArticle(null)}
+          translations={{
+            readTime: t('card.readTime'),
+            aiGenerated: t('card.aiGenerated'),
+            close: tCommon('buttons.close'),
+            category: translateCategory(selectedArticle.category),
+            readOriginal: tCommon('buttons.readOriginal'),
+          }}
+        />
+      )}
 
       <div className="container mx-auto px-4 py-12">
         {/* HERO Article */}
