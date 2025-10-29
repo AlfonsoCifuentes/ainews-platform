@@ -11,6 +11,10 @@ type NewsPageProps = {
   }>;
 };
 
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
 export default async function NewsPage({ params }: NewsPageProps) {
   const { locale } = await params;
 

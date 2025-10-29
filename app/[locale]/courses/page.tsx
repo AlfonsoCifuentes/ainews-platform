@@ -1,4 +1,4 @@
-import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { CourseGeneratorWrapper } from '@/components/courses/CourseGeneratorWrapper';
 import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
@@ -29,7 +29,7 @@ export default async function CoursesPage({ params, searchParams }: CoursesPageP
     throw new Error('Invalid locale received for courses page.');
   }
 
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
 
   const tCourses = await getTranslations({ locale, namespace: 'courses' });
 
