@@ -129,9 +129,107 @@ function extractImageUrl(article: RawArticle): string | null {
     if (img && img.startsWith('http')) return img;
   }
   
-  // Fallback: Use a neutral AI/tech themed image from Unsplash
-  // This is better than null - provides visual consistency
-  return `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80`;
+  // Return null instead of fallback - we'll fetch from source URL later
+  return null;
+}
+
+/**
+ * Scrapes the actual article page to get the real featured image and full content
+ */
+async function scrapeArticlePage(url: string): Promise<{ image: string | null; content: string | null }> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+    
+    if (!response.ok) {
+      console.warn(`[Scraper] Failed to fetch ${url}: ${response.status}`);
+      return { image: null, content: null };
+    }
+    
+    const html = await response.text();
+    const $ = load(html);
+    
+    // Remove unwanted elements
+    $('script, style, nav, header, footer, aside, .ad, .advertisement, .social-share').remove();
+    
+    // Extract image with priority order
+    let image: string | null = null;
+    const imageSelectors = [
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]',
+      'meta[property="twitter:image"]',
+      'article img[src*="featured"]',
+      'article img[src*="hero"]',
+      '.article-image img',
+      '.post-thumbnail img',
+      'article img',
+      'main img',
+      '.content img'
+    ];
+    
+    for (const selector of imageSelectors) {
+      const attr = selector.startsWith('meta') ? 'content' : 'src';
+      let imgUrl = $(selector).first().attr(attr);
+      
+      if (imgUrl) {
+        // Handle relative URLs
+        if (imgUrl.startsWith('//')) {
+          imgUrl = 'https:' + imgUrl;
+        } else if (imgUrl.startsWith('/')) {
+          const urlObj = new URL(url);
+          imgUrl = `${urlObj.protocol}//${urlObj.host}${imgUrl}`;
+        }
+        
+        // Validate image URL
+        if (imgUrl.startsWith('http') && 
+            !imgUrl.includes('avatar') && 
+            !imgUrl.includes('icon') &&
+            !imgUrl.includes('logo') &&
+            !imgUrl.includes('1x1')) {
+          image = imgUrl;
+          break;
+        }
+      }
+    }
+    
+    // Extract main content
+    let content: string | null = null;
+    const contentSelectors = [
+      'article .article-content',
+      'article .post-content',
+      'article .entry-content',
+      '.article-body',
+      'article p',
+      'main p',
+      '.content p'
+    ];
+    
+    for (const selector of contentSelectors) {
+      const contentEl = $(selector);
+      if (contentEl.length > 0) {
+        content = contentEl.map((_, el) => $(el).text()).get().join('\n\n').trim();
+        if (content.length > 200) break; // Found substantial content
+      }
+    }
+    
+    // Clean up content
+    if (content) {
+      content = content
+        .replace(/\s+/g, ' ')
+        .replace(/\n\s*\n/g, '\n\n')
+        .trim()
+        .slice(0, 3000); // Limit to 3000 chars
+    }
+    
+    return { image, content };
+  } catch (error) {
+    console.error(`[Scraper] Error scraping ${url}:`, error);
+    return { image: null, content: null };
+  }
 }
 
 function cleanContent(html: string | undefined): string {
@@ -225,8 +323,23 @@ async function storeArticles(
   
   for (const { article, classification, translation } of classified) {
     try {
-      const contentOriginal = cleanContent(article.content) || article.contentSnippet || '';
+      // First, try to scrape the actual article page for better image and content
+      console.log(`[Scraper] Fetching ${article.link.slice(0, 50)}...`);
+      const scraped = await scrapeArticlePage(article.link);
+      
+      // Use scraped content if available and substantial, otherwise fallback to RSS content
+      const contentOriginal = (scraped.content && scraped.content.length > 200) 
+        ? scraped.content 
+        : (cleanContent(article.content) || article.contentSnippet || '');
+      
+      // Generate a proper summary from content (not just duplicate)
       const summaryOriginal = article.contentSnippet?.slice(0, 300) || contentOriginal.slice(0, 300);
+      
+      // Use scraped image first, then RSS image, then fallback
+      const imageUrl = scraped.image || 
+                      extractImageUrl(article) || 
+                      `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80`;
+      
       const originalLanguage: 'en' | 'es' = article.source.language === 'es' ? 'es' : 'en';
 
       const bilingual = {
@@ -248,7 +361,7 @@ async function storeArticles(
         `source-category-${article.source.category}`
       ]);
       
-      const { data: insertedArticle, error: articleError } = await db
+      const { data: insertedArticle, error: articleError} = await db
         .from('news_articles')
         .insert({
           title_en: bilingual.title_en,
@@ -260,7 +373,7 @@ async function storeArticles(
           category: classification.category,
           tags: Array.from(baseTags),
           source_url: article.link,
-          image_url: extractImageUrl(article),
+          image_url: imageUrl, // Use scraped image
           published_at: new Date(article.pubDate).toISOString(),
           ai_generated: false,
           quality_score: classification.quality_score,

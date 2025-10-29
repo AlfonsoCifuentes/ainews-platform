@@ -101,6 +101,12 @@ export async function POST(req: NextRequest) {
     
     // Check if any LLM provider is configured
     const availableProviders = getAvailableProviders();
+    console.log('[Course Generator] Available providers:', availableProviders);
+    console.log('[Course Generator] Environment check:', {
+      hasGemini: !!process.env.GEMINI_API_KEY,
+      hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+      hasGroq: !!process.env.GROQ_API_KEY
+    });
     
     if (availableProviders.length === 0) {
       console.error('[Course Generator] No LLM API keys configured');
@@ -108,8 +114,8 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: 'LLM API not configured',
-          message: 'Please set at least one LLM API key in your .env.local file',
-          hint: 'Configure GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY. Get free API keys from: https://aistudio.google.com/app/apikey, https://openrouter.ai, or https://groq.com'
+          message: 'No AI provider is currently available. Please configure API keys in your environment.',
+          details: 'Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in .env.local'
         },
         { status: 503 }
       );
@@ -119,10 +125,17 @@ export async function POST(req: NextRequest) {
     let llm;
     try {
       llm = createLLMClientWithFallback();
-      console.log(`[Course Generator] Using LLM with automatic fallback. Available providers: ${availableProviders.join(', ')}`);
+      console.log(`[Course Generator] LLM client created successfully with providers: ${availableProviders.join(', ')}`);
     } catch (llmError) {
       console.error('[Course Generator] All LLM providers failed:', llmError);
-      throw new Error(`LLM initialization failed: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'LLM initialization failed',
+          message: `Failed to initialize AI: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`
+        },
+        { status: 500 }
+      );
     }
 
     console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
@@ -131,6 +144,7 @@ export async function POST(req: NextRequest) {
     let context = '';
     try {
       context = await buildContext(db, params.topic);
+      console.log('[Course Generator] Context built successfully');
     } catch (contextError) {
       console.warn('[Course Generator] Context building failed, continuing without RAG:', contextError);
       context = ''; // Continue without context
@@ -326,14 +340,25 @@ Requirements:
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid request parameters',
-          details: error.errors
+          error: 'Validation error',
+          message: 'The request parameters are invalid',
+          details: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
         },
         { status: 400 }
       );
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorType = error?.constructor?.name || 'UnknownError';
+    
+    console.error('[Course Generator] Error details:', {
+      message: errorMessage,
+      type: errorType,
+      hasStack: error instanceof Error && !!error.stack
+    });
     console.error('[Course Generator] Final error message:', errorMessage);
 
     return NextResponse.json(
