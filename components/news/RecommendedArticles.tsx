@@ -73,7 +73,10 @@ export function RecommendedArticles({ locale, limit = 6 }: RecommendedArticlesPr
                 article={article} 
                 locale={locale} 
                 translations={{
+                  readTime: translations.readTime,
+                  aiGenerated: translations.aiGenerated,
                   readMore: translations.readMore,
+                  category: translations.category,
                 }}
               />
             </motion.div>
