@@ -29,7 +29,7 @@ export function useBookmarks(): UseBookmarksResult {
         throw new Error(data.error || 'Failed to fetch bookmarks');
       }
 
-      const ids = new Set(
+      const ids = new Set<string>(
         data.bookmarks?.map((b: { article_id: string }) => b.article_id) || []
       );
       setBookmarkedIds(ids);

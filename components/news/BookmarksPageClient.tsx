@@ -7,8 +7,25 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useBookmarks } from '@/lib/hooks/useBookmarks';
 
+interface SavedArticle {
+  id: string;
+  article_id: string;
+  saved_at: string;
+  news_articles: {
+    id: string;
+    title_en: string;
+    title_es: string;
+    summary_en: string;
+    summary_es: string;
+    image_url: string | null;
+    source_name: string;
+    published_at: string;
+    category: string;
+  };
+}
+
 interface BookmarksPageClientProps {
-  bookmarks: any[];
+  bookmarks: SavedArticle[];
   locale: 'en' | 'es';
   translations: {
     title: string;

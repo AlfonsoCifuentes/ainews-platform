@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 
@@ -25,7 +25,7 @@ export function RatingStars({
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchRating = async () => {
+  const fetchRating = useCallback(async () => {
     try {
       const response = await fetch(`/api/ratings?articleId=${articleId}`);
       const data = await response.json();
@@ -38,7 +38,7 @@ export function RatingStars({
     } catch (error) {
       console.error('Failed to fetch rating:', error);
     }
-  };
+  }, [articleId]);
 
   useEffect(() => {
     fetchRating();
