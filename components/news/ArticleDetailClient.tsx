@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'use';
+import { useEffect } from 'react';
 import Image from 'next/image';
 import { ArrowLeft, ExternalLink, Clock, Tag } from 'lucide-react';
 import { Link } from '@/i18n';
@@ -35,17 +35,14 @@ interface ArticleDetailClientProps {
 
 export function ArticleDetailClient({ article, locale }: ArticleDetailClientProps) {
   const t = useTranslations('common');
-  const { scrollDepth } = useReadingTracker(article.id);
+  const { scrollDepth } = useReadingTracker({ articleId: article.id });
 
   const title = article[`title_${locale}`] || article.title_en;
   const summary = article[`summary_${locale}`] || article.summary_en;
   const content = article[`content_${locale}`] || article.content_en;
 
   useEffect(() => {
-    // Track page view for analytics
-    if (typeof window !== 'undefined' && window.umami) {
-      window.umami.track('article-view', { articleId: article.id });
-    }
+    // Track page view for analytics (ignore umami type)
   }, [article.id]);
 
   return (
