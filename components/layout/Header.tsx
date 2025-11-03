@@ -7,6 +7,7 @@ import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
 import Image from 'next/image';
 
@@ -88,6 +89,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <Search locale={locale} />
           <ThemeToggle />
           <LanguageSwitcher />
           {profile && <NotificationBell />}
