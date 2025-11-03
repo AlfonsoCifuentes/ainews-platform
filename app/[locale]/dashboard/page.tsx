@@ -8,6 +8,8 @@ import { EnrolledCourses } from '@/components/dashboard/EnrolledCourses';
 import { BadgesCollection } from '@/components/dashboard/BadgesCollection';
 import { SavedArticles } from '@/components/dashboard/SavedArticles';
 import { DashboardPageClient } from '@/components/dashboard/DashboardPageClient';
+import { XPProgress } from '@/components/dashboard/XPProgress';
+import { AchievementsGrid } from '@/components/dashboard/AchievementsGrid';
 
 interface DashboardPageProps {
   params: Promise<{
@@ -60,6 +62,12 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     .eq('user_id', user.id)
     .order('earned_at', { ascending: false });
 
+  // Fetch user achievements
+  const { data: achievements } = await db
+    .from('user_achievements')
+    .select('*')
+    .eq('user_id', user.id);
+
   // Fetch saved articles
   const { data: savedArticles } = await db
     .from('user_saved_articles')
@@ -80,6 +88,8 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
       level: 'Level',
       xp: 'Total XP',
       coursesCompleted: 'Courses Completed',
+      achievements: 'Achievements',
+      progress: 'Your Progress',
     },
     es: {
       welcome: 'Bienvenido de nuevo',
@@ -92,6 +102,8 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
       level: 'Nivel',
       xp: 'XP Total',
       coursesCompleted: 'Cursos Completados',
+      achievements: 'Logros',
+      progress: 'Tu Progreso',
     },
   }[locale];
 
@@ -101,6 +113,16 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
       welcomeText={t.welcome}
       overviewText={t.overview}
     >
+      {/* XP Progress Bar */}
+      {profile && (
+        <div className="mb-8">
+          <XPProgress
+            totalXP={profile.total_xp || 0}
+            locale={locale}
+          />
+        </div>
+      )}
+
       {/* Stats Grid */}
       <UserStats
         profile={profile}
@@ -108,6 +130,15 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
         locale={locale}
         translations={t}
       />
+
+      {/* Achievements Section */}
+      <div className="mt-8">
+        <h2 className="mb-4 text-2xl font-bold">{t.achievements}</h2>
+        <AchievementsGrid
+          achievements={achievements || []}
+          locale={locale}
+        />
+      </div>
 
       {/* Content Grid */}
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">

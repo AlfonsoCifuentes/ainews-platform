@@ -10,7 +10,7 @@ export interface UserProfile {
   avatar_url: string | null;
   bio: string | null;
   preferred_locale: 'en' | 'es';
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'system';
   
   // Gamification
   total_xp: number;
@@ -58,6 +58,7 @@ export interface UserXPLog {
   xp_amount: number;
   action_type: 'module_complete' | 'course_create' | 'article_read' | 'course_complete' | 'daily_login';
   reference_id: string | null;
+  earned_at: string;
   created_at: string;
 }
 
@@ -84,6 +85,8 @@ export interface Badge {
     | 'helpful'
     | 'news_reader'
     | 'course_creator';
+  badge_name: string;
+  badge_icon: string;
   earned_at: string;
   metadata: Record<string, unknown>;
 }
