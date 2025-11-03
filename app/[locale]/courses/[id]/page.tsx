@@ -5,6 +5,9 @@ import { CourseModulesList } from '@/components/courses/CourseModulesList';
 import { CourseEnrollButton } from '@/components/courses/CourseEnrollButton';
 import { CourseProgress } from '@/components/courses/CourseProgress';
 import { CourseReviews } from '@/components/courses/CourseReviews';
+import { AudioPlayer } from '@/components/content/AudioPlayer';
+import { FlashcardDeck } from '@/components/flashcards/FlashcardDeck';
+import { DiscussionThread } from '@/components/content/DiscussionThread';
 import { 
   Clock, 
   BookOpen, 
@@ -319,6 +322,40 @@ export default async function CourseDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Audio Player - Phase 5+ */}
+      <div className="container mx-auto px-4 py-8">
+        <AudioPlayer 
+          contentId={course.id} 
+          contentType="course" 
+          locale={locale} 
+        />
+      </div>
+
+      {/* Flashcard Study System - Phase 5+ */}
+      <section className="border-t border-border bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-16">
+        <div className="container mx-auto px-4">
+          <FlashcardDeck 
+            contentId={course.id} 
+            contentType="course" 
+            locale={locale} 
+          />
+        </div>
+      </section>
+
+      {/* Discussion Thread - Phase 5+ */}
+      <section className="border-t border-border bg-muted/30 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-8 text-3xl font-black md:text-4xl">
+            {locale === 'en' ? 'Discussion' : 'Discusión'}
+          </h2>
+          <DiscussionThread 
+            contentId={course.id} 
+            contentType="course" 
+            locale={locale} 
+          />
+        </div>
+      </section>
     </div>
   );
 }

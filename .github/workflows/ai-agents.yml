@@ -1,0 +1,108 @@
+# GitHub Actions Workflow - AI Agents Scheduler
+# Runs autonomous AI agents on schedule
+# 
+# Agents:
+# - Trend Detector: Every 6 hours
+# - Fact Checker: Daily at 2 AM UTC
+# - Bias Auditor: Daily at 3 AM UTC
+# - Multi-Perspective: On-demand via manual trigger
+
+name: AI Agents Scheduler
+
+on:
+  schedule:
+    # Trend Detector - Every 6 hours
+    - cron: '0 */6 * * *'
+    # Fact Checker - Daily at 2 AM UTC
+    - cron: '0 2 * * *'
+    # Bias Auditor - Daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  
+  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Agent to run'
+        required: true
+        type: choice
+        options:
+          - trend_detector
+          - fact_checker
+          - bias_auditor
+          - multi_perspective
+          - all
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Trend Detector
+        if: github.event.schedule == '0 */6 * * *' || github.event.inputs.agent == 'trend_detector' || github.event.inputs.agent == 'all'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{"agentType":"trend_detector"}'
+
+      - name: Run Fact Checker
+        if: github.event.schedule == '0 2 * * *' || github.event.inputs.agent == 'fact_checker' || github.event.inputs.agent == 'all'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{"agentType":"fact_checker"}'
+
+      - name: Run Bias Auditor
+        if: github.event.schedule == '0 3 * * *' || github.event.inputs.agent == 'bias_auditor' || github.event.inputs.agent == 'all'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{"agentType":"bias_auditor"}'
+
+      - name: Run Multi-Perspective
+        if: github.event.inputs.agent == 'multi_perspective' || github.event.inputs.agent == 'all'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{"agentType":"multi_perspective"}'
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Agent execution failed. Check logs for details."
+          # Add Slack/Discord notification here if needed

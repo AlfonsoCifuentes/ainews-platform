@@ -6,6 +6,10 @@ import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
+import { AudioPlayer } from '@/components/content/AudioPlayer';
+import { HighlightSystem } from '@/components/content/HighlightSystem';
+import { FlashcardDeck } from '@/components/flashcards/FlashcardDeck';
+import { DiscussionThread } from '@/components/content/DiscussionThread';
 
 type NewsDetailPageProps = {
   params: Promise<{
@@ -219,8 +223,50 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
               </button>
             </div>
           </div>
+
+          {/* Audio Player - Phase 5+ */}
+          <div className="mt-12">
+            <AudioPlayer 
+              contentId={article.id} 
+              contentType="article" 
+              locale={locale} 
+            />
+          </div>
+
+          {/* Highlight System - Phase 5+ */}
+          <div className="mt-12">
+            <HighlightSystem 
+              contentId={article.id} 
+              locale={locale} 
+            />
+          </div>
         </div>
       </article>
+
+      {/* Flashcard Study System - Phase 5+ */}
+      <section className="border-t border-border bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-16">
+        <div className="container mx-auto px-4">
+          <FlashcardDeck 
+            contentId={article.id} 
+            contentType="article" 
+            locale={locale} 
+          />
+        </div>
+      </section>
+
+      {/* Discussion Thread - Phase 5+ */}
+      <section className="border-t border-border bg-muted/30 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-8 text-3xl font-black md:text-4xl">
+            {locale === 'en' ? 'Discussion' : 'Discusión'}
+          </h2>
+          <DiscussionThread 
+            contentId={article.id} 
+            contentType="article" 
+            locale={locale} 
+          />
+        </div>
+      </section>
 
       {/* Related Articles */}
       {relatedArticles.length > 0 && (

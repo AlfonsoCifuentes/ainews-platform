@@ -1,15 +1,66 @@
 {
-  "name": "AINews",
+  "name": "AINews - AI News & Learning Platform",
   "short_name": "AINews",
-  "start_url": "/en",
+  "description": "Your source for AI news, courses, and learning",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#6750A4",
+  "background_color": "#0a0a0f",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["news", "education", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/images/ainews-logo.png",
-      "sizes": "any",
-      "type": "image/png"
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/ainews-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-mobile.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/images/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "News",
+      "short_name": "News",
+      "description": "Browse latest AI news",
+      "url": "/news",
+      "icons": [{ "src": "/images/ainews-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Courses",
+      "short_name": "Courses",
+      "description": "Explore AI courses",
+      "url": "/courses",
+      "icons": [{ "src": "/images/ainews-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bookmarks",
+      "short_name": "Saved",
+      "description": "View saved articles",
+      "url": "/bookmarks",
+      "icons": [{ "src": "/images/ainews-logo.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
 }
