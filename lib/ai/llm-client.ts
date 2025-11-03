@@ -112,6 +112,21 @@ export class LLMClient {
     prompt: string,
     options: GenerateOptions,
   ): Promise<LLMResponse> {
+    const generationConfig: Record<string, unknown> = {
+      temperature: options.temperature,
+      maxOutputTokens: options.maxTokens || 4000,
+      topP: options.topP,
+    };
+    
+    // Force JSON mode for Gemini to prevent markdown formatting
+    if (prompt.toLowerCase().includes('json') || prompt.includes('{')) {
+      generationConfig.responseMimeType = 'application/json';
+    }
+    
+    if (options.stop) {
+      generationConfig.stopSequences = options.stop;
+    }
+    
     const response = await fetch(
       `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
       {
@@ -129,12 +144,7 @@ export class LLMClient {
               ],
             },
           ],
-          generationConfig: {
-            temperature: options.temperature,
-            maxOutputTokens: options.maxTokens || 4000,
-            topP: options.topP,
-            stopSequences: options.stop,
-          },
+          generationConfig,
         }),
         signal: AbortSignal.timeout(60000),
       }
@@ -171,18 +181,36 @@ export class LLMClient {
       ? `${systemPrompt}\n\nClassify the following:\n${text}`
       : text;
 
+    let llmResponse: LLMResponse | null = null;
+    
     try {
-      const response = await this.generate(prompt, {
+      llmResponse = await this.generate(prompt, {
         temperature: 0.3,
         maxTokens: 4000, // Increased for complex schemas like course generation
       });
 
       // Response content is already cleaned by generate()
-      // Just try to extract JSON object if there's extra text
-      let jsonContent = response.content;
-      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+      // Try multiple strategies to extract valid JSON
+      let jsonContent = llmResponse.content;
+      
+      // Strategy 1: Extract JSON object with regex (greedy match for nested objects)
+      const jsonMatch = jsonContent.match(/\{(?:[^{}]|\{[^{}]*\})*\}/s);
       if (jsonMatch) {
         jsonContent = jsonMatch[0];
+      }
+      
+      // Strategy 2: If still contains markdown formatting, try to find JSON array
+      if (jsonContent.includes('**') || jsonContent.includes('Based on')) {
+        const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          jsonContent = arrayMatch[0];
+        } else {
+          // Last resort: try to find any valid JSON structure
+          const cleanMatch = jsonContent.match(/(\{[\s\S]*?\}|\[[\s\S]*?\])/);
+          if (cleanMatch) {
+            jsonContent = cleanMatch[0];
+          }
+        }
       }
 
       const parsed = JSON.parse(jsonContent);
@@ -193,6 +221,12 @@ export class LLMClient {
           `LLM response doesn't match schema: ${JSON.stringify(error.errors.slice(0, 3))}`,
         );
       }
+      
+      // Log the problematic response for debugging
+      if (llmResponse) {
+        console.error('[LLM] Raw response that failed to parse:', llmResponse.content.substring(0, 200));
+      }
+      
       throw new Error(
         `Failed to parse LLM classification response: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );

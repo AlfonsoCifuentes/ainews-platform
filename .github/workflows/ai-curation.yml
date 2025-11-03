@@ -33,14 +33,27 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: npm run ai:curate
+        timeout-minutes: 60
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: curation-logs
+          path: |
+            *.log
+            logs/
+          retention-days: 7
 
       - name: Notify on failure
         if: failure()
         run: |
-          echo "❌ AI curation failed. Check logs for details."
-          # Add notification logic here (email, Slack, etc.)
+          echo "❌ AI curation failed at $(date)"
+          echo "Check artifacts for detailed logs"
+          echo "At least one LLM API key must be configured in repository secrets"
 

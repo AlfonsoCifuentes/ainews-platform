@@ -40,8 +40,8 @@ const parser = new Parser({
 const ArticleClassificationSchema = z.object({
   relevant: z.boolean().describe('Is this article about AI/ML/tech?'),
   quality_score: z.number().min(0).max(1).describe('Quality rating 0-1'),
-  category: z.enum(['machinelearning', 'nlp', 'computervision', 'ethics', 'industry', 'research']),
-  reasoning: z.string().optional()
+  category: z.enum(['machinelearning', 'nlp', 'computervision', 'robotics', 'ethics', 'business', 'research', 'tools', 'news', 'other']),
+  summary: z.string().describe('Brief summary of the article')
 });
 
 const TranslationSchema = z.object({
@@ -239,36 +239,87 @@ function cleanContent(html: string | undefined): string {
   return $.text().trim().slice(0, 2000);
 }
 
-async function filterAndClassifyArticles(
-  articles: RawArticle[], 
-  llm: ReturnType<typeof createLLMClient>
-) {
-  console.log('[LLM] Filtering articles...');
-  const classified = [];
-  
-  for (const article of articles) {
-    try {
-      const content = cleanContent(article.content) || article.contentSnippet || '';
-      
-      const result = await llm.classify(
-        `Analyze if this article is relevant to AI/ML/tech news.
-        
-Title: ${article.title}
+/**
+ * Multi-LLM classifier with automatic fallback on rate limits
+ * Tries providers in order: Gemini -> OpenRouter -> Groq
+ */
+async function classifyWithFallback(
+  article: RawArticle,
+  providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }>,
+  systemPrompt: string
+): Promise<z.infer<typeof ArticleClassificationSchema> | null> {
+  const content = cleanContent(article.content) || article.contentSnippet || '';
+  const prompt = `Title: ${article.title}
 Content: ${content.slice(0, 500)}...
 
-Classify its relevance, quality (0-1), and category.`,
-        ArticleClassificationSchema
+Is this article relevant to AI/ML/tech? Return JSON only.`;
+
+  for (const provider of providers) {
+    try {
+      const result = await provider.client.classify(
+        prompt,
+        ArticleClassificationSchema,
+        systemPrompt
       );
       
-      if (result.relevant && result.quality_score >= 0.6) {
-        classified.push({ article, classification: result });
-      }
+      console.log(`[LLM:${provider.name}] ✓ Classified "${article.title.slice(0, 40)}..." (score: ${result.quality_score}, category: ${result.category})`);
+      return result;
+      
     } catch (error) {
-      console.error(`[LLM] ✗ Classification failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // If rate limited or provider failed, try next provider
+      if (errorMessage.includes('429') || errorMessage.includes('rate_limit') || errorMessage.includes('quota')) {
+        console.log(`[LLM:${provider.name}] ⚠ Rate limited, trying next provider...`);
+        continue;
+      }
+      
+      // Other errors, try next provider
+      console.error(`[LLM:${provider.name}] ✗ Error: ${errorMessage.slice(0, 100)}, trying next provider...`);
+      continue;
     }
   }
   
-  console.log(`[LLM] ✓ ${classified.length}/${articles.length} articles passed`);
+  // All providers failed
+  console.error(`[LLM] ✗ All providers failed for "${article.title.slice(0, 40)}"`);
+  return null;
+}
+
+async function filterAndClassifyArticles(
+  articles: RawArticle[], 
+  providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }>
+) {
+  console.log('[LLM] Filtering articles with multi-provider fallback...');
+  console.log(`[LLM] Available providers: ${providers.map(p => p.name).join(', ')}`);
+  
+  const classified = [];
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  const systemPrompt = `You are a JSON-only response AI. You MUST respond ONLY with valid JSON, no markdown, no explanations, no formatting.
+Your response must match this exact structure:
+{
+  "relevant": boolean,
+  "quality_score": number (0-1),
+  "category": "machinelearning" | "nlp" | "computervision" | "robotics" | "ethics" | "business" | "research" | "tools" | "news" | "other",
+  "summary": string
+}`;
+  
+  for (let i = 0; i < articles.length; i++) {
+    const article = articles[i];
+    
+    const result = await classifyWithFallback(article, providers, systemPrompt);
+    
+    if (result && result.relevant && result.quality_score >= 0.6) {
+      classified.push({ article, classification: result });
+    }
+    
+    // Small delay between articles to be nice to APIs
+    if ((i + 1) % 3 === 0) {
+      await delay(500);
+    }
+  }
+  
+  console.log(`[LLM] ✓ ${classified.length}/${articles.length} articles passed filter`);
   return classified;
 }
 
@@ -407,13 +458,50 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    const llm = createLLMClient('groq');
+    // Initialize ALL available LLM providers for fallback
+    const providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }> = [];
+    
+    // Try Gemini first (best JSON support, 60 RPM)
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        providers.push({ name: 'Gemini', client: createLLMClient('gemini') });
+        console.log('[News Curator] ✓ Gemini client initialized');
+      } catch (error) {
+        console.log('[News Curator] ⚠ Gemini initialization failed');
+      }
+    }
+    
+    // OpenRouter as fallback (multiple models, good limits)
+    if (process.env.OPENROUTER_API_KEY) {
+      try {
+        providers.push({ name: 'OpenRouter', client: createLLMClient('openrouter') });
+        console.log('[News Curator] ✓ OpenRouter client initialized');
+      } catch (error) {
+        console.log('[News Curator] ⚠ OpenRouter initialization failed');
+      }
+    }
+    
+    // Groq as last resort (30 RPM, but free)
+    if (process.env.GROQ_API_KEY) {
+      try {
+        providers.push({ name: 'Groq', client: createLLMClient('groq') });
+        console.log('[News Curator] ✓ Groq client initialized');
+      } catch (error) {
+        console.log('[News Curator] ⚠ Groq initialization failed');
+      }
+    }
+    
+    if (providers.length === 0) {
+      throw new Error('No LLM providers available. Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY.');
+    }
+    
+    console.log(`[News Curator] Initialized ${providers.length} LLM provider(s) with automatic fallback`);
+    
     const db = getSupabaseServerClient();
-
-    console.log('[News Curator] Initialized clients');
+    console.log('[News Curator] ✓ Supabase client initialized');
 
     const rawArticles = await fetchRSSFeeds();
-    const classified = await filterAndClassifyArticles(rawArticles, llm) as Array<{
+    const classified = await filterAndClassifyArticles(rawArticles, providers) as Array<{
       article: RawArticle;
       classification: z.infer<typeof ArticleClassificationSchema>;
       translation?: z.infer<typeof TranslationSchema>;
@@ -424,10 +512,26 @@ async function main() {
     for (const item of classified) {
       try {
         const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
-        item.translation = await translateArticle(item.article, llm, targetLanguage);
-        item.translationLanguage = targetLanguage;
+        
+        // Use first available provider for translation
+        let translationResult = null;
+        for (const provider of providers) {
+          try {
+            translationResult = await translateArticle(item.article, provider.client, targetLanguage);
+            console.log(`[Translation:${provider.name}] ✓ Translated to ${targetLanguage}`);
+            break;
+          } catch (error) {
+            console.log(`[Translation:${provider.name}] ✗ Failed, trying next...`);
+            continue;
+          }
+        }
+        
+        if (translationResult) {
+          item.translation = translationResult;
+          item.translationLanguage = targetLanguage;
+        }
       } catch (error) {
-        console.error('[Translation] ✗ Failed:', error);
+        console.error('[Translation] ✗ All providers failed:', error);
       }
     }
     
