@@ -116,14 +116,17 @@ CREATE INDEX idx_user_courses_progress ON user_courses(progress_percentage);
 -- RLS Policies
 ALTER TABLE user_courses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own courses" ON user_courses;
 CREATE POLICY "Users can view own courses"
   ON user_courses FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own courses" ON user_courses;
 CREATE POLICY "Users can insert own courses"
   ON user_courses FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own courses" ON user_courses;
 CREATE POLICY "Users can update own courses"
   ON user_courses FOR UPDATE
   USING (auth.uid() = user_id);
@@ -158,14 +161,17 @@ CREATE INDEX idx_user_progress_completed ON user_progress(completed);
 -- RLS Policies
 ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own progress" ON user_progress;
 CREATE POLICY "Users can view own progress"
   ON user_progress FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own progress" ON user_progress;
 CREATE POLICY "Users can insert own progress"
   ON user_progress FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own progress" ON user_progress;
 CREATE POLICY "Users can update own progress"
   ON user_progress FOR UPDATE
   USING (auth.uid() = user_id);
@@ -194,10 +200,12 @@ CREATE INDEX idx_user_xp_log_created ON user_xp_log(created_at DESC);
 -- RLS Policies
 ALTER TABLE user_xp_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own xp log" ON user_xp_log;
 CREATE POLICY "Users can view own xp log"
   ON user_xp_log FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "System can insert xp log" ON user_xp_log;
 CREATE POLICY "System can insert xp log"
   ON user_xp_log FOR INSERT
   WITH CHECK (auth.uid() = user_id);
@@ -255,10 +263,12 @@ CREATE INDEX idx_user_achievements_achievement ON user_achievements(achievement_
 -- RLS Policies
 ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own achievements" ON user_achievements;
 CREATE POLICY "Users can view own achievements"
   ON user_achievements FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "System can insert achievements" ON user_achievements;
 CREATE POLICY "System can insert achievements"
   ON user_achievements FOR INSERT
   WITH CHECK (auth.uid() = user_id);
@@ -309,6 +319,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_module_progress_update ON user_progress;
 CREATE TRIGGER on_module_progress_update
   AFTER INSERT OR UPDATE ON user_progress
   FOR EACH ROW
