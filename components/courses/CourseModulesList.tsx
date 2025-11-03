@@ -27,12 +27,27 @@ interface Module {
   is_free: boolean;
 }
 
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  enrolled_at: string;
+}
+
+interface Progress {
+  id: string;
+  enrollment_id: string;
+  module_id: string;
+  completed: boolean;
+  completed_at?: string;
+}
+
 interface CourseModulesListProps {
   locale: 'en' | 'es';
   modules: Module[];
   courseId: string;
-  enrollment: any;
-  userProgress: any[];
+  enrollment: Enrollment | null;
+  userProgress: Progress[];
 }
 
 export function CourseModulesList({
@@ -60,7 +75,7 @@ export function CourseModulesList({
   };
 
   const isModuleCompleted = (moduleId: string) => {
-    return userProgress?.some((p: any) => p.module_id === moduleId && p.completed);
+    return userProgress?.some((p) => p.module_id === moduleId && p.completed);
   };
 
   const canAccessModule = (module: Module) => {

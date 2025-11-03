@@ -45,7 +45,7 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
       const supabase = getSupabaseClient();
 
       // Create enrollment
-      const { data: enrollment, error: enrollError } = await supabase
+      const { error: enrollError } = await supabase
         .from('course_enrollments')
         .insert({
           user_id: userId,
