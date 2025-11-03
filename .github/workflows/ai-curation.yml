@@ -29,6 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug - Check secrets availability
+        run: |
+          echo "🔍 Checking which secrets are available..."
+          echo "NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL != '' && '✓ Set' || '✗ Missing' }}"
+          echo "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '✓ Set' || '✗ Missing' }}"
+          echo "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
+          echo "OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
+          echo "GROQ_API_KEY: ${{ secrets.GROQ_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
+
       - name: Run AI curation
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
