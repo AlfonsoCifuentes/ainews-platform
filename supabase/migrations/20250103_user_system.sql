@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Indexes
-CREATE INDEX idx_user_profiles_username ON user_profiles(username);
-CREATE INDEX idx_user_profiles_level ON user_profiles(level DESC);
-CREATE INDEX idx_user_profiles_xp ON user_profiles(xp_total DESC);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_level ON user_profiles(level DESC);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_xp ON user_profiles(xp_total DESC);
 
 -- RLS Policies
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
@@ -49,16 +49,33 @@ CREATE POLICY "Users can insert own profile"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.user_profiles (id, username, full_name)
+  -- Insert a minimal profile for the new auth user. Use a deterministic fallback
+  -- username and full_name derived from available fields. Make the insert
+  -- idempotent using ON CONFLICT DO NOTHING so this function is safe if a
+  -- profile already exists for the user.
+  INSERT INTO public.user_profiles (id, username, full_name, created_at, updated_at)
   VALUES (
     NEW.id,
     'user_' || substring(NEW.id::text, 1, 8),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', COALESCE(NEW.email, ''))
-  );
+    COALESCE(NEW.raw_user_meta_data->>'full_name', COALESCE(NEW.email, '')),
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (id) DO NOTHING;
+
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- If anything unexpected happens, return the NEW row to avoid blocking
+    -- the auth user creation flow. The insert above is already defensive.
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Drop existing trigger if exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Re-create trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -317,7 +334,26 @@ CREATE TRIGGER on_module_progress_update
 
 
 -- =====================================================
--- 8. SEED DATA - ACHIEVEMENT DEFINITIONS
+-- 8. CREATE PROFILES FOR EXISTING USERS
+-- =====================================================
+
+-- Create profiles for any existing users that don't have one
+-- Create profiles for any existing users that don't have one. This is
+-- idempotent and safe to run multiple times. We prefer ON CONFLICT DO NOTHING
+-- and generate a fallback username from the user id. We also set timestamps.
+INSERT INTO public.user_profiles (id, username, full_name, created_at, updated_at)
+SELECT
+  au.id,
+  'user_' || substring(au.id::text, 1, 8) AS username,
+  COALESCE(au.raw_user_meta_data->>'full_name', COALESCE(au.email, '')) AS full_name,
+  NOW() AS created_at,
+  NOW() AS updated_at
+FROM auth.users au
+ON CONFLICT (id) DO NOTHING;
+
+
+-- =====================================================
+-- 9. SEED DATA - ACHIEVEMENT DEFINITIONS
 -- =====================================================
 
 -- Note: Achievement definitions will be in code (lib/gamification/achievements.ts)
