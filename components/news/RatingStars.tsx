@@ -25,10 +25,6 @@ export function RatingStars({
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    fetchRating();
-  }, [articleId]);
-
   const fetchRating = async () => {
     try {
       const response = await fetch(`/api/ratings?articleId=${articleId}`);
@@ -43,6 +39,10 @@ export function RatingStars({
       console.error('Failed to fetch rating:', error);
     }
   };
+
+  useEffect(() => {
+    fetchRating();
+  }, [articleId, fetchRating]);
 
   const handleRate = async (rating: number) => {
     if (readonly) return;

@@ -29,7 +29,9 @@ export function useBookmarks(): UseBookmarksResult {
         throw new Error(data.error || 'Failed to fetch bookmarks');
       }
 
-      const ids = new Set(data.bookmarks?.map((b: any) => b.article_id) || []);
+      const ids = new Set(
+        data.bookmarks?.map((b: { article_id: string }) => b.article_id) || []
+      );
       setBookmarkedIds(ids);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
