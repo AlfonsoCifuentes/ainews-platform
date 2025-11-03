@@ -141,9 +141,6 @@ export default async function CourseDetailPage({
   const title = locale === 'en' ? course.title_en : course.title_es;
   const description = locale === 'en' ? course.description_en : course.description_es;
 
-  const title = locale === 'en' ? course.title_en : course.title_es;
-  const description = locale === 'en' ? course.description_en : course.description_es;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
       {/* Hero Section */}

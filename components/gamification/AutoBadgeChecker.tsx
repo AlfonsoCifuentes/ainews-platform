@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useUser } from '@/lib/auth/useUser';
+import { useUser } from '@/lib/hooks/useUser';
 import { showBadges } from './BadgeNotificationProvider';
 
 /**
