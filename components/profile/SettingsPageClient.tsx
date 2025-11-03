@@ -2,10 +2,21 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Bell, Globe, Palette, Shield, AlertTriangle, Save, X } from 'lucide-react';
+import { Settings, Bell, Globe, Save } from 'lucide-react';
+
+interface UserProfile {
+  display_name: string;
+  bio: string | null;
+  preferred_locale: 'en' | 'es';
+  theme: 'light' | 'dark' | 'system';
+  email_notifications: boolean;
+  weekly_digest: boolean;
+  achievement_notifications: boolean;
+  course_reminders: boolean;
+}
 
 interface SettingsPageClientProps {
-  profile: any;
+  profile: UserProfile | null;
   locale: 'en' | 'es';
   translations: {
     title: string;
@@ -88,7 +99,7 @@ export function SettingsPageClient({
       } else {
         setMessage(data.error || 'Failed to save');
       }
-    } catch (error) {
+    } catch (_error) {
       setMessage('Network error');
     } finally {
       setIsLoading(false);

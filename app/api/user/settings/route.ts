@@ -18,7 +18,7 @@ const SettingsSchema = z.object({
  * GET /api/user/settings
  * Gets user settings
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const user = await getServerAuthUser();
     if (!user) {
@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest) {
 
     const db = getSupabaseServerClient();
 
-    const updates: Record<string, any> = {};
+    const updates: Record<string, string | boolean | number> = {};
     if (validated.displayName) updates.display_name = validated.displayName;
     if (validated.bio !== undefined) updates.bio = validated.bio;
     if (validated.preferredLocale) updates.preferred_locale = validated.preferredLocale;
