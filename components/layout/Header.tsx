@@ -9,13 +9,14 @@ import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
 import { useUser } from '@/lib/hooks/useUser';
 import Image from 'next/image';
 
-const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'leaderboard' | 'about'; href: string }> = [
   { key: 'home', href: '/' },
   { key: 'news', href: '/news' },
   { key: 'bookmarks', href: '/bookmarks' },
   { key: 'courses', href: '/courses' },
   { key: 'trending', href: '/trending' },
   { key: 'kg', href: '/kg' },
+  { key: 'leaderboard', href: '/leaderboard' },
   { key: 'about', href: '/about' },
 ];
 
