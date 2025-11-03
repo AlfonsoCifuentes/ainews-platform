@@ -11,7 +11,7 @@ import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
 import Image from 'next/image';
 
-const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'leaderboard' | 'about'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'leaderboard'; href: string }> = [
   { key: 'home', href: '/' },
   { key: 'news', href: '/news' },
   { key: 'bookmarks', href: '/bookmarks' },
@@ -19,7 +19,6 @@ const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trend
   { key: 'trending', href: '/trending' },
   { key: 'kg', href: '/kg' },
   { key: 'leaderboard', href: '/leaderboard' },
-  { key: 'about', href: '/about' },
 ];
 
 export function Header() {
@@ -92,8 +91,27 @@ export function Header() {
           <Search locale={locale} />
           <ThemeToggle />
           <LanguageSwitcher />
-          {profile && <NotificationBell />}
-          {profile && <UserAvatarMenu profile={profile} locale={locale} />}
+          {profile ? (
+            <>
+              <NotificationBell />
+              <UserAvatarMenu profile={profile} locale={locale} />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/auth"
+                className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+              >
+                {t('login')}
+              </Link>
+              <Link
+                href="/auth?tab=signup"
+                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:scale-105"
+              >
+                {t('signup')}
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -73,21 +73,43 @@ export default function HomePage() {
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.3}>
               <div className="flex flex-wrap justify-center gap-4 md:justify-start">
-                <RippleButton
-                  variant="primary"
-                  className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 px-8 py-3 text-base font-semibold text-primary-foreground shadow-[0_18px_45px_-20px_rgba(116,77,255,0.95)]"
-                  onClick={() => window.location.href = '/news'}
+                <Link href="/news">
+                  <RippleButton
+                    variant="primary"
+                    className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 px-8 py-3 text-base font-semibold text-primary-foreground shadow-[0_18px_45px_-20px_rgba(116,77,255,0.95)]"
+                  >
+                    {t('hero.cta')}
+                    <span>→</span>
+                  </RippleButton>
+                </Link>
+                <Link href="/courses">
+                  <RippleButton
+                    variant="ghost"
+                    className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-8 py-3 text-base font-semibold text-white/80"
+                  >
+                    {t('hero.ctaSecondary')}
+                  </RippleButton>
+                </Link>
+              </div>
+            </ScrollReveal>
+            
+            {/* Auth CTA */}
+            <ScrollReveal direction="up" delay={0.4}>
+              <div className="flex items-center justify-center md:justify-start gap-3 text-sm text-muted-foreground">
+                <span>{t('hero.authPrompt')}</span>
+                <Link 
+                  href="/auth?tab=signup"
+                  className="font-semibold text-primary hover:text-white transition-colors underline underline-offset-4"
                 >
-                  {t('hero.cta')}
-                  <span>→</span>
-                </RippleButton>
-                <RippleButton
-                  variant="ghost"
-                  className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-8 py-3 text-base font-semibold text-white/80"
-                  onClick={() => window.location.href = '/courses'}
+                  {t('hero.signupLink')}
+                </Link>
+                <span className="text-white/30">•</span>
+                <Link 
+                  href="/auth"
+                  className="font-semibold text-muted-foreground hover:text-white transition-colors"
                 >
-                  {t('hero.ctaSecondary')}
-                </RippleButton>
+                  {t('hero.loginLink')}
+                </Link>
               </div>
             </ScrollReveal>
           </div>

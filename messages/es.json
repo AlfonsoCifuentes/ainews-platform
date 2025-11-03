@@ -8,7 +8,8 @@
       "trending": "Tendencias",
       "kg": "Grafo de Conocimiento",
       "leaderboard": "Clasificación",
-      "about": "Acerca de"
+      "login": "Iniciar Sesión",
+      "signup": "Registrarse"
     },
     "footer": {
       "copyright": "© 2025 AINews. Todos los derechos reservados.",
@@ -62,7 +63,10 @@
       "title": "Noticias de IA y Aprendizaje",
       "subtitle": "Mantente actualizado con las últimas innovaciones en IA y aprende con cursos generados por IA",
       "cta": "Explorar Noticias",
-      "ctaSecondary": "Ver Cursos"
+      "ctaSecondary": "Ver Cursos",
+      "authPrompt": "¿Nuevo aquí?",
+      "signupLink": "Crear cuenta",
+      "loginLink": "Iniciar sesión"
     },
     "features": {
       "title": "Impulsado por IA",

@@ -8,7 +8,8 @@
       "trending": "Trending",
       "kg": "Knowledge Graph",
       "leaderboard": "Leaderboard",
-      "about": "About"
+      "login": "Sign In",
+      "signup": "Sign Up"
     },
     "footer": {
       "copyright": "© 2025 AINews. All rights reserved.",
@@ -63,7 +64,10 @@
       "title": "AI News & Learning",
       "subtitle": "Stay updated with the latest AI innovations and learn with AI-generated courses",
       "cta": "Explore News",
-      "ctaSecondary": "Browse Courses"
+      "ctaSecondary": "Browse Courses",
+      "authPrompt": "New here?",
+      "signupLink": "Create account",
+      "loginLink": "Sign in"
     },
     "features": {
       "title": "Powered by AI",
