@@ -8,14 +8,14 @@ import { useTranslations } from 'next-intl';
 interface FollowButtonProps {
   userId: string;
   variant?: 'default' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
   showLabel?: boolean;
 }
 
 export function FollowButton({
   userId,
   variant = 'default',
-  size = 'md',
+  size = 'default',
   showLabel = true,
 }: FollowButtonProps) {
   const t = useTranslations('profile');

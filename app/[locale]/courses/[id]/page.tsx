@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { CourseModulesList } from '@/components/courses/CourseModulesList';
@@ -87,11 +87,11 @@ export default async function CourseDetailPage({
 
   // Calculate stats
   const totalModules = course.course_modules?.length || 0;
-  const completedModules = userProgress?.filter((p: any) => p.completed).length || 0;
+  const completedModules = userProgress?.filter((p) => p.completed).length || 0;
   const progressPercentage = totalModules > 0 ? (completedModules / totalModules) * 100 : 0;
 
   const avgRating = reviews && reviews.length > 0
-    ? reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / reviews.length
+    ? reviews.reduce((acc: number, r) => acc + r.rating, 0) / reviews.length
     : 0;
 
   const t = locale === 'en' ? {
@@ -269,7 +269,7 @@ export default async function CourseDetailPage({
                 locale={locale}
                 courseId={id}
                 reviews={reviews || []}
-                userReview={reviews?.find((r: any) => r.user_id === user?.id)}
+                userReview={reviews?.find((r) => r.user_id === user?.id)}
                 canReview={!!enrollment}
               />
             </div>
@@ -341,3 +341,14 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: '
 
   const title = locale === 'en' ? course.title_en : course.title_es;
   const description = locale === 'en' ? course.description_en : course.description_es;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: course.thumbnail_url ? [{ url: course.thumbnail_url }] : [],
+    },
+  };
+}

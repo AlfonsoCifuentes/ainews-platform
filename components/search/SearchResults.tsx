@@ -13,7 +13,7 @@ interface Article {
   summary_es: string;
   image_url?: string;
   published_at: string;
-  category?: string;
+  category: string;
   ai_generated: boolean;
 }
 
@@ -113,7 +113,6 @@ export function SearchResults({
                   article={article}
                   locale={locale}
                   translations={translations}
-                  compact
                 />
               </div>
             ))}

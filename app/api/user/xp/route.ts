@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/supabase-server';
 import { z } from 'zod';
-import { awardXP, XP_VALUES } from '@/lib/gamification/xp';
+import { awardXP } from '@/lib/gamification/xp-server';
+import { XP_VALUES } from '@/lib/gamification/xp';
 
 const AwardXPSchema = z.object({
   action: z.enum([

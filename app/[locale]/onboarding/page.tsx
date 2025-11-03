@@ -34,10 +34,11 @@ export default async function OnboardingPage({
   );
 }
 
-export function generateMetadata({ params }: { params: { locale: 'en' | 'es' } }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: 'en' | 'es' }> }) {
+  const { locale } = await params;
   return {
-    title: params.locale === 'en' ? 'Welcome to AINews' : 'Bienvenido a AINews',
-    description: params.locale === 'en' 
+    title: locale === 'en' ? 'Welcome to AINews' : 'Bienvenido a AINews',
+    description: locale === 'en' 
       ? 'Set up your personalized AI news experience' 
       : 'Configura tu experiencia personalizada de noticias de IA',
   };

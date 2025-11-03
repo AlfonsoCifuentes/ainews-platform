@@ -61,7 +61,7 @@ export function CommentForm({
       } else {
         setError(data.error || 'Failed to post comment');
       }
-    } catch (err) {
+    } catch {
       setError('Network error');
     } finally {
       setIsSubmitting(false);

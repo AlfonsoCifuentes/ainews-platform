@@ -6,7 +6,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
  * Admin middleware
  * Checks if user has admin privileges before allowing access
  */
-export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+export async function requireAdmin(_req: NextRequest): Promise<NextResponse | null> {
   const supabase = getSupabaseServerClient();
 
   const {

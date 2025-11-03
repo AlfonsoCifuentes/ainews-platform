@@ -12,11 +12,12 @@ export const metadata: Metadata = {
 export default async function SettingsPage({
   params,
 }: {
-  params: { locale: 'en' | 'es' };
+  params: Promise<{ locale: 'en' | 'es' }>;
 }) {
+  const { locale } = await params;
   const user = await getServerAuthUser();
   if (!user) {
-    redirect(`/${params.locale}/login`);
+    redirect(`/${locale}/login`);
   }
 
   const db = getSupabaseServerClient();
@@ -76,12 +77,12 @@ export default async function SettingsPage({
       cancel: 'Cancelar',
       saved: 'Configuración guardada exitosamente',
     },
-  }[params.locale];
+  }[locale];
 
   return (
     <SettingsPageClient
       profile={profile}
-      locale={params.locale}
+      locale={locale}
       translations={translations}
     />
   );

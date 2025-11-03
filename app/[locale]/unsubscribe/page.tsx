@@ -83,10 +83,11 @@ export default async function UnsubscribePage({
   );
 }
 
-export function generateMetadata({ params }: { params: { locale: 'en' | 'es' } }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: 'en' | 'es' }> }) {
+  const { locale } = await params;
   return {
-    title: params.locale === 'en' ? 'Unsubscribe - AINews' : 'Cancelar Suscripción - AINews',
-    description: params.locale === 'en' 
+    title: locale === 'en' ? 'Unsubscribe - AINews' : 'Cancelar Suscripción - AINews',
+    description: locale === 'en' 
       ? 'Unsubscribe from AINews email notifications' 
       : 'Cancelar suscripción de notificaciones por email de AINews',
   };

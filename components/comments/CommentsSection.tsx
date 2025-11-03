@@ -6,6 +6,7 @@ import { MessageCircle, Loader2 } from 'lucide-react';
 import { CommentForm } from './CommentForm';
 import { CommentItem } from './CommentItem';
 import { useUser } from '@/lib/hooks/useUser';
+import type { Comment } from '@/types/comments';
 
 interface CommentsSectionProps {
   articleId?: string;
@@ -15,7 +16,7 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ articleId, courseId, locale }: CommentsSectionProps) {
   const { profile } = useUser();
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

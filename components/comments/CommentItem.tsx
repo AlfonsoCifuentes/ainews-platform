@@ -6,9 +6,10 @@ import { Heart, Reply, Edit, Trash2, MoreVertical } from 'lucide-react';
 import Image from 'next/image';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { CommentForm } from './CommentForm';
+import type { Comment } from '@/types/comments';
 
 interface CommentItemProps {
-  comment: any;
+  comment: Comment;
   currentUserId?: string;
   locale: 'en' | 'es';
   onUpdate?: () => void;
@@ -34,7 +35,7 @@ export function CommentItem({
   const isOwner = currentUserId === comment.user_id;
   const likeCount = comment.comment_reactions?.length || 0;
   const hasLiked = comment.comment_reactions?.some(
-    (r: any) => r.user_id === currentUserId
+    (r) => r.user_id === currentUserId
   );
 
   const translations = {
@@ -97,13 +98,13 @@ export function CommentItem({
           {comment.user_profiles?.avatar_url ? (
             <Image
               src={comment.user_profiles.avatar_url}
-              alt={comment.user_profiles.display_name}
+              alt={comment.user_profiles.display_name || comment.user_profiles.username || 'User'}
               fill
               className="object-cover"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-primary/20 text-sm font-bold">
-              {comment.user_profiles?.display_name?.charAt(0).toUpperCase()}
+              {comment.user_profiles?.display_name?.charAt(0).toUpperCase() || comment.user_profiles?.username?.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
@@ -227,8 +228,8 @@ export function CommentItem({
           {/* Reply Form */}
           {isReplying && (
             <CommentForm
-              articleId={comment.article_id}
-              courseId={comment.course_id}
+              articleId={comment.article_id || undefined}
+              courseId={comment.course_id || undefined}
               parentCommentId={comment.id}
               onSuccess={() => {
                 setIsReplying(false);
@@ -244,7 +245,7 @@ export function CommentItem({
       {/* Nested Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="space-y-3">
-          {comment.replies.map((reply: any) => (
+          {comment.replies.map((reply) => (
             <CommentItem
               key={reply.id}
               comment={reply}

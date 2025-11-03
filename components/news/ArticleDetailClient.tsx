@@ -90,8 +90,8 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-4">
-          <BookmarkButton articleId={article.id} size="lg" showLabel />
-          <RatingStars articleId={article.id} size="lg" />
+          <BookmarkButton articleId={article.id} locale={locale} size="lg" showLabel />
+          <RatingStars articleId={article.id} locale={locale} size="lg" />
           {article.source_url && (
             <a href={article.source_url} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" className="gap-2">

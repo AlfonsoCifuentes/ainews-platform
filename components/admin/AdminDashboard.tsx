@@ -49,9 +49,9 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
     totalArticles: 'Total Articles',
     totalCourses: 'Total Courses',
     items: 'items',
-    users: 'users',
-    articles: 'articles',
-    courses: 'courses',
+    usersLabel: 'users',
+    articlesLabel: 'articles',
+    coursesLabel: 'courses',
   } : {
     title: 'Panel de Administración',
     dashboard: 'Panel',
@@ -65,9 +65,9 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
     totalArticles: 'Total de Artículos',
     totalCourses: 'Total de Cursos',
     items: 'elementos',
-    users: 'usuarios',
-    articles: 'artículos',
-    courses: 'cursos',
+    usersLabel: 'usuarios',
+    articlesLabel: 'artículos',
+    coursesLabel: 'cursos',
   };
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
     {
       title: t.totalUsers,
       value: stats?.totalUsers || 0,
-      subtitle: t.users,
+      subtitle: t.usersLabel,
       icon: Users,
       color: 'text-blue-500',
       bgColor: 'bg-blue-500/10',
@@ -124,7 +124,7 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
     {
       title: t.totalArticles,
       value: stats?.totalArticles || 0,
-      subtitle: t.articles,
+      subtitle: t.articlesLabel,
       icon: FileText,
       color: 'text-green-500',
       bgColor: 'bg-green-500/10',
@@ -132,7 +132,7 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
     {
       title: t.totalCourses,
       value: stats?.totalCourses || 0,
-      subtitle: t.courses,
+      subtitle: t.coursesLabel,
       icon: TrendingUp,
       color: 'text-purple-500',
       bgColor: 'bg-purple-500/10',

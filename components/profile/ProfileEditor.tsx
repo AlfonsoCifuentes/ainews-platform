@@ -24,7 +24,12 @@ export function ProfileEditor({ profile, locale, translations: t, onSave, onCanc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await updateProfile(formData);
+    const success = await updateProfile({
+      display_name: formData.display_name,
+      bio: formData.bio,
+      preferred_locale: formData.preferred_locale,
+      theme: formData.theme === 'system' ? undefined : formData.theme,
+    });
     if (success) {
       onSave();
     }

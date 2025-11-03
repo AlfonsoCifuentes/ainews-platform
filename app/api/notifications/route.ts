@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest) {
  * POST /api/notifications/mark-all-read
  * Marks all notifications as read
  */
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const user = await getServerAuthUser();
     if (!user) {

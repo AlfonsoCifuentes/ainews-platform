@@ -9,20 +9,20 @@ import { showBadges } from './BadgeNotificationProvider';
  * Call this after awarding XP, completing courses, etc.
  */
 export function useBadgeCheck() {
-  const { user } = useUser();
+  const { profile } = useUser();
 
   const checkBadges = async (
     triggerType: string,
     triggerData: Record<string, unknown> = {}
   ) => {
-    if (!user) return;
+    if (!profile) return;
 
     try {
       const response = await fetch('/api/badges/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           triggerType,
           triggerData,
         }),
