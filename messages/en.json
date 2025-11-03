@@ -274,5 +274,10 @@
       "description": "Start bookmarking articles you want to read later. Your saved articles will appear here.",
       "cta": "Browse News"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read"
   }
 }

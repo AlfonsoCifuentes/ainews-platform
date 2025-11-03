@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useUser } from '@/lib/hooks/useUser';
 import Image from 'next/image';
 
@@ -89,6 +90,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <LanguageSwitcher />
+          {profile && <NotificationBell />}
           {profile && <UserAvatarMenu profile={profile} locale={locale} />}
         </div>
       </div>

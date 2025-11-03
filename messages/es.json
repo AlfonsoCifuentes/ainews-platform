@@ -274,6 +274,11 @@
       "description": "Comienza a marcar artículos que quieras leer más tarde. Tus artículos guardados aparecerán aquí.",
       "cta": "Ver Noticias"
     }
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "No hay notificaciones",
+    "markAllRead": "Marcar todas como leídas"
   }
 }
 
