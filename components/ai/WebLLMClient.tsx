@@ -20,39 +20,55 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
   const [modelSize, setModelSize] = useState('0 MB');
 
   const t = locale === 'en' ? {
-    title: 'On-Device AI',
-    subtitle: 'Run AI models locally in your browser',
-    download: 'Download Model',
+    title: '🔒 Privacy Mode: On-Device AI (Optional)',
+    subtitle: 'Run AI models locally in your browser - For power users only',
+    download: 'Download Model (5GB)',
     loading: 'Loading model...',
-    ready: 'Model Ready',
-    notSupported: 'Not Supported',
+    ready: 'Model Ready - 100% Private',
+    notSupported: 'Not Available',
+    notSupportedMessage: 'WebLLM requires desktop browser with GPU support. Mobile/tablet users automatically use our fast cloud AI (OpenRouter/Groq).',
     benefits: [
-      'Complete privacy - data never leaves your device',
-      'No API costs - runs entirely in browser',
-      'Works offline - no internet required',
-      'Low latency - instant responses',
+      '🔒 Complete privacy - data never leaves your device',
+      '⚡ Works offline - no internet required after download',
+      '💰 Zero API costs - runs entirely in your browser',
+      '🚀 Low latency - instant responses once loaded',
+    ],
+    warnings: [
+      '⚠️ First-time download: ~5GB (one-time)',
+      '⚠️ Requires 8GB RAM minimum',
+      '⚠️ Desktop only (Chrome 113+, Edge 113+)',
+      '⚠️ GPU required (WebGPU compatible)',
     ],
     requirements: 'Requires modern browser with WebGPU support',
     modelInfo: 'Model: Llama-3.1-8B-Instruct (4-bit quantized)',
     size: 'Size',
     progress: 'Progress',
+    defaultMode: 'Default: Using fast cloud AI (no download needed)',
   } : {
-    title: 'IA en el Dispositivo',
-    subtitle: 'Ejecuta modelos IA localmente en tu navegador',
-    download: 'Descargar Modelo',
+    title: '🔒 Modo Privacidad: IA Local (Opcional)',
+    subtitle: 'Ejecuta modelos IA localmente en tu navegador - Solo para usuarios avanzados',
+    download: 'Descargar Modelo (5GB)',
     loading: 'Cargando modelo...',
-    ready: 'Modelo Listo',
-    notSupported: 'No Compatible',
+    ready: 'Modelo Listo - 100% Privado',
+    notSupported: 'No Disponible',
+    notSupportedMessage: 'WebLLM requiere navegador de escritorio con GPU. Usuarios móviles/tablet usan automáticamente nuestra IA cloud rápida (OpenRouter/Groq).',
     benefits: [
-      'Privacidad total - datos nunca salen del dispositivo',
-      'Sin costos API - ejecuta completamente en navegador',
-      'Funciona offline - no requiere internet',
-      'Baja latencia - respuestas instantáneas',
+      '🔒 Privacidad total - datos nunca salen del dispositivo',
+      '⚡ Funciona offline - no requiere internet tras descarga',
+      '💰 Cero costos API - ejecuta completamente en navegador',
+      '🚀 Baja latencia - respuestas instantáneas una vez cargado',
+    ],
+    warnings: [
+      '⚠️ Descarga inicial: ~5GB (una sola vez)',
+      '⚠️ Requiere 8GB RAM mínimo',
+      '⚠️ Solo escritorio (Chrome 113+, Edge 113+)',
+      '⚠️ GPU requerida (compatible con WebGPU)',
     ],
     requirements: 'Requiere navegador moderno con soporte WebGPU',
     modelInfo: 'Modelo: Llama-3.1-8B-Instruct (cuantizado 4-bit)',
     size: 'Tamaño',
     progress: 'Progreso',
+    defaultMode: 'Por defecto: Usando IA cloud rápida (sin descarga)',
   };
 
   useEffect(() => {
@@ -135,15 +151,28 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl bg-orange-500/10 border border-orange-500/30 p-6"
+        className="rounded-3xl bg-blue-500/10 border border-blue-500/30 p-6"
       >
         <div className="flex items-start gap-4">
-          <AlertTriangle className="h-8 w-8 text-orange-500 flex-shrink-0" />
-          <div>
-            <h3 className="text-xl font-bold mb-2">{t.notSupported}</h3>
-            <p className="text-sm text-muted-foreground">{t.requirements}</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Try Chrome Canary or Edge Dev with WebGPU enabled.
+          <AlertTriangle className="h-8 w-8 text-blue-400 flex-shrink-0" />
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-xl font-bold mb-2">{t.notSupported}</h3>
+              <p className="text-sm text-muted-foreground">{t.notSupportedMessage}</p>
+            </div>
+            
+            <div className="rounded-2xl bg-muted/50 border border-border p-4">
+              <p className="text-sm font-semibold text-primary mb-2">✅ {t.defaultMode}</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>• Powered by OpenRouter & Groq (free tiers)</li>
+                <li>• Fast responses (~500ms average)</li>
+                <li>• Works on all devices (mobile, tablet, desktop)</li>
+                <li>• No installation required</li>
+              </ul>
+            </div>
+            
+            <p className="text-xs text-muted-foreground mt-2">
+              <strong>For power users:</strong> Try Chrome 113+ or Edge 113+ with WebGPU enabled to unlock on-device AI.
             </p>
           </div>
         </div>
@@ -155,7 +184,7 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 p-6 space-y-6"
+      className="rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-white/10 p-6 space-y-6"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -191,6 +220,7 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
 
       {/* Benefits */}
       <div className="space-y-2">
+        <h4 className="text-sm font-semibold text-primary mb-3">✨ Benefits:</h4>
         {t.benefits.map((benefit, i) => (
           <motion.div
             key={i}
@@ -199,11 +229,43 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
             transition={{ delay: i * 0.1 }}
             className="flex items-start gap-2 text-sm"
           >
-            <Zap className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+            <Zap className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
             <span>{benefit}</span>
           </motion.div>
         ))}
       </div>
+
+      {/* Warnings - Only show if not ready yet */}
+      {!isReady && (
+        <div className="space-y-2 border-t border-white/10 pt-4">
+          <h4 className="text-sm font-semibold text-orange-400 mb-3">⚠️ Requirements:</h4>
+          {t.warnings.map((warning, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 + 0.4 }}
+              className="flex items-start gap-2 text-sm text-muted-foreground"
+            >
+              <AlertTriangle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
+              <span>{warning}</span>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Default Mode Notice */}
+      {!isReady && !isLoading && (
+        <div className="rounded-2xl bg-muted/50 border border-border p-4">
+          <p className="text-sm font-semibold text-primary mb-2">
+            ℹ️ Currently using: Fast Cloud AI (Default)
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Your AI features work perfectly with our OpenRouter/Groq integration. 
+            Download the local model only if you need 100% offline privacy.
+          </p>
+        </div>
+      )}
 
       {/* Action Button */}
       <div className="flex justify-center pt-4">
