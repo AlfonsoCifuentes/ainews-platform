@@ -2,61 +2,70 @@
 -- USER PROFILE & GAMIFICATION SYSTEM
 -- Migration: Complete user system with profiles, courses, progress, XP, achievements
 -- Created: 2025-01-03
+-- NOTE: This migration extends the existing user_profiles table from 20250101000002
 -- =====================================================
 
 -- =====================================================
--- 1. USER PROFILES TABLE
+-- 1. EXTEND EXISTING USER PROFILES TABLE
 -- =====================================================
-CREATE TABLE IF NOT EXISTS user_profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT UNIQUE,
-  full_name TEXT,
-  avatar_url TEXT, -- Supabase Storage URL (JPG ≤100KB)
-  bio TEXT,
-  locale TEXT DEFAULT 'en', -- User preferred language
-  theme TEXT DEFAULT 'dark', -- dark/light
-  xp_total INTEGER DEFAULT 0,
-  level INTEGER DEFAULT 1,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Constraints
-  CONSTRAINT username_length CHECK (char_length(username) >= 3 AND char_length(username) <= 30),
-  CONSTRAINT bio_length CHECK (char_length(bio) <= 500)
-);
+-- The table already exists from migration 20250101000002_user_auth_gamification.sql
+-- We just add any missing columns needed for this system
 
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
+-- Add full_name column if it doesn't exist (maps to existing display_name)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'user_profiles' 
+                 AND column_name = 'full_name') THEN
+    ALTER TABLE user_profiles ADD COLUMN full_name TEXT;
+  END IF;
+END $$;
+
+-- Add theme column if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'user_profiles' 
+                 AND column_name = 'theme') THEN
+    ALTER TABLE user_profiles ADD COLUMN theme TEXT DEFAULT 'dark';
+  END IF;
+END $$;
+
+-- Indexes (using existing columns: display_name, level, total_xp)
+CREATE INDEX IF NOT EXISTS idx_user_profiles_display_name ON user_profiles(display_name);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_level ON user_profiles(level DESC);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_xp ON user_profiles(xp_total DESC);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_xp ON user_profiles(total_xp DESC);
 
--- RLS Policies
+-- RLS Policies (already exist from previous migration, but ensure they're set)
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop and recreate policies to ensure they're correct
+DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
 CREATE POLICY "Users can view all profiles"
   ON user_profiles FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 CREATE POLICY "Users can update own profile"
   ON user_profiles FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON user_profiles;
 CREATE POLICY "Users can insert own profile"
   ON user_profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
--- Auto-create profile on user signup
+-- Auto-create profile on user signup (update to use existing columns)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Insert a minimal profile for the new auth user. Use a deterministic fallback
-  -- username and full_name derived from available fields. Make the insert
-  -- idempotent using ON CONFLICT DO NOTHING so this function is safe if a
-  -- profile already exists for the user.
-  INSERT INTO public.user_profiles (id, username, full_name, created_at, updated_at)
+  -- Insert a minimal profile for the new auth user using existing column names
+  INSERT INTO public.user_profiles (id, display_name, full_name, created_at, updated_at)
   VALUES (
     NEW.id,
-    'user_' || substring(NEW.id::text, 1, 8),
+    COALESCE(NEW.raw_user_meta_data->>'display_name', 'user_' || substring(NEW.id::text, 1, 8)),
     COALESCE(NEW.raw_user_meta_data->>'full_name', COALESCE(NEW.email, '')),
     NOW(),
     NOW()
@@ -66,8 +75,6 @@ BEGIN
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
-    -- If anything unexpected happens, return the NEW row to avoid blocking
-    -- the auth user creation flow. The insert above is already defensive.
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -195,7 +202,7 @@ CREATE POLICY "System can insert xp log"
   ON user_xp_log FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- Function to award XP and update user profile
+-- Function to award XP and update user profile (use existing column: total_xp)
 CREATE OR REPLACE FUNCTION award_xp(
   p_user_id UUID,
   p_xp_amount INTEGER,
@@ -210,14 +217,14 @@ BEGIN
   INSERT INTO user_xp_log (user_id, xp_amount, action_type, reference_id)
   VALUES (p_user_id, p_xp_amount, p_action_type, p_reference_id);
   
-  -- Update user profile total XP
+  -- Update user profile total XP (using existing column: total_xp)
   UPDATE user_profiles
-  SET xp_total = xp_total + p_xp_amount,
+  SET total_xp = total_xp + p_xp_amount,
       updated_at = NOW()
   WHERE id = p_user_id
-  RETURNING xp_total INTO v_new_total;
+  RETURNING total_xp INTO v_new_total;
   
-  -- Calculate new level (exponential curve: level = floor(sqrt(xp_total / 100)))
+  -- Calculate new level (exponential curve: level = floor(sqrt(total_xp / 100)))
   v_new_level := FLOOR(SQRT(v_new_total / 100.0)) + 1;
   
   -- Update level if changed
@@ -337,14 +344,12 @@ CREATE TRIGGER on_module_progress_update
 -- 8. CREATE PROFILES FOR EXISTING USERS
 -- =====================================================
 
--- Create profiles for any existing users that don't have one
 -- Create profiles for any existing users that don't have one. This is
--- idempotent and safe to run multiple times. We prefer ON CONFLICT DO NOTHING
--- and generate a fallback username from the user id. We also set timestamps.
-INSERT INTO public.user_profiles (id, username, full_name, created_at, updated_at)
+-- idempotent and safe to run multiple times. Uses existing column names.
+INSERT INTO public.user_profiles (id, display_name, full_name, created_at, updated_at)
 SELECT
   au.id,
-  'user_' || substring(au.id::text, 1, 8) AS username,
+  COALESCE(au.raw_user_meta_data->>'display_name', 'user_' || substring(au.id::text, 1, 8)) AS display_name,
   COALESCE(au.raw_user_meta_data->>'full_name', COALESCE(au.email, '')) AS full_name,
   NOW() AS created_at,
   NOW() AS updated_at
