@@ -7,7 +7,7 @@ import { CommentForm } from './CommentForm';
 import { CommentItem } from './CommentItem';
 import { useUser } from '@/lib/hooks/useUser';
 
-interface CommentsSection Props {
+interface CommentsSectionProps {
   articleId?: string;
   courseId?: string;
   locale: 'en' | 'es';
