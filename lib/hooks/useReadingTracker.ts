@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface UseReadingTrackerOptions {
   articleId: string;
@@ -12,7 +12,7 @@ export function useReadingTracker({ articleId, enabled = true }: UseReadingTrack
   const [scrollDepth, setScrollDepth] = useState(0);
   const [hasRecorded, setHasRecorded] = useState(false);
 
-  const recordReading = async () => {
+  const recordReading = useCallback(async () => {
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
 
     try {
@@ -28,7 +28,7 @@ export function useReadingTracker({ articleId, enabled = true }: UseReadingTrack
     } catch (error) {
       console.error('Failed to record reading:', error);
     }
-  };
+  }, [articleId, startTime, scrollDepth]);
 
   useEffect(() => {
     if (!enabled || !articleId) return;

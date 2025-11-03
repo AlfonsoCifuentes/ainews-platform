@@ -17,10 +17,12 @@ export function RecommendedArticles({ locale, limit = 6 }: RecommendedArticlesPr
     en: {
       title: 'Recommended for You',
       subtitle: reason || 'Personalized based on your interests',
+      readMore: 'Read More',
     },
     es: {
       title: 'Recomendado para Ti',
       subtitle: reason || 'Personalizado según tus intereses',
+      readMore: 'Leer Más',
     },
   }[locale];
 
@@ -61,7 +63,13 @@ export function RecommendedArticles({ locale, limit = 6 }: RecommendedArticlesPr
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <ArticleCard article={article} locale={locale} />
+              <ArticleCard 
+                article={article} 
+                locale={locale} 
+                translations={{
+                  readMore: translations.readMore,
+                }}
+              />
             </motion.div>
           ))}
         </div>
