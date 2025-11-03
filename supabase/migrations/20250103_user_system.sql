@@ -52,8 +52,8 @@ BEGIN
   INSERT INTO public.user_profiles (id, username, full_name)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substring(NEW.id::text, 1, 8)),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', '')
+    'user_' || substring(NEW.id::text, 1, 8),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', COALESCE(NEW.email, ''))
   );
   RETURN NEW;
 END;
