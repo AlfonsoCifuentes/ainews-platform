@@ -17,12 +17,18 @@ export function RecommendedArticles({ locale, limit = 6 }: RecommendedArticlesPr
     en: {
       title: 'Recommended for You',
       subtitle: reason || 'Personalized based on your interests',
+      readTime: 'min read',
+      aiGenerated: 'AI Generated',
       readMore: 'Read More',
+      category: 'Category',
     },
     es: {
       title: 'Recomendado para Ti',
       subtitle: reason || 'Personalizado según tus intereses',
+      readTime: 'min de lectura',
+      aiGenerated: 'Generado por IA',
       readMore: 'Leer Más',
+      category: 'Categoría',
     },
   }[locale];
 
