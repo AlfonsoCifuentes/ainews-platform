@@ -76,6 +76,13 @@ export function BookmarkButton({
       }
 
       setIsBookmarked(!isBookmarked);
+      
+      // Trigger bookmark event for badge checking (only when adding)
+      if (!isBookmarked) {
+        window.dispatchEvent(new CustomEvent('bookmark-added', {
+          detail: { articleId: article.id }
+        }));
+      }
     } catch (error) {
       console.error('Failed to toggle bookmark:', error);
     } finally {

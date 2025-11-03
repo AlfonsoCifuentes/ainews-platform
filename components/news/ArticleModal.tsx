@@ -39,6 +39,11 @@ export function ArticleModal({
     if (article) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden'; // Prevent scroll
+      
+      // Track article read for badge progress
+      window.dispatchEvent(new CustomEvent('article-read', {
+        detail: { articleId: article.id }
+      }));
     }
 
     return () => {

@@ -15,6 +15,8 @@ import { ScrollProgress } from '@/components/shared/ScrollEffects';
 import { DailyLoginTracker } from '@/components/gamification/DailyLoginTracker';
 import { GamificationListeners } from '@/components/gamification/GamificationListeners';
 import { XPNotificationManager } from '@/components/gamification/XPFloatingNotification';
+import { BadgeNotificationProvider } from '@/components/gamification/BadgeNotificationProvider';
+import { AutoBadgeChecker } from '@/components/gamification/AutoBadgeChecker';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -95,27 +97,30 @@ export default async function LocaleLayout({
         <ThemeProvider>
           <ToastProvider>
             <NextIntlClientProvider messages={messages} locale={locale}>
-              <div className="relative flex min-h-screen flex-col">
-                {/* Matrix Rain Background */}
-                <MatrixRain />
-                
-                {/* Scroll Progress Indicator */}
-                <ScrollProgress />
-                
-                {/* Gradient Overlay */}
-                <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+              <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
+                <div className="relative flex min-h-screen flex-col">
+                  {/* Matrix Rain Background */}
+                  <MatrixRain />
+                  
+                  {/* Scroll Progress Indicator */}
+                  <ScrollProgress />
+                  
+                  {/* Gradient Overlay */}
+                  <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+                  </div>
+                  
+                  <Header />
+                  <main className="flex-1 relative z-10">{children}</main>
+                  <Footer />
+                  
+                  {/* Gamification Systems */}
+                  <DailyLoginTracker />
+                  <GamificationListeners />
+                  <XPNotificationManager />
+                  <AutoBadgeChecker />
                 </div>
-                
-                <Header />
-                <main className="flex-1 relative z-10">{children}</main>
-                <Footer />
-                
-                {/* Gamification Systems */}
-                <DailyLoginTracker />
-                <GamificationListeners />
-                <XPNotificationManager />
-              </div>
+              </BadgeNotificationProvider>
             </NextIntlClientProvider>
           </ToastProvider>
         </ThemeProvider>

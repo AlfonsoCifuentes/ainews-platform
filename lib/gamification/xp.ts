@@ -69,6 +69,15 @@ export async function awardXP(
     const previousLevel = calculateLevel(profile.total_xp - xpAmount);
     const leveledUp = profile.level > previousLevel;
     
+    // Trigger XP awarded event for badge checking
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('xp-awarded', {
+          detail: { amount: xpAmount, source: action },
+        })
+      );
+    }
+    
     return {
       success: true,
       newXP: profile.total_xp,

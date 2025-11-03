@@ -53,6 +53,11 @@ export function CommentForm({
       if (response.ok) {
         setContent('');
         onSuccess?.();
+        
+        // Trigger comment posted event for badge checking
+        window.dispatchEvent(new CustomEvent('comment-posted', {
+          detail: { articleId, courseId, parentCommentId }
+        }));
       } else {
         setError(data.error || 'Failed to post comment');
       }

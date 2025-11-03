@@ -62,6 +62,11 @@ export function RatingStars({
         setUserRating(rating);
         setAverageRating(data.averageRating);
         setTotalRatings(data.totalRatings);
+        
+        // Trigger rating given event for badge checking
+        window.dispatchEvent(new CustomEvent('rating-given', {
+          detail: { articleId, rating }
+        }));
       }
     } catch (error) {
       console.error('Failed to rate:', error);

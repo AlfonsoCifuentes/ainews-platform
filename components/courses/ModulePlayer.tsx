@@ -137,6 +137,11 @@ export function ModulePlayer({
           p_amount: 100,
           p_source: 'module_completion',
         });
+        
+        // Trigger course complete event for badge checking
+        window.dispatchEvent(new CustomEvent('course-complete', {
+          detail: { moduleId: module.id, enrollmentId }
+        }));
       }
 
       showToast(t.success, 'success');
