@@ -86,7 +86,7 @@ export function AvatarUpload({
         setError(data.error || translations.error);
         setPreview(currentAvatar || null);
       }
-    } catch (err) {
+    } catch {
       setError(translations.error);
       setPreview(currentAvatar || null);
     } finally {
@@ -105,12 +105,12 @@ export function AvatarUpload({
 
       if (response.ok) {
         setPreview(null);
-        onUploadSuccess?.(null as any);
+        onUploadSuccess?.('');
       } else {
         const data = await response.json();
         setError(data.error || translations.error);
       }
-    } catch (err) {
+    } catch {
       setError(translations.error);
     } finally {
       setIsUploading(false);

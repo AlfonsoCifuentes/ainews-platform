@@ -12,6 +12,9 @@ import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { MatrixRain } from '@/components/shared/MatrixRain';
 import { ToastProvider } from '@/components/shared/ToastProvider';
 import { ScrollProgress } from '@/components/shared/ScrollEffects';
+import { DailyLoginTracker } from '@/components/gamification/DailyLoginTracker';
+import { GamificationListeners } from '@/components/gamification/GamificationListeners';
+import { XPNotificationManager } from '@/components/gamification/XPFloatingNotification';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -107,6 +110,11 @@ export default async function LocaleLayout({
                 <Header />
                 <main className="flex-1 relative z-10">{children}</main>
                 <Footer />
+                
+                {/* Gamification Systems */}
+                <DailyLoginTracker />
+                <GamificationListeners />
+                <XPNotificationManager />
               </div>
             </NextIntlClientProvider>
           </ToastProvider>

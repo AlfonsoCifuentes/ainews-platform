@@ -99,7 +99,7 @@ export function SettingsPageClient({
       } else {
         setMessage(data.error || 'Failed to save');
       }
-    } catch (_error) {
+    } catch {
       setMessage('Network error');
     } finally {
       setIsLoading(false);
