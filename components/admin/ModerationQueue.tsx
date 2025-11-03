@@ -63,6 +63,7 @@ export function ModerationQueue({ locale }: ModerationQueueProps) {
 
   useEffect(() => {
     loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadItems = async () => {
@@ -95,7 +96,7 @@ export function ModerationQueue({ locale }: ModerationQueueProps) {
       } else {
         showToast(t.error, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t.error, 'error');
     }
   };

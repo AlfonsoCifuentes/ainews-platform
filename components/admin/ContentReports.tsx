@@ -58,6 +58,7 @@ export function ContentReports({ locale }: ContentReportsProps) {
 
   useEffect(() => {
     loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadReports = async () => {
@@ -90,7 +91,7 @@ export function ContentReports({ locale }: ContentReportsProps) {
       } else {
         showToast(t.error, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t.error, 'error');
     }
   };
