@@ -35,7 +35,9 @@ export function ModuleCompletionListener() {
   const { awardXP } = useXPAward();
 
   useEffect(() => {
-    const handleCompletion = async (event: CustomEvent) => {
+    const handleCompletion = async (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      
       const { moduleId, score } = event.detail;
 
       // Award XP for module completion
@@ -47,10 +49,10 @@ export function ModuleCompletionListener() {
       }
     };
 
-    window.addEventListener('module-completed', handleCompletion as EventListener);
+    window.addEventListener('module-completed', handleCompletion);
 
     return () => {
-      window.removeEventListener('module-completed', handleCompletion as EventListener);
+      window.removeEventListener('module-completed', handleCompletion);
     };
   }, [awardXP]);
 
