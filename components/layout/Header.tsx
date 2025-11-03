@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
+import { useUser } from '@/lib/hooks/useUser';
 import Image from 'next/image';
 
 const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'about'; href: string }> = [
@@ -20,6 +22,7 @@ const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trend
 export function Header() {
   const t = useTranslations('common.nav');
   const pathname = usePathname();
+  const { profile, locale } = useUser();
 
   const activeSegment = useMemo(() => {
     if (!pathname) {
@@ -85,6 +88,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <LanguageSwitcher />
+          {profile && <UserAvatarMenu profile={profile} locale={locale} />}
         </div>
       </div>
     </header>
