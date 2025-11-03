@@ -57,6 +57,7 @@ export function useRecommendations(
 
   useEffect(() => {
     fetchRecommendations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale, limit]);
 
   return {

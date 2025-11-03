@@ -12,6 +12,24 @@ export function useReadingTracker({ articleId, enabled = true }: UseReadingTrack
   const [scrollDepth, setScrollDepth] = useState(0);
   const [hasRecorded, setHasRecorded] = useState(false);
 
+  const recordReading = async () => {
+    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+
+    try {
+      await fetch('/api/reading-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId,
+          timeSpent,
+          scrollDepth,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to record reading:', error);
+    }
+  };
+
   useEffect(() => {
     if (!enabled || !articleId) return;
 
@@ -45,25 +63,7 @@ export function useReadingTracker({ articleId, enabled = true }: UseReadingTrack
     const interval = setInterval(checkAndRecord, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
-  }, [enabled, articleId, scrollDepth, startTime, hasRecorded]);
-
-  const recordReading = async () => {
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-
-    try {
-      await fetch('/api/reading-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          articleId,
-          timeSpent,
-          scrollDepth,
-        }),
-      });
-    } catch (error) {
-      console.error('Failed to record reading:', error);
-    }
-  };
+  }, [enabled, articleId, scrollDepth, startTime, hasRecorded, recordReading]);
 
   return { scrollDepth, timeSpent: Math.floor((Date.now() - startTime) / 1000) };
 }
