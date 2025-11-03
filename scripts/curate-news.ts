@@ -454,6 +454,12 @@ async function storeArticles(
 
 async function main() {
   console.log('[News Curator] Starting curation workflow...');
+  console.log('[News Curator] Environment check:');
+  console.log(`  - GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - NEXT_PUBLIC_SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ Set' : '✗ Missing'}`);
 
   const startTime = Date.now();
 
@@ -467,7 +473,7 @@ async function main() {
         providers.push({ name: 'Gemini', client: createLLMClient('gemini') });
         console.log('[News Curator] ✓ Gemini client initialized');
       } catch (error) {
-        console.log('[News Curator] ⚠ Gemini initialization failed');
+        console.log('[News Curator] ⚠ Gemini initialization failed:', error);
       }
     }
     
@@ -477,7 +483,7 @@ async function main() {
         providers.push({ name: 'OpenRouter', client: createLLMClient('openrouter') });
         console.log('[News Curator] ✓ OpenRouter client initialized');
       } catch (error) {
-        console.log('[News Curator] ⚠ OpenRouter initialization failed');
+        console.log('[News Curator] ⚠ OpenRouter initialization failed:', error);
       }
     }
     
@@ -487,12 +493,18 @@ async function main() {
         providers.push({ name: 'Groq', client: createLLMClient('groq') });
         console.log('[News Curator] ✓ Groq client initialized');
       } catch (error) {
-        console.log('[News Curator] ⚠ Groq initialization failed');
+        console.log('[News Curator] ⚠ Groq initialization failed:', error);
       }
     }
     
     if (providers.length === 0) {
-      throw new Error('No LLM providers available. Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY.');
+      console.error('[News Curator] ✗ CRITICAL ERROR: No LLM providers available!');
+      console.error('[News Curator] Please configure at least ONE of these GitHub Secrets:');
+      console.error('  1. GEMINI_API_KEY (recommended - best JSON support)');
+      console.error('  2. OPENROUTER_API_KEY (good fallback)');
+      console.error('  3. GROQ_API_KEY (last resort)');
+      console.error('[News Curator] Go to: https://github.com/AlfonsoCifuentes/ainews-platform/settings/secrets/actions');
+      throw new Error('No LLM providers available. Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in GitHub Secrets.');
     }
     
     console.log(`[News Curator] Initialized ${providers.length} LLM provider(s) with automatic fallback`);
