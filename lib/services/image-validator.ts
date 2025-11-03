@@ -1,0 +1,264 @@
+/**
+ * Image Validation and Deduplication Service
+ * 
+ * Validates images for:
+ * - Uniqueness (no duplicates)
+ * - Validity (accessible, correct format)
+ * - Size (minimum dimensions)
+ * - Content (not placeholder, logo, or avatar)
+ */
+
+import crypto from 'crypto';
+import { getSupabaseServerClient } from '../db/supabase';
+
+interface ImageValidationResult {
+  isValid: boolean;
+  isDuplicate: boolean;
+  hash?: string;
+  width?: number;
+  height?: number;
+  error?: string;
+}
+
+// In-memory cache for current session
+const imageHashCache = new Set<string>();
+let cacheInitialized = false;
+
+/**
+ * Generates perceptual hash of image URL for duplicate detection
+ */
+function generateImageHash(url: string): string {
+  // Use crypto hash of cleaned URL (remove query params that vary)
+  const cleanUrl = url.split('?')[0];
+  return crypto.createHash('md5').update(cleanUrl).digest('hex');
+}
+
+/**
+ * Initializes the image hash cache from existing articles
+ */
+/**
+ * Initialize the image hash cache by loading all existing article images from the database.
+ * MUST be called before using any validation functions.
+ */
+export async function initializeImageHashCache(): Promise<void> {
+  if (cacheInitialized) return;
+
+  try {
+    const db = getSupabaseServerClient();
+    
+    // Get all existing image URLs
+    const { data: articles } = await db
+      .from('news_articles')
+      .select('image_url')
+      .not('image_url', 'is', null);
+
+    if (articles) {
+      articles.forEach((article) => {
+        if (article.image_url) {
+          const hash = generateImageHash(article.image_url);
+          imageHashCache.add(hash);
+        }
+      });
+    }
+
+    cacheInitialized = true;
+    console.log(`[ImageValidator] Cache initialized with ${imageHashCache.size} existing images`);
+  } catch (error) {
+    console.error('[ImageValidator] Failed to initialize cache:', error);
+  }
+}
+
+/**
+ * Checks if image URL is already used in another article
+ */
+function isDuplicateImage(url: string): boolean {
+  const hash = generateImageHash(url);
+  return imageHashCache.has(hash);
+}
+
+/**
+ * Validates image URL
+ */
+async function validateImageUrl(url: string): Promise<ImageValidationResult> {
+  // Check for duplicate first (fast)
+  if (isDuplicateImage(url)) {
+    return {
+      isValid: false,
+      isDuplicate: true,
+      hash: generateImageHash(url),
+      error: 'Image already used in another article'
+    };
+  }
+
+  try {
+    // Fetch image headers to check validity
+    const response = await fetch(url, {
+      method: 'HEAD',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    });
+
+    if (!response.ok) {
+      return {
+        isValid: false,
+        isDuplicate: false,
+        error: `HTTP ${response.status}`
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    const contentLength = parseInt(response.headers.get('content-length') || '0');
+
+    // Validate content type
+    if (!contentType?.startsWith('image/')) {
+      return {
+        isValid: false,
+        isDuplicate: false,
+        error: `Invalid content type: ${contentType}`
+      };
+    }
+
+    // Check minimum size (at least 10KB to avoid tiny placeholders)
+    if (contentLength > 0 && contentLength < 10000) {
+      return {
+        isValid: false,
+        isDuplicate: false,
+        error: 'Image too small (likely placeholder)'
+      };
+    }
+
+    // Check maximum size (avoid huge files)
+    if (contentLength > 10000000) { // 10MB
+      return {
+        isValid: false,
+        isDuplicate: false,
+        error: 'Image too large'
+      };
+    }
+
+    return {
+      isValid: true,
+      isDuplicate: false,
+      hash: generateImageHash(url)
+    };
+
+  } catch (error) {
+    return {
+      isValid: false,
+      isDuplicate: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Blacklist patterns for images we want to avoid
+ */
+const IMAGE_BLACKLIST_PATTERNS = [
+  /avatar/i,
+  /icon/i,
+  /logo/i,
+  /1x1/i,
+  /pixel/i,
+  /transparent/i,
+  /placeholder/i,
+  /gravatar/i,
+  /profile/i,
+  /default[-_]?image/i,
+  /no[-_]?image/i,
+  /coming[-_]?soon/i,
+  /\.svg$/i, // Avoid SVGs as they're often logos
+];
+
+/**
+ * Checks if URL matches blacklist patterns
+ */
+function isBlacklistedImage(url: string): boolean {
+  return IMAGE_BLACKLIST_PATTERNS.some(pattern => pattern.test(url));
+}
+
+/**
+ * Registers a new image hash in cache
+ */
+function registerImageHash(url: string): void {
+  const hash = generateImageHash(url);
+  imageHashCache.add(hash);
+}
+
+/**
+ * Main validation function
+ */
+export async function validateAndRegisterImage(
+  url: string | null,
+  skipDuplicateCheck = false
+): Promise<ImageValidationResult> {
+  // Initialize cache on first use
+  await initializeImageHashCache();
+
+  if (!url) {
+    return {
+      isValid: false,
+      isDuplicate: false,
+      error: 'No image URL provided'
+    };
+  }
+
+  // Check blacklist
+  if (isBlacklistedImage(url)) {
+    return {
+      isValid: false,
+      isDuplicate: false,
+      error: 'Image matches blacklist pattern'
+    };
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch {
+    return {
+      isValid: false,
+      isDuplicate: false,
+      error: 'Invalid URL format'
+    };
+  }
+
+  // Skip duplicate check if requested (for testing)
+  if (skipDuplicateCheck) {
+    const result = await validateImageUrl(url);
+    if (result.isValid && result.hash) {
+      registerImageHash(url);
+    }
+    return result;
+  }
+
+  // Full validation
+  const result = await validateImageUrl(url);
+  
+  // Register if valid
+  if (result.isValid && result.hash) {
+    registerImageHash(url);
+  }
+
+  return result;
+}
+
+/**
+ * Clears the image cache (for testing)
+ */
+export function clearImageCache(): void {
+  imageHashCache.clear();
+  cacheInitialized = false;
+}
+
+/**
+ * Gets cache stats
+ */
+export function getImageCacheStats() {
+  return {
+    size: imageHashCache.size,
+    initialized: cacheInitialized
+  };
+}

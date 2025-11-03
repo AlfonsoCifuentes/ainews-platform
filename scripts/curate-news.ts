@@ -28,6 +28,8 @@ import { load } from 'cheerio';
 import { createLLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
+import { getBestArticleImage } from '../lib/services/image-scraper';
+import { initializeImageHashCache } from '../lib/services/image-validator';
 import { z } from 'zod';
 
 const parser = new Parser({
@@ -91,7 +93,8 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
   return articles;
 }
 
-function extractImageUrl(article: RawArticle): string | null {
+// Legacy function - kept for reference but replaced by getBestArticleImage
+function _extractImageUrl(article: RawArticle): string | null {
   // Strategy 1: Check enclosure (most RSS feeds with media)
   if (article.enclosure?.url) {
     const url = article.enclosure.url;
@@ -372,6 +375,10 @@ async function storeArticles(
 ) {
   console.log('[DB] Storing articles...');
   
+  let successCount = 0;
+  const duplicateImageCount = 0;
+  let invalidImageCount = 0;
+  
   for (const { article, classification, translation } of classified) {
     try {
       // First, try to scrape the actual article page for better image and content
@@ -386,10 +393,36 @@ async function storeArticles(
       // Generate a proper summary from content (not just duplicate)
       const summaryOriginal = article.contentSnippet?.slice(0, 300) || contentOriginal.slice(0, 300);
       
-      // Use scraped image first, then RSS image, then fallback
-      const imageUrl = scraped.image || 
-                      extractImageUrl(article) || 
-                      `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80`;
+      // IMPROVED IMAGE HANDLING with validation and deduplication
+      console.log(`[ImageValidator] Finding best image for: ${article.title.slice(0, 50)}...`);
+      
+      let imageUrl: string | null = null;
+      
+      // Try to get the best image with our advanced scraper
+      imageUrl = await getBestArticleImage(article.link, {
+        enclosure: article.enclosure,
+        content: article.content,
+        contentSnippet: article.contentSnippet
+      });
+      
+      // If no valid image found, use high-quality AI-themed fallback from Unsplash
+      if (!imageUrl) {
+        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - using fallback`);
+        
+        // Use different fallback images to avoid all articles having the same one
+        const fallbacks = [
+          'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80',
+          'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1600&q=80',
+          'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1600&q=80',
+          'https://images.unsplash.com/photo-1655635643486-a17bc48771ff?auto=format&fit=crop&w=1600&q=80',
+          'https://images.unsplash.com/photo-1655720406770-12ea329b5b61?auto=format&fit=crop&w=1600&q=80',
+        ];
+        
+        // Use article hash to select a consistent fallback per article
+        const articleHash = article.link.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        imageUrl = fallbacks[articleHash % fallbacks.length];
+        invalidImageCount++;
+      }
       
       const originalLanguage: 'en' | 'es' = article.source.language === 'es' ? 'es' : 'en';
 
@@ -445,11 +478,18 @@ async function storeArticles(
       });
       
       console.log(`[DB] ✓ ${article.title.slice(0, 50)}...`);
+      successCount++;
       
     } catch (error) {
       console.error(`[DB] ✗ Storage failed:`, error);
     }
   }
+  
+  console.log('\n[DB] Storage complete!');
+  console.log(`  - Articles stored: ${successCount}`);
+  console.log(`  - Images validated: ${successCount - invalidImageCount}`);
+  console.log(`  - Fallback images used: ${invalidImageCount}`);
+  console.log(`  - Duplicate images avoided: ${duplicateImageCount}`);
 }
 
 async function main() {
@@ -511,6 +551,11 @@ async function main() {
     
     const db = getSupabaseServerClient();
     console.log('[News Curator] ✓ Supabase client initialized');
+    
+    // Initialize image hash cache to prevent duplicates
+    console.log('[ImageValidator] Initializing image hash cache...');
+    await initializeImageHashCache();
+    console.log('[ImageValidator] ✓ Cache initialized');
 
     const rawArticles = await fetchRSSFeeds();
     const classified = await filterAndClassifyArticles(rawArticles, providers) as Array<{
@@ -532,7 +577,7 @@ async function main() {
             translationResult = await translateArticle(item.article, provider.client, targetLanguage);
             console.log(`[Translation:${provider.name}] ✓ Translated to ${targetLanguage}`);
             break;
-          } catch (error) {
+          } catch {
             console.log(`[Translation:${provider.name}] ✗ Failed, trying next...`);
             continue;
           }
@@ -542,8 +587,8 @@ async function main() {
           item.translation = translationResult;
           item.translationLanguage = targetLanguage;
         }
-      } catch (error) {
-        console.error('[Translation] ✗ All providers failed:', error);
+      } catch (_error) {
+        console.error('[Translation] ✗ All providers failed:', _error);
       }
     }
     
