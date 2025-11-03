@@ -10,10 +10,10 @@ import { createClient } from '@/lib/db/supabase-server';
 import { z } from 'zod';
 
 const UpdateProfileSchema = z.object({
-  username: z.string().min(3).max(30).optional(),
+  display_name: z.string().min(3).max(30).optional(),
   full_name: z.string().max(100).optional(),
   bio: z.string().max(500).optional(),
-  locale: z.enum(['en', 'es']).optional(),
+  preferred_locale: z.enum(['en', 'es']).optional(),
   theme: z.enum(['dark', 'light']).optional()
 });
 
@@ -83,17 +83,17 @@ export async function PATCH(req: NextRequest) {
     
     const updates = validationResult.data;
     
-    // Check username uniqueness if changing username
-    if (updates.username) {
+    // Check display_name uniqueness if changing display_name
+    if (updates.display_name) {
       const { data: existingUser } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('username', updates.username)
+        .eq('display_name', updates.display_name)
         .single();
       
       if (existingUser && existingUser.id !== user.id) {
         return NextResponse.json(
-          { error: 'Username already taken' },
+          { error: 'Display name already taken' },
           { status: 409 }
         );
       }
