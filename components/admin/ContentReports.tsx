@@ -70,8 +70,8 @@ export function ContentReports({ locale }: ContentReportsProps) {
       if (response.ok) {
         setReports(data.data);
       }
-    } catch (error) {
-      console.error('Failed to load reports:', error);
+    } catch {
+      console.error('Failed to load reports');
     } finally {
       setIsLoading(false);
     }

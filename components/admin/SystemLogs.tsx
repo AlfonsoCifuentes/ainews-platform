@@ -40,8 +40,8 @@ export function SystemLogs({ locale }: { locale: 'en' | 'es' }) {
       if (response.ok) {
         setLogs(data.data);
       }
-    } catch (error) {
-      console.error('Failed to load logs:', error);
+    } catch {
+      console.error('Failed to load logs');
     } finally {
       setIsLoading(false);
     }

@@ -81,8 +81,8 @@ export function AdminDashboard({ locale }: AdminDashboardProps) {
       if (response.ok) {
         setStats(data.data);
       }
-    } catch (error) {
-      console.error('Failed to load stats:', error);
+    } catch {
+      console.error('Failed to load stats');
     } finally {
       setIsLoading(false);
     }

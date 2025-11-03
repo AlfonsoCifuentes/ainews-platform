@@ -75,8 +75,8 @@ export function ModerationQueue({ locale }: ModerationQueueProps) {
       if (response.ok) {
         setItems(data.data);
       }
-    } catch (error) {
-      console.error('Failed to load moderation queue:', error);
+    } catch {
+      console.error('Failed to load moderation queue');
     } finally {
       setIsLoading(false);
     }
