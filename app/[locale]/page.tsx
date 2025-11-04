@@ -6,6 +6,8 @@ import { BentoGrid, BentoCard, BentoIcon, BentoTitle, BentoDescription } from '@
 import { ScrollReveal, ParallaxSection } from '@/components/shared/AnimatedHero';
 import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
 import { RippleButton } from '@/components/shared/InteractiveButtons';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useUser } from '@/lib/hooks/useUser';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -21,7 +23,10 @@ const FloatingObjects = dynamic(
 
 export default function HomePage() {
   const t = useTranslations('home');
+  const { locale } = useUser();
   const [showFloatingObjects, setShowFloatingObjects] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
 
   // Defer FloatingObjects until after page is interactive
   useEffect(() => {
@@ -97,19 +102,25 @@ export default function HomePage() {
             <ScrollReveal direction="up" delay={0.4}>
               <div className="flex items-center justify-center md:justify-start gap-3 text-sm text-muted-foreground">
                 <span>{t('hero.authPrompt')}</span>
-                <Link 
-                  href="/auth?tab=signup"
+                <button
+                  onClick={() => {
+                    setAuthModalMode('signup');
+                    setAuthModalOpen(true);
+                  }}
                   className="font-semibold text-primary hover:text-white transition-colors underline underline-offset-4"
                 >
                   {t('hero.signupLink')}
-                </Link>
+                </button>
                 <span className="text-white/30">•</span>
-                <Link 
-                  href="/auth"
+                <button
+                  onClick={() => {
+                    setAuthModalMode('signin');
+                    setAuthModalOpen(true);
+                  }}
                   className="font-semibold text-muted-foreground hover:text-white transition-colors"
                 >
                   {t('hero.loginLink')}
-                </Link>
+                </button>
               </div>
             </ScrollReveal>
           </div>
@@ -218,6 +229,14 @@ export default function HomePage() {
           </ParallaxSection>
         </div>
       </section>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        locale={locale}
+      />
     </main>
   );
 }
