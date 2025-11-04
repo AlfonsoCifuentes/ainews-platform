@@ -1,0 +1,175 @@
+{
+  "name": "AINews - AI News & Learning Platform",
+  "short_name": "AINews",
+  "description": "Bilingual AI-powered news aggregator and learning platform. Stay updated with the latest AI news in English and Spanish.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0E27",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "AI News Feed"
+    },
+    {
+      "src": "/screenshot-mobile-2.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Course Generator"
+    },
+    {
+      "src": "/screenshot-desktop-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AINews Dashboard"
+    }
+  ],
+  "categories": [
+    "news",
+    "education",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Latest News",
+      "short_name": "News",
+      "description": "View latest AI news",
+      "url": "/en/news",
+      "icons": [
+        {
+          "src": "/shortcut-news.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Generate Course",
+      "short_name": "Course",
+      "description": "Generate AI course on any topic",
+      "url": "/en/courses/generate",
+      "icons": [
+        {
+          "src": "/shortcut-course.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Knowledge Graph",
+      "short_name": "Graph",
+      "description": "Explore AI knowledge graph",
+      "url": "/en/kg",
+      "icons": [
+        {
+          "src": "/shortcut-kg.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+ainews",
+      "url": "/open?url=%s"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+  "handle_links": "preferred",
+  "scope_extensions": [
+    {
+      "origin": "https://ainews.vercel.app"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/import",
+      "accept": {
+        "text/markdown": [".md"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  "iarc_rating_id": ""
+}
