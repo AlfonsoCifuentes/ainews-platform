@@ -93,6 +93,7 @@
 import { load } from 'cheerio';
 import { validateAndRegisterImage } from './image-validator';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
+import { getDomainProfile, transformImageUrl, isBlacklistedImage } from './domain-profiles';
 
 interface ImageCandidate {
   url: string;
@@ -106,6 +107,10 @@ interface ImageCandidate {
 export async function scrapeArticleImage(articleUrl: string): Promise<string | null> {
   try {
     console.log(`[ImageScraper] Scraping image from: ${articleUrl}`);
+
+    // Get domain-specific profile for optimized scraping
+    const domainProfile = getDomainProfile(articleUrl);
+    console.log(`[ImageScraper] Using domain profile: ${domainProfile.domain}`);
 
     // SSRF Protection: Validate article URL before fetching
     const urlValidation = validateUrlForSSRFSync(articleUrl);
@@ -445,11 +450,23 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
     for (const candidate of candidates) {
       console.log(`[ImageScraper] Testing candidate: ${candidate.url.slice(0, 60)}... (source: ${candidate.source}, score: ${candidate.score})`);
 
-      const validation = await validateAndRegisterImage(candidate.url);
+      // Apply domain-specific blacklist
+      if (isBlacklistedImage(candidate.url, domainProfile)) {
+        console.log(`[ImageScraper] ✗ Blacklisted by domain profile: ${candidate.url.slice(0, 60)}...`);
+        continue;
+      }
+
+      // Apply domain-specific URL transformation (get high-res version)
+      const transformedUrl = transformImageUrl(candidate.url, domainProfile);
+      if (transformedUrl !== candidate.url) {
+        console.log(`[ImageScraper] Transformed URL: ${transformedUrl.slice(0, 60)}...`);
+      }
+
+      const validation = await validateAndRegisterImage(transformedUrl);
       
       if (validation.isValid) {
         console.log(`[ImageScraper] ✓ Found valid image from ${candidate.source}`);
-        return candidate.url;
+        return transformedUrl;
       } else {
         console.log(`[ImageScraper] ✗ Invalid: ${validation.error}`);
       }
