@@ -84,7 +84,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
     CREATE INDEX IF NOT EXISTS idx_notifications_user_unread 
     ON notifications(user_id, created_at DESC) 
-    WHERE is_read = false;
+    WHERE read = false;
   END IF;
 END $$;
 
@@ -117,11 +117,12 @@ BEGIN
 END $$;
 
 -- AI System Logs: created_at for recent logs
-CREATE INDEX IF NOT EXISTS idx_ai_system_logs_created_desc 
-ON ai_system_logs(created_at DESC);
+-- Use actual column name "timestamp" and available fields
+CREATE INDEX IF NOT EXISTS idx_ai_system_logs_timestamp_desc 
+ON ai_system_logs("timestamp" DESC);
 
-CREATE INDEX IF NOT EXISTS idx_ai_system_logs_agent_status 
-ON ai_system_logs(agent_type, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_system_logs_action_success_time 
+ON ai_system_logs(action_type, success, "timestamp" DESC);
 
 -- Fact Checks: article_id + checked_at
 CREATE INDEX IF NOT EXISTS idx_fact_checks_article_checked 
@@ -154,11 +155,23 @@ WHERE completed = true;
 DO $$ 
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
-    CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
-    ON comments(article_id, like_count DESC, created_at DESC);
-    
-    CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
-    ON comments(course_id, like_count DESC, created_at DESC);
+    -- If likes_count column exists, include it; otherwise fallback to created_at-only composites
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'comments' AND column_name = 'likes_count'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
+      ON comments(article_id, likes_count DESC, created_at DESC);
+      
+      CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
+      ON comments(course_id, likes_count DESC, created_at DESC);
+    ELSE
+      CREATE INDEX IF NOT EXISTS idx_comments_article_created 
+      ON comments(article_id, created_at DESC);
+      
+      CREATE INDEX IF NOT EXISTS idx_comments_course_created 
+      ON comments(course_id, created_at DESC);
+    END IF;
   END IF;
 END $$;
 
@@ -172,7 +185,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
     CREATE INDEX IF NOT EXISTS idx_notifications_unread_only 
     ON notifications(user_id, created_at DESC, type) 
-    WHERE is_read = false;
+    WHERE read = false;
   END IF;
 END $$;
 
@@ -190,9 +203,15 @@ WHERE published_at IS NOT NULL;
 DO $$ 
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
-    CREATE INDEX IF NOT EXISTS idx_comments_approved 
-    ON comments(article_id, created_at DESC) 
-    WHERE is_flagged = false;
+    -- Only create if `is_flagged` exists in current schema
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'comments' AND column_name = 'is_flagged'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS idx_comments_approved 
+      ON comments(article_id, created_at DESC) 
+      WHERE is_flagged = false;
+    END IF;
   END IF;
 END $$;
 
@@ -533,7 +552,7 @@ DECLARE
 BEGIN
   SELECT COUNT(*)::INT INTO unread_count
   FROM notifications
-  WHERE user_id = p_user_id AND is_read = false;
+  WHERE user_id = p_user_id AND read = false;
   
   RETURN COALESCE(unread_count, 0);
 END;
