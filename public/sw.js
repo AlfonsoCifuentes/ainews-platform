@@ -11,7 +11,7 @@
  * Updated: Nov 4, 2025 - Forced dark theme, responsive header
  */
 
-const CACHE_VERSION = 'v3'; // Bumped from v2 - Header/theme updates
+const CACHE_VERSION = 'v4'; // Bumped from v3 - Navigation now network-first to avoid stale HTML
 const STATIC_CACHE = `ainews-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ainews-dynamic-${CACHE_VERSION}`;
 const IMAGE_CACHE = `ainews-images-${CACHE_VERSION}`;
@@ -79,6 +79,12 @@ self.addEventListener('fetch', (event) => {
   
   // Skip non-GET requests
   if (request.method !== 'GET') return;
+
+  // Always try the network first for navigation requests to avoid serving stale HTML
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request));
+    return;
+  }
   
   // Skip chrome extensions and external origins
   if (request.url.startsWith('chrome-extension://')) return;
