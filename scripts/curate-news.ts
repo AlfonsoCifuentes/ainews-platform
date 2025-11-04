@@ -405,22 +405,24 @@ async function storeArticles(
         contentSnippet: article.contentSnippet
       });
       
-      // If no valid image found, use high-quality AI-themed fallback from Unsplash
+      // If no valid image found, generate unique fallback using Unsplash Source API
       if (!imageUrl) {
-        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - using fallback`);
+        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - using unique fallback`);
         
-        // Use different fallback images to avoid all articles having the same one
-        const fallbacks = [
-          'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=80',
-          'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1600&q=80',
-          'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1600&q=80',
-          'https://images.unsplash.com/photo-1655635643486-a17bc48771ff?auto=format&fit=crop&w=1600&q=80',
-          'https://images.unsplash.com/photo-1655720406770-12ea329b5b61?auto=format&fit=crop&w=1600&q=80',
-        ];
+        // Generate UNIQUE fallback URL using Unsplash Source API with random seed
+        // Each article gets a different image based on title + link hash
+        const articleHash = `${article.title}${article.link}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const randomSeed = articleHash % 10000; // Generate seed 0-9999
         
-        // Use article hash to select a consistent fallback per article
-        const articleHash = article.link.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        imageUrl = fallbacks[articleHash % fallbacks.length];
+        // Unsplash Source API with query + random seed = unique image every time
+        // Categories: ai, technology, computer, robotics, data
+        const categories = ['ai', 'technology', 'computer', 'robotics', 'data', 'science'];
+        const category = categories[articleHash % categories.length];
+        
+        // Use Unsplash Source API - generates random image from category with seed
+        imageUrl = `https://source.unsplash.com/1600x900/?${category},artificial-intelligence&sig=${randomSeed}`;
+        
+        console.log(`[ImageValidator] Generated unique fallback: ${imageUrl}`);
         invalidImageCount++;
       }
       

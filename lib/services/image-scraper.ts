@@ -80,8 +80,9 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       }
     });
 
-    // Strategy 4: Featured image with high-value classes/IDs
+    // Strategy 4: Featured image with high-value classes/IDs (EXPANDED)
     const featuredSelectors = [
+      // WordPress standard
       'img[class*="featured"]',
       'img[class*="hero"]',
       'img[id*="featured"]',
@@ -91,11 +92,39 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       '.post-thumbnail img',
       '.article-image img',
       '.wp-post-image',
+      
+      // Common CMS patterns
+      '.lead-image img',
+      '.main-image img',
+      '.header-image img',
+      '.story-image img',
+      '.cover-image img',
+      
+      // News sites
+      '.article-header img',
+      '.entry-header img',
+      '.post-header img',
+      'figure.lead img',
+      'figure.featured img',
+      
+      // Data attributes (lazy loading)
+      'img[data-src*="featured"]',
+      'img[data-lazy-src]',
+      'img[loading="eager"]',
+      
+      // Picture elements
+      'picture source[media]',
+      'picture img',
     ];
 
     featuredSelectors.forEach((selector) => {
       $(selector).each((_, elem) => {
-        const src = $(elem).attr('src') || $(elem).attr('data-src');
+        // Try multiple attribute sources
+        const src = $(elem).attr('src') || 
+                    $(elem).attr('data-src') || 
+                    $(elem).attr('data-lazy-src') ||
+                    $(elem).attr('srcset')?.split(',')[0]?.trim().split(' ')[0];
+        
         if (src) {
           candidates.push({
             url: normalizeUrl(src, articleUrl),

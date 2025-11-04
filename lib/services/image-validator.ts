@@ -26,11 +26,35 @@ let cacheInitialized = false;
 
 /**
  * Generates perceptual hash of image URL for duplicate detection
+ * IMPROVED: Only hash the base URL without query parameters to catch true duplicates
+ * BUT keep signature/timestamp params to allow same-domain different images
  */
 function generateImageHash(url: string): string {
-  // Use crypto hash of cleaned URL (remove query params that vary)
-  const cleanUrl = url.split('?')[0];
-  return crypto.createHash('md5').update(cleanUrl).digest('hex');
+  try {
+    const urlObj = new URL(url);
+    
+    // For Unsplash Source API, include the 'sig' parameter (makes each unique)
+    if (urlObj.hostname.includes('source.unsplash.com')) {
+      return crypto.createHash('md5').update(url).digest('hex'); // Include full URL with sig
+    }
+    
+    // For regular URLs, remove cache-busting params but keep meaningful ones
+    const meaningfulParams = ['id', 'image_id', 'photo_id', 'media_id'];
+    const searchParams = new URLSearchParams(urlObj.search);
+    const filtered = new URLSearchParams();
+    
+    meaningfulParams.forEach(param => {
+      const value = searchParams.get(param);
+      if (value) filtered.set(param, value);
+    });
+    
+    const cleanUrl = `${urlObj.origin}${urlObj.pathname}${filtered.toString() ? '?' + filtered.toString() : ''}`;
+    return crypto.createHash('md5').update(cleanUrl).digest('hex');
+  } catch {
+    // Fallback if URL parsing fails
+    const cleanUrl = url.split('?')[0];
+    return crypto.createHash('md5').update(cleanUrl).digest('hex');
+  }
 }
 
 /**
@@ -120,8 +144,9 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       };
     }
 
-    // Check minimum size (at least 10KB to avoid tiny placeholders)
-    if (contentLength > 0 && contentLength < 10000) {
+    // Check minimum size (at least 5KB to avoid tiny placeholders, was 10KB)
+    // Relaxed to allow more valid images
+    if (contentLength > 0 && contentLength < 5000) {
       return {
         isValid: false,
         isDuplicate: false,

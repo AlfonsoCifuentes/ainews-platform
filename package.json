@@ -16,6 +16,8 @@
     "ai:gen-embeddings": "tsx scripts/generate-embeddings.ts",
     "ai:analyze-articles": "tsx scripts/analyze-articles.ts analyze",
     "ai:fix-images": "tsx scripts/fix-article-images.ts",
+    "ai:check-duplicates": "tsx scripts/check-duplicate-images.ts",
+    "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
     "db:migrate": "supabase db push",
     "db:seed": "tsx scripts/seed-data.ts",
     "analyze": "cross-env ANALYZE=true next build",
