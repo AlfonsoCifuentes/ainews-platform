@@ -1,5 +1,5 @@
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from './llm-client';
+import { generateWithRetry } from './retry-orchestration';
 
 interface FactCheckResult {
   claim: string;
@@ -16,18 +16,13 @@ interface FactCheckResult {
 
 /**
  * Fact-checking agent for verifying claims in Knowledge Graph
+ * Now uses retry orchestration for improved reliability
  */
 export class FactChecker {
   private db = getSupabaseServerClient();
-  private llm: LLMClient;
 
   constructor() {
-    // Initialize LLM client with free tier API
-    this.llm = new LLMClient(
-      process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY || '',
-      process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.groq.com/openai/v1',
-      'gpt-3.5-turbo'
-    );
+    // Now uses generateWithRetry instead of direct LLM client
   }
 
   /**
@@ -52,9 +47,10 @@ export class FactChecker {
       .order('confidence_score', { ascending: false })
       .limit(10);
 
-    // Use LLM to analyze claim against citations
-    const prompt = `
-You are a fact-checking AI. Verify the following claim about "${entity.name}":
+    // Use LLM with retry orchestration to analyze claim against citations
+    const systemPrompt = 'You are a fact-checking AI. Verify claims against available evidence and respond in JSON format.';
+    
+    const userPrompt = `Verify the following claim about "${entity.name}":
 
 Claim: ${claim}
 
@@ -75,10 +71,13 @@ Respond in JSON format:
   "confidence": 0.0-1.0,
   "reasoning": "...",
   "supportingCitations": [citation indices that support the verdict]
-}
-`;
+}`;
 
-    const response = await this.llm.generate(prompt);
+    const response = await generateWithRetry({
+      systemPrompt,
+      userPrompt,
+      enableCache: true, // Cache system prompt across fact-checks
+    });
     
     try {
       const result = JSON.parse(response.content);
@@ -143,9 +142,10 @@ Respond in JSON format:
       .select('*')
       .eq('relation_id', relationId);
 
-    // Use LLM to verify
-    const prompt = `
-Verify the following claim:
+    // Use LLM with retry orchestration to verify
+    const systemPrompt = 'You are a fact-checking AI. Verify claims against evidence and respond in JSON format.';
+    
+    const userPrompt = `Verify the following claim:
 
 ${claim}
 
@@ -154,9 +154,17 @@ ${(citations || []).map((c, i) => `${i + 1}. ${c.quote} (${c.source_url})`).join
 
 Provide verdict (true/false/misleading/unverified/needs-context), confidence (0-1), and reasoning.
 Format: JSON
-`;
+{
+  "verdict": "...",
+  "confidence": 0.0-1.0,
+  "reasoning": "..."
+}`;
 
-    const response = await this.llm.generate(prompt);
+    const response = await generateWithRetry({
+      systemPrompt,
+      userPrompt,
+      enableCache: true,
+    });
     
     try {
       const result = JSON.parse(response.content);
