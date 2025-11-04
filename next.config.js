@@ -9,12 +9,118 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 const nextConfig = {
   images: {
     remotePatterns: [
+      // Unsplash (fallbacks y fuentes comunes)
+      {
+        protocol: 'https',
+        hostname: 'source.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      // Medios sociales
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pbs.twimg.com',
+      },
+      // Google y servicios
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh4.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh5.googleusercontent.com',
+      },
+      // WordPress y CDNs comunes
+      {
+        protocol: 'https',
+        hostname: '**.wp.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.wordpress.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.substack.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.medium.com',
+      },
+      // CDNs generales
+      {
+        protocol: 'https',
+        hostname: 'cdn.jsdelivr.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.cloudflare.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.cloudfront.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.fastly.net',
+      },
+      // Fuentes de noticias tech
+      {
+        protocol: 'https',
+        hostname: '**.techcrunch.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.venturebeat.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.wired.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.technologyreview.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.theguardian.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.futurism.com',
+      },
+      // Academicos y research
+      {
+        protocol: 'https',
+        hostname: 'arxiv.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.arxiv.org',
+      },
+      // Catch-all para otros dominios (último recurso)
       {
         protocol: 'https',
         hostname: '**',
       },
     ],
     formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   experimental: {
     serverActions: {

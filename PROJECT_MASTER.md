@@ -1412,7 +1412,95 @@ AINews/
 
 ---
 
-## 🔮 PLAN ENHANCEMENTS (2025-10-21)
+## �️ PHASE 5.1 – MEJORAS DE SCRAPING DE IMÁGENES, CURACIÓN Y RENDIMIENTO (2025-11-04)
+
+Estado actual (implementado 2025‑11‑04):
+
+- Ultra scraper con 12+ estrategias, 60+ selectores y 8 fuentes de atributos por selector (og, twitter, JSON‑LD, AMP, noscript, CSS backgrounds, meta extra, article content con scoring).
+- Pipeline de validación robusto (HEAD content‑type/size, blacklist, hash inteligente con parámetros significativos y soporte Unsplash `sig`).
+- Sistema de fallbacks determinístico (Unsplash Source) con 60.000 combinaciones únicas y 0% duplicados.
+- Integrado en GitHub Actions (curación cada 6h) y verificado sin duplicados.
+
+### A) Quick Wins (bajo riesgo, alto impacto)
+
+- [ ] Next Image: `images.remotePatterns`/`domains` para hosts comunes (source.unsplash.com, images.unsplash.com, i.ytimg.com, pbs.twimg.com, storage.googleapis.com, lh3.googleusercontent.com, wp.com, cdn.* de fuentes clave).
+- [ ] Guardar metadatos de imagen: `image_width`, `image_height`, `image_mime`, `image_bytes` (opcional) y `blur_data_url` (LQIP) generada en curación; usar en `next/image` para 0 CLS.
+- [ ] Concurrencia y rate limiting: usar `p-limit` (3–5) + backoff exponencial por dominio ante 403/429.
+- [ ] Protección SSRF: bloquear IPs privadas/reservadas al resolver URLs de artículo/imagen.
+- [ ] Accesibilidad: `alt` por defecto con título saneado; truncado seguro.
+- [ ] Validación con Zod de inputs/outputs en scripts y APIs de curación.
+- [ ] Tests unitarios del scraper con fixtures (og, twitter, json‑ld, lazy, AMP, noscript) sin red.
+- [ ] Cache por dominio/URL durante una ejecución para evitar HEAD/GET repetidos.
+
+### B) Scraping e Imágenes (profundización)
+
+- [ ] Per‑domain profiles: tabla/JSON de selectores y pesos preferentes por dominio; aprendizaje a partir de logs.
+- [ ] Near‑duplicate detection: añadir perceptual hash (pHash/dHash) para variantes mínimas.
+- [ ] Integración oEmbed/OpenGraph avanzada para YouTube/Vimeo/Substack → thumbnails fiables.
+- [ ] Política de orientación y recorte: priorizar landscape; penalizar portrait extremo; recorte centrado visual al presentar.
+- [ ] Filtro de contenido sensible básico (NSFW/violento) por dominio/keywords en URL/alt.
+
+### C) Performance & UX (Next.js 15)
+
+- [ ] ISR con `revalidate` (300–600s) en listas de noticias + incremental updates.
+- [ ] API de lectura en Edge Runtime para latencia baja; minimizar “use client”.
+- [ ] Dynamic imports para módulos pesados (framer‑motion, viz) fuera del fold.
+- [ ] Bundle hygiene: reemplazar libs pesadas (moment → dayjs/luxon), tree‑shaking estricto.
+
+### D) Base de Datos (Supabase) y Schema
+
+- [ ] Migración: columnas `image_width`, `image_height`, `image_mime`, `image_bytes` (nullable), `blur_data_url`, `image_hash`.
+- [ ] Índices en `news_articles(link_normalized)`, `created_at`, `category`, `source` y UNIQUE por `link_normalized`.
+- [ ] RLS: lectura pública; escritura solo service role; políticas por usuario en interacciones.
+- [ ] Vistas/MV para portadas: top N recientes/por categoría, refresco tras curación.
+
+### E) LLM/Agents y Coste
+
+- [ ] Prompt caching/memoization por hash (título+link) 24–48h.
+- [ ] Embeddings cross‑lingual y normalización de distancias en pgvector.
+- [ ] Fact‑check básico: `confidence_score`, `sources_count`, `facts_verified` en artículo.
+- [ ] Orquestación de reintentos: cascada GROQ→OpenRouter→Gemini con límites de coste.
+
+### F) i18n y SEO
+
+- [ ] `alternates.languages` en todas las rutas y sitemap bilingüe.
+- [ ] JSON‑LD `NewsArticle` con `headline`, `image`, `datePublished`, `author`, `inLanguage`.
+- [ ] Canonicals y normalización: strip de `utm_*`, `ref`, `fbclid` → `link_canonical`.
+
+### G) Testing y Calidad
+
+- [ ] Playwright E2E: portada/listas con imagen renderizada, blur visible, sin duplicados ni CLS significativo.
+- [ ] Unit tests de validación de imagen: mocks de HEAD (mimes/sizes/errores).
+- [ ] CI gates en PRs: `type-check`, `lint`, `test` + `concurrency` para evitar solapes de curación.
+
+### H) Seguridad
+
+- [ ] Timeouts estrictos: HEAD 5s, GET HTML 10–15s; tamaño máximo de HTML.
+- [ ] User‑Agent identificable del proyecto (politeness y whitelisting posible).
+- [ ] Respeto de robots.txt/crawl‑delay cuando aplique (lista de excepciones por feed).
+- [ ] Sentry para server y Actions (scraping/LLM fallos).
+
+### I) Observabilidad y Reporting
+
+- [ ] Logs estructurados: `{component, articleId, domain, strategy, latency, size, status}`.
+- [ ] Dashboard (Supabase SQL/Grafana Cloud free): éxito por estrategia, dominios problemáticos, ratio fallback, tiempos.
+
+### J) PWA & Offline
+
+- [ ] Cache de artículos, imágenes (con control de tamaño), progreso y sincronización diferida.
+- [ ] Web App Manifest completo y límites de almacenamiento con UI de gestión offline.
+
+### Indicadores de Éxito (para esta fase)
+
+- Duplicados: 0% sostenido.
+- CLS medio en portada: < 0.05 (gracias a width/height + blur).
+- Tasa de imágenes reales: ≥ 80%; fallbacks ≤ 20%.
+- Errores en curación por run: < 2% (con reintentos).
+- Tiempo medio por artículo (scrape+validación): ≤ 3s p50, ≤ 8s p95.
+- Disminución de 403/429: ≥ 50% tras rate limiting/backoff.
+
+
+## �🔮 PLAN ENHANCEMENTS (2025-10-21)
 
 - **Edge-First Personalization**: Servir bloques críticos (hero, headlines) desde Vercel Edge Config para experimentar mensajes por región sin costo adicional. Requiere configurar `@vercel/edge-config` y usar variaciones de copy controladas por IA.
 

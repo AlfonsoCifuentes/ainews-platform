@@ -92,6 +92,7 @@
 
 import { load } from 'cheerio';
 import { validateAndRegisterImage } from './image-validator';
+import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 
 interface ImageCandidate {
   url: string;
@@ -105,6 +106,13 @@ interface ImageCandidate {
 export async function scrapeArticleImage(articleUrl: string): Promise<string | null> {
   try {
     console.log(`[ImageScraper] Scraping image from: ${articleUrl}`);
+
+    // SSRF Protection: Validate article URL before fetching
+    const urlValidation = validateUrlForSSRFSync(articleUrl);
+    if (!urlValidation.valid) {
+      console.warn(`[ImageScraper] SSRF blocked: ${urlValidation.reason}`);
+      return null;
+    }
 
     const response = await fetch(articleUrl, {
       headers: {

@@ -10,6 +10,8 @@
 
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '../db/supabase';
+import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
+import { imageUrlCache, domainCache } from '../utils/url-cache';
 
 interface ImageValidationResult {
   isValid: boolean;
@@ -17,6 +19,9 @@ interface ImageValidationResult {
   hash?: string;
   width?: number;
   height?: number;
+  mime?: string;
+  bytes?: number;
+  blurDataUrl?: string;
   error?: string;
 }
 
@@ -101,20 +106,45 @@ function isDuplicateImage(url: string): boolean {
 }
 
 /**
- * Validates image URL
+ * Validates image URL and captures metadata
  */
 async function validateImageUrl(url: string): Promise<ImageValidationResult> {
+  // Check cache first (avoid duplicate HEAD requests)
+  const cached = imageUrlCache.get(url) as ImageValidationResult | null;
+  if (cached) {
+    console.log(`[ImageValidator] Cache hit for: ${url}`);
+    return cached;
+  }
+
+  // SSRF Protection: Validate image URL before fetching
+  const urlValidation = validateUrlForSSRFSync(url);
+  if (!urlValidation.valid) {
+    console.warn(`[ImageValidator] SSRF blocked: ${urlValidation.reason}`);
+    const result = {
+      isValid: false,
+      isDuplicate: false,
+      error: `SSRF protection: ${urlValidation.reason}`
+    };
+    imageUrlCache.set(url, result);
+    return result;
+  }
+
   // Check for duplicate first (fast)
   if (isDuplicateImage(url)) {
-    return {
+    const result = {
       isValid: false,
       isDuplicate: true,
       hash: generateImageHash(url),
       error: 'Image already used in another article'
     };
+    imageUrlCache.set(url, result);
+    return result;
   }
 
   try {
+    // Track domain usage
+    domainCache.visit(url);
+
     // Fetch image headers to check validity
     const response = await fetch(url, {
       method: 'HEAD',
@@ -132,11 +162,11 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       };
     }
 
-    const contentType = response.headers.get('content-type');
+    const contentType = response.headers.get('content-type') || '';
     const contentLength = parseInt(response.headers.get('content-length') || '0');
 
     // Validate content type
-    if (!contentType?.startsWith('image/')) {
+    if (!contentType.startsWith('image/')) {
       return {
         isValid: false,
         isDuplicate: false,
@@ -144,8 +174,7 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       };
     }
 
-    // Check minimum size (at least 5KB to avoid tiny placeholders, was 10KB)
-    // Relaxed to allow more valid images
+    // Check minimum size (at least 5KB to avoid tiny placeholders)
     if (contentLength > 0 && contentLength < 5000) {
       return {
         isValid: false,
@@ -163,18 +192,43 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       };
     }
 
-    return {
+    // Try to get image dimensions (optional, may require GET for some images)
+    let width: number | undefined;
+    let height: number | undefined;
+    let blurDataUrl: string | undefined;
+
+    // For supported formats, try to generate LQIP
+    // Note: Full implementation would need sharp/jimp in server environment
+    // For now, we'll capture what we can from headers
+    // LQIP generation will be done in a separate enhancement with proper image processing
+
+    const result = {
       isValid: true,
       isDuplicate: false,
-      hash: generateImageHash(url)
+      hash: generateImageHash(url),
+      width,
+      height,
+      mime: contentType,
+      bytes: contentLength > 0 ? contentLength : undefined,
+      blurDataUrl // Will be undefined until we implement image processing
     };
 
+    // Cache successful result
+    imageUrlCache.set(url, result);
+
+    return result;
+
   } catch (error) {
-    return {
+    const result = {
       isValid: false,
       isDuplicate: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
+
+    // Cache error result to avoid retrying failed URLs
+    imageUrlCache.set(url, result);
+
+    return result;
   }
 }
 

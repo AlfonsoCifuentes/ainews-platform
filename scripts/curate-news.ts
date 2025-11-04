@@ -25,6 +25,7 @@ if (existsSync(envLocal)) {
 
 import Parser from 'rss-parser';
 import { load } from 'cheerio';
+import pLimit from 'p-limit';
 import { createLLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
@@ -43,13 +44,15 @@ const ArticleClassificationSchema = z.object({
   relevant: z.boolean().describe('Is this article about AI/ML/tech?'),
   quality_score: z.number().min(0).max(1).describe('Quality rating 0-1'),
   category: z.enum(['machinelearning', 'nlp', 'computervision', 'robotics', 'ethics', 'business', 'research', 'tools', 'news', 'other']),
-  summary: z.string().describe('Brief summary of the article')
+  summary: z.string().describe('Brief summary of the article'),
+  image_alt_text: z.string().optional().describe('Descriptive alt text for article image (accessibility)')
 });
 
 const TranslationSchema = z.object({
   title: z.string(),
   summary: z.string(),
-  content: z.string()
+  content: z.string(),
+  image_alt_text: z.string().optional().describe('Translated alt text for image')
 });
 
 interface RawArticle {
@@ -427,6 +430,11 @@ async function storeArticles(
       }
       
       const originalLanguage: 'en' | 'es' = article.source.language === 'es' ? 'es' : 'en';
+      
+      // Generate default alt text if LLM didn't provide one
+      const defaultAltText = `AI news image for: ${article.title.slice(0, 100)}`;
+      const altTextOriginal = classification.image_alt_text || defaultAltText;
+      const altTextTranslated = translation?.image_alt_text || defaultAltText;
 
       const bilingual = {
         title_en: originalLanguage === 'en' ? article.title : translation?.title || article.title,
@@ -434,7 +442,9 @@ async function storeArticles(
         summary_en: originalLanguage === 'en' ? summaryOriginal : translation?.summary || summaryOriginal,
         summary_es: originalLanguage === 'es' ? summaryOriginal : translation?.summary || summaryOriginal,
         content_en: originalLanguage === 'en' ? contentOriginal : translation?.content || contentOriginal,
-        content_es: originalLanguage === 'es' ? contentOriginal : translation?.content || contentOriginal
+        content_es: originalLanguage === 'es' ? contentOriginal : translation?.content || contentOriginal,
+        alt_text_en: originalLanguage === 'en' ? altTextOriginal : altTextTranslated,
+        alt_text_es: originalLanguage === 'es' ? altTextOriginal : altTextTranslated
       };
 
       const baseTags = new Set<string>([
@@ -456,6 +466,8 @@ async function storeArticles(
           summary_es: bilingual.summary_es,
           content_en: bilingual.content_en,
           content_es: bilingual.content_es,
+          image_alt_text_en: bilingual.alt_text_en,
+          image_alt_text_es: bilingual.alt_text_es,
           category: classification.category,
           tags: Array.from(baseTags),
           source_url: article.link,
@@ -568,31 +580,39 @@ async function main() {
     }>;
     
     console.log('[Translation] Generating bilingual content...');
-    for (const item of classified) {
-      try {
-        const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
-        
-        // Use first available provider for translation
-        let translationResult = null;
-        for (const provider of providers) {
+    
+    // Create rate limiter for concurrency control (max 3 concurrent translations)
+    const translationLimit = pLimit(3);
+    
+    await Promise.all(
+      classified.map((item) =>
+        translationLimit(async () => {
           try {
-            translationResult = await translateArticle(item.article, provider.client, targetLanguage);
-            console.log(`[Translation:${provider.name}] ✓ Translated to ${targetLanguage}`);
-            break;
-          } catch {
-            console.log(`[Translation:${provider.name}] ✗ Failed, trying next...`);
-            continue;
+            const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
+            
+            // Use first available provider for translation
+            let translationResult = null;
+            for (const provider of providers) {
+              try {
+                translationResult = await translateArticle(item.article, provider.client, targetLanguage);
+                console.log(`[Translation:${provider.name}] ✓ Translated to ${targetLanguage}`);
+                break;
+              } catch {
+                console.log(`[Translation:${provider.name}] ✗ Failed, trying next...`);
+                continue;
+              }
+            }
+            
+            if (translationResult) {
+              item.translation = translationResult;
+              item.translationLanguage = targetLanguage;
+            }
+          } catch (_error) {
+            console.error('[Translation] ✗ All providers failed:', _error);
           }
-        }
-        
-        if (translationResult) {
-          item.translation = translationResult;
-          item.translationLanguage = targetLanguage;
-        }
-      } catch (_error) {
-        console.error('[Translation] ✗ All providers failed:', _error);
-      }
-    }
+        })
+      )
+    );
     
     await storeArticles(classified, db);
 
