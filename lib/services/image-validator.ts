@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import { getSupabaseServerClient } from '../db/supabase';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
+import { estimateDimensionsFromUrl, calculateOrientationScore, getOrientationInfo, type OrientationInfo } from './image-orientation';
 
 interface ImageValidationResult {
   isValid: boolean;
@@ -22,6 +23,7 @@ interface ImageValidationResult {
   mime?: string;
   bytes?: number;
   blurDataUrl?: string;
+  orientation?: OrientationInfo;
   error?: string;
 }
 
@@ -196,6 +198,23 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
     let width: number | undefined;
     let height: number | undefined;
     let blurDataUrl: string | undefined;
+    let orientation: OrientationInfo | undefined;
+
+    // Try to estimate dimensions from URL patterns (e.g., /1200x630/)
+    const estimatedDimensions = estimateDimensionsFromUrl(url);
+    if (estimatedDimensions) {
+      width = estimatedDimensions.aspectRatio > 1 
+        ? Math.round(1200) 
+        : Math.round(1200 / estimatedDimensions.aspectRatio);
+      height = Math.round(width / estimatedDimensions.aspectRatio);
+      orientation = estimatedDimensions;
+      console.log(`[ImageValidator] Estimated dimensions from URL: ${width}x${height} (${orientation.orientation})`);
+    }
+
+    // Calculate orientation info if we don't have it yet but have dimensions
+    if (!orientation && width && height) {
+      orientation = getOrientationInfo(width, height);
+    }
 
     // For supported formats, try to generate LQIP
     // Note: Full implementation would need sharp/jimp in server environment
@@ -210,7 +229,8 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       height,
       mime: contentType,
       bytes: contentLength > 0 ? contentLength : undefined,
-      blurDataUrl // Will be undefined until we implement image processing
+      blurDataUrl, // Will be undefined until we implement image processing
+      orientation
     };
 
     // Cache successful result

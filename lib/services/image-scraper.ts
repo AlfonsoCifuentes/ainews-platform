@@ -94,6 +94,7 @@ import { load } from 'cheerio';
 import { validateAndRegisterImage } from './image-validator';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { getDomainProfile, transformImageUrl, isBlacklistedImage } from './domain-profiles';
+import { getOEmbedImagesFromContent, isOEmbedUrl, getOEmbedImage } from './oembed';
 
 interface ImageCandidate {
   url: string;
@@ -569,7 +570,20 @@ export async function getBestArticleImage(
     contentSnippet?: string;
   }
 ): Promise<string | null> {
-  // Try RSS extraction first (fast)
+  // Strategy 0: Check if URL itself is an oEmbed-supported embed (Twitter, YouTube, etc.)
+  if (isOEmbedUrl(articleUrl)) {
+    console.log('[ImageScraper] Article URL is oEmbed-supported, trying oEmbed API...');
+    const oembedResult = await getOEmbedImage(articleUrl);
+    if (oembedResult.imageUrl) {
+      const validation = await validateAndRegisterImage(oembedResult.imageUrl);
+      if (validation.isValid) {
+        console.log(`[ImageScraper] ✓ Valid image from oEmbed (${oembedResult.provider})`);
+        return oembedResult.imageUrl;
+      }
+    }
+  }
+
+  // Strategy 1: Try RSS extraction first (fast)
   if (rssItem) {
     const rssImage = extractImageFromRSS(rssItem);
     if (rssImage) {
@@ -580,8 +594,22 @@ export async function getBestArticleImage(
       }
       console.log(`[ImageScraper] RSS image invalid: ${validation.error}`);
     }
+    
+    // Strategy 1.5: Try extracting oEmbed URLs from RSS content
+    if (rssItem.content || rssItem.contentSnippet) {
+      const content = rssItem.content || rssItem.contentSnippet || '';
+      const oembedImages = await getOEmbedImagesFromContent(content);
+      
+      for (const imageUrl of oembedImages) {
+        const validation = await validateAndRegisterImage(imageUrl);
+        if (validation.isValid) {
+          console.log('[ImageScraper] ✓ Valid image from oEmbed in RSS content');
+          return imageUrl;
+        }
+      }
+    }
   }
 
-  // Fallback to scraping article page
+  // Strategy 2: Fallback to scraping article page
   return await scrapeArticleImage(articleUrl);
 }
