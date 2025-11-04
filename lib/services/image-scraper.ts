@@ -96,6 +96,84 @@ import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { getDomainProfile, transformImageUrl, isBlacklistedImage } from './domain-profiles';
 import { getOEmbedImagesFromContent, isOEmbedUrl, getOEmbedImage } from './oembed';
 
+function isDataUri(url: string | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith('data:');
+}
+
+function pickBestFromSrcset(raw: string | undefined, baseUrl: string): string | null {
+  if (!raw) return null;
+
+  const candidates = raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [urlPart, descriptor] = entry.split(/\s+/);
+      let score = 0;
+
+      if (descriptor?.endsWith('w')) {
+        const width = parseInt(descriptor, 10);
+        if (!Number.isNaN(width)) {
+          score = width;
+        }
+      } else if (descriptor?.endsWith('x')) {
+        const density = parseFloat(descriptor);
+        if (!Number.isNaN(density)) {
+          score = Math.round(density * 1000);
+        }
+      }
+
+      return {
+        url: urlPart,
+        score,
+      };
+    })
+    .filter((candidate) => candidate.url && !isDataUri(candidate.url));
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  const best = candidates[0];
+  if (!best) {
+    return null;
+  }
+
+  try {
+    return normalizeUrl(best.url, baseUrl);
+  } catch {
+    return null;
+  }
+}
+
+function collectJsonLdImages(json: unknown, images: Set<string>, baseUrl: string): void {
+  if (!json) return;
+
+  if (typeof json === 'string') {
+    if (!isDataUri(json)) {
+      images.add(normalizeUrl(json, baseUrl));
+    }
+    return;
+  }
+
+  if (Array.isArray(json)) {
+    json.forEach((entry) => collectJsonLdImages(entry, images, baseUrl));
+    return;
+  }
+
+  if (typeof json === 'object') {
+    const record = json as Record<string, unknown>;
+    if (typeof record.url === 'string' && !isDataUri(record.url)) {
+      images.add(normalizeUrl(record.url, baseUrl));
+    }
+
+    Object.values(record).forEach((value) => collectJsonLdImages(value, images, baseUrl));
+  }
+}
+
 interface ImageCandidate {
   url: string;
   score: number;
@@ -165,15 +243,21 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
     // Strategy 3: Article structured data
     $('script[type="application/ld+json"]').each((_, elem) => {
       try {
-        const json = JSON.parse($(elem).html() || '{}');
-        const image = json.image?.url || json.image;
-        if (image && typeof image === 'string') {
+        const raw = $(elem).html();
+        if (!raw) return;
+
+        const json = JSON.parse(raw);
+        const structuredImages = new Set<string>();
+        collectJsonLdImages(json, structuredImages, articleUrl);
+
+        structuredImages.forEach((imageUrl) => {
+          if (!imageUrl) return;
           candidates.push({
-            url: normalizeUrl(image, articleUrl),
+            url: imageUrl,
             score: 85,
             source: 'structured-data'
           });
-        }
+        });
       } catch {
         // Invalid JSON, skip
       }
@@ -267,18 +351,23 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
 
     featuredSelectors.forEach((selector) => {
       $(selector).each((_, elem) => {
-        // Try multiple attribute sources (ENHANCED with more attributes)
-        const src = $(elem).attr('src') || 
-                    $(elem).attr('data-src') || 
-                    $(elem).attr('data-lazy-src') ||
-                    $(elem).attr('data-original') ||
-                    $(elem).attr('data-lazy') ||
-                    $(elem).attr('data-srcset')?.split(',')[0]?.trim().split(' ')[0] ||
-                    $(elem).attr('srcset')?.split(',')[0]?.trim().split(' ')[0];
-        
-        if (src) {
+        const $elem = $(elem);
+        const srcsetCandidate = pickBestFromSrcset(
+          $elem.attr('data-srcset') || $elem.attr('srcset'),
+          articleUrl
+        );
+
+        const directSrc = $elem.attr('src') || 
+                          $elem.attr('data-src') || 
+                          $elem.attr('data-lazy-src') ||
+                          $elem.attr('data-original') ||
+                          $elem.attr('data-lazy');
+
+        const chosen = srcsetCandidate || (directSrc && !isDataUri(directSrc) ? normalizeUrl(directSrc, articleUrl) : null);
+
+        if (chosen) {
           candidates.push({
-            url: normalizeUrl(src, articleUrl),
+            url: chosen,
             score: 70,
             source: selector
           });
@@ -286,48 +375,7 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       });
     });
 
-    // Strategy 5: JSON-LD additional schemas
-    $('script[type="application/ld+json"]').each((_, elem) => {
-      try {
-        const json = JSON.parse($(elem).html() || '{}');
-        
-        // NewsArticle schema
-        if (json['@type'] === 'NewsArticle' || json['@type'] === 'Article') {
-          const image = json.image?.url || json.image;
-          if (image && typeof image === 'string') {
-            candidates.push({
-              url: normalizeUrl(image, articleUrl),
-              score: 80,
-              source: 'ld+json-article'
-            });
-          }
-          // Array of images
-          if (Array.isArray(json.image) && json.image[0]) {
-            const img = json.image[0].url || json.image[0];
-            if (img && typeof img === 'string') {
-              candidates.push({
-                url: normalizeUrl(img, articleUrl),
-                score: 80,
-                source: 'ld+json-article-array'
-              });
-            }
-          }
-        }
-        
-        // ImageObject schema
-        if (json['@type'] === 'ImageObject' && json.url) {
-          candidates.push({
-            url: normalizeUrl(json.url, articleUrl),
-            score: 85,
-            source: 'ld+json-imageobject'
-          });
-        }
-      } catch {
-        // Invalid JSON, skip
-      }
-    });
-
-    // Strategy 6: Meta tags (additional)
+    // Strategy 5: Meta tags (additional)
     const metaSelectors = [
       { selector: 'meta[name="image"]', attr: 'content', score: 75 },
       { selector: 'meta[property="image"]', attr: 'content', score: 75 },
@@ -350,13 +398,19 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
     // Strategy 7: First large image in article content (enhanced detection)
     $('article img, main img, .article-content img, .post-content img, .entry-content img, [role="main"] img, .content img, #content img').each((_, elem) => {
       const $img = $(elem);
-      
-      // Try multiple sources
-      const src = $img.attr('src') || 
-                  $img.attr('data-src') ||
-                  $img.attr('data-original') ||
-                  $img.attr('data-lazy-src');
-      
+
+      const srcsetCandidate = pickBestFromSrcset(
+        $img.attr('data-srcset') || $img.attr('srcset'),
+        articleUrl
+      );
+
+      const rawSrc = $img.attr('src') || 
+                     $img.attr('data-src') ||
+                     $img.attr('data-original') ||
+                     $img.attr('data-lazy-src');
+
+      const src = srcsetCandidate || (rawSrc && !isDataUri(rawSrc) ? normalizeUrl(rawSrc, articleUrl) : null);
+
       if (src) {
         // Boost score if image has size attributes indicating it's large
         const width = parseInt($img.attr('width') || '0');
@@ -424,7 +478,13 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
 
     // Strategy 11: First image in article content
     $('article img, main img, .article-content img, .post-content img, .entry-content img').slice(0, 3).each((_, elem) => {
-      const src = $(elem).attr('src') || $(elem).attr('data-src');
+      const $img = $(elem);
+      const srcsetCandidate = pickBestFromSrcset(
+        $img.attr('data-srcset') || $img.attr('srcset'),
+        articleUrl
+      );
+      const rawSrc = $img.attr('src') || $img.attr('data-src');
+      const src = srcsetCandidate || (rawSrc && !isDataUri(rawSrc) ? normalizeUrl(rawSrc, articleUrl) : null);
       if (src) {
         candidates.push({
           url: normalizeUrl(src, articleUrl),

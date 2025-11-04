@@ -14,6 +14,45 @@ import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
 import { estimateDimensionsFromUrl, getOrientationInfo, type OrientationInfo } from './image-orientation';
 
+const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.avif': 'image/avif',
+  '.bmp': 'image/bmp',
+};
+
+function guessMimeFromUrl(url: string): string | null {
+  try {
+    const { pathname } = new URL(url);
+    const match = pathname.match(/\.\w+$/);
+    if (!match) return null;
+    const ext = match[0].toLowerCase();
+    return IMAGE_EXTENSION_TO_MIME[ext] || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildImageRequestHeaders(url: string): Record<string, string> {
+  let referer: string | undefined;
+  try {
+    const origin = new URL(url).origin;
+    referer = `${origin}/`;
+  } catch {
+    referer = undefined;
+  }
+
+  return {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    ...(referer ? { Referer: referer } : {}),
+  };
+}
+
 interface ImageValidationResult {
   isValid: boolean;
   isDuplicate: boolean;
@@ -147,14 +186,26 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
     // Track domain usage
     domainCache.visit(url);
 
+    const requestHeaders = buildImageRequestHeaders(url);
+
     // Fetch image headers to check validity
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'HEAD',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
+      headers: requestHeaders,
       signal: AbortSignal.timeout(5000) // 5 second timeout
     });
+
+    // Some servers reject HEAD requests; fallback to lightweight GET
+    if (!response.ok && (response.status === 403 || response.status === 405)) {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...requestHeaders,
+          Range: 'bytes=0-65535'
+        },
+        signal: AbortSignal.timeout(5000)
+      });
+    }
 
     if (!response.ok) {
       return {
@@ -164,15 +215,21 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       };
     }
 
-    const contentType = response.headers.get('content-type') || '';
+    const contentTypeHeader = response.headers.get('content-type');
+    const normalizedContentType = contentTypeHeader
+      ? contentTypeHeader.split(';')[0].trim().toLowerCase()
+      : null;
+    const guessedMime = guessMimeFromUrl(url);
+    const resolvedMime = normalizedContentType || guessedMime;
     const contentLength = parseInt(response.headers.get('content-length') || '0');
 
     // Validate content type
-    if (!contentType.startsWith('image/')) {
+    if (!resolvedMime || !resolvedMime.startsWith('image/')) {
+      const invalidType = normalizedContentType || guessedMime || 'unknown';
       return {
         isValid: false,
         isDuplicate: false,
-        error: `Invalid content type: ${contentType}`
+        error: `Invalid content type: ${invalidType}`
       };
     }
 
@@ -227,7 +284,7 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
       hash: generateImageHash(url),
       width,
       height,
-      mime: contentType,
+      mime: resolvedMime,
       bytes: contentLength > 0 ? contentLength : undefined,
       blurDataUrl, // Will be undefined until we implement image processing
       orientation
