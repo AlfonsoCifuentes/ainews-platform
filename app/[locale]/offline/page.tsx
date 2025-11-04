@@ -1,26 +1,15 @@
-import { Metadata } from 'next';
-import { setRequestLocale } from 'next-intl/server';
-import { locales, type Locale } from '@/i18n';
+'use client';
+
 import { Link } from '@/i18n';
 import { WifiOff, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
 
-export const metadata: Metadata = {
-  title: 'Offline - AINews',
-  description: 'You are currently offline',
-};
-
-export function generateStaticParams() {
-  return locales.map((locale) => ({ locale }));
-}
-
-type OfflinePageProps = {
-  params: Promise<{ locale: Locale }>;
-};
-
-export default async function OfflinePage({ params }: OfflinePageProps) {
-  const { locale } = await params;
-  setRequestLocale(locale);
+export default function OfflinePage() {
+  useEffect(() => {
+    // Set page title dynamically
+    document.title = 'Offline - AINews';
+  }, []);
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-black via-gray-900 to-black">
       <div className="text-center max-w-md">

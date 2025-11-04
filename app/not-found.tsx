@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { Link } from '@/i18n';
+import Link from 'next/link';
 import { Home, Search, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -35,14 +35,14 @@ export default function NotFound() {
 
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <Link href="/">
+          <Link href="/en">
             <Button size="lg" className="gap-2 w-full sm:w-auto">
               <Home className="w-4 h-4" />
               Go Home
             </Button>
           </Link>
           
-          <Link href="/news">
+          <Link href="/en/news">
             <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
               <ArrowLeft className="w-4 h-4" />
               Browse News
@@ -65,16 +65,16 @@ export default function NotFound() {
         <div className="mt-12">
           <p className="text-sm text-muted-foreground mb-4">Popular pages:</p>
           <div className="flex flex-wrap gap-2 justify-center">
-            <Link href="/news">
+            <Link href="/en/news">
               <Button variant="ghost" size="sm">News</Button>
             </Link>
-            <Link href="/courses">
+            <Link href="/en/courses">
               <Button variant="ghost" size="sm">Courses</Button>
             </Link>
-            <Link href="/trending">
+            <Link href="/en/trending">
               <Button variant="ghost" size="sm">Trending</Button>
             </Link>
-            <Link href="/kg">
+            <Link href="/en/kg">
               <Button variant="ghost" size="sm">Knowledge Graph</Button>
             </Link>
           </div>
