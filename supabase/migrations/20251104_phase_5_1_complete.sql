@@ -828,6 +828,13 @@ CREATE TABLE IF NOT EXISTS fact_checks (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Backfill/align legacy schemas: ensure required columns exist even if table pre-existed
+ALTER TABLE fact_checks
+  ADD COLUMN IF NOT EXISTS checked_at timestamptz NOT NULL DEFAULT now();
+
+ALTER TABLE fact_checks
+  ADD COLUMN IF NOT EXISTS overall_score int;
+
 CREATE INDEX IF NOT EXISTS idx_fact_checks_article_id 
 ON fact_checks(article_id);
 
