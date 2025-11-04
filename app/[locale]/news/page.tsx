@@ -2,6 +2,8 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { fetchLatestNews } from '@/lib/db/news';
 import { NewsGridClient } from '@/components/news/NewsGridClient';
+import { generateLocalizedMetadata } from '@/lib/utils/seo';
+import { Metadata } from 'next';
 
 type Locale = (typeof routing.locales)[number];
 
@@ -17,6 +19,24 @@ export const revalidate = 600;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
+}
+
+// Generate metadata with alternates
+export async function generateMetadata({ params }: NewsPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  
+  const title = locale === 'en' ? 'Latest AI News' : 'Últimas Noticias de IA';
+  const description =
+    locale === 'en'
+      ? 'Stay updated with the latest artificial intelligence news, breakthroughs, and developments from around the world.'
+      : 'Mantente actualizado con las últimas noticias de inteligencia artificial, avances y desarrollos de todo el mundo.';
+
+  return generateLocalizedMetadata(title, description, `/${locale}/news`, locale, {
+    keywords: locale === 'en' 
+      ? ['AI news', 'artificial intelligence', 'machine learning', 'tech news']
+      : ['noticias IA', 'inteligencia artificial', 'aprendizaje automático', 'noticias tecnológicas'],
+    type: 'website',
+  });
 }
 
 export default async function NewsPage({ params }: NewsPageProps) {

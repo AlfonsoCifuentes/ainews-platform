@@ -6,86 +6,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   
   const supabase = await createClient();
 
-  // Static pages
+  // Helper to create entry with alternates
+  const createEntry = (
+    path: string,
+    options?: {
+      lastModified?: Date;
+      changeFrequency?: MetadataRoute.Sitemap[number]['changeFrequency'];
+      priority?: number;
+    }
+  ): MetadataRoute.Sitemap[number] => ({
+    url: `${baseUrl}/en${path}`,
+    lastModified: options?.lastModified || new Date(),
+    changeFrequency: options?.changeFrequency || 'daily',
+    priority: options?.priority || 0.7,
+    alternates: {
+      languages: {
+        en: `${baseUrl}/en${path}`,
+        es: `${baseUrl}/es${path}`,
+      },
+    },
+  });
+
+  // Static pages with alternates
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/en`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/es`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/en/news`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/es/news`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/en/courses`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/es/courses`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/en/trending`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/es/trending`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/en/kg`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/es/kg`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/en/leaderboard`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/es/leaderboard`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.6,
-    },
+    createEntry('', { changeFrequency: 'daily', priority: 1 }),
+    createEntry('/news', { changeFrequency: 'hourly', priority: 0.9 }),
+    createEntry('/courses', { changeFrequency: 'daily', priority: 0.8 }),
+    createEntry('/trending', { changeFrequency: 'hourly', priority: 0.8 }),
+    createEntry('/kg', { changeFrequency: 'daily', priority: 0.7 }),
+    createEntry('/leaderboard', { changeFrequency: 'daily', priority: 0.6 }),
   ];
 
   // Dynamic pages - News articles
@@ -95,20 +44,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order('published_at', { ascending: false })
     .limit(1000); // Limit to last 1000 articles
 
-  const articlePages: MetadataRoute.Sitemap = (articles || []).flatMap((article) => [
-    {
-      url: `${baseUrl}/en/news/${article.id}`,
+  const articlePages: MetadataRoute.Sitemap = (articles || []).map((article) =>
+    createEntry(`/news/${article.id}`, {
       lastModified: new Date(article.updated_at || article.published_at),
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'weekly',
       priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/es/news/${article.id}`,
-      lastModified: new Date(article.updated_at || article.published_at),
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    },
-  ]);
+    })
+  );
 
   // Dynamic pages - Courses
   const { data: courses } = await supabase
@@ -118,20 +60,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order('created_at', { ascending: false })
     .limit(500);
 
-  const coursePages: MetadataRoute.Sitemap = (courses || []).flatMap((course) => [
-    {
-      url: `${baseUrl}/en/courses/${course.id}`,
+  const coursePages: MetadataRoute.Sitemap = (courses || []).map((course) =>
+    createEntry(`/courses/${course.id}`, {
       lastModified: new Date(course.updated_at || course.created_at),
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'weekly',
       priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/es/courses/${course.id}`,
-      lastModified: new Date(course.updated_at || course.created_at),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    },
-  ]);
+    })
+  );
 
   return [...staticPages, ...articlePages, ...coursePages];
 }
