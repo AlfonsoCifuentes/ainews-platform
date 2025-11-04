@@ -1,8 +1,93 @@
 /**
- * Advanced Image Scraper
+ * Advanced Image Scraper - Ultra Edition
  * 
  * Scrapes article pages to find the best quality featured image
- * with multiple strategies and validation
+ * with 12+ comprehensive strategies and validation
+ * 
+ * SCRAPING STRATEGIES (in priority order):
+ * 
+ * 1. Open Graph (og:image, og:image:secure_url) - Score: 100
+ *    - Most reliable for social sharing
+ *    - Usually high quality and relevant
+ * 
+ * 2. Twitter Card (twitter:image) - Score: 90
+ *    - Secondary social meta tag
+ *    - Good quality fallback
+ * 
+ * 3. JSON-LD Structured Data (Article, ImageObject) - Score: 80-85
+ *    - Schema.org markup
+ *    - NewsArticle, Article, ImageObject types
+ *    - Handles both single images and arrays
+ * 
+ * 4. Featured Image Selectors (60+ CSS selectors) - Score: 70
+ *    - WordPress (.wp-post-image, .featured-image)
+ *    - CMS patterns (.lead-image, .hero-image, .banner-image)
+ *    - News sites (.article-header img, figure.featured)
+ *    - Lazy loading (data-src, data-lazy-src, data-original)
+ *    - Modern frameworks (Gatsby, Next.js image wrappers)
+ *    - Picture elements (source[srcset], picture img)
+ *    - Schema.org attributes ([itemprop="image"])
+ *    - Platform-specific (Medium, Substack, Ghost, Reddit)
+ * 
+ * 5. Additional Meta Tags - Score: 40-75
+ *    - meta[name="image"]
+ *    - meta[property="image"]
+ *    - meta[name="thumbnail"]
+ *    - meta[itemprop="image"]
+ *    - meta[name="msapplication-TileImage"]
+ * 
+ * 6. Article Content Images (Enhanced) - Score: 50-65
+ *    - Scans article, main, .content, #content
+ *    - Size-aware scoring (boosts for 800x600+)
+ *    - Class/ID quality indicators
+ *    - Multi-attribute detection (src, data-src, data-original)
+ * 
+ * 7. CSS Background Images - Score: 55
+ *    - Parses inline style attributes
+ *    - Extracts from background-image: url(...)
+ *    - Checks .bg-image, .background-image classes
+ * 
+ * 8. AMP Images (amp-img) - Score: 75
+ *    - Special handling for AMP pages
+ *    - Usually optimized and validated
+ * 
+ * 9. Noscript Fallbacks - Score: 65
+ *    - Parses <noscript> tags
+ *    - Often contains non-lazy-loaded version
+ *    - Good quality baseline
+ * 
+ * 10. Link Rel Image - Score: 60
+ *     - <link rel="image_src">
+ *     - Legacy but still used
+ * 
+ * 11. RSS Enclosure - Fast path before scraping
+ *     - media:content
+ *     - media:thumbnail
+ *     - enclosure with image extension
+ *     - Content/contentSnippet HTML parsing
+ * 
+ * 12. Multi-Attribute Detection
+ *     - src, data-src, data-lazy-src, data-original
+ *     - data-srcset, srcset (parses responsive sets)
+ *     - data-lazy, data-sizes
+ * 
+ * VALIDATION PIPELINE:
+ * - Each candidate is tested with validateAndRegisterImage()
+ * - Duplicate detection via hash
+ * - HTTP HEAD request for content-type and size
+ * - Minimum 5KB size requirement
+ * - Blacklist filtering (avatars, logos, icons, tracking pixels)
+ * - Content-Type validation (image/*)
+ * 
+ * ATTRIBUTE SOURCES (comprehensive):
+ * - src (standard)
+ * - data-src (lazy loading)
+ * - data-lazy-src (alternative lazy)
+ * - data-original (unveil.js, etc.)
+ * - data-lazy (custom implementations)
+ * - data-srcset (responsive)
+ * - srcset (native responsive)
+ * - data-sizes (responsive sizes)
  */
 
 import { load } from 'cheerio';
@@ -80,7 +165,7 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       }
     });
 
-    // Strategy 4: Featured image with high-value classes/IDs (EXPANDED)
+    // Strategy 4: Featured image with high-value classes/IDs (ULTRA EXPANDED)
     const featuredSelectors = [
       // WordPress standard
       'img[class*="featured"]',
@@ -99,6 +184,9 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       '.header-image img',
       '.story-image img',
       '.cover-image img',
+      '.banner-image img',
+      '.top-image img',
+      '.primary-image img',
       
       // News sites
       '.article-header img',
@@ -106,23 +194,72 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       '.post-header img',
       'figure.lead img',
       'figure.featured img',
+      'figure.article img',
+      '.article-figure img',
+      '.story-figure img',
       
       // Data attributes (lazy loading)
       'img[data-src*="featured"]',
       'img[data-lazy-src]',
+      'img[data-original]',
+      'img[data-lazy]',
       'img[loading="eager"]',
+      'img[data-srcset]',
+      'img[data-sizes]',
       
       // Picture elements
       'picture source[media]',
       'picture img',
+      'picture source[srcset]',
+      
+      // Modern frameworks (React, Vue, Angular)
+      '[data-gatsby-image-wrapper] img',
+      '.gatsby-image-wrapper img',
+      '[data-next-image] img',
+      '.next-image img',
+      'img[decoding="async"]',
+      
+      // Schema.org image
+      '[itemprop="image"]',
+      '[itemtype*="ImageObject"] img',
+      
+      // Responsive image patterns
+      'img[sizes]',
+      'source[type="image/webp"]',
+      'source[type="image/avif"]',
+      
+      // Medium, Substack, Ghost
+      '.medium-feed-image',
+      '.post-full-image img',
+      '.kg-image',
+      '.post-card-image',
+      
+      // Reddit, HackerNews
+      '.thumbnail img',
+      '.preview img',
+      '[data-click-id="thumbnail"] img',
+      
+      // ArXiv, academic
+      '.figure img',
+      '.teaser-image img',
+      'img[alt*="Figure"]',
+      
+      // Generic high-quality indicators
+      'img[width="1200"]',
+      'img[width="1920"]',
+      'img[height="630"]',
+      'img[height="1080"]',
     ];
 
     featuredSelectors.forEach((selector) => {
       $(selector).each((_, elem) => {
-        // Try multiple attribute sources
+        // Try multiple attribute sources (ENHANCED with more attributes)
         const src = $(elem).attr('src') || 
                     $(elem).attr('data-src') || 
                     $(elem).attr('data-lazy-src') ||
+                    $(elem).attr('data-original') ||
+                    $(elem).attr('data-lazy') ||
+                    $(elem).attr('data-srcset')?.split(',')[0]?.trim().split(' ')[0] ||
                     $(elem).attr('srcset')?.split(',')[0]?.trim().split(' ')[0];
         
         if (src) {
@@ -135,19 +272,155 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       });
     });
 
-    // Strategy 5: First image in article content
+    // Strategy 5: JSON-LD additional schemas
+    $('script[type="application/ld+json"]').each((_, elem) => {
+      try {
+        const json = JSON.parse($(elem).html() || '{}');
+        
+        // NewsArticle schema
+        if (json['@type'] === 'NewsArticle' || json['@type'] === 'Article') {
+          const image = json.image?.url || json.image;
+          if (image && typeof image === 'string') {
+            candidates.push({
+              url: normalizeUrl(image, articleUrl),
+              score: 80,
+              source: 'ld+json-article'
+            });
+          }
+          // Array of images
+          if (Array.isArray(json.image) && json.image[0]) {
+            const img = json.image[0].url || json.image[0];
+            if (img && typeof img === 'string') {
+              candidates.push({
+                url: normalizeUrl(img, articleUrl),
+                score: 80,
+                source: 'ld+json-article-array'
+              });
+            }
+          }
+        }
+        
+        // ImageObject schema
+        if (json['@type'] === 'ImageObject' && json.url) {
+          candidates.push({
+            url: normalizeUrl(json.url, articleUrl),
+            score: 85,
+            source: 'ld+json-imageobject'
+          });
+        }
+      } catch {
+        // Invalid JSON, skip
+      }
+    });
+
+    // Strategy 6: Meta tags (additional)
+    const metaSelectors = [
+      { selector: 'meta[name="image"]', attr: 'content', score: 75 },
+      { selector: 'meta[property="image"]', attr: 'content', score: 75 },
+      { selector: 'meta[name="thumbnail"]', attr: 'content', score: 70 },
+      { selector: 'meta[itemprop="image"]', attr: 'content', score: 75 },
+      { selector: 'meta[name="msapplication-TileImage"]', attr: 'content', score: 40 },
+    ];
+
+    metaSelectors.forEach(({ selector, attr, score }) => {
+      const content = $(selector).attr(attr);
+      if (content) {
+        candidates.push({
+          url: normalizeUrl(content, articleUrl),
+          score,
+          source: selector
+        });
+      }
+    });
+
+    // Strategy 7: First large image in article content (enhanced detection)
+    $('article img, main img, .article-content img, .post-content img, .entry-content img, [role="main"] img, .content img, #content img').each((_, elem) => {
+      const $img = $(elem);
+      
+      // Try multiple sources
+      const src = $img.attr('src') || 
+                  $img.attr('data-src') ||
+                  $img.attr('data-original') ||
+                  $img.attr('data-lazy-src');
+      
+      if (src) {
+        // Boost score if image has size attributes indicating it's large
+        const width = parseInt($img.attr('width') || '0');
+        const height = parseInt($img.attr('height') || '0');
+        let score = 50;
+        
+        if (width >= 800 || height >= 600) {
+          score = 65; // Large image bonus
+        }
+        
+        // Check for quality indicators in class/id
+        const className = $img.attr('class') || '';
+        const id = $img.attr('id') || '';
+        if (className.match(/featured|hero|main|lead|banner|cover/i) || 
+            id.match(/featured|hero|main|lead|banner|cover/i)) {
+          score += 10;
+        }
+        
+        candidates.push({
+          url: normalizeUrl(src, articleUrl),
+          score,
+          source: 'article-content-enhanced'
+        });
+      }
+    });
+
+    // Strategy 8: CSS background images (advanced)
+    $('[style*="background-image"], .bg-image, .background-image, [class*="bg-"]').slice(0, 5).each((_, elem) => {
+      const style = $(elem).attr('style') || '';
+      const match = style.match(/background-image:\s*url\(['"]?([^'"()]+)['"]?\)/i);
+      if (match && match[1]) {
+        candidates.push({
+          url: normalizeUrl(match[1], articleUrl),
+          score: 55,
+          source: 'css-background'
+        });
+      }
+    });
+
+    // Strategy 9: Amp-img elements (for AMP pages)
+    $('amp-img').each((_, elem) => {
+      const src = $(elem).attr('src');
+      if (src) {
+        candidates.push({
+          url: normalizeUrl(src, articleUrl),
+          score: 75,
+          source: 'amp-img'
+        });
+      }
+    });
+
+    // Strategy 10: Noscript fallback images (often high quality)
+    $('noscript').each((_, elem) => {
+      const html = $(elem).html() || '';
+      const $noscript = load(html);
+      const src = $noscript('img').first().attr('src');
+      if (src) {
+        candidates.push({
+          url: normalizeUrl(src, articleUrl),
+          score: 65,
+          source: 'noscript-fallback'
+        });
+      }
+    });
+
+    // Strategy 11: First image in article content
     $('article img, main img, .article-content img, .post-content img, .entry-content img').slice(0, 3).each((_, elem) => {
       const src = $(elem).attr('src') || $(elem).attr('data-src');
       if (src) {
         candidates.push({
           url: normalizeUrl(src, articleUrl),
-          score: 50,
-          source: 'article-content'
+          score: 45, // Lower score since already handled in Strategy 7
+          source: 'article-content-simple'
         });
       }
     });
 
-    // Strategy 6: Link rel image
+    // Strategy 12: Link rel image
     const linkImage = $('link[rel="image_src"]').attr('href');
     if (linkImage) {
       candidates.push({
