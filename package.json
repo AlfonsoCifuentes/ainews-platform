@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "test": "vitest",
+    "test:unit": "vitest run",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "ai:curate": "tsx scripts/curate-news.ts",
