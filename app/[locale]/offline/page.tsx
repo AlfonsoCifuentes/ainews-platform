@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { setRequestLocale } from 'next-intl/server';
+import { locales, type Locale } from '@/i18n';
 import { Link } from '@/i18n';
 import { WifiOff, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +10,17 @@ export const metadata: Metadata = {
   description: 'You are currently offline',
 };
 
-export default function OfflinePage() {
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
+
+type OfflinePageProps = {
+  params: Promise<{ locale: Locale }>;
+};
+
+export default async function OfflinePage({ params }: OfflinePageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-black via-gray-900 to-black">
       <div className="text-center max-w-md">
@@ -22,11 +34,11 @@ export default function OfflinePage() {
         </div>
 
         <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          You're Offline
+          You&apos;re Offline
         </h1>
         
         <p className="text-lg text-muted-foreground mb-8">
-          It looks like you've lost your internet connection. Don't worry, some content may still be available in your cache.
+          It looks like you&apos;ve lost your internet connection. Don&apos;t worry, some content may still be available in your cache.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

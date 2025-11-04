@@ -63,7 +63,7 @@ async function checkDuplicates() {
   duplicates.forEach(([url, articles]) => {
     console.log(`📷 Image: ${url.slice(0, 100)}...`);
     console.log(`   Used by ${articles.length} articles:`);
-    articles.forEach(a => {
+    articles.forEach((a: { id: string; title: string }) => {
       console.log(`   - [${a.id.slice(0, 8)}] ${a.title}`);
     });
     console.log('');

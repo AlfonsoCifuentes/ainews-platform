@@ -46,7 +46,7 @@ export function PWAInstaller() {
         // Trigger background sync
         if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
           navigator.serviceWorker.ready.then((registration) => {
-            return registration.sync.register('sync-bookmarks');
+            return (registration as any).sync.register('sync-bookmarks'); // eslint-disable-line @typescript-eslint/no-explicit-any
           });
         }
       });

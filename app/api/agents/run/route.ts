@@ -32,14 +32,14 @@ export async function POST(req: NextRequest) {
     let result;
     switch (agentType) {
       case 'trend_detector':
-        const { TrendDetectorAgent } = await import('@/lib/ai/agents/trend-detector');
-        const trendAgent = new TrendDetectorAgent();
-        result = await trendAgent.execute();
+        const { TrendDetector } = await import('@/lib/ai/agents/trend-detector');
+        const trendAgent = new TrendDetector();
+        result = await trendAgent.detectTrends();
         break;
       
       case 'fact_checker':
-        const { FactCheckerAgent } = await import('@/lib/ai/agents/fact-checker');
-        const factAgent = new FactCheckerAgent();
+        const { FactChecker } = await import('@/lib/ai/agents/fact-checker');
+        const factAgent = new FactChecker();
         // Run on most recent article
         const { data: recentArticle } = await supabase
           .from('news_articles')
@@ -54,14 +54,14 @@ export async function POST(req: NextRequest) {
         break;
       
       case 'bias_auditor':
-        const { BiasAuditorAgent } = await import('@/lib/ai/agents/bias-auditor');
-        const biasAgent = new BiasAuditorAgent();
+        const { BiasAuditor } = await import('@/lib/ai/agents/bias-auditor');
+        const biasAgent = new BiasAuditor();
         result = await biasAgent.analyzeCategory('AI', 5);
         break;
       
       case 'multi_perspective':
-        const { MultiPerspectiveAgent } = await import('@/lib/ai/agents/multi-perspective');
-        const perspectiveAgent = new MultiPerspectiveAgent();
+        const { MultiPerspectiveSummarizer } = await import('@/lib/ai/agents/multi-perspective');
+        const perspectiveAgent = new MultiPerspectiveSummarizer();
         result = await perspectiveAgent.generateSummary('Latest AI developments');
         break;
     }

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/db/supabase-server';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ainews.vercel.app';
   
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

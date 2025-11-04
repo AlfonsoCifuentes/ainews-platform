@@ -2,14 +2,23 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { type INewsArticle } from '@/lib/types/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { type Locale } from '@/i18n';
-import { ArticleModal } from './ArticleModal';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 import { MiniShareButtons } from '@/components/shared/ShareButtons';
 import Image from 'next/image';
+
+// Lazy load ArticleModal (heavy component with animations)
+const ArticleModal = dynamic(
+  () => import('./ArticleModal').then(mod => ({ default: mod.ArticleModal })),
+  {
+    loading: () => null, // Modal appears on demand, no skeleton needed
+    ssr: false // Modal is client-side only
+  }
+);
 
 type NewsGridClientProps = {
   initialArticles: INewsArticle[];

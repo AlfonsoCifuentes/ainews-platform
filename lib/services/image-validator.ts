@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { getSupabaseServerClient } from '../db/supabase';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
-import { estimateDimensionsFromUrl, calculateOrientationScore, getOrientationInfo, type OrientationInfo } from './image-orientation';
+import { estimateDimensionsFromUrl, getOrientationInfo, type OrientationInfo } from './image-orientation';
 
 interface ImageValidationResult {
   isValid: boolean;

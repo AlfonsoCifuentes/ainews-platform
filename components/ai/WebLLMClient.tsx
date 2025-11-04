@@ -16,7 +16,7 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [engine, setEngine] = useState<any>(null);
+  const [engine, setEngine] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [modelSize, setModelSize] = useState('0 MB');
 
   const t = locale === 'en' ? {
@@ -93,7 +93,7 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
       const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
 
       // Progress callback
-      const initProgressCallback = (report: any) => {
+      const initProgressCallback = (report: { progress: number; text?: string }) => {
         setProgress(report.progress * 100);
         if (report.text) {
           console.log(report.text);
@@ -142,7 +142,7 @@ export function WebLLMClient({ locale, onReady }: WebLLMClientProps) {
   // Expose generate function to parent via ref or callback
   useEffect(() => {
     if (isReady && typeof window !== 'undefined') {
-      (window as any).webLLMGenerate = generate;
+      (window as Window & { webLLMGenerate?: typeof generate }).webLLMGenerate = generate;
     }
   }, [isReady, generate]);
 

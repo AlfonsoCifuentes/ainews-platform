@@ -13,6 +13,10 @@ type CoursesPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
+// ISR: Revalidate every 30 minutes (1800 seconds)
+// Courses change less frequently than news
+export const revalidate = 1800;
+
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }

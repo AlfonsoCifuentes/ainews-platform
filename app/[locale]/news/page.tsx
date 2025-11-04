@@ -11,6 +11,10 @@ type NewsPageProps = {
   }>;
 };
 
+// ISR: Revalidate every 10 minutes (600 seconds)
+// Fresh news every 10 min while keeping page pre-rendered
+export const revalidate = 600;
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }

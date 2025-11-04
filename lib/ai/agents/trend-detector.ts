@@ -6,6 +6,15 @@
 import { createClient } from '@/lib/db/supabase-server';
 import { LLMClient } from '@/lib/ai/llm-client';
 
+interface Article {
+  id: string;
+  title_en: string;
+  title_es: string;
+  tags?: string[];
+  published_at: string;
+  category?: string;
+}
+
 export interface TrendingTopic {
   topic: string;
   frequency: number;
@@ -107,7 +116,7 @@ export class TrendDetector {
   /**
    * Extract keywords from articles
    */
-  private extractKeywords(articles: any[]): Record<string, number> {
+  private extractKeywords(articles: Partial<Article>[]): Record<string, number> {
     const keywords: Record<string, number> = {};
 
     articles.forEach(article => {
@@ -117,7 +126,7 @@ export class TrendDetector {
       });
 
       // Extract from titles (simple keyword extraction)
-      const words = article.title_en.toLowerCase().split(/\s+/);
+      const words = article.title_en?.toLowerCase().split(/\s+/) || [];
       words.forEach((word: string) => {
         if (word.length > 4 && !this.isStopWord(word)) {
           keywords[word] = (keywords[word] || 0) + 1;
@@ -131,13 +140,13 @@ export class TrendDetector {
   /**
    * Get related keywords for a topic
    */
-  private getRelatedKeywords(topic: string, articles: any[]): string[] {
+  private getRelatedKeywords(topic: string, articles: Partial<Article>[]): string[] {
     const related = new Set<string>();
 
     articles
       .filter(a => 
         a.tags?.includes(topic) || 
-        a.title_en.toLowerCase().includes(topic.toLowerCase())
+        a.title_en?.toLowerCase().includes(topic.toLowerCase())
       )
       .forEach(a => {
         a.tags?.forEach((tag: string) => {

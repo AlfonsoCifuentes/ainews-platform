@@ -117,7 +117,40 @@ npm run dev
 
 ---
 
-## 📚 Documentación de APIs
+## � OAuth Providers (Opcional)
+
+### Google OAuth
+
+Para habilitar login con Google, configura en Supabase:
+
+1. **Crea credenciales OAuth en Google Cloud:**
+   - Ve a [Google Cloud Console](https://console.cloud.google.com)
+   - Crea un proyecto o selecciona uno existente
+   - Habilita "Google+ API"
+   - Ve a "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+   - Tipo: "Web application"
+   - Authorized redirect URIs: `https://[TU-PROYECTO-SUPABASE].supabase.co/auth/v1/callback`
+
+2. **Configura en Supabase Dashboard:**
+   - Ve a Authentication → Providers → Google
+   - Activa "Enable Sign in with Google"
+   - Pega Client ID y Client Secret
+   - Guarda cambios
+
+3. **Variables de entorno (opcional para configuración adicional):**
+   ```bash
+   # No se requieren variables extra - Supabase maneja todo
+   ```
+
+### GitHub OAuth (Ya disponible)
+
+El flujo es similar - configura en Supabase Dashboard → Providers → GitHub.
+
+**Nota:** El callback handler ya está implementado en `/app/auth/callback/route.ts` y funciona para todos los providers OAuth.
+
+---
+
+## �📚 Documentación de APIs
 
 - **OpenRouter**: [https://openrouter.ai/docs](https://openrouter.ai/docs)
 - **Groq**: [https://console.groq.com/docs](https://console.groq.com/docs)
