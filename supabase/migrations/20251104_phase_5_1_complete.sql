@@ -36,21 +36,21 @@ CREATE INDEX IF NOT EXISTS idx_courses_rating_avg_desc
 ON courses(rating_avg DESC NULLS LAST) 
 WHERE rating_avg IS NOT NULL;
 
--- Course Progress: user_id + created_at for progress tracking
-CREATE INDEX IF NOT EXISTS idx_course_progress_user_created 
-ON user_course_progress(user_id, created_at);
+-- User Progress: user_id + created_at for progress tracking
+CREATE INDEX IF NOT EXISTS idx_user_progress_user_created 
+ON user_progress(user_id, created_at);
 
--- Course Progress: last_accessed for recently accessed courses
-CREATE INDEX IF NOT EXISTS idx_course_progress_user_last_accessed 
-ON user_course_progress(user_id, last_accessed_at DESC);
+-- User Progress: last_accessed for recently accessed courses
+CREATE INDEX IF NOT EXISTS idx_user_progress_user_last_accessed 
+ON user_progress(user_id, last_accessed DESC);
 
 -- Bookmarks: user_id + created_at (common pattern)
-CREATE INDEX IF NOT EXISTS idx_bookmarks_user_created 
-ON bookmarks(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_bookmarks_user_created 
+ON user_bookmarks(user_id, created_at DESC);
 
 -- Reading History: last_read_at already indexed, add user composite
 CREATE INDEX IF NOT EXISTS idx_reading_history_user_last_read 
-ON user_reading_history(user_id, last_read_at DESC);
+ON reading_history(user_id, last_read_at DESC);
 
 -- Comments: created_at DESC for timeline queries
 CREATE INDEX IF NOT EXISTS idx_comments_created_desc 
@@ -73,8 +73,8 @@ CREATE INDEX IF NOT EXISTS idx_user_badges_user_earned
 ON user_badges(user_id, earned_at DESC);
 
 -- Highlights: user_id + created_at
-CREATE INDEX IF NOT EXISTS idx_highlights_user_created 
-ON highlights(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_highlights_user_created 
+ON user_highlights(user_id, created_at DESC);
 
 -- Flashcards: user_id + due_at (critical for SRS)
 CREATE INDEX IF NOT EXISTS idx_flashcards_user_due 
@@ -105,10 +105,10 @@ CREATE INDEX IF NOT EXISTS idx_news_articles_search_filter
 ON news_articles(category, published_at DESC, quality_score DESC) 
 WHERE category IS NOT NULL AND quality_score IS NOT NULL;
 
--- Course enrollments: user + course + completion status
-CREATE INDEX IF NOT EXISTS idx_course_progress_completion 
-ON user_course_progress(user_id, course_id, completion_percentage) 
-WHERE completion_percentage > 0;
+-- User Progress: user + course + completion status
+CREATE INDEX IF NOT EXISTS idx_user_progress_completion 
+ON user_progress(user_id, course_id, completed) 
+WHERE completed = true;
 
 -- Comments with likes: for popular comments sorting
 CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
@@ -127,9 +127,9 @@ ON notifications(user_id, created_at DESC, type)
 WHERE is_read = false;
 
 -- Only index incomplete courses for "Continue Learning"
-CREATE INDEX IF NOT EXISTS idx_course_progress_incomplete 
-ON user_course_progress(user_id, last_accessed_at DESC, completion_percentage) 
-WHERE completion_percentage < 100;
+CREATE INDEX IF NOT EXISTS idx_user_progress_incomplete 
+ON user_progress(user_id, last_accessed DESC, completed) 
+WHERE completed = false;
 
 -- Only index published courses
 CREATE INDEX IF NOT EXISTS idx_courses_published 
@@ -145,39 +145,119 @@ WHERE is_flagged = false;
 -- 1.4: CONSTRAINTS & DATA INTEGRITY
 -- ============================================================================
 
--- Add check constraints for data validation
-ALTER TABLE news_articles 
-ADD CONSTRAINT IF NOT EXISTS chk_quality_score_range 
-CHECK (quality_score >= 0 AND quality_score <= 100);
+-- Add check constraints for data validation (idempotent with DO blocks)
 
-ALTER TABLE courses 
-ADD CONSTRAINT IF NOT EXISTS chk_rating_avg_range 
-CHECK (rating_avg >= 0 AND rating_avg <= 5);
+-- Constraint 1: quality_score range
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_quality_score_range' 
+    AND conrelid = 'news_articles'::regclass
+  ) THEN
+    ALTER TABLE news_articles 
+    ADD CONSTRAINT chk_quality_score_range 
+    CHECK (quality_score >= 0 AND quality_score <= 100);
+  END IF;
+END $$;
 
-ALTER TABLE user_course_progress 
-ADD CONSTRAINT IF NOT EXISTS chk_completion_range 
-CHECK (completion_percentage >= 0 AND completion_percentage <= 100);
+-- Constraint 2: rating_avg range
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_rating_avg_range' 
+    AND conrelid = 'courses'::regclass
+  ) THEN
+    ALTER TABLE courses 
+    ADD CONSTRAINT chk_rating_avg_range 
+    CHECK (rating_avg >= 0 AND rating_avg <= 5);
+  END IF;
+END $$;
 
-ALTER TABLE flashcards 
-ADD CONSTRAINT IF NOT EXISTS chk_ease_factor_range 
-CHECK (ease_factor >= 1.3 AND ease_factor <= 2.5);
+-- Constraint 3: score range (user_progress)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_score_range' 
+    AND conrelid = 'user_progress'::regclass
+  ) THEN
+    ALTER TABLE user_progress 
+    ADD CONSTRAINT chk_score_range 
+    CHECK (score >= 0 AND score <= 100);
+  END IF;
+END $$;
 
-ALTER TABLE flashcards 
-ADD CONSTRAINT IF NOT EXISTS chk_repetitions_positive 
-CHECK (repetitions >= 0);
+-- Constraint 4: ease_factor range
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_ease_factor_range' 
+    AND conrelid = 'flashcards'::regclass
+  ) THEN
+    ALTER TABLE flashcards 
+    ADD CONSTRAINT chk_ease_factor_range 
+    CHECK (ease_factor >= 1.3 AND ease_factor <= 2.5);
+  END IF;
+END $$;
 
-ALTER TABLE user_badges 
-ADD CONSTRAINT IF NOT EXISTS chk_progress_range 
-CHECK (progress >= 0 AND progress <= 1);
+-- Constraint 5: repetitions positive
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_repetitions_positive' 
+    AND conrelid = 'flashcards'::regclass
+  ) THEN
+    ALTER TABLE flashcards 
+    ADD CONSTRAINT chk_repetitions_positive 
+    CHECK (repetitions >= 0);
+  END IF;
+END $$;
 
--- Ensure XP values are never negative
-ALTER TABLE user_profiles 
-ADD CONSTRAINT IF NOT EXISTS chk_total_xp_positive 
-CHECK (total_xp >= 0);
+-- Constraint 6: progress range
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_progress_range' 
+    AND conrelid = 'user_badges'::regclass
+  ) THEN
+    ALTER TABLE user_badges 
+    ADD CONSTRAINT chk_progress_range 
+    CHECK (progress >= 0 AND progress <= 1);
+  END IF;
+END $$;
 
-ALTER TABLE user_profiles 
-ADD CONSTRAINT IF NOT EXISTS chk_level_positive 
-CHECK (level >= 1);
+-- Constraint 7: total_xp positive
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_total_xp_positive' 
+    AND conrelid = 'user_profiles'::regclass
+  ) THEN
+    ALTER TABLE user_profiles 
+    ADD CONSTRAINT chk_total_xp_positive 
+    CHECK (total_xp >= 0);
+  END IF;
+END $$;
+
+-- Constraint 8: level positive
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'chk_level_positive' 
+    AND conrelid = 'user_profiles'::regclass
+  ) THEN
+    ALTER TABLE user_profiles 
+    ADD CONSTRAINT chk_level_positive 
+    CHECK (level >= 1);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 1.5: PERFORMANCE MONITORING VIEWS
@@ -267,8 +347,8 @@ RETURNS TABLE (
   course_id UUID,
   title_en TEXT,
   title_es TEXT,
-  completion_percentage INT,
-  last_accessed_at TIMESTAMPTZ,
+  completed BOOLEAN,
+  last_accessed TIMESTAMPTZ,
   total_modules INT,
   completed_modules INT
 ) AS $$
@@ -278,17 +358,20 @@ BEGIN
     c.id,
     c.title_en,
     c.title_es,
-    ucp.completion_percentage,
-    ucp.last_accessed_at,
+    up.completed,
+    up.last_accessed,
     c.total_modules,
-    ucp.completed_modules
-  FROM user_course_progress ucp
-  JOIN courses c ON c.id = ucp.course_id
+    COUNT(DISTINCT upm.module_id)::INT as completed_modules
+  FROM user_progress up
+  JOIN courses c ON c.id = up.course_id
+  LEFT JOIN user_progress upm ON upm.user_id = p_user_id 
+    AND upm.course_id = c.id 
+    AND upm.completed = true
   WHERE 
-    ucp.user_id = p_user_id
-    AND ucp.completion_percentage < 100
-    AND ucp.completion_percentage > 0
-  ORDER BY ucp.last_accessed_at DESC NULLS LAST
+    up.user_id = p_user_id
+    AND up.completed = false
+  GROUP BY c.id, c.title_en, c.title_es, up.completed, up.last_accessed, c.total_modules
+  ORDER BY up.last_accessed DESC NULLS LAST
   LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql STABLE;
@@ -420,10 +503,10 @@ BEGIN
   WITH reading_data AS (
     SELECT 
       COUNT(*)::INT as total_read,
-      SUM(read_time_seconds)::INT / 60 as total_minutes,
+      SUM(time_spent_seconds)::INT / 60 as total_minutes,
       COUNT(*) FILTER (WHERE last_read_at >= NOW() - INTERVAL '7 days')::INT as week_count,
       COUNT(*) FILTER (WHERE last_read_at >= NOW() - INTERVAL '30 days')::INT as month_count
-    FROM user_reading_history
+    FROM reading_history
     WHERE user_id = p_user_id
       AND last_read_at >= cutoff_date
   ),
@@ -433,7 +516,7 @@ BEGIN
         WHERE last_read_at >= NOW() - INTERVAL '7 days'
       )::INT as current_streak,
       7 as longest_streak
-    FROM user_reading_history
+    FROM reading_history
     WHERE user_id = p_user_id
   )
   SELECT 
@@ -473,20 +556,21 @@ BEGIN
   RETURN QUERY
   WITH article_stats AS (
     SELECT 
-      urh.article_id,
-      COUNT(DISTINCT urh.user_id)::INT as recent_views,
+      rh.article_id,
+      COUNT(DISTINCT rh.user_id)::INT as recent_views,
       COUNT(*)::INT as total_reads
-    FROM user_reading_history urh
-    WHERE urh.last_read_at >= cutoff_time
-    GROUP BY urh.article_id
+    FROM reading_history rh
+    WHERE rh.last_read_at >= cutoff_time
+    GROUP BY rh.article_id
   ),
   bookmark_stats AS (
     SELECT 
-      b.article_id,
+      ub.content_id as article_id,
       COUNT(*)::INT as bookmark_count
-    FROM bookmarks b
-    WHERE b.created_at >= cutoff_time
-    GROUP BY b.article_id
+    FROM user_bookmarks ub
+    WHERE ub.created_at >= cutoff_time
+      AND ub.content_type = 'article'
+    GROUP BY ub.content_id
   )
   SELECT 
     n.id,
@@ -606,10 +690,10 @@ BEGIN
   RETURN QUERY
   WITH user_interests AS (
     SELECT category, COUNT(*)::INT as interest_level
-    FROM user_reading_history urh
-    JOIN news_articles na ON na.id = urh.article_id
-    WHERE urh.user_id = p_user_id
-      AND urh.last_read_at >= NOW() - INTERVAL '30 days'
+    FROM reading_history rh
+    JOIN news_articles na ON na.id = rh.article_id
+    WHERE rh.user_id = p_user_id
+      AND rh.last_read_at >= NOW() - INTERVAL '30 days'
     GROUP BY category
   )
   SELECT 
@@ -627,7 +711,7 @@ BEGIN
   LEFT JOIN user_interests ui ON ui.category = n.category
   WHERE n.published_at >= NOW() - INTERVAL '7 days'
     AND n.id NOT IN (
-      SELECT article_id FROM user_reading_history 
+      SELECT article_id FROM reading_history 
       WHERE user_id = p_user_id
     )
   ORDER BY relevance DESC, n.published_at DESC
@@ -1024,10 +1108,10 @@ GRANT SELECT ON v_fact_check_metrics TO authenticated;
 
 ANALYZE news_articles;
 ANALYZE courses;
-ANALYZE user_course_progress;
+ANALYZE user_progress;
 ANALYZE comments;
-ANALYZE bookmarks;
-ANALYZE user_reading_history;
+ANALYZE user_bookmarks;
+ANALYZE reading_history;
 ANALYZE notifications;
 ANALYZE user_activities;
 ANALYZE flashcards;
