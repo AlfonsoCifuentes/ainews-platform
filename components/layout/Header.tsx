@@ -12,14 +12,11 @@ import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const NAV_ITEMS: Array<{ key: 'home' | 'news' | 'bookmarks' | 'courses' | 'trending' | 'kg' | 'leaderboard'; href: string }> = [
-  { key: 'home', href: '/' },
+// Primary navigation items (always visible in navbar)
+const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'about'; href: string }> = [
   { key: 'news', href: '/news' },
-  { key: 'bookmarks', href: '/bookmarks' },
   { key: 'courses', href: '/courses' },
-  { key: 'trending', href: '/trending' },
-  { key: 'kg', href: '/kg' },
-  { key: 'leaderboard', href: '/leaderboard' },
+  { key: 'about', href: '/about' },
 ];
 
 export function Header() {
@@ -36,13 +33,13 @@ export function Header() {
     const [, maybeLocale, ...segments] = pathname.split('/');
     if (maybeLocale && maybeLocale.length === 2) {
       if (segments.length === 0 || segments[0] === '') {
-        return 'home';
+        return '';
       }
       return segments[0];
     }
 
     if (pathname === '/' || pathname === '') {
-      return 'home';
+      return '';
     }
 
     return pathname.split('/')[1] ?? '';
@@ -76,14 +73,14 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation - Flex Grow */}
-          <nav className="hidden lg:flex items-center gap-2 xl:gap-4 text-sm font-medium flex-1">
+          <nav className="hidden lg:flex items-center gap-3 xl:gap-6 text-sm font-medium flex-1">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSegment === item.key;
               return (
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative px-2 py-1 transition-colors duration-300 whitespace-nowrap ${
+                  className={`relative px-3 py-1 transition-colors duration-300 whitespace-nowrap ${
                     isActive
                       ? 'text-white'
                       : 'text-muted-foreground hover:text-white'
@@ -116,6 +113,36 @@ export function Header() {
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">
+                {/* Secondary Navigation Dropdown for Non-Authenticated Users */}
+                <div className="relative group">
+                  <button className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors whitespace-nowrap gap-1">
+                    {locale === 'en' ? 'More' : 'Más'}
+                    <svg className="h-4 w-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                    <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
+                      <Link href={`/${locale}/bookmarks`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                        <span className="text-xl">🔖</span>
+                        <span className="font-medium text-sm">{locale === 'en' ? 'Saved' : 'Guardados'}</span>
+                      </Link>
+                      <Link href={`/${locale}/trending`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                        <span className="text-xl">🔥</span>
+                        <span className="font-medium text-sm">{locale === 'en' ? 'Trending' : 'Tendencias'}</span>
+                      </Link>
+                      <Link href={`/${locale}/kg`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                        <span className="text-xl">🕸️</span>
+                        <span className="font-medium text-sm">{locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento'}</span>
+                      </Link>
+                      <Link href={`/${locale}/leaderboard`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                        <span className="text-xl">🏆</span>
+                        <span className="font-medium text-sm">{locale === 'en' ? 'Leaderboard' : 'Clasificación'}</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+                
                 <Link
                   href="/auth"
                   className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors whitespace-nowrap"
@@ -175,6 +202,45 @@ export function Header() {
                   </Link>
                 );
               })}
+
+              {/* Secondary Navigation Section */}
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {locale === 'en' ? 'More' : 'Más'}
+                </div>
+                <Link
+                  href={`/${locale}/bookmarks`}
+                  onClick={closeMobileMenu}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
+                >
+                  <span className="text-xl">🔖</span>
+                  <span>{locale === 'en' ? 'Saved' : 'Guardados'}</span>
+                </Link>
+                <Link
+                  href={`/${locale}/trending`}
+                  onClick={closeMobileMenu}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
+                >
+                  <span className="text-xl">🔥</span>
+                  <span>{locale === 'en' ? 'Trending' : 'Tendencias'}</span>
+                </Link>
+                <Link
+                  href={`/${locale}/kg`}
+                  onClick={closeMobileMenu}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
+                >
+                  <span className="text-xl">🕸️</span>
+                  <span>{locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento'}</span>
+                </Link>
+                <Link
+                  href={`/${locale}/leaderboard`}
+                  onClick={closeMobileMenu}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
+                >
+                  <span className="text-xl">🏆</span>
+                  <span>{locale === 'en' ? 'Leaderboard' : 'Clasificación'}</span>
+                </Link>
+              </div>
 
               {/* Mobile-only settings */}
               <div className="sm:hidden flex items-center justify-between px-4 py-3 mt-2 border-t border-white/10">

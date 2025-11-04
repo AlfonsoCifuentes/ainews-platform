@@ -29,6 +29,10 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
   const menuItems = [
     { href: `/${locale}/dashboard`, label: locale === 'en' ? 'Dashboard' : 'Panel', icon: '📊' },
     { href: `/${locale}/profile`, label: locale === 'en' ? 'Profile' : 'Perfil', icon: '👤' },
+    { href: `/${locale}/bookmarks`, label: locale === 'en' ? 'Saved' : 'Guardados', icon: '🔖' },
+    { href: `/${locale}/trending`, label: locale === 'en' ? 'Trending' : 'Tendencias', icon: '🔥' },
+    { href: `/${locale}/kg`, label: locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento', icon: '🕸️' },
+    { href: `/${locale}/leaderboard`, label: locale === 'en' ? 'Leaderboard' : 'Clasificación', icon: '🏆' },
     { href: `/${locale}/settings`, label: locale === 'en' ? 'Settings' : 'Configuración', icon: '⚙️' },
   ];
 
@@ -86,8 +90,8 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
       </motion.button>
 
       {/* Dropdown Menu */}
-      <div className="absolute right-0 top-full mt-2 w-48 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
-        <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
+      <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+        <div className="glass rounded-xl border border-white/10 p-2 shadow-xl max-h-[80vh] overflow-y-auto">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -99,7 +103,7 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
                 }`}
               >
                 <span className="text-xl">{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium text-sm">{item.label}</span>
               </Link>
             );
           })}
