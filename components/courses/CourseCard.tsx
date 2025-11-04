@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Clock, BookOpen, TrendingUp, Star, Play } from 'lucide-react';
+import { ShareCourseButton } from './ShareCourseButton';
 
 interface Course {
   id: string;
@@ -49,8 +50,20 @@ export function CourseCard({ course, locale }: CourseCardProps) {
                  bg-white/5 border border-white/10 hover:border-primary/50
                  transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20"
     >
-      <Link href={`/${locale}/courses/${course.id}`} className="block p-6 h-full flex flex-col">
-        {/* Header */}
+      {/* Share Button - Absolute positioned */}
+      <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div onClick={(e) => e.preventDefault()}>
+          <ShareCourseButton
+            courseId={course.id}
+            courseTitle={title}
+            courseDescription={description}
+            locale={locale as 'en' | 'es'}
+            variant="minimal"
+          />
+        </div>
+      </div>
+
+      <Link href={`/${locale}/courses/${course.id}`} className="block p-6 h-full flex flex-col">{/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className={`px-3 py-1 rounded-full text-xs font-medium border ${DIFFICULTY_COLORS[course.difficulty]}`}>
             {difficultyLabel}

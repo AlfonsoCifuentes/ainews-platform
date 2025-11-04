@@ -5,6 +5,7 @@ import { CourseModulesList } from '@/components/courses/CourseModulesList';
 import { CourseEnrollButton } from '@/components/courses/CourseEnrollButton';
 import { CourseProgress } from '@/components/courses/CourseProgress';
 import { CourseReviews } from '@/components/courses/CourseReviews';
+import { ShareCourseButton } from '@/components/courses/ShareCourseButton';
 import { AudioPlayer } from '@/components/content/AudioPlayer';
 import { FlashcardDeck } from '@/components/flashcards/FlashcardDeck';
 import { DiscussionThread } from '@/components/content/DiscussionThread';
@@ -188,22 +189,35 @@ export default async function CourseDetailPage({
                 </div>
               </div>
 
-              {/* Progress or Enroll */}
-              {enrollment ? (
-                <CourseProgress
-                  locale={locale}
-                  progress={progressPercentage}
-                  completedModules={completedModules}
-                  totalModules={totalModules}
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Progress or Enroll */}
+                <div className="flex-1 min-w-[200px]">
+                  {enrollment ? (
+                    <CourseProgress
+                      locale={locale}
+                      progress={progressPercentage}
+                      completedModules={completedModules}
+                      totalModules={totalModules}
+                      courseId={id}
+                    />
+                  ) : (
+                    <CourseEnrollButton
+                      locale={locale}
+                      courseId={id}
+                      userId={user?.id}
+                    />
+                  )}
+                </div>
+
+                {/* Share Button */}
+                <ShareCourseButton
                   courseId={id}
-                />
-              ) : (
-                <CourseEnrollButton
+                  courseTitle={title}
+                  courseDescription={description}
                   locale={locale}
-                  courseId={id}
-                  userId={user?.id}
                 />
-              )}
+              </div>
             </div>
 
             {/* Right: Course Image */}
