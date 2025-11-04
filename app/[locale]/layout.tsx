@@ -45,6 +45,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       icon: '/images/AINEWS_logo.png',
       apple: '/images/AINEWS_logo.png',
     },
+    manifest: '/manifest.webmanifest',
+    themeColor: '#000000',
+    viewport: {
+      width: 'device-width',
+      initialScale: 1,
+      maximumScale: 1,
+    },
     alternates: {
       languages: {
         en: '/en',

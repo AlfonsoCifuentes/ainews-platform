@@ -7,9 +7,11 @@
  * - Background sync for progress and bookmarks
  * - Storage quota management
  * - Push notifications (VAPID)
+ * 
+ * Updated: Nov 4, 2025 - Forced dark theme, responsive header
  */
 
-const CACHE_VERSION = 'v2'; // Bumped from v1
+const CACHE_VERSION = 'v3'; // Bumped from v2 - Header/theme updates
 const STATIC_CACHE = `ainews-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ainews-dynamic-${CACHE_VERSION}`;
 const IMAGE_CACHE = `ainews-images-${CACHE_VERSION}`;
@@ -33,7 +35,7 @@ const MAX_CACHE_SIZE = {
 
 // Install event - precache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v2...');
+  console.log('[SW] Installing service worker v3...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
@@ -47,7 +49,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - cleanup old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v2...');
+  console.log('[SW] Activating service worker v3...');
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
