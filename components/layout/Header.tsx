@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
@@ -54,8 +53,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between gap-2 md:gap-4">
-          {/* Logo */}
+        <div className="flex h-16 items-center gap-4">
+          {/* Logo & Title - Left Aligned */}
           <Link 
             href="/" 
             className="group flex items-center gap-2 font-semibold text-lg tracking-tight shrink-0"
@@ -71,20 +70,20 @@ export function Header() {
                 priority
               />
             </div>
-            <span className="hidden sm:inline text-sm md:text-base font-semibold uppercase tracking-[0.2rem] md:tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">
+            <span className="text-sm md:text-base font-semibold uppercase tracking-[0.2rem] md:tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">
               AINEWS
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-sm font-medium">
+          {/* Desktop Navigation - Flex Grow */}
+          <nav className="hidden lg:flex items-center gap-2 xl:gap-4 text-sm font-medium flex-1">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSegment === item.key;
               return (
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative px-1 py-1 transition-colors duration-300 whitespace-nowrap ${
+                  className={`relative px-2 py-1 transition-colors duration-300 whitespace-nowrap ${
                     isActive
                       ? 'text-white'
                       : 'text-muted-foreground hover:text-white'
@@ -99,14 +98,13 @@ export function Header() {
             })}
           </nav>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
-            {/* Search - visible on all screens */}
+          {/* Right Side Actions - Flex Shrink */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Search */}
             <Search locale={locale} />
             
-            {/* Theme & Language - hidden on mobile, visible on tablet+ */}
-            <div className="hidden sm:flex items-center gap-2">
-              <ThemeToggle />
+            {/* Language Switcher - Desktop */}
+            <div className="hidden sm:flex">
               <LanguageSwitcher />
             </div>
             
@@ -180,11 +178,8 @@ export function Header() {
 
               {/* Mobile-only settings */}
               <div className="sm:hidden flex items-center justify-between px-4 py-3 mt-2 border-t border-white/10">
-                <span className="text-sm text-muted-foreground">{t('settings') || 'Settings'}</span>
-                <div className="flex items-center gap-2">
-                  <ThemeToggle />
-                  <LanguageSwitcher />
-                </div>
+                <span className="text-sm text-muted-foreground">{t('language') || 'Language'}</span>
+                <LanguageSwitcher />
               </div>
 
               {/* Auth buttons on mobile (when not logged in) */}

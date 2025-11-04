@@ -331,23 +331,57 @@ Your response must match this exact structure:
 
 async function translateArticle(
   article: RawArticle,
-  llm: ReturnType<typeof createLLMClient>,
-  targetLanguage: 'en' | 'es'
-) {
+  _llm: ReturnType<typeof createLLMClient>, // Not used anymore, kept for signature compatibility
+  targetLanguage: 'en' | 'es',
+  retries = 3
+): Promise<z.infer<typeof TranslationSchema> | null> {
+  const { translateArticle: googleTranslate, detectLanguage } = await import('../lib/ai/translator');
+  
   const content = cleanContent(article.content) || article.contentSnippet || '';
+  const title = article.title;
   
-  const result = await llm.classify(
-    `Translate the following AI news article to ${targetLanguage === 'es' ? 'Spanish' : 'English'}.
-Maintain technical accuracy, names and figures.
-    
-Original Title: ${article.title}
-Original Content: ${content}
-
-Provide the translated title, a concise summary (2-3 sentences), and the full translated content in ${targetLanguage}.`,
-    TranslationSchema
-  );
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Detect source language
+      const sourceLang = await detectLanguage(title + ' ' + content);
+      
+      // Skip if already in target language
+      if (sourceLang === targetLanguage) {
+        console.log(`[Translation] ⊘ Article already in ${targetLanguage}, using original`);
+        return {
+          title,
+          summary: content.slice(0, 300),
+          content
+        };
+      }
+      
+      // Translate using Google Translate (free, reliable, no rate limits)
+      const translated = await googleTranslate(
+        title,
+        content.slice(0, 300), // Summary from first 300 chars
+        content,
+        sourceLang,
+        targetLanguage
+      );
+      
+      console.log(`[Translation] ✓ Translated "${title.slice(0, 40)}..." from ${sourceLang} to ${targetLanguage}`);
+      return translated;
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[Translation] ✗ Attempt ${attempt}/${retries} failed:`, errorMessage.slice(0, 100));
+      
+      if (attempt < retries) {
+        // Shorter backoff for Google Translate (it's fast)
+        const delayMs = 500 * attempt;
+        console.log(`[Translation] Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
   
-  return result;
+  console.error(`[Translation] ✗ FAILED after ${retries} attempts for: "${title.slice(0, 40)}..."`);
+  return null;
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
@@ -580,25 +614,36 @@ async function main() {
     }>;
     
     console.log('[Translation] Generating bilingual content...');
+    console.log(`[Translation] ${classified.length} articles to translate`);
     
-    // Create rate limiter for concurrency control (max 3 concurrent translations)
-    const translationLimit = pLimit(3);
+    // Create rate limiter for concurrency control (max 2 concurrent translations to avoid rate limits)
+    const translationLimit = pLimit(2);
+    let translationSuccessCount = 0;
+    let translationFailCount = 0;
     
     await Promise.all(
-      classified.map((item) =>
+      classified.map((item, index) =>
         translationLimit(async () => {
           try {
             const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
+            console.log(`[Translation] Processing ${index + 1}/${classified.length}: "${item.article.title.slice(0, 40)}..." → ${targetLanguage}`);
             
-            // Use first available provider for translation
+            // Try providers in order until one succeeds
             let translationResult = null;
             for (const provider of providers) {
               try {
                 translationResult = await translateArticle(item.article, provider.client, targetLanguage);
-                console.log(`[Translation:${provider.name}] ✓ Translated to ${targetLanguage}`);
-                break;
-              } catch {
-                console.log(`[Translation:${provider.name}] ✗ Failed, trying next...`);
+                
+                if (translationResult) {
+                  console.log(`[Translation:${provider.name}] ✓ Success for "${item.article.title.slice(0, 40)}..."`);
+                  translationSuccessCount++;
+                  break;
+                } else {
+                  console.log(`[Translation:${provider.name}] ⚠ Returned null, trying next provider...`);
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.log(`[Translation:${provider.name}] ✗ Error: ${errorMessage.slice(0, 100)}, trying next provider...`);
                 continue;
               }
             }
@@ -606,13 +651,28 @@ async function main() {
             if (translationResult) {
               item.translation = translationResult;
               item.translationLanguage = targetLanguage;
+            } else {
+              translationFailCount++;
+              console.error(`[Translation] ✗ CRITICAL: All providers failed for "${item.article.title.slice(0, 40)}..."`);
+              console.error(`[Translation] ⚠ Article will be stored WITHOUT translation!`);
             }
-          } catch (_error) {
-            console.error('[Translation] ✗ All providers failed:', _error);
+          } catch (error) {
+            translationFailCount++;
+            console.error('[Translation] ✗ Unexpected error:', error);
           }
         })
       )
     );
+    
+    console.log('\n[Translation] Translation complete!');
+    console.log(`  ✓ Successful: ${translationSuccessCount}/${classified.length}`);
+    console.log(`  ✗ Failed: ${translationFailCount}/${classified.length}`);
+    
+    if (translationFailCount > 0) {
+      console.warn(`\n⚠️  WARNING: ${translationFailCount} article(s) failed translation!`);
+      console.warn('  These articles will have duplicate EN/ES content.');
+      console.warn('  Check LLM provider API keys and rate limits.');
+    }
     
     await storeArticles(classified, db);
 

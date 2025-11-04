@@ -7,12 +7,12 @@
 
 import { secureFetch } from '@/lib/utils/security';
 import {
-  scrapeWithBrowser,
   extractArticleWithBrowser,
   requiresBrowserAutomation,
   smartScrape,
 } from '@/lib/scraping/browser-automation';
-import { extractArticleContent } from '@/lib/scraping/article-extractor';
+// TODO: Create article-extractor module
+// import { extractArticleContent } from '@/lib/scraping/article-extractor';
 
 export interface ScrapedArticle {
   title: string;
@@ -78,15 +78,16 @@ export async function scrapeArticle(url: string): Promise<ScrapedArticle> {
     // Last resort: Try smart scrape (auto-detects need for browser)
     try {
       const scraped = await smartScrape(url, { timeout: 15000 });
-      const extracted = await extractArticleContent(scraped.html, url);
+      // TODO: Implement extractArticleContent
+      // const extracted = await extractArticleContent(scraped.html, url);
       
       return {
-        title: extracted.title,
-        content: extracted.content,
-        excerpt: extracted.excerpt,
-        author: extracted.author,
-        publishedDate: extracted.publishedDate,
-        imageUrl: extracted.imageUrl,
+        title: scraped.title || '',
+        content: scraped.content || '',
+        excerpt: scraped.excerpt || '',
+        author: scraped.author,
+        publishedDate: scraped.publishedDate,
+        imageUrl: scraped.imageUrl,
         sourceUrl: url,
         scrapingMethod: 'smart',
         loadTime: Date.now() - startTime,

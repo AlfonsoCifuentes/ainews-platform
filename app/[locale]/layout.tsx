@@ -96,7 +96,7 @@ export default async function LocaleLayout({
             data-website-id={umamiSiteId}
           />
         ) : null}
-        <ThemeProvider>
+        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
           <ToastProvider>
             <NextIntlClientProvider messages={messages} locale={locale}>
               <BadgeNotificationProvider locale={locale as 'en' | 'es'}>

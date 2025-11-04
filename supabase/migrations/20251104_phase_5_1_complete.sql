@@ -125,8 +125,17 @@ CREATE INDEX IF NOT EXISTS idx_ai_system_logs_action_success_time
 ON ai_system_logs(action_type, success, "timestamp" DESC);
 
 -- Fact Checks: article_id + checked_at
-CREATE INDEX IF NOT EXISTS idx_fact_checks_article_checked 
-ON fact_checks(article_id, checked_at DESC);
+DO $$ 
+BEGIN
+  -- Guard to avoid referencing a non-existent column in legacy schemas
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'fact_checks' AND column_name = 'checked_at'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_fact_checks_article_checked 
+    ON fact_checks(article_id, checked_at DESC);
+  END IF;
+END $$;
 
 -- User Profiles: total_xp for leaderboard
 DO $$ 
@@ -160,17 +169,40 @@ BEGIN
       SELECT 1 FROM information_schema.columns 
       WHERE table_name = 'comments' AND column_name = 'likes_count'
     ) THEN
-      CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
-      ON comments(article_id, likes_count DESC, created_at DESC);
-      
-      CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
-      ON comments(course_id, likes_count DESC, created_at DESC);
+      -- Article-based comments index (only if article_id exists)
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'article_id'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
+        ON comments(article_id, likes_count DESC, created_at DESC);
+      END IF;
+
+      -- Course-based comments index (only if course_id exists)
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'course_id'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
+        ON comments(course_id, likes_count DESC, created_at DESC);
+      END IF;
     ELSE
-      CREATE INDEX IF NOT EXISTS idx_comments_article_created 
-      ON comments(article_id, created_at DESC);
-      
-      CREATE INDEX IF NOT EXISTS idx_comments_course_created 
-      ON comments(course_id, created_at DESC);
+      -- Fallback: created_at-only composites, guarded by column existence
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'article_id'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS idx_comments_article_created 
+        ON comments(article_id, created_at DESC);
+      END IF;
+
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'course_id'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS idx_comments_course_created 
+        ON comments(course_id, created_at DESC);
+      END IF;
     END IF;
   END IF;
 END $$;
@@ -208,9 +240,15 @@ BEGIN
       SELECT 1 FROM information_schema.columns 
       WHERE table_name = 'comments' AND column_name = 'is_flagged'
     ) THEN
-      CREATE INDEX IF NOT EXISTS idx_comments_approved 
-      ON comments(article_id, created_at DESC) 
-      WHERE is_flagged = false;
+      -- Guard on article_id existence to avoid referencing missing column
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'article_id'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS idx_comments_approved 
+        ON comments(article_id, created_at DESC) 
+        WHERE is_flagged = false;
+      END IF;
     END IF;
   END IF;
 END $$;
@@ -295,14 +333,20 @@ END $$;
 DO $$ 
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_badges') THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_constraint 
-      WHERE conname = 'chk_progress_range' 
-      AND conrelid = 'user_badges'::regclass
+    -- Only add the constraint if the 'progress' column exists in this schema variant
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'user_badges' AND column_name = 'progress'
     ) THEN
-      ALTER TABLE user_badges 
-      ADD CONSTRAINT chk_progress_range 
-      CHECK (progress >= 0 AND progress <= 1);
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'chk_progress_range' 
+        AND conrelid = 'user_badges'::regclass
+      ) THEN
+        ALTER TABLE user_badges 
+        ADD CONSTRAINT chk_progress_range 
+        CHECK (progress >= 0 AND progress <= 1);
+      END IF;
     END IF;
   END IF;
 END $$;
@@ -346,25 +390,29 @@ END $$;
 -- View for monitoring index usage
 CREATE OR REPLACE VIEW v_index_usage AS
 SELECT
-    schemaname,
-    tablename,
-    indexname,
-    idx_scan as index_scans,
-    idx_tup_read as tuples_read,
-    idx_tup_fetch as tuples_fetched
+  schemaname,
+  relname AS tablename,
+  indexrelname AS indexname,
+  idx_scan AS index_scans,
+  idx_tup_read AS tuples_read,
+  idx_tup_fetch AS tuples_fetched
 FROM pg_stat_user_indexes
 ORDER BY idx_scan DESC;
 
--- View for table sizes
+-- View for table sizes (robust against naming/quoting; uses to_regclass)
 CREATE OR REPLACE VIEW v_table_sizes AS
 SELECT
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
-    pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS index_size
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+    t.tablename,
+    pg_size_pretty(pg_total_relation_size(to_regclass(format('%I.%I', t.schemaname, t.tablename)))) AS total_size,
+    pg_size_pretty(pg_relation_size(to_regclass(format('%I.%I', t.schemaname, t.tablename)))) AS table_size,
+    pg_size_pretty(
+      pg_total_relation_size(to_regclass(format('%I.%I', t.schemaname, t.tablename))) -
+      pg_relation_size(to_regclass(format('%I.%I', t.schemaname, t.tablename)))
+    ) AS index_size
+FROM pg_tables t
+WHERE t.schemaname = 'public'
+  AND to_regclass(format('%I.%I', t.schemaname, t.tablename)) IS NOT NULL
+ORDER BY pg_total_relation_size(to_regclass(format('%I.%I', t.schemaname, t.tablename))) DESC;
 
 -- ============================================================================
 -- PART 2: OPTIMIZED SQL FUNCTIONS (Category D)
@@ -848,6 +896,10 @@ CREATE INDEX IF NOT EXISTS idx_fact_checks_verified_only
 ON fact_checks(article_id, overall_score)
 WHERE overall_score >= 70;
 
+-- Ensure the composite index exists now that checked_at is guaranteed
+CREATE INDEX IF NOT EXISTS idx_fact_checks_article_checked 
+ON fact_checks(article_id, checked_at DESC);
+
 COMMENT ON TABLE fact_checks IS 
 'Stores fact-checking results for news articles';
 
@@ -900,18 +952,33 @@ RETURNS TABLE (
   embedding_en vector(1536),
   embedding_es vector(1536)
 )
-LANGUAGE sql STABLE
+LANGUAGE plpgsql STABLE
 AS $$
-  SELECT
-    id,
-    embedding_en,
-    embedding_es
-  FROM news_articles
-  WHERE 
-    embedding_en IS NOT NULL
-    AND embedding_es IS NOT NULL
-    AND normalized_embedding IS NULL
-  LIMIT batch_size;
+BEGIN
+  -- Only execute when both embedding_en and embedding_es columns exist
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'news_articles' AND column_name = 'embedding_en'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'news_articles' AND column_name = 'embedding_es'
+  ) THEN
+    RETURN QUERY
+    SELECT
+      id,
+      embedding_en,
+      embedding_es
+    FROM news_articles
+    WHERE 
+      embedding_en IS NOT NULL
+      AND embedding_es IS NOT NULL
+      AND normalized_embedding IS NULL
+    LIMIT batch_size;
+  ELSE
+    -- If columns are missing in this schema, return no rows
+    RETURN;
+  END IF;
+END;
 $$;
 
 COMMENT ON FUNCTION get_articles_needing_normalization IS 
@@ -959,20 +1026,64 @@ COMMENT ON INDEX idx_news_articles_normalized_embedding IS
 -- ============================================================================
 -- 3.7: Embedding Coverage View
 -- ============================================================================
+-- Implement via function to avoid referencing columns that may not exist
+CREATE OR REPLACE FUNCTION get_embedding_coverage()
+RETURNS TABLE (
+  total_articles bigint,
+  has_en_embedding bigint,
+  has_es_embedding bigint,
+  has_normalized bigint,
+  pct_en numeric,
+  pct_es numeric,
+  pct_normalized numeric
+) AS $$
+DECLARE
+  en_exists boolean;
+  es_exists boolean;
+  tot bigint;
+  en_count bigint := 0;
+  es_count bigint := 0;
+  norm_count bigint := 0;
+BEGIN
+  SELECT COUNT(*) INTO tot FROM news_articles;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'news_articles' AND column_name = 'embedding_en'
+  ) INTO en_exists;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'news_articles' AND column_name = 'embedding_es'
+  ) INTO es_exists;
+
+  IF en_exists THEN
+    EXECUTE 'SELECT COUNT(embedding_en) FROM news_articles' INTO en_count;
+  END IF;
+
+  IF es_exists THEN
+    EXECUTE 'SELECT COUNT(embedding_es) FROM news_articles' INTO es_count;
+  END IF;
+
+  SELECT COUNT(normalized_embedding) INTO norm_count FROM news_articles;
+
+  RETURN QUERY
+  SELECT 
+    tot,
+    en_count,
+    es_count,
+    norm_count,
+    ROUND(100.0 * en_count / NULLIF(tot, 0), 2)::numeric,
+    ROUND(100.0 * es_count / NULLIF(tot, 0), 2)::numeric,
+    ROUND(100.0 * norm_count / NULLIF(tot, 0), 2)::numeric;
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE VIEW v_embedding_coverage AS
-SELECT
-  COUNT(*) as total_articles,
-  COUNT(embedding_en) as has_en_embedding,
-  COUNT(embedding_es) as has_es_embedding,
-  COUNT(normalized_embedding) as has_normalized,
-  ROUND(100.0 * COUNT(embedding_en) / NULLIF(COUNT(*), 0), 2) as pct_en,
-  ROUND(100.0 * COUNT(embedding_es) / NULLIF(COUNT(*), 0), 2) as pct_es,
-  ROUND(100.0 * COUNT(normalized_embedding) / NULLIF(COUNT(*), 0), 2) as pct_normalized
-FROM news_articles;
+SELECT * FROM get_embedding_coverage();
 
 COMMENT ON VIEW v_embedding_coverage IS 
-'Monitor embedding coverage across languages';
+'Monitor embedding coverage across languages (robust to missing embedding_en/embedding_es columns)';
 
 -- ============================================================================
 -- 3.8: Fact Check Metrics View

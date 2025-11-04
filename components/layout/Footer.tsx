@@ -43,7 +43,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <p>{t('footer.copyright')}</p>
+          <p>© {new Date().getFullYear()} Alfonso Cifuentes Alonso. Todos los derechos reservados.</p>
           <div className="flex items-center gap-4">
             <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">
               GitHub

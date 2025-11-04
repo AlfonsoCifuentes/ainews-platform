@@ -266,8 +266,9 @@ function openDB(): Promise<IDBDatabase> {
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     
-    request.onupgradeneeded = (event: any) => {
-      const db = event.target.result;
+    request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+      const target = event.target as IDBOpenDBRequest;
+      const db = target.result;
       
       const stores = [
         'pending-progress',
@@ -285,7 +286,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function getAll(db: IDBDatabase, storeName: string): Promise<any[]> {
+function getAll(db: IDBDatabase, storeName: string): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);

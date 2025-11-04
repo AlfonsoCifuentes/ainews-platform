@@ -148,7 +148,7 @@ export async function searchCrossLingual(
   }
 
   // Map results with preferred locale
-  return (data || []).map((item: any) => ({
+  return (data || []).map((item: { id: string; content_en: string; content_es: string; similarity: number }) => ({
     id: item.id,
     content_en: item.content_en,
     content_es: item.content_es,
