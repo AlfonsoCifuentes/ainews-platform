@@ -282,10 +282,8 @@ export function preloadImage(
       href={href}
       as={as}
       type={type}
-      // @ts-expect-error - imageSrcSet is valid but not in types
-      imageSrcSet={imageSrcSet}
-      // @ts-expect-error - imageSizes is valid but not in types
-      imageSizes={imageSizes}
+      {...(imageSrcSet && { imageSrcSet })}
+      {...(imageSizes && { imageSizes })}
     />
   );
 }
@@ -327,6 +325,7 @@ export function useImagePerformance(elementRef: React.RefObject<HTMLElement>) {
       return () => observer.disconnect();
     } catch (error) {
       console.error('[useImagePerformance] Error:', error);
+      return;
     }
   }, [elementRef]);
 }

@@ -12,6 +12,37 @@ These documents contain the definitive truth about the project. When in doubt, c
 
 ---
 
+## ⚠️ CRITICAL DEPLOYMENT RULES
+
+**BEFORE ANY GIT COMMIT & PUSH:**
+
+1. **ALWAYS run `npm run build` locally FIRST**
+2. **Build MUST complete successfully (exit code 0)**
+3. **Fix ALL TypeScript errors before committing**
+4. **Case-sensitive imports**: Use PascalCase for UI components (`@/components/ui/Card`, not `card`)
+5. **Warnings are OK, but NO compilation errors allowed**
+
+**Deployment Checklist:**
+```bash
+# Step 1: Test build locally
+npm run build
+
+# Step 2: If build succeeds, commit
+git add -A
+git commit -m "your message"
+
+# Step 3: Push
+git push origin master
+```
+
+**Common Build Errors to Avoid:**
+- ❌ Case mismatch in imports (e.g., `card.tsx` vs `Card.tsx`)
+- ❌ Missing return statements in useEffect
+- ❌ Unused `@ts-expect-error` directives
+- ❌ Missing component exports
+
+---
+
 ## 🧠 OPERATIONAL ROLES & CONTEXT
 
 **For every prompt, decision, and implementation, I assume the following combined expertise:**
