@@ -94,16 +94,24 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
         onClick={onClose}
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
       >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="glass relative w-full max-w-md rounded-3xl shadow-[0_30px_90px_-15px_rgba(104,58,255,0.5)] overflow-hidden border-white/10"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="min-h-full w-full flex items-center justify-center py-8">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="glass relative w-full max-w-md rounded-3xl shadow-[0_30px_90px_-15px_rgba(104,58,255,0.5)] overflow-hidden border-white/10 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Close button */}
           <button
             onClick={onClose}
@@ -240,6 +248,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
             </div>
           </div>
         </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
