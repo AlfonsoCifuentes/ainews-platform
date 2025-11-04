@@ -105,7 +105,7 @@ export function Header() {
               <LanguageSwitcher />
             </div>
             
-            {/* User Menu */}
+            {/* User Menu - Always Show Avatar */}
             {profile ? (
               <div className="flex items-center gap-2">
                 <NotificationBell />
@@ -143,18 +143,55 @@ export function Header() {
                   </div>
                 </div>
                 
-                <Link
-                  href="/auth"
-                  className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors whitespace-nowrap"
-                >
-                  {t('login')}
-                </Link>
-                <Link
-                  href="/auth?tab=signup"
-                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:scale-105 whitespace-nowrap"
-                >
-                  {t('signup')}
-                </Link>
+                {/* Guest Avatar Menu */}
+                <div className="relative group">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2 backdrop-blur-xl transition-all hover:border-primary/30 hover:bg-black/30"
+                  >
+                    {/* Guest Avatar */}
+                    <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-br from-primary/20 to-purple-600/20">
+                      <div className="flex h-full w-full items-center justify-center text-xl font-bold text-primary">
+                        👤
+                      </div>
+                    </div>
+                    {/* Dropdown Icon */}
+                    <svg
+                      className="h-4 w-4 text-muted-foreground transition-transform group-hover:rotate-180"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </motion.button>
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                    <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
+                      <Link
+                        href="/auth"
+                        className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10"
+                      >
+                        <span className="text-xl">🔑</span>
+                        <span className="font-medium text-sm">{t('login')}</span>
+                      </Link>
+                      <Link
+                        href="/auth?tab=signup"
+                        className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10"
+                      >
+                        <span className="text-xl">✨</span>
+                        <span className="font-medium text-sm">{t('signup')}</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -248,22 +285,27 @@ export function Header() {
                 <LanguageSwitcher />
               </div>
 
-              {/* Auth buttons on mobile (when not logged in) */}
+              {/* Auth section on mobile (when not logged in) */}
               {!profile && (
-                <div className="md:hidden flex flex-col gap-2 mt-2 pt-2 border-t border-white/10">
+                <div className="md:hidden mt-2 pt-2 border-t border-white/10">
+                  <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {locale === 'en' ? 'Account' : 'Cuenta'}
+                  </div>
                   <Link
                     href="/auth"
                     onClick={closeMobileMenu}
-                    className="w-full inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground hover:text-white transition-colors border border-white/10"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                   >
-                    {t('login')}
+                    <span className="text-xl">🔑</span>
+                    <span>{t('login')}</span>
                   </Link>
                   <Link
                     href="/auth?tab=signup"
                     onClick={closeMobileMenu}
-                    className="w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary/80 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-primary/25"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                   >
-                    {t('signup')}
+                    <span className="text-xl">✨</span>
+                    <span>{t('signup')}</span>
                   </Link>
                 </div>
               )}
