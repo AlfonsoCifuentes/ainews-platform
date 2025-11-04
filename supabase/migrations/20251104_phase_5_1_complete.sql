@@ -53,33 +53,68 @@ CREATE INDEX IF NOT EXISTS idx_reading_history_user_last_read
 ON reading_history(user_id, last_read_at DESC);
 
 -- Comments: created_at DESC for timeline queries
-CREATE INDEX IF NOT EXISTS idx_comments_created_desc 
-ON comments(created_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
+    CREATE INDEX IF NOT EXISTS idx_comments_created_desc 
+    ON comments(created_at DESC);
+  END IF;
+END $$;
 
 -- User Activity: user_id + created_at composite
-CREATE INDEX IF NOT EXISTS idx_user_activities_user_created 
-ON user_activities(user_id, created_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_activities') THEN
+    CREATE INDEX IF NOT EXISTS idx_user_activities_user_created 
+    ON user_activities(user_id, created_at DESC);
+  END IF;
+END $$;
 
 -- Notifications: user_id + created_at + read status
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created 
-ON notifications(user_id, created_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_created 
+    ON notifications(user_id, created_at DESC);
+  END IF;
+END $$;
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_unread 
-ON notifications(user_id, created_at DESC) 
-WHERE is_read = false;
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_unread 
+    ON notifications(user_id, created_at DESC) 
+    WHERE is_read = false;
+  END IF;
+END $$;
 
 -- Badges: user_id + earned_at
-CREATE INDEX IF NOT EXISTS idx_user_badges_user_earned 
-ON user_badges(user_id, earned_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_badges') THEN
+    CREATE INDEX IF NOT EXISTS idx_user_badges_user_earned 
+    ON user_badges(user_id, earned_at DESC);
+  END IF;
+END $$;
 
 -- Highlights: user_id + created_at
-CREATE INDEX IF NOT EXISTS idx_user_highlights_user_created 
-ON user_highlights(user_id, created_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_highlights') THEN
+    CREATE INDEX IF NOT EXISTS idx_user_highlights_user_created 
+    ON user_highlights(user_id, created_at DESC);
+  END IF;
+END $$;
 
 -- Flashcards: user_id + due_at (critical for SRS)
-CREATE INDEX IF NOT EXISTS idx_flashcards_user_due 
-ON flashcards(user_id, due_at) 
-WHERE due_at IS NOT NULL;
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'flashcards') THEN
+    CREATE INDEX IF NOT EXISTS idx_flashcards_user_due 
+    ON flashcards(user_id, due_at) 
+    WHERE due_at IS NOT NULL;
+  END IF;
+END $$;
 
 -- AI System Logs: created_at for recent logs
 CREATE INDEX IF NOT EXISTS idx_ai_system_logs_created_desc 
@@ -93,8 +128,13 @@ CREATE INDEX IF NOT EXISTS idx_fact_checks_article_checked
 ON fact_checks(article_id, checked_at DESC);
 
 -- User Profiles: total_xp for leaderboard
-CREATE INDEX IF NOT EXISTS idx_user_profiles_total_xp_desc 
-ON user_profiles(total_xp DESC NULLS LAST);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_profiles') THEN
+    CREATE INDEX IF NOT EXISTS idx_user_profiles_total_xp_desc 
+    ON user_profiles(total_xp DESC NULLS LAST);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 1.2: COMPOSITE INDEXES FOR COMPLEX QUERIES
@@ -111,20 +151,30 @@ ON user_progress(user_id, course_id, completed)
 WHERE completed = true;
 
 -- Comments with likes: for popular comments sorting
-CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
-ON comments(article_id, like_count DESC, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
-ON comments(course_id, like_count DESC, created_at DESC);
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
+    CREATE INDEX IF NOT EXISTS idx_comments_article_likes 
+    ON comments(article_id, like_count DESC, created_at DESC);
+    
+    CREATE INDEX IF NOT EXISTS idx_comments_course_likes 
+    ON comments(course_id, like_count DESC, created_at DESC);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 1.3: PARTIAL INDEXES FOR SPECIFIC QUERIES
 -- ============================================================================
 
 -- Only index unread notifications (reduces index size)
-CREATE INDEX IF NOT EXISTS idx_notifications_unread_only 
-ON notifications(user_id, created_at DESC, type) 
-WHERE is_read = false;
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
+    CREATE INDEX IF NOT EXISTS idx_notifications_unread_only 
+    ON notifications(user_id, created_at DESC, type) 
+    WHERE is_read = false;
+  END IF;
+END $$;
 
 -- Only index incomplete courses for "Continue Learning"
 CREATE INDEX IF NOT EXISTS idx_user_progress_incomplete 
@@ -137,9 +187,14 @@ ON courses(created_at DESC, category, rating_avg DESC)
 WHERE published_at IS NOT NULL;
 
 -- Only index approved comments
-CREATE INDEX IF NOT EXISTS idx_comments_approved 
-ON comments(article_id, created_at DESC) 
-WHERE is_flagged = false;
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
+    CREATE INDEX IF NOT EXISTS idx_comments_approved 
+    ON comments(article_id, created_at DESC) 
+    WHERE is_flagged = false;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 1.4: CONSTRAINTS & DATA INTEGRITY
@@ -217,45 +272,51 @@ BEGIN
   END IF;
 END $$;
 
--- Constraint 6: progress range
+-- Constraint 6: progress range (only if user_badges exists)
 DO $$ 
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'chk_progress_range' 
-    AND conrelid = 'user_badges'::regclass
-  ) THEN
-    ALTER TABLE user_badges 
-    ADD CONSTRAINT chk_progress_range 
-    CHECK (progress >= 0 AND progress <= 1);
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_badges') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conname = 'chk_progress_range' 
+      AND conrelid = 'user_badges'::regclass
+    ) THEN
+      ALTER TABLE user_badges 
+      ADD CONSTRAINT chk_progress_range 
+      CHECK (progress >= 0 AND progress <= 1);
+    END IF;
   END IF;
 END $$;
 
--- Constraint 7: total_xp positive
+-- Constraint 7: total_xp positive (only if user_profiles exists)
 DO $$ 
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'chk_total_xp_positive' 
-    AND conrelid = 'user_profiles'::regclass
-  ) THEN
-    ALTER TABLE user_profiles 
-    ADD CONSTRAINT chk_total_xp_positive 
-    CHECK (total_xp >= 0);
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conname = 'chk_total_xp_positive' 
+      AND conrelid = 'user_profiles'::regclass
+    ) THEN
+      ALTER TABLE user_profiles 
+      ADD CONSTRAINT chk_total_xp_positive 
+      CHECK (total_xp >= 0);
+    END IF;
   END IF;
 END $$;
 
--- Constraint 8: level positive
+-- Constraint 8: level positive (only if user_profiles exists)
 DO $$ 
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'chk_level_positive' 
-    AND conrelid = 'user_profiles'::regclass
-  ) THEN
-    ALTER TABLE user_profiles 
-    ADD CONSTRAINT chk_level_positive 
-    CHECK (level >= 1);
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conname = 'chk_level_positive' 
+      AND conrelid = 'user_profiles'::regclass
+    ) THEN
+      ALTER TABLE user_profiles 
+      ADD CONSTRAINT chk_level_positive 
+      CHECK (level >= 1);
+    END IF;
   END IF;
 END $$;
 
@@ -1106,16 +1167,56 @@ GRANT SELECT ON v_fact_check_metrics TO authenticated;
 -- PART 6: ANALYZE TABLES FOR QUERY PLANNER
 -- ============================================================================
 
+-- ANALYZE tables (with guards for optional tables)
 ANALYZE news_articles;
 ANALYZE courses;
 ANALYZE user_progress;
-ANALYZE comments;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'comments') THEN
+    ANALYZE comments;
+  END IF;
+END $$;
+
 ANALYZE user_bookmarks;
 ANALYZE reading_history;
-ANALYZE notifications;
-ANALYZE user_activities;
-ANALYZE flashcards;
-ANALYZE user_profiles;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'notifications') THEN
+    ANALYZE notifications;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_activities') THEN
+    ANALYZE user_activities;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'flashcards') THEN
+    ANALYZE flashcards;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_profiles') THEN
+    ANALYZE user_profiles;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'user_badges') THEN
+    ANALYZE user_badges;
+  END IF;
+END $$;
+
 ANALYZE ai_system_logs;
 ANALYZE fact_checks;
 ANALYZE analytics_events;
