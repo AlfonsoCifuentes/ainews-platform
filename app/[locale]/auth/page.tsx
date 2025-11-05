@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { useUser } from '@/lib/hooks/useUser';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { locale } = useUser();
+  const params = useParams();
+  const locale = (params?.locale as 'en' | 'es') || 'en';
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
