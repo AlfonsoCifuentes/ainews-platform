@@ -123,19 +123,19 @@ export function Header() {
                   </button>
                   <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
                     <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
-                      <Link href={`/${locale}/bookmarks`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                      <Link href="/bookmarks" className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
                         <span className="text-xl">🔖</span>
                         <span className="font-medium text-sm">{locale === 'en' ? 'Saved' : 'Guardados'}</span>
                       </Link>
-                      <Link href={`/${locale}/trending`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                      <Link href="/trending" className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
                         <span className="text-xl">🔥</span>
                         <span className="font-medium text-sm">{locale === 'en' ? 'Trending' : 'Tendencias'}</span>
                       </Link>
-                      <Link href={`/${locale}/kg`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                      <Link href="/kg" className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
                         <span className="text-xl">🕸️</span>
                         <span className="font-medium text-sm">{locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento'}</span>
                       </Link>
-                      <Link href={`/${locale}/leaderboard`} className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
+                      <Link href="/leaderboard" className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10">
                         <span className="text-xl">🏆</span>
                         <span className="font-medium text-sm">{locale === 'en' ? 'Leaderboard' : 'Clasificación'}</span>
                       </Link>
@@ -176,14 +176,14 @@ export function Header() {
                   <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
                     <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
                       <Link
-                        href={`/${locale}/auth?mode=signin`}
+                        href={{ pathname: '/auth', query: { mode: 'signin' } }}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">🔑</span>
                         <span className="font-medium text-sm">{t('login')}</span>
                       </Link>
                       <Link
-                        href={`/${locale}/auth?mode=signup`}
+                        href={{ pathname: '/auth', query: { mode: 'signup' } }}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">✨</span>
@@ -246,7 +246,7 @@ export function Header() {
                   {locale === 'en' ? 'More' : 'Más'}
                 </div>
                 <Link
-                  href={`/${locale}/bookmarks`}
+                  href="/bookmarks"
                   onClick={closeMobileMenu}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                 >
@@ -254,7 +254,7 @@ export function Header() {
                   <span>{locale === 'en' ? 'Saved' : 'Guardados'}</span>
                 </Link>
                 <Link
-                  href={`/${locale}/trending`}
+                  href="/trending"
                   onClick={closeMobileMenu}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                 >
@@ -262,7 +262,7 @@ export function Header() {
                   <span>{locale === 'en' ? 'Trending' : 'Tendencias'}</span>
                 </Link>
                 <Link
-                  href={`/${locale}/kg`}
+                  href="/kg"
                   onClick={closeMobileMenu}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                 >
@@ -270,7 +270,7 @@ export function Header() {
                   <span>{locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento'}</span>
                 </Link>
                 <Link
-                  href={`/${locale}/leaderboard`}
+                  href="/leaderboard"
                   onClick={closeMobileMenu}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white"
                 >
@@ -292,7 +292,7 @@ export function Header() {
                     {locale === 'en' ? 'Account' : 'Cuenta'}
                   </div>
                   <Link
-                    href={`/${locale}/auth?mode=signin`}
+                    href={{ pathname: '/auth', query: { mode: 'signin' } }}
                     onClick={closeMobileMenu}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
@@ -300,7 +300,7 @@ export function Header() {
                     <span>{t('login')}</span>
                   </Link>
                   <Link
-                    href={`/${locale}/auth?mode=signup`}
+                    href={{ pathname: '/auth', query: { mode: 'signup' } }}
                     onClick={closeMobileMenu}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
