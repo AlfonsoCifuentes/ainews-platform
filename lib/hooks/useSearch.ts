@@ -57,6 +57,12 @@ export function useSearch(): UseSearchResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const clear = useCallback(() => {
+    setResults({ articles: [], courses: [] });
+    setCounts({ articles: 0, courses: 0, total: 0 });
+    setError(null);
+  }, []);
+
   const search = useCallback(
     async (query: string, options?: { locale?: 'en' | 'es'; category?: string }) => {
       if (!query.trim()) {
@@ -85,14 +91,8 @@ export function useSearch(): UseSearchResult {
         setLoading(false);
       }
     },
-    []
+    [clear]
   );
-
-  const clear = useCallback(() => {
-    setResults({ articles: [], courses: [] });
-    setCounts({ articles: 0, courses: 0, total: 0 });
-    setError(null);
-  }, []);
 
   return {
     results,

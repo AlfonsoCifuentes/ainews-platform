@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Loader2 } from 'lucide-react';
 import { CommentForm } from './CommentForm';
@@ -37,11 +38,7 @@ export function CommentsSection({ articleId, courseId, locale }: CommentsSection
     },
   }[locale];
 
-  useEffect(() => {
-    fetchComments();
-  }, [articleId, courseId]);
-
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -64,7 +61,11 @@ export function CommentsSection({ articleId, courseId, locale }: CommentsSection
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [articleId, courseId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
 
   const handleReact = async (commentId: string) => {
     try {

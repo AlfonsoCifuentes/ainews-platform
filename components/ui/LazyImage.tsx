@@ -120,6 +120,7 @@ export function LazyImage({
     >
       {/* Blur placeholder */}
       {blurDataURL && !isLoaded && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={blurDataURL}
           alt=""
@@ -129,6 +130,7 @@ export function LazyImage({
       )}
 
       {/* Main image */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
         src={isInView ? src : undefined}
