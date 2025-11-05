@@ -8,7 +8,6 @@ import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
-import { AuthModal } from '@/components/auth/AuthModal';
 import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,8 +24,6 @@ export function Header() {
   const pathname = usePathname();
   const { profile, locale } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
 
   const activeSegment = useMemo(() => {
     if (!pathname) {
@@ -178,26 +175,20 @@ export function Header() {
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
                     <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
-                      <button
-                        onClick={() => {
-                          setAuthModalMode('signin');
-                          setAuthModalOpen(true);
-                        }}
+                      <Link
+                        href={`/${locale}/auth?mode=signin`}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">🔑</span>
                         <span className="font-medium text-sm">{t('login')}</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setAuthModalMode('signup');
-                          setAuthModalOpen(true);
-                        }}
+                      </Link>
+                      <Link
+                        href={`/${locale}/auth?mode=signup`}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">✨</span>
                         <span className="font-medium text-sm">{t('signup')}</span>
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -300,42 +291,28 @@ export function Header() {
                   <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {locale === 'en' ? 'Account' : 'Cuenta'}
                   </div>
-                  <button
-                    onClick={() => {
-                      setAuthModalMode('signin');
-                      setAuthModalOpen(true);
-                      closeMobileMenu();
-                    }}
+                  <Link
+                    href={`/${locale}/auth?mode=signin`}
+                    onClick={closeMobileMenu}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
                     <span className="text-xl">🔑</span>
                     <span>{t('login')}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAuthModalMode('signup');
-                      setAuthModalOpen(true);
-                      closeMobileMenu();
-                    }}
+                  </Link>
+                  <Link
+                    href={`/${locale}/auth?mode=signup`}
+                    onClick={closeMobileMenu}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
                     <span className="text-xl">✨</span>
                     <span>{t('signup')}</span>
-                  </button>
+                  </Link>
                 </div>
               )}
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authModalMode}
-        locale={locale}
-      />
     </header>
   );
 }
