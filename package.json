@@ -25,6 +25,7 @@
     "ai:check-duplicates": "tsx scripts/check-duplicate-images.ts",
     "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
     "ai:test-strategies": "tsx scripts/test-image-strategies.ts",
+    "ai:diagnose-courses": "tsx scripts/diagnose-courses.ts",
     "db:migrate": "supabase db push",
     "db:seed": "tsx scripts/seed-data.ts",
     "analyze": "cross-env ANALYZE=true next build",

@@ -1,26 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, BookOpen, Clock, TrendingUp, Star } from 'lucide-react';
+import { Search, Filter, BookOpen, Clock, TrendingUp, Star, AlertCircle, RefreshCw } from 'lucide-react';
 import { CourseCard } from './CourseCard';
 import { COURSE_CATEGORIES } from '@/lib/ai/course-categorizer';
-
-interface Course {
-  id: string;
-  title_en: string;
-  title_es: string;
-  description_en: string;
-  description_es: string;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  duration_minutes: number;
-  topics: string[];
-  enrollment_count: number;
-  rating_avg: number;
-  view_count: number;
-  created_at: string;
-}
+import { useCourses } from '@/lib/hooks/useCourses';
 
 interface CourseLibraryProps {
   locale: string;
@@ -41,46 +26,22 @@ const SORT_OPTIONS = [
 ];
 
 export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.search?.toString() || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.category?.toString() || 'all');
   const [selectedDifficulty, setSelectedDifficulty] = useState(searchParams.difficulty?.toString() || 'all');
   const [selectedSort, setSelectedSort] = useState(searchParams.sort?.toString() || 'newest');
-  const [totalCount, setTotalCount] = useState(0);
 
-  const fetchCourses = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        locale,
-        limit: '20',
-        offset: '0'
-      });
+  const { courses, loading, error, pagination, refresh } = useCourses({
+    locale,
+    category: selectedCategory,
+    difficulty: selectedDifficulty,
+    sort: selectedSort,
+    search,
+    limit: 20,
+    offset: 0
+  });
 
-      if (selectedCategory !== 'all') params.append('category', selectedCategory);
-      if (selectedDifficulty !== 'all') params.append('difficulty', selectedDifficulty);
-      if (selectedSort) params.append('sort', selectedSort);
-      if (search) params.append('search', search);
-
-      const response = await fetch(`/api/courses?${params}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setCourses(data.data);
-        setTotalCount(data.pagination.total);
-      }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCourses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, selectedDifficulty, selectedSort, search]);
+  const totalCount = pagination.total;
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -107,6 +68,15 @@ export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
             <BookOpen className="w-4 h-4" />
             {totalCount} {locale === 'es' ? 'cursos' : 'courses'}
           </span>
+          {error && (
+            <button
+              onClick={refresh}
+              className="flex items-center gap-2 px-3 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              {locale === 'es' ? 'Reintentar' : 'Retry'}
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -183,7 +153,22 @@ export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
       </div>
 
       {/* Course Grid */}
-      {loading ? (
+      {error ? (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+          <h3 className="text-xl font-semibold mb-2 text-red-400">
+            {locale === 'es' ? 'Error al cargar cursos' : 'Error loading courses'}
+          </h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <button
+            onClick={refresh}
+            className="px-6 py-3 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {locale === 'es' ? 'Reintentar' : 'Retry'}
+          </button>
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-64 rounded-2xl bg-white/5 animate-pulse" />

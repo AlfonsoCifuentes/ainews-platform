@@ -84,6 +84,44 @@ const localeLabels: Record<'en' | 'es', string> = {
   es: 'Spanish'
 };
 
+async function classifyWithRetry<T>(
+  llm: ReturnType<typeof createLLMClientWithFallback>,
+  basePrompt: string,
+  schema: z.ZodSchema<T>,
+  systemPrompt: string,
+  maxAttempts = 3,
+): Promise<T> {
+  let attempt = 0;
+  let lastError: unknown;
+
+  while (attempt < maxAttempts) {
+    const prompt =
+      attempt === 0
+        ? basePrompt
+        : `${basePrompt}
+
+REMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt + 1} of ${maxAttempts}.`;
+
+    try {
+      return await llm.classify(prompt, schema, systemPrompt);
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[Course Generator] classify attempt ${attempt + 1} failed:`,
+        error instanceof Error ? error.message : error,
+      );
+
+      attempt += 1;
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unknown LLM classification error');
+}
+
 // Helper to send progress updates (for future SSE implementation)
 // type _ProgressCallback = (step: string, progress: number, message: string) => void;
 
@@ -180,7 +218,12 @@ Rules:
 - Topics should be specific, contemporary concepts.`;
 
     console.log('[Course Generator] Creating outline...');
-    const outline = await llm.classify(outlinePrompt, CourseOutlineSchema, JSON_SYSTEM_PROMPT);
+    const outline = await classifyWithRetry(
+      llm,
+      outlinePrompt,
+      CourseOutlineSchema,
+      JSON_SYSTEM_PROMPT,
+    );
 
     const generatedModules: Array<{
       outline: CourseOutline['modules'][number];
@@ -219,7 +262,12 @@ Requirements:
 - Quiz must live inside the markdown with clear answers.
 - Resources should be reputable, recent, and match the module topics.`;
 
-      const moduleContent = await llm.classify(modulePrompt, ModuleContentSchema, JSON_SYSTEM_PROMPT);
+      const moduleContent = await classifyWithRetry(
+        llm,
+        modulePrompt,
+        ModuleContentSchema,
+        JSON_SYSTEM_PROMPT,
+      );
       generatedModules.push({
         outline: moduleOutline,
         content: {
@@ -235,7 +283,7 @@ Requirements:
     let translatedCourse: CourseTranslation | null = null;
 
     try {
-      translatedCourse = await translateCourse(llm, params.locale, secondaryLocale, primaryCourse);
+  translatedCourse = await translateCourse(llm, params.locale, secondaryLocale, primaryCourse);
     } catch (translationError) {
       console.warn('[Course Generator] Translation failed; falling back to primary language.', translationError);
     }
@@ -271,7 +319,11 @@ Requirements:
         ai_generated: true,
         generation_prompt: buildGenerationMetadata(params, outline, context),
         status: 'published', // Automatically publish generated courses
-        published_at: new Date().toISOString()
+        published_at: new Date().toISOString(),
+        view_count: 0,
+        enrollment_count: 0,
+        rating_avg: 0.0,
+        completion_rate: 0.0
       })
       .select('id')
       .single();
@@ -450,8 +502,7 @@ Return JSON matching:
 
 Source JSON:
 ${JSON.stringify(course)}`;
-
-  return llm.classify(prompt, CourseTranslationSchema, JSON_SYSTEM_PROMPT);
+  return classifyWithRetry(llm, prompt, CourseTranslationSchema, JSON_SYSTEM_PROMPT);
 }
 
 function resolveCourseLocales(
