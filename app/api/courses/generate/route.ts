@@ -94,6 +94,8 @@ async function classifyWithRetry<T>(
   let attempt = 0;
   let lastError: unknown;
 
+  console.log(`[LLM Retry] Starting classification with max ${maxAttempts} attempts...`);
+
   while (attempt < maxAttempts) {
     const prompt =
       attempt === 0
@@ -103,18 +105,25 @@ async function classifyWithRetry<T>(
 REMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt + 1} of ${maxAttempts}.`;
 
     try {
-      return await llm.classify(prompt, schema, systemPrompt);
+      console.log(`[LLM Retry] Attempt ${attempt + 1}/${maxAttempts} - Sending request to LLM...`);
+      const result = await llm.classify(prompt, schema, systemPrompt);
+      console.log(`[LLM Retry] ✅ Attempt ${attempt + 1} succeeded!`);
+      return result;
     } catch (error) {
       lastError = error;
-      console.warn(
-        `[Course Generator] classify attempt ${attempt + 1} failed:`,
+      console.error(
+        `[LLM Retry] ❌ Attempt ${attempt + 1}/${maxAttempts} failed:`,
         error instanceof Error ? error.message : error,
       );
 
       attempt += 1;
 
       if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        const waitTime = 500 * attempt;
+        console.log(`[LLM Retry] ⏳ Waiting ${waitTime}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      } else {
+        console.error(`[LLM Retry] ❌ All ${maxAttempts} attempts failed!`);
       }
     }
   }
@@ -127,27 +136,44 @@ REMEMBER: Return valid JSON that matches the provided schema exactly. Do not inc
 
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
+  const logPrefix = `[Course Generator ${new Date().toISOString()}]`;
+
+  console.log('='.repeat(80));
+  console.log(`${logPrefix} 🚀 NEW COURSE GENERATION REQUEST STARTED`);
+  console.log('='.repeat(80));
 
   try {
+    console.log(`${logPrefix} ⏳ Step 1/8: Parsing request body...`);
     const body = await req.json();
-    console.log('[Course Generator] Request body:', JSON.stringify(body, null, 2));
+    console.log(`${logPrefix} ✅ Request body parsed:`, JSON.stringify(body, null, 2));
     
+    console.log(`${logPrefix} ⏳ Step 2/8: Validating parameters...`);
     const params = GenerateRequestSchema.parse(body);
-    console.log('[Course Generator] Validated params:', JSON.stringify(params, null, 2));
+    console.log(`${logPrefix} ✅ Parameters validated:`, JSON.stringify(params, null, 2));
 
+    console.log(`${logPrefix} ⏳ Step 3/8: Initializing Supabase client...`);
     const db = getSupabaseServerClient();
+    console.log(`${logPrefix} ✅ Supabase client initialized`);
     
     // Check if any LLM provider is configured
+    console.log(`${logPrefix} ⏳ Step 4/8: Checking LLM providers...`);
     const availableProviders = getAvailableProviders();
-    console.log('[Course Generator] Available providers:', availableProviders);
-    console.log('[Course Generator] Environment check:', {
+    console.log(`${logPrefix} 📊 Available providers:`, availableProviders);
+    console.log(`${logPrefix} 🔑 API Keys status:`, {
       hasGemini: !!process.env.GEMINI_API_KEY,
       hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
-      hasGroq: !!process.env.GROQ_API_KEY
+      hasGroq: !!process.env.GROQ_API_KEY,
+      geminiKeyLength: process.env.GEMINI_API_KEY?.length || 0,
+      openRouterKeyLength: process.env.OPENROUTER_API_KEY?.length || 0,
+      groqKeyLength: process.env.GROQ_API_KEY?.length || 0
     });
     
     if (availableProviders.length === 0) {
-      console.error('[Course Generator] No LLM API keys configured');
+      console.error(`${logPrefix} ❌ CRITICAL: No LLM API keys configured!`);
+      console.error(`${logPrefix} 💡 Add at least one API key to .env.local:`);
+      console.error(`${logPrefix}    - GEMINI_API_KEY=your_key_here`);
+      console.error(`${logPrefix}    - OPENROUTER_API_KEY=your_key_here`);
+      console.error(`${logPrefix}    - GROQ_API_KEY=your_key_here`);
       return NextResponse.json(
         {
           success: false,
@@ -160,12 +186,15 @@ export async function POST(req: NextRequest) {
     }
     
     // Use automatic fallback system (Gemini → OpenRouter → Groq)
+    console.log(`${logPrefix} ⏳ Step 5/8: Creating LLM client with fallback...`);
     let llm;
     try {
       llm = createLLMClientWithFallback();
-      console.log(`[Course Generator] LLM client created successfully with providers: ${availableProviders.join(', ')}`);
+      console.log(`${logPrefix} ✅ LLM client created successfully`);
+      console.log(`${logPrefix} 🤖 Active providers: ${availableProviders.join(' → ')}`);
     } catch (llmError) {
-      console.error('[Course Generator] All LLM providers failed:', llmError);
+      console.error(`${logPrefix} ❌ All LLM providers failed:`, llmError);
+      console.error(`${logPrefix} Error details:`, llmError instanceof Error ? llmError.stack : llmError);
       return NextResponse.json(
         {
           success: false,
@@ -176,19 +205,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[Course Generator] Generating course on "${params.topic}" (${params.difficulty})`);
+    console.log(`${logPrefix} ⏳ Step 6/8: Generating course "${params.topic}" (${params.difficulty}, ${params.duration})...`);
 
     // Build context with better error handling
     let context = '';
     try {
+      console.log(`${logPrefix} 🔍 Building RAG context for topic: "${params.topic}"...`);
       context = await buildContext(db, params.topic);
-      console.log('[Course Generator] Context built successfully, length:', context.length);
+      console.log(`${logPrefix} ✅ Context built successfully, length: ${context.length} chars`);
+      if (context.length > 0) {
+        console.log(`${logPrefix} 📝 Context preview: ${context.substring(0, 200)}...`);
+      }
     } catch (contextError) {
-      console.warn('[Course Generator] Context building failed, continuing without RAG:', contextError);
+      console.warn(`${logPrefix} ⚠️  Context building failed, continuing without RAG:`, contextError);
       context = ''; // Continue without context
     }
     
     const languageName = localeLabels[params.locale];
+    console.log(`${logPrefix} 🌐 Target language: ${languageName}`);
 
     const outlinePrompt = `Create a cutting-edge AI course on "${params.topic}".
 Audience difficulty: ${params.difficulty}.
@@ -217,22 +251,32 @@ Rules:
 - estimated_minutes must be a realistic integer between 10 and 90.
 - Topics should be specific, contemporary concepts.`;
 
-    console.log('[Course Generator] Creating outline...');
+    console.log(`${logPrefix} 📋 Creating course outline...`);
+    console.log(`${logPrefix} Prompt length: ${outlinePrompt.length} chars`);
     const outline = await classifyWithRetry(
       llm,
       outlinePrompt,
       CourseOutlineSchema,
       JSON_SYSTEM_PROMPT,
     );
+    console.log(`${logPrefix} ✅ Course outline created successfully!`);
+    console.log(`${logPrefix} 📚 Title: "${outline.title}"`);
+    console.log(`${logPrefix} 📝 Description: "${outline.description.substring(0, 100)}..."`);
+    console.log(`${logPrefix} 📦 Modules count: ${outline.modules.length}`);
+    outline.modules.forEach((mod, idx) => {
+      console.log(`${logPrefix}    Module ${idx + 1}: "${mod.title}" (${mod.estimated_minutes} min, ${mod.topics.length} topics)`);
+    });
 
     const generatedModules: Array<{
       outline: CourseOutline['modules'][number];
       content: ModuleContent;
     }> = [];
 
-    console.log('[Course Generator] Generating module content...');
+    console.log(`${logPrefix} ⏳ Generating detailed content for ${outline.modules.length} modules...`);
     for (let i = 0; i < outline.modules.length; i += 1) {
       const moduleOutline = outline.modules[i];
+
+      console.log(`${logPrefix} 📝 Module ${i + 1}/${outline.modules.length}: "${moduleOutline.title}"...`);
 
       const modulePrompt = `Create the full content for module ${i + 1} of an AI course.
 - Course topic: ${params.topic}
@@ -262,12 +306,15 @@ Requirements:
 - Quiz must live inside the markdown with clear answers.
 - Resources should be reputable, recent, and match the module topics.`;
 
+      console.log(`${logPrefix}    Generating content (this may take 10-30 seconds)...`);
       const moduleContent = await classifyWithRetry(
         llm,
         modulePrompt,
         ModuleContentSchema,
         JSON_SYSTEM_PROMPT,
       );
+      console.log(`${logPrefix}    ✅ Content generated: ${moduleContent.content.length} chars, ${moduleContent.resources?.length || 0} resources`);
+      
       generatedModules.push({
         outline: moduleOutline,
         content: {
@@ -275,19 +322,27 @@ Requirements:
           resources: moduleContent.resources ?? []
         }
       });
-      console.log(`[Course Generator] ✓ Module ${i + 1}/${outline.modules.length}`);
+      console.log(`${logPrefix} ✅ Module ${i + 1}/${outline.modules.length} completed successfully`);
     }
 
+    console.log(`${logPrefix} ✅ All ${generatedModules.length} modules generated successfully!`);
+    
+    console.log(`${logPrefix} ⏳ Building course bundle...`);
     const primaryCourse = buildCourseBundle(outline, generatedModules);
+    console.log(`${logPrefix} ✅ Course bundle built`);
+    
     const secondaryLocale: 'en' | 'es' = params.locale === 'en' ? 'es' : 'en';
     let translatedCourse: CourseTranslation | null = null;
 
+    console.log(`${logPrefix} 🌍 Translating to ${localeLabels[secondaryLocale]}...`);
     try {
-  translatedCourse = await translateCourse(llm, params.locale, secondaryLocale, primaryCourse);
+      translatedCourse = await translateCourse(llm, params.locale, secondaryLocale, primaryCourse);
+      console.log(`${logPrefix} ✅ Translation completed successfully`);
     } catch (translationError) {
-      console.warn('[Course Generator] Translation failed; falling back to primary language.', translationError);
+      console.warn(`${logPrefix} ⚠️  Translation failed; falling back to primary language only.`, translationError);
     }
 
+    console.log(`${logPrefix} ⏳ Step 7/8: Preparing database records...`);
     const courseByLocale = resolveCourseLocales(params.locale, primaryCourse, translatedCourse);
 
     const topics = Array.from(
@@ -303,73 +358,96 @@ Requirements:
 
     // Auto-categorize course based on topic and description
     const category = categorizeCourse(params.topic, courseByLocale.en.description);
-    console.log(`[Course Generator] Auto-categorized as: ${category}`);
+    console.log(`${logPrefix} 🏷️  Auto-categorized as: "${category}"`);
+    console.log(`${logPrefix} 🏷️  Topics: [${topics.join(', ')}]`);
+    console.log(`${logPrefix} ⏱️  Total duration: ${durationMinutes} minutes`);
 
-    console.log('[Course Generator] Inserting course into database...');
+    console.log(`${logPrefix} 💾 Inserting course into database...`);
+    const courseData = {
+      title_en: courseByLocale.en.title,
+      title_es: courseByLocale.es.title,
+      description_en: courseByLocale.en.description,
+      description_es: courseByLocale.es.description,
+      difficulty: params.difficulty,
+      duration_minutes: durationMinutes,
+      topics,
+      category,
+      ai_generated: true,
+      generation_prompt: buildGenerationMetadata(params, outline, context),
+      status: 'published' as const,
+      published_at: new Date().toISOString(),
+      view_count: 0,
+      enrollment_count: 0,
+      rating_avg: 0.0,
+      completion_rate: 0.0
+    };
+    console.log(`${logPrefix} 📊 Course data:`, JSON.stringify(courseData, null, 2));
+    
     const { data: course, error: courseError } = await db
       .from('courses')
-      .insert({
-        title_en: courseByLocale.en.title,
-        title_es: courseByLocale.es.title,
-        description_en: courseByLocale.en.description,
-        description_es: courseByLocale.es.description,
-        difficulty: params.difficulty,
-        duration_minutes: durationMinutes,
-        topics,
-        category,
-        ai_generated: true,
-        generation_prompt: buildGenerationMetadata(params, outline, context),
-        status: 'published', // Automatically publish generated courses
-        published_at: new Date().toISOString(),
-        view_count: 0,
-        enrollment_count: 0,
-        rating_avg: 0.0,
-        completion_rate: 0.0
-      })
+      .insert(courseData)
       .select('id')
       .single();
 
     if (courseError) {
-      console.error('[Course Generator] Database error inserting course:', courseError);
+      console.error(`${logPrefix} ❌ DATABASE ERROR inserting course:`, courseError);
+      console.error(`${logPrefix} Error code:`, courseError.code);
+      console.error(`${logPrefix} Error message:`, courseError.message);
+      console.error(`${logPrefix} Error details:`, courseError.details);
+      console.error(`${logPrefix} Error hint:`, courseError.hint);
       throw new Error(`Database insert failed: ${courseError.message || JSON.stringify(courseError)}`);
     }
 
     if (!course) {
+      console.error(`${logPrefix} ❌ Course inserted but no data returned!`);
       throw new Error('Course inserted but no data returned');
     }
 
-    console.log('[Course Generator] Course inserted successfully, ID:', course.id);
+    console.log(`${logPrefix} ✅ Course inserted successfully! ID: ${course.id}`);
 
-    console.log('[Course Generator] Inserting modules...');
+    console.log(`${logPrefix} ⏳ Step 8/8: Inserting ${generatedModules.length} modules...`);
     for (let i = 0; i < generatedModules.length; i += 1) {
       const moduleData = generatedModules[i];
       const resources = normalizeResources(moduleData.content.resources);
 
+      console.log(`${logPrefix} 💾 Module ${i + 1}/${generatedModules.length}: "${courseByLocale.en.modules[i]?.title || moduleData.outline.title}"...`);
+      
+      const moduleRecord = {
+        course_id: course.id,
+        order_index: i,
+        title_en: courseByLocale.en.modules[i]?.title ?? moduleData.outline.title,
+        title_es: courseByLocale.es.modules[i]?.title ?? moduleData.outline.title,
+        content_en: courseByLocale.en.modules[i]?.content ?? moduleData.content.content,
+        content_es: courseByLocale.es.modules[i]?.content ?? moduleData.content.content,
+        type: 'text' as const,
+        estimated_time: normalizeDuration(moduleData.outline.estimated_minutes),
+        resources
+      };
+      
+      console.log(`${logPrefix}    Content lengths: EN=${moduleRecord.content_en.length}, ES=${moduleRecord.content_es.length}`);
+      console.log(`${logPrefix}    Resources: ${resources.length}, Estimated time: ${moduleRecord.estimated_time} min`);
+
       const { error: moduleError } = await db
         .from('course_modules')
-        .insert({
-          course_id: course.id,
-          order_index: i,
-          title_en: courseByLocale.en.modules[i]?.title ?? moduleData.outline.title,
-          title_es: courseByLocale.es.modules[i]?.title ?? moduleData.outline.title,
-          content_en: courseByLocale.en.modules[i]?.content ?? moduleData.content.content,
-          content_es: courseByLocale.es.modules[i]?.content ?? moduleData.content.content,
-          type: 'text',
-          estimated_time: normalizeDuration(moduleData.outline.estimated_minutes),
-          resources
-        })
+        .insert(moduleRecord)
         .select('id')
         .single();
 
       if (moduleError) {
-        console.error(`[Course Generator] Error inserting module ${i + 1}:`, moduleError);
+        console.error(`${logPrefix} ❌ ERROR inserting module ${i + 1}:`, moduleError);
+        console.error(`${logPrefix} Error code:`, moduleError.code);
+        console.error(`${logPrefix} Error message:`, moduleError.message);
+        console.error(`${logPrefix} Error details:`, moduleError.details);
+        console.error(`${logPrefix} Error hint:`, moduleError.hint);
         throw new Error(`Module insert failed: ${moduleError.message || JSON.stringify(moduleError)}`);
       }
       
-      console.log(`[Course Generator] ✓ Module ${i + 1}/${generatedModules.length} inserted`);
+      console.log(`${logPrefix} ✅ Module ${i + 1}/${generatedModules.length} inserted successfully`);
     }
 
-    console.log('[Course Generator] Logging AI system activity...');
+    console.log(`${logPrefix} ✅ All modules inserted successfully!`);
+    
+    console.log(`${logPrefix} 📊 Logging AI system activity...`);
     await db.from('ai_system_logs').insert({
       action_type: 'course_generation',
       model_used: 'groq/llama-3.1-8b-instant',
@@ -384,7 +462,15 @@ Requirements:
       }
     });
 
-    console.log(`[Course Generator] ✅ Course "${courseByLocale[params.locale].title}" generated successfully`);
+    const totalTime = ((Date.now() - startedAt) / 1000).toFixed(2);
+    console.log('='.repeat(80));
+    console.log(`${logPrefix} 🎉 SUCCESS! Course "${courseByLocale[params.locale].title}" generated in ${totalTime}s`);
+    console.log(`${logPrefix} 📦 Course ID: ${course.id}`);
+    console.log(`${logPrefix} 📚 Modules: ${generatedModules.length}`);
+    console.log(`${logPrefix} ⏱️  Duration: ${durationMinutes} minutes`);
+    console.log('='.repeat(80));
+
+    console.log('='.repeat(80));
 
     return NextResponse.json({
       success: true,
@@ -396,12 +482,24 @@ Requirements:
       }
     });
   } catch (error) {
-    console.error('[Course Generator] ❌ Error:', error);
-    console.error('[Course Generator] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('[Course Generator] Error type:', error?.constructor?.name || typeof error);
+    const errorTime = ((Date.now() - startedAt) / 1000).toFixed(2);
+    console.error('='.repeat(80));
+    console.error(`${logPrefix} ❌ COURSE GENERATION FAILED after ${errorTime}s`);
+    console.error('='.repeat(80));
+    console.error(`${logPrefix} Error:`, error);
+    console.error(`${logPrefix} Error type:`, error?.constructor?.name || typeof error);
+    console.error(`${logPrefix} Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+    
+    if (error instanceof Error) {
+      console.error(`${logPrefix} Error message:`, error.message);
+      console.error(`${logPrefix} Error name:`, error.name);
+    }
 
     if (error instanceof z.ZodError) {
-      console.error('[Course Generator] Zod validation error:', JSON.stringify(error.errors, null, 2));
+      console.error(`${logPrefix} 🔍 Zod validation error:`, JSON.stringify(error.errors, null, 2));
+      error.errors.forEach((err, idx) => {
+        console.error(`${logPrefix}    Error ${idx + 1}: ${err.path.join('.')} - ${err.message}`);
+      });
       return NextResponse.json(
         {
           success: false,
@@ -419,12 +517,13 @@ Requirements:
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorType = error?.constructor?.name || 'UnknownError';
     
-    console.error('[Course Generator] Error details:', {
+    console.error(`${logPrefix} 📋 Error summary:`, {
       message: errorMessage,
       type: errorType,
       hasStack: error instanceof Error && !!error.stack
     });
-    console.error('[Course Generator] Final error message:', errorMessage);
+    console.error(`${logPrefix} 💬 Final error message:`, errorMessage);
+    console.error('='.repeat(80));
 
     return NextResponse.json(
       {
