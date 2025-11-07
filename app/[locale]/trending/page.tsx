@@ -1,19 +1,24 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n';
-import { detectTrendingTopics } from '@/lib/ai/trending';
+import { getTrendingTopicsFromCache } from '@/lib/ai/trending';
 import { TrendingPageClient } from '@/components/trending/TrendingPageClient';
 import { TrendingGrid } from '@/components/trending/TrendingGrid';
 import type { TrendingTopic } from '@/lib/ai/trending';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 21600; // Revalidar cada 6 horas (matching GitHub Action)
 
 export default async function TrendingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'common' });
   
   let topics: TrendingTopic[] = [];
+  let lastUpdate: Date | null = null;
+  
   try {
-    topics = await detectTrendingTopics(24);
+    const result = await getTrendingTopicsFromCache();
+    topics = result.topics;
+    lastUpdate = result.lastUpdate;
   } catch (error) {
     console.error('Failed to fetch trending topics:', error);
   }
@@ -21,7 +26,11 @@ export default async function TrendingPage({ params }: { params: Promise<{ local
   return (
     <TrendingPageClient
       title="🔥 Trending Topics"
-      subtitle="Topics with the highest momentum in the last 24 hours"
+      subtitle={
+        lastUpdate 
+          ? `Updated automatically every 6 hours • Last update: ${lastUpdate.toLocaleString(locale)}`
+          : "Topics with the highest momentum in the last 24 hours"
+      }
     >
       <TrendingGrid 
         topics={topics} 

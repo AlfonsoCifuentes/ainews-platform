@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 import { Link } from '@/i18n';
-import { GraphVisualizerWrapper } from '@/components/kg/GraphVisualizerWrapper';
+import { GraphVisualizer } from '@/components/kg/GraphVisualizer';
 
 type Entity = { id: string; name: string; type: string; description?: string | null };
 type Relation = { id: string; source_id: string; target_id: string; rel_type: string; weight?: number | null };
@@ -59,8 +59,8 @@ export default async function EntityPage({ params }: { params: Promise<{ locale:
   ]));
   const names = await fetchEntityNames(relatedIds);
 
-  // Prepare graph data
-  const graphNodes = [
+  // Prepare graph data for GraphVisualizer
+  const graphEntities = [
     { id: entity.id, name: entity.name, type: entity.type },
     ...relatedIds.map((rid) => ({
       id: rid,
@@ -68,9 +68,19 @@ export default async function EntityPage({ params }: { params: Promise<{ locale:
       type: 'unknown',
     })),
   ];
-  const graphEdges = [
-    ...outgoing.map((r) => ({ source: entity.id, target: r.target_id, type: r.rel_type })),
-    ...incoming.map((r) => ({ source: r.source_id, target: entity.id, type: r.rel_type })),
+  const graphRelations = [
+    ...outgoing.map((r) => ({ 
+      sourceId: entity.id, 
+      targetId: r.target_id, 
+      type: r.rel_type,
+      weight: r.weight ?? 0.5,
+    })),
+    ...incoming.map((r) => ({ 
+      sourceId: r.source_id, 
+      targetId: entity.id, 
+      type: r.rel_type,
+      weight: r.weight ?? 0.5,
+    })),
   ];
 
   return (
@@ -81,10 +91,12 @@ export default async function EntityPage({ params }: { params: Promise<{ locale:
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-4">{t('graphVisualization')}</h2>
-        <GraphVisualizerWrapper
-          nodes={graphNodes}
-          edges={graphEdges}
-        />
+        <div className="h-[600px] rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl">
+          <GraphVisualizer
+            entities={graphEntities}
+            relations={graphRelations}
+          />
+        </div>
       </section>
 
       <section className="mt-8">

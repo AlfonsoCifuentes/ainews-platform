@@ -42,6 +42,10 @@
     "noResults": "No results.",
     "back": "Back",
     "graphVisualization": "Graph Visualization",
+    "views": {
+      "list": "Entity List",
+      "graph": "Graph View"
+    },
     "filters": {
       "allTypes": "All types",
       "apply": "Apply",

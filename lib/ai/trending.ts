@@ -94,3 +94,38 @@ function extractKeywords(text: string): string[] {
     .slice(0, 10)
     .map(([word]) => word);
 }
+
+/**
+ * Get trending topics from cache (updated every 6 hours by GitHub Action)
+ */
+export async function getTrendingTopicsFromCache(): Promise<{
+  topics: TrendingTopic[];
+  lastUpdate: Date | null;
+}> {
+  const db = getSupabaseServerClient();
+
+  const { data } = await db
+    .from('trending_cache')
+    .select('*')
+    .order('detected_at', { ascending: false })
+    .limit(20);
+
+  if (!data || data.length === 0) {
+    // Fallback: calcular en tiempo real si no hay cache
+    const topics = await detectTrendingTopics(24);
+    return { topics, lastUpdate: null };
+  }
+
+  // Obtener última fecha de detección
+  const lastUpdate = data[0]?.detected_at ? new Date(data[0].detected_at) : null;
+
+  // Convertir a formato TrendingTopic
+  const topics: TrendingTopic[] = data.map((item) => ({
+    topic: item.topic,
+    count: item.count,
+    momentum: parseFloat(item.momentum?.toString() || '0'),
+    articles: item.article_ids || [],
+  }));
+
+  return { topics, lastUpdate };
+}

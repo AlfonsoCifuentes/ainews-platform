@@ -30,6 +30,7 @@ import { createLLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getBestArticleImage } from '../lib/services/image-scraper';
+import { ultraScrapeArticleImage } from '../lib/services/ultra-image-scraper';
 import { initializeImageHashCache } from '../lib/services/image-validator';
 import { z } from 'zod';
 
@@ -430,19 +431,36 @@ async function storeArticles(
       // Generate a proper summary from content (not just duplicate)
       const summaryOriginal = article.contentSnippet?.slice(0, 300) || contentOriginal.slice(0, 300);
       
-      // IMPROVED IMAGE HANDLING with validation and deduplication
+      // ULTRA IMPROVED IMAGE HANDLING with multi-layer validation
       console.log(`[ImageValidator] Finding best image for: ${article.title.slice(0, 50)}...`);
       
       let imageUrl: string | null = null;
       
-      // Try to get the best image with our advanced scraper
+      // LAYER 1: Try fast DOM scraper first
       imageUrl = await getBestArticleImage(article.link, {
         enclosure: article.enclosure,
         content: article.content,
         contentSnippet: article.contentSnippet
       });
       
-      // If no valid image found, generate unique fallback using Unsplash Source API
+      // LAYER 2: If Layer 1 failed, use ULTRA scraper (Playwright + AI Vision)
+      if (!imageUrl) {
+        console.log(`[ImageValidator] Layer 1 failed, trying ULTRA scraper (Playwright + AI)...`);
+        try {
+          const ultraResult = await ultraScrapeArticleImage(article.link, article.title || '');
+          
+          if (ultraResult.imageUrl && ultraResult.confidence > 0.6) {
+            imageUrl = ultraResult.imageUrl;
+            console.log(`[ImageValidator] ✅ ULTRA scraper SUCCESS! Method: ${ultraResult.method}, Confidence: ${(ultraResult.confidence * 100).toFixed(1)}%`);
+          } else {
+            console.warn(`[ImageValidator] ULTRA scraper found image but confidence too low: ${(ultraResult.confidence * 100).toFixed(1)}%`);
+          }
+        } catch (ultraError) {
+          console.error(`[ImageValidator] ULTRA scraper failed:`, ultraError instanceof Error ? ultraError.message : ultraError);
+        }
+      }
+      
+      // LAYER 3: If all else fails, generate unique fallback using Unsplash
       if (!imageUrl) {
         console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - using unique fallback`);
         

@@ -41,6 +41,10 @@
     "noResults": "Sin resultados.",
     "back": "Volver",
     "graphVisualization": "Visualización del Grafo",
+    "views": {
+      "list": "Lista de Entidades",
+      "graph": "Vista de Grafo"
+    },
     "filters": {
       "allTypes": "Todos los tipos",
       "apply": "Aplicar",

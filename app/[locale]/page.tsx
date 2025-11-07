@@ -2,224 +2,270 @@
 
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
-import { BentoGrid, BentoCard, BentoIcon, BentoTitle, BentoDescription } from '@/components/shared/BentoGrid';
-import { ScrollReveal, ParallaxSection } from '@/components/shared/AnimatedHero';
-import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
-import { RippleButton } from '@/components/shared/InteractiveButtons';
-import { useUser } from '@/lib/hooks/useUser';
-import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
 import Image from 'next/image';
-
-// Lazy load 3D components AFTER page is interactive (defer heavy Three.js)
-const FloatingObjects = dynamic(
-  () => import('@/components/shared/FloatingObjects').then((mod) => ({ default: mod.FloatingObjects })),
-  { 
-    ssr: false,
-    loading: () => null // No loading state, just skip rendering initially
-  }
-);
 
 export default function HomePage() {
   const t = useTranslations('home');
-  const { locale } = useUser();
-  const [showFloatingObjects, setShowFloatingObjects] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"]
+  });
 
-  // Defer FloatingObjects until after page is interactive
-  useEffect(() => {
-    // Wait for page to be fully loaded and idle
-    const timer = setTimeout(() => {
-      setShowFloatingObjects(true);
-    }, 1500); // Defer by 1.5s to prioritize content
-    
-    return () => clearTimeout(timer);
-  }, []);
+  const logoScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
+  const logoOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  const contentY = useTransform(scrollYProgress, [0, 0.5], [0, -100]);
 
   return (
-    <main className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-24 px-4 md:py-32">
-        {/* 3D Background Elements - deferred for performance */}
-        {showFloatingObjects && <FloatingObjects />}
-        
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(126,74,255,0.35),transparent_55%),radial-gradient(circle_at_top_right,rgba(14,255,255,0.25),transparent_45%)]" aria-hidden />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(15,16,35,0.95) 0%,rgba(10,11,24,0.86) 60%,rgba(10,11,24,0.92) 100%)]" aria-hidden />
-        <div className="relative container mx-auto grid gap-12 text-center md:grid-cols-[1.2fr_0.8fr] md:text-left">
-          <div className="space-y-8">
-            <ScrollReveal direction="up">
-              <div className="flex items-center justify-center md:justify-start gap-4 mb-2">
-                <Image 
-                  src="/images/ainews-logo.png" 
-                  alt="AINews Logo" 
-                  width={56}
-                  height={56}
-                  className="drop-shadow-[0_0_25px_rgba(104,58,255,0.8)] animate-pulse"
-                  priority
-                />
-              </div>
-            </ScrollReveal>
-            <ScrollReveal direction="up">
-              <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
-                {t('features.subtitle')}
-              </p>
-            </ScrollReveal>
-            <ScrollReveal direction="up" delay={0.1}>
-              <h1 className="text-4xl font-black leading-tight md:text-6xl lg:text-7xl">
-                <TextGradient>{t('hero.title')}</TextGradient>
-              </h1>
-            </ScrollReveal>
-            <ScrollReveal direction="up" delay={0.2}>
-              <p className="text-lg text-white/80 md:max-w-xl">
-                {t('hero.subtitle')}
-              </p>
-            </ScrollReveal>
-            <ScrollReveal direction="up" delay={0.3}>
-              <div className="flex flex-wrap justify-center gap-4 md:justify-start">
-                <Link href="/news">
-                  <RippleButton
-                    variant="primary"
-                    className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 px-8 py-3 text-base font-semibold text-primary-foreground shadow-[0_18px_45px_-20px_rgba(116,77,255,0.95)]"
-                  >
-                    {t('hero.cta')}
-                    <span>→</span>
-                  </RippleButton>
-                </Link>
-                <Link href="/courses">
-                  <RippleButton
-                    variant="ghost"
-                    className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-8 py-3 text-base font-semibold text-white/80"
-                  >
-                    {t('hero.ctaSecondary')}
-                  </RippleButton>
-                </Link>
-              </div>
-            </ScrollReveal>
-            
-            {/* Auth CTA */}
-            <ScrollReveal direction="up" delay={0.4}>
-              <div className="flex items-center justify-center md:justify-start gap-3 text-sm text-muted-foreground">
-                <span>{t('hero.authPrompt')}</span>
-                <Link
-                  href={`/${locale}/auth?mode=signup`}
-                  className="font-semibold text-primary hover:text-white transition-colors underline underline-offset-4"
-                >
-                  {t('hero.signupLink')}
-                </Link>
-                <span className="text-white/30">•</span>
-                <Link
-                  href={`/${locale}/auth?mode=signin`}
-                  className="font-semibold text-muted-foreground hover:text-white transition-colors"
-                >
-                  {t('hero.loginLink')}
-                </Link>
-              </div>
-            </ScrollReveal>
-          </div>
+    <main ref={containerRef} className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a0b18] via-[#0f1023] to-[#0a0b18]">
+      {/* Animated Background Grid */}
+      <div className="fixed inset-0 opacity-20">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `
+            linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px',
+          animation: 'grid-flow 20s linear infinite'
+        }} />
+      </div>
 
-          <div className="mx-auto flex w-full max-w-md flex-col gap-4 md:mx-0">
-            <ScrollReveal direction="right" delay={0.2}>
-              <div className="glass rounded-3xl border-white/10 p-6 text-left shadow-2xl">
-                <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/50">
-                  <span className="h-1 w-8 rounded-full bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-400" />
-                  Live Signals
-                </div>
-                <p className="text-lg font-semibold text-white">
-                  Trending topics update every 6 hours with autonomous validation.
-                </p>
-              </div>
-            </ScrollReveal>
-            <ScrollReveal direction="right" delay={0.4}>
-              <div className="glass rounded-3xl border-white/10 p-6 text-left shadow-2xl">
-                <p className="text-sm uppercase tracking-[0.4em] text-white/40">COURSES</p>
-                <p className="mt-3 text-base text-white/80">
-                  {t('features.courses.description')}
-                </p>
-              </div>
-            </ScrollReveal>
-          </div>
+      {/* Gradient Orbs */}
+      <motion.div
+        className="fixed top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-30"
+        style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }}
+        animate={{
+          scale: [1, 1.2, 1],
+          x: [0, 50, 0],
+          y: [0, 30, 0],
+        }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="fixed bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20"
+        style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)' }}
+        animate={{
+          scale: [1.2, 1, 1.2],
+          x: [0, -30, 0],
+          y: [0, -50, 0],
+        }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Hero Content */}
+      <motion.section 
+        className="relative flex min-h-screen items-center justify-center px-6"
+        style={{ y: contentY }}
+      >
+        <div className="relative z-10 text-center max-w-5xl mx-auto">
+          {/* Logo */}
+          <motion.div
+            style={{ scale: logoScale, opacity: logoOpacity }}
+            className="mb-12"
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 100,
+                damping: 20,
+                delay: 0.2 
+              }}
+              className="relative inline-block"
+            >
+              <div className="absolute inset-0 blur-[60px] bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 opacity-60 animate-pulse" />
+              <Image 
+                src="/images/ainews-logo.png" 
+                alt="AINews Logo" 
+                width={240}
+                height={240}
+                className="relative drop-shadow-[0_0_80px_rgba(59,130,246,0.8)]"
+                priority
+              />
+            </motion.div>
+          </motion.div>
+
+          {/* Main Title */}
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="text-6xl md:text-8xl lg:text-9xl font-black mb-8"
+          >
+            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
+              AINews
+            </span>
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            className="text-xl md:text-2xl lg:text-3xl text-white/70 mb-16 font-light tracking-wide"
+          >
+            {t('hero.subtitle')}
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.8 }}
+            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+          >
+            <Link href="/news">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="group relative px-10 py-5 text-lg font-bold text-white overflow-hidden rounded-2xl"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 transition-transform group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
+                <span className="relative flex items-center gap-3">
+                  {t('hero.cta')}
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    →
+                  </motion.span>
+                </span>
+              </motion.button>
+            </Link>
+
+            <Link href="/courses">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-10 py-5 text-lg font-bold text-white border-2 border-white/20 rounded-2xl backdrop-blur-sm hover:bg-white/5 transition-colors"
+              >
+                {t('hero.ctaSecondary')}
+              </motion.button>
+            </Link>
+          </motion.div>
+
+          {/* Feature Pills */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2, duration: 1 }}
+            className="mt-20 flex flex-wrap justify-center gap-4"
+          >
+            {[
+              { icon: '🤖', text: 'Self-Improving AI' },
+              { icon: '📈', text: 'Live Trending' },
+              { icon: '🕸️', text: 'Knowledge Graph' },
+              { icon: '🎓', text: 'AI Courses' }
+            ].map((item, i) => (
+              <motion.div
+                key={item.text}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 1.2 + (i * 0.1) }}
+                whileHover={{ scale: 1.1 }}
+                className="px-6 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-white/80 text-sm font-semibold flex items-center gap-2"
+              >
+                <span className="text-xl">{item.icon}</span>
+                {item.text}
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        >
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center"
+          >
+            <motion.div
+              animate={{ y: [0, 12, 0], opacity: [0, 1, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-1.5 h-3 bg-white/60 rounded-full mt-2"
+            />
+          </motion.div>
+        </motion.div>
+      </motion.section>
+
+      {/* Quick Access Grid - Minimal */}
+      <section className="relative py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {[
+              {
+                href: '/news',
+                title: 'Latest News',
+                desc: '50+ AI sources curated',
+                icon: '📰',
+                gradient: 'from-blue-500/20 to-cyan-500/20'
+              },
+              {
+                href: '/trending',
+                title: 'Trending',
+                desc: 'Real-time topic detection',
+                icon: '📈',
+                gradient: 'from-purple-500/20 to-pink-500/20'
+              },
+              {
+                href: '/kg',
+                title: 'Knowledge Graph',
+                desc: 'Interactive AI insights',
+                icon: '🕸️',
+                gradient: 'from-violet-500/20 to-blue-500/20'
+              }
+            ].map((card, i) => (
+              <Link key={card.href} href={card.href}>
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.2 }}
+                  whileHover={{ y: -10, scale: 1.02 }}
+                  className={`relative p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-gradient-to-br ${card.gradient} overflow-hidden group cursor-pointer`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="text-5xl mb-4">{card.icon}</div>
+                    <h3 className="text-2xl font-bold text-white mb-2">{card.title}</h3>
+                    <p className="text-white/60">{card.desc}</p>
+                  </div>
+                </motion.div>
+              </Link>
+            ))}
+          </motion.div>
         </div>
       </section>
 
-      {/* Features Section - Bento Grid */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto">
-          <ScrollReveal>
-            <div className="mx-auto mb-14 max-w-3xl text-center">
-              <h2 className="text-3xl font-bold text-white md:text-5xl">
-                <TextSplit text={t('features.title')} by="word" stagger={0.1} />
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                {t('features.subtitle')}
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <ParallaxSection speed={0.5}>
-            <BentoGrid>
-              {/* Large feature card - News (2x2) */}
-              <BentoCard colSpan={2} rowSpan={2}>
-                <BentoIcon>📰</BentoIcon>
-                <BentoTitle>{t('features.news.title')}</BentoTitle>
-                <BentoDescription>
-                  {t('features.news.description')}
-                </BentoDescription>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs text-primary">
-                    50+ Sources
-                  </span>
-                  <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-xs text-cyan-400">
-                    Auto-curated
-                  </span>
-                  <span className="rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 px-3 py-1 text-xs text-fuchsia-400">
-                    Bilingual
-                  </span>
-                </div>
-              </BentoCard>
-
-              {/* AI Courses (1x1) */}
-              <BentoCard>
-                <BentoIcon>🎓</BentoIcon>
-                <BentoTitle>{t('features.courses.title')}</BentoTitle>
-                <BentoDescription>
-                  {t('features.courses.description')}
-                </BentoDescription>
-              </BentoCard>
-
-              {/* Learning AI (1x1) */}
-              <BentoCard>
-                <BentoIcon>🤖</BentoIcon>
-                <BentoTitle>{t('features.learning.title')}</BentoTitle>
-                <BentoDescription>
-                  {t('features.learning.description')}
-                </BentoDescription>
-              </BentoCard>
-
-              {/* Knowledge Graph (2x1) */}
-              <BentoCard colSpan={2}>
-                <BentoIcon>🕸️</BentoIcon>
-                <BentoTitle>Knowledge Graph</BentoTitle>
-                <BentoDescription>
-                  Explore AI entities, relationships, and real-time insights with interactive visualizations.
-                </BentoDescription>
-                <div className="mt-6">
-                  <Link href="/kg" className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-white">
-                    Explore Graph →
-                  </Link>
-                </div>
-              </BentoCard>
-
-              {/* Trending Topics (1x1) */}
-              <BentoCard>
-                <BentoIcon>📈</BentoIcon>
-                <BentoTitle>Trending</BentoTitle>
-                <BentoDescription>
-                  Real-time AI trends detected automatically from multiple sources.
-                </BentoDescription>
-              </BentoCard>
-            </BentoGrid>
-          </ParallaxSection>
-        </div>
-      </section>
+      <style jsx global>{`
+        @keyframes gradient {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient {
+          background-size: 200% auto;
+          animation: gradient 3s ease infinite;
+        }
+        @keyframes grid-flow {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(50px); }
+        }
+      `}</style>
     </main>
   );
 }

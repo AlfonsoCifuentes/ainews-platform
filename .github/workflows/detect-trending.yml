@@ -1,0 +1,47 @@
+name: 📈 Trending Topics Detection
+
+on:
+  schedule:
+    # Ejecutar cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # Permitir ejecución manual
+
+jobs:
+  detect-trending:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 📈 Detect Trending Topics
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📈 Detectando trending topics..."
+          npm run ai:detect-trends
+
+      - name: ✅ Log completion
+        if: success()
+        run: |
+          echo "✅ Trending detection completado"
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+      - name: ❌ Log failure
+        if: failure()
+        run: |
+          echo "❌ Trending detection falló"
+          exit 1

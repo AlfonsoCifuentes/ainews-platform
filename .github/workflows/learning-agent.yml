@@ -1,0 +1,51 @@
+name: 🧠 AI Learning Agent
+
+on:
+  schedule:
+    # Ejecutar diariamente a las 3:00 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Permitir ejecución manual desde GitHub UI
+
+jobs:
+  run-learning-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🧠 Run Learning Agent
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          echo "🧠 Iniciando Learning Agent..."
+          npm run ai:learn
+
+      - name: 📊 Log completion
+        if: success()
+        run: |
+          echo "✅ Learning Agent ejecutado exitosamente"
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+      - name: ❌ Log failure
+        if: failure()
+        run: |
+          echo "❌ Learning Agent falló"
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          exit 1
