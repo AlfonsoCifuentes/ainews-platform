@@ -97,20 +97,25 @@ export function BackgroundGeometry() {
         camera={{ position: [0, 0, 10], fov: 50 }}
         dpr={[1, 1.5]} // Performance optimization
         gl={{ 
-          preserveDrawingBuffer: true,
+          preserveDrawingBuffer: false, // Prevent context issues
           powerPreference: 'low-power',
           antialias: false,
-          failIfMajorPerformanceCaveat: true
+          stencil: false,
+          depth: false,
+          failIfMajorPerformanceCaveat: false,
         }}
         onCreated={({ gl }) => {
-          // Handle context loss
+          // Silently handle context loss
           gl.domElement.addEventListener('webglcontextlost', (e) => {
             e.preventDefault();
-            console.warn('WebGL context lost, attempting to restore...');
+            // Silent recovery
           });
           gl.domElement.addEventListener('webglcontextrestored', () => {
-            console.log('WebGL context restored');
+            // Context restored silently
           });
+
+          // Suppress THREE.js warnings
+          gl.debug.checkShaderErrors = false;
         }}
       >
         <Scene />

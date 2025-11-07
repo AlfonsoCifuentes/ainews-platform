@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
     let context = '';
     try {
       context = await buildContext(db, params.topic);
-      console.log('[Course Generator] Context built successfully');
+      console.log('[Course Generator] Context built successfully, length:', context.length);
     } catch (contextError) {
       console.warn('[Course Generator] Context building failed, continuing without RAG:', contextError);
       context = ''; // Continue without context
@@ -305,6 +305,7 @@ Requirements:
     const category = categorizeCourse(params.topic, courseByLocale.en.description);
     console.log(`[Course Generator] Auto-categorized as: ${category}`);
 
+    console.log('[Course Generator] Inserting course into database...');
     const { data: course, error: courseError } = await db
       .from('courses')
       .insert({
@@ -328,10 +329,18 @@ Requirements:
       .select('id')
       .single();
 
-    if (courseError || !course) {
-      throw courseError ?? new Error('Failed to insert course');
+    if (courseError) {
+      console.error('[Course Generator] Database error inserting course:', courseError);
+      throw new Error(`Database insert failed: ${courseError.message || JSON.stringify(courseError)}`);
     }
 
+    if (!course) {
+      throw new Error('Course inserted but no data returned');
+    }
+
+    console.log('[Course Generator] Course inserted successfully, ID:', course.id);
+
+    console.log('[Course Generator] Inserting modules...');
     for (let i = 0; i < generatedModules.length; i += 1) {
       const moduleData = generatedModules[i];
       const resources = normalizeResources(moduleData.content.resources);
@@ -353,10 +362,14 @@ Requirements:
         .single();
 
       if (moduleError) {
-        throw moduleError;
+        console.error(`[Course Generator] Error inserting module ${i + 1}:`, moduleError);
+        throw new Error(`Module insert failed: ${moduleError.message || JSON.stringify(moduleError)}`);
       }
+      
+      console.log(`[Course Generator] ✓ Module ${i + 1}/${generatedModules.length} inserted`);
     }
 
+    console.log('[Course Generator] Logging AI system activity...');
     await db.from('ai_system_logs').insert({
       action_type: 'course_generation',
       model_used: 'groq/llama-3.1-8b-instant',

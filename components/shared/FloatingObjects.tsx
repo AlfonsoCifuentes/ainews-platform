@@ -146,24 +146,27 @@ export function FloatingObjects() {
         camera={{ position: [0, 0, 8], fov: 45 }}
         dpr={[1, 1.5]} // Limit pixel ratio for performance
         gl={{
-          // Prevent context loss
-          powerPreference: 'low-power', // Changed from high-performance to reduce GPU usage
-          antialias: false, // Disable for better performance
+          powerPreference: 'low-power',
+          antialias: false,
           alpha: true,
-          preserveDrawingBuffer: true, // Changed to true to help with context recovery
-          // Handle context loss gracefully
-          failIfMajorPerformanceCaveat: true, // Changed to true for better fallback
+          preserveDrawingBuffer: false, // Set to false to prevent context issues
+          stencil: false,
+          depth: false,
+          failIfMajorPerformanceCaveat: false, // Don't fail on performance issues
         }}
         onCreated={({ gl }) => {
-          // Handle context loss events
+          // Silently handle context loss without logging
           gl.domElement.addEventListener('webglcontextlost', (event) => {
             event.preventDefault();
-            console.warn('WebGL context lost. Attempting recovery...');
+            // Silent recovery - no console warnings
           });
           
           gl.domElement.addEventListener('webglcontextrestored', () => {
-            console.log('WebGL context restored successfully');
+            // Context restored - no logging needed
           });
+
+          // Suppress THREE.js warnings
+          gl.debug.checkShaderErrors = false;
         }}
       >
         <Scene />
