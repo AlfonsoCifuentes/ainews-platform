@@ -20,6 +20,94 @@ type CourseGenerationResponse = {
   message?: string;
 };
 
+// 🔍 Advanced Client-Side Logger
+class CourseGenerationLogger {
+  public prefix = '🎓 [Course Generator Client]';
+  private startTime = 0;
+
+  start(topic: string, difficulty: string, duration: string, locale: string) {
+    this.startTime = Date.now();
+    console.log('═'.repeat(80));
+    console.log(`${this.prefix} 🚀 STARTING COURSE GENERATION`);
+    console.log('═'.repeat(80));
+    console.log(`${this.prefix} 📋 Parameters:`, {
+      topic,
+      difficulty,
+      duration,
+      locale,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  step(stepNumber: number, total: number, message: string) {
+    const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    console.log(`${this.prefix} ⏳ [${elapsed}s] Step ${stepNumber}/${total}: ${message}`);
+  }
+
+  request(url: string, body: unknown) {
+    console.log(`${this.prefix} 📤 Sending POST request to ${url}`);
+    console.log(`${this.prefix} 📦 Request body:`, JSON.stringify(body, null, 2));
+  }
+
+  response(status: number, statusText: string, headers: Headers) {
+    console.log(`${this.prefix} 📥 Response received:`);
+    console.log(`${this.prefix}    Status: ${status} ${statusText}`);
+    console.log(`${this.prefix}    Content-Type: ${headers.get('content-type')}`);
+  }
+
+  responseBody(data: unknown) {
+    console.log(`${this.prefix} 📄 Response body:`, data);
+  }
+
+  success(result: CourseGenerationResult) {
+    const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    console.log('═'.repeat(80));
+    console.log(`${this.prefix} ✅ SUCCESS in ${elapsed}s`);
+    console.log('═'.repeat(80));
+    console.log(`${this.prefix} 📚 Course Created:`, {
+      id: result.course_id,
+      title: result.title,
+      modules: result.modules_count,
+      duration: `${result.estimated_duration_minutes} minutes`
+    });
+    console.log(`${this.prefix} 🔗 View at: /courses/${result.course_id}`);
+  }
+
+  error(error: unknown, response?: Response) {
+    const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    console.error('═'.repeat(80));
+    console.error(`${this.prefix} ❌ FAILED after ${elapsed}s`);
+    console.error('═'.repeat(80));
+    
+    if (response) {
+      console.error(`${this.prefix} 🔴 HTTP Status: ${response.status} ${response.statusText}`);
+      console.error(`${this.prefix} 🔴 Response URL: ${response.url}`);
+    }
+
+    if (error instanceof Error) {
+      console.error(`${this.prefix} 🔴 Error Type: ${error.name}`);
+      console.error(`${this.prefix} 🔴 Error Message: ${error.message}`);
+      console.error(`${this.prefix} 🔴 Stack Trace:`, error.stack);
+    } else {
+      console.error(`${this.prefix} 🔴 Unknown Error:`, error);
+    }
+
+    console.error(`${this.prefix} 💡 Troubleshooting:`);
+    console.error(`${this.prefix}    1. Check browser Network tab for failed request`);
+    console.error(`${this.prefix}    2. Check server logs in Vercel dashboard`);
+    console.error(`${this.prefix}    3. Verify API keys are configured in environment`);
+    console.error(`${this.prefix}    4. Try a simpler topic or different difficulty`);
+  }
+
+  warn(message: string) {
+    console.warn(`${this.prefix} ⚠️  ${message}`);
+  }
+
+  info(message: string) {
+    console.info(`${this.prefix} ℹ️  ${message}`);
+  }
+}
+
 type CourseGeneratorProps = {
   locale: string;
   translations: {
@@ -80,16 +168,23 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
     }
 
     startTransition(async () => {
+      const logger = new CourseGenerationLogger();
+      
       setError(null);
       setResult(null);
       setCurrentStep(0);
       setProgress(0);
+
+      // 🔍 Log start
+      logger.start(topic, difficulty, duration, locale);
 
       const startTime = Date.now();
       const totalEstimatedTime = progressSteps.reduce((sum, step) => sum + step.estimatedSeconds, 0);
       setEstimatedTimeLeft(totalEstimatedTime);
 
       // Simulate realistic progress based on step timing
+      logger.step(1, 8, 'Initializing course generation request');
+      
       const progressTimer = window.setInterval(() => {
         setCurrentStep((prevStep) => {
           if (prevStep >= progressSteps.length - 1) {
@@ -112,36 +207,97 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       }, 2500); // Advance every 2.5 seconds
 
       try {
-        const response = await fetch('/api/courses/generate', {
+        const requestBody = { topic, difficulty, duration, locale };
+        const apiUrl = '/api/courses/generate';
+        
+        // 🔍 Log request
+        logger.step(2, 8, 'Preparing API request');
+        logger.request(apiUrl, requestBody);
+
+        logger.step(3, 8, 'Sending request to server (this may take 30-120 seconds)...');
+        const fetchStartTime = Date.now();
+
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ topic, difficulty, duration, locale })
+          body: JSON.stringify(requestBody)
         });
 
+        const fetchDuration = ((Date.now() - fetchStartTime) / 1000).toFixed(2);
+        logger.step(4, 8, `Received response after ${fetchDuration}s`);
+
+        // 🔍 Log response
+        logger.response(response.status, response.statusText, response.headers);
+
         let payload: CourseGenerationResponse | null = null;
+        let rawText = '';
 
         try {
-          payload = (await response.json()) as CourseGenerationResponse;
+          logger.step(5, 8, 'Parsing response JSON...');
+          rawText = await response.text();
+          
+          if (!rawText) {
+            logger.warn('Response body is empty!');
+            throw new Error('Server returned empty response');
+          }
+
+          logger.info(`Response text length: ${rawText.length} characters`);
+          
+          // Try to parse JSON
+          try {
+            payload = JSON.parse(rawText) as CourseGenerationResponse;
+            logger.step(6, 8, 'Response parsed successfully');
+            logger.responseBody(payload);
+          } catch (jsonError) {
+            logger.error(jsonError);
+            logger.warn('Failed to parse JSON. Raw response:');
+            console.log('═'.repeat(80));
+            console.log('RAW RESPONSE TEXT:');
+            console.log(rawText.substring(0, 1000)); // First 1000 chars
+            if (rawText.length > 1000) {
+              console.log(`... (${rawText.length - 1000} more characters)`);
+            }
+            console.log('═'.repeat(80));
+            throw new Error(`Invalid JSON response: ${jsonError instanceof Error ? jsonError.message : 'Unknown error'}`);
+          }
         } catch (parseError) {
-          console.error('[CourseGenerator] Failed to parse response', parseError);
+          logger.error(parseError, response);
+          throw new Error(`Failed to read response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
         }
 
-        if (!payload || !response.ok || !payload.success || !payload.data) {
+        logger.step(7, 8, 'Validating response data...');
+
+        if (!response.ok) {
+          logger.warn(`HTTP error: ${response.status} ${response.statusText}`);
+          const errorMessage = (payload && (payload.error || payload.message)) || `Server error: ${response.status}`;
+          throw new Error(errorMessage);
+        }
+
+        if (!payload || !payload.success || !payload.data) {
+          logger.warn('Response validation failed');
+          console.log(`${logger['prefix']} Payload:`, payload);
           const errorMessage =
             (payload && (payload.error || payload.message)) || translations.result.errorDescription;
           throw new Error(errorMessage);
         }
 
         // Success - set to 100%
+        logger.step(8, 8, 'Course generated successfully!');
         setProgress(100);
         setCurrentStep(progressSteps.length - 1);
         setEstimatedTimeLeft(0);
         setResult(payload.data);
         setTopic('');
+        
+        // 🔍 Log success
+        logger.success(payload.data);
+
       } catch (generationError) {
-        console.error('[CourseGenerator] Generation failed', generationError);
+        // 🔍 Log error
+        logger.error(generationError);
+        
         const fallback = translations.result.errorDescription;
         const message =
           generationError instanceof Error && generationError.message && generationError.message !== fallback
