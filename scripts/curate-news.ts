@@ -31,6 +31,7 @@ import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getBestArticleImage } from '../lib/services/image-scraper';
 import { ultraScrapeArticleImage } from '../lib/services/ultra-image-scraper';
+import { validateImageEnhanced } from '../lib/services/image-validator';
 import { initializeImageHashCache } from '../lib/services/image-validator';
 import { z } from 'zod';
 
@@ -457,6 +458,27 @@ async function storeArticles(
           }
         } catch (ultraError) {
           console.error(`[ImageValidator] ULTRA scraper failed:`, ultraError instanceof Error ? ultraError.message : ultraError);
+        }
+      }
+
+      // LAYER 2.5: Validate with AI Computer Vision if we have an image
+      if (imageUrl) {
+        console.log(`[ImageValidator] Validating image with AI Computer Vision...`);
+        try {
+          const aiValidation = await validateImageEnhanced(imageUrl, { skipCache: true });
+          
+          if (!aiValidation.isValid) {
+            console.warn(`[ImageValidator] ⚠️ AI rejected image: ${aiValidation.reason}`);
+            console.warn(`[ImageValidator] AI Caption: ${aiValidation.aiCaption || 'N/A'}`);
+            imageUrl = null; // Discard invalid image
+          } else if (aiValidation.aiVerified) {
+            console.log(`[ImageValidator] ✅ AI verified image: "${aiValidation.aiCaption}"`);
+          } else {
+            console.log(`[ImageValidator] ℹ️ Image passed basic checks (AI not available)`);
+          }
+        } catch (aiError) {
+          console.warn(`[ImageValidator] AI validation skipped:`, aiError instanceof Error ? aiError.message : aiError);
+          // Continue with the image even if AI fails
         }
       }
       
