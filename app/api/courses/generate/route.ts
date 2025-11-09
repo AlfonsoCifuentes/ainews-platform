@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { createLLMClientWithFallback, getAvailableProviders, LLMClient } from '@/lib/ai/llm-client';
+import { 
+  classifyWithAllProviders, 
+  getAvailableProviders, 
+  classifyLLMError,
+  type LLMProvider 
+} from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 
 // Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
@@ -84,51 +89,30 @@ const localeLabels: Record<'en' | 'es', string> = {
   es: 'Spanish'
 };
 
-async function classifyWithRetry<T>(
-  llm: LLMClient,
+/**
+ * Wrapper around classifyWithAllProviders that tries all available LLM providers
+ * This replaces the old classifyWithRetry that only used one provider
+ */
+async function classifyWithProviderFallback<T>(
   basePrompt: string,
   schema: z.ZodSchema<T>,
   systemPrompt: string,
-  maxAttempts = 3,
-): Promise<T> {
-  let attempt = 0;
-  let lastError: unknown;
-
-  console.log(`[LLM Retry] Starting classification with max ${maxAttempts} attempts...`);
-
-  while (attempt < maxAttempts) {
-    const prompt =
-      attempt === 0
-        ? basePrompt
-        : `${basePrompt}
-
-REMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt + 1} of ${maxAttempts}.`;
-
-    try {
-      console.log(`[LLM Retry] Attempt ${attempt + 1}/${maxAttempts} - Sending request to LLM...`);
-      const result = await llm.classify(prompt, schema, systemPrompt);
-      console.log(`[LLM Retry] ✅ Attempt ${attempt + 1} succeeded!`);
-      return result;
-    } catch (error) {
-      lastError = error;
-      console.error(
-        `[LLM Retry] ❌ Attempt ${attempt + 1}/${maxAttempts} failed:`,
-        error instanceof Error ? error.message : error,
-      );
-
-      attempt += 1;
-
-      if (attempt < maxAttempts) {
-        const waitTime = 500 * attempt;
-        console.log(`[LLM Retry] ⏳ Waiting ${waitTime}ms before retry...`);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      } else {
-        console.error(`[LLM Retry] ❌ All ${maxAttempts} attempts failed!`);
-      }
-    }
+): Promise<{ result: T; provider: LLMProvider }> {
+  try {
+    console.log(`[Classify] 🔄 Starting classification with multi-provider fallback...`);
+    const { result, provider, attempts } = await classifyWithAllProviders(
+      basePrompt,
+      schema,
+      systemPrompt,
+      2 // Max 2 attempts per provider
+    );
+    console.log(`[Classify] ✅ Classification succeeded with ${provider} after ${attempts} total attempts`);
+    return { result, provider };
+  } catch (error) {
+    // Error is already detailed from classifyWithAllProviders
+    console.error(`[Classify] ❌ Classification failed with all providers:`, error instanceof Error ? error.message : error);
+    throw error;
   }
-
-  throw lastError instanceof Error ? lastError : new Error('Unknown LLM classification error');
 }
 
 // Helper to send progress updates (for future SSE implementation)
@@ -192,31 +176,14 @@ export async function POST(req: NextRequest) {
           success: false,
           error: 'LLM API not configured',
           message: 'No AI provider is currently available. Please configure API keys in your environment.',
-          details: 'Set at least one LLM API key in .env.local'
+          details: 'Set at least one LLM API key in .env.local: ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, or TOGETHER_API_KEY'
         },
         { status: 503 }
       );
     }
 
-    // Use automatic fallback system (Anthropic → Gemini → OpenRouter → Groq → Together → DeepSeek → Mistral)
-    console.log(`${logPrefix} ⏳ Step 5/8: Creating LLM client with fallback...`);
-    let llm;
-    try {
-      llm = await createLLMClientWithFallback();
-      console.log(`${logPrefix} ✅ LLM client created successfully`);
-      console.log(`${logPrefix} 🤖 Provider order: ${availableProviders.join(' → ')}`);
-    } catch (llmError) {
-      console.error(`${logPrefix} ❌ All LLM providers failed:`, llmError);
-      console.error(`${logPrefix} Error details:`, llmError instanceof Error ? llmError.stack : llmError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'LLM initialization failed',
-          message: `Failed to initialize AI: ${llmError instanceof Error ? llmError.message : 'Unknown error'}`
-        },
-        { status: 500 }
-      );
-    }
+    console.log(`${logPrefix} ✅ Step 5/8: Found ${availableProviders.length} available providers: ${availableProviders.join(', ')}`);
+    console.log(`${logPrefix} 🤖 Provider fallback order: ${availableProviders.join(' → ')}`);
 
     console.log(`${logPrefix} ⏳ Step 6/8: Generating course "${params.topic}" (${params.difficulty}, ${params.duration})...`);
 
@@ -266,17 +233,18 @@ Rules:
 
     console.log(`${logPrefix} 📋 Creating course outline...`);
     console.log(`${logPrefix} Prompt length: ${outlinePrompt.length} chars`);
-    const outline = await classifyWithRetry(
-      llm,
+    
+    const { result: outline, provider: outlineProvider } = await classifyWithProviderFallback(
       outlinePrompt,
       CourseOutlineSchema,
       JSON_SYSTEM_PROMPT,
     );
-    console.log(`${logPrefix} ✅ Course outline created successfully!`);
+    
+    console.log(`${logPrefix} ✅ Course outline created successfully with ${outlineProvider}!`);
     console.log(`${logPrefix} 📚 Title: "${outline.title}"`);
     console.log(`${logPrefix} 📝 Description: "${outline.description.substring(0, 100)}..."`);
     console.log(`${logPrefix} 📦 Modules count: ${outline.modules.length}`);
-    outline.modules.forEach((mod, idx) => {
+    outline.modules.forEach((mod: { title: string; estimated_minutes: number; topics: string[] }, idx: number) => {
       console.log(`${logPrefix}    Module ${idx + 1}: "${mod.title}" (${mod.estimated_minutes} min, ${mod.topics.length} topics)`);
     });
 
@@ -320,8 +288,7 @@ Requirements:
 - Resources should be reputable, recent, and match the module topics.`;
 
       console.log(`${logPrefix}    Generating content (this may take 10-30 seconds)...`);
-      const moduleContent = await classifyWithRetry(
-        llm,
+      const { result: moduleContent } = await classifyWithProviderFallback(
         modulePrompt,
         ModuleContentSchema,
         JSON_SYSTEM_PROMPT,
@@ -349,7 +316,7 @@ Requirements:
 
     console.log(`${logPrefix} 🌍 Translating to ${localeLabels[secondaryLocale]}...`);
     try {
-      translatedCourse = await translateCourse(llm, params.locale, secondaryLocale, primaryCourse);
+      translatedCourse = await translateCourse(params.locale, secondaryLocale, primaryCourse);
       console.log(`${logPrefix} ✅ Translation completed successfully`);
     } catch (translationError) {
       console.warn(`${logPrefix} ⚠️  Translation failed; falling back to primary language only.`, translationError);
@@ -463,7 +430,7 @@ Requirements:
     console.log(`${logPrefix} 📊 Logging AI system activity...`);
     await db.from('ai_system_logs').insert({
       action_type: 'course_generation',
-      model_used: 'groq/llama-3.1-8b-instant',
+      model_used: `${outlineProvider}/auto-fallback`,
       success: true,
       execution_time: Date.now() - startedAt,
       metadata: {
@@ -471,7 +438,8 @@ Requirements:
         difficulty: params.difficulty,
         duration: params.duration,
         modules: generatedModules.length,
-        course_id: course.id
+        course_id: course.id,
+        provider_used: outlineProvider
       }
     });
 
@@ -528,24 +496,82 @@ Requirements:
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorType = error?.constructor?.name || 'UnknownError';
     
-    console.error(`${logPrefix} 📋 Error summary:`, {
-      message: errorMessage,
-      type: errorType,
-      hasStack: error instanceof Error && !!error.stack
+    // Use classifyLLMError to get detailed error information
+    const errorInfo = classifyLLMError(error);
+    
+    console.error(`${logPrefix} 📋 Error classification:`, {
+      type: errorInfo.type,
+      message: errorInfo.message,
+      retryable: errorInfo.retryable,
+      hasDetails: !!errorInfo.providerSpecific
     });
     console.error(`${logPrefix} 💬 Final error message:`, errorMessage);
     console.error('='.repeat(80));
 
+    // Log failed attempt to database
+    try {
+      const db = getSupabaseServerClient();
+      await db.from('ai_system_logs').insert({
+        action_type: 'course_generation',
+        model_used: 'multi-provider-fallback',
+        success: false,
+        execution_time: Date.now() - startedAt,
+        metadata: {
+          error_type: errorInfo.type,
+          error_message: errorMessage,
+          retryable: errorInfo.retryable
+        }
+      });
+    } catch (logError) {
+      console.error(`${logPrefix} ⚠️  Failed to log error to database:`, logError);
+    }
+
+    // Return detailed error with user-friendly message based on error type
+    let userMessage = errorMessage;
+    let statusCode = 500;
+    
+    switch (errorInfo.type) {
+      case 'rate_limit':
+        userMessage = '⏰ Rate limit exceeded. All AI providers are currently at capacity. Please try again in 5-10 minutes.';
+        statusCode = 429;
+        break;
+      case 'auth':
+        userMessage = '🔑 Authentication error. The AI service configuration is invalid. Please contact the administrator.';
+        statusCode = 503;
+        break;
+      case 'timeout':
+        userMessage = '⏱️ Request timeout. The AI service took too long to respond. Try a simpler course topic or try again later.';
+        statusCode = 504;
+        break;
+      case 'network':
+        userMessage = '🌐 Network error. Cannot reach AI services. Please check your connection and try again.';
+        statusCode = 503;
+        break;
+      case 'config':
+        userMessage = '⚙️ Configuration error. AI services are not properly configured. Please contact the administrator.';
+        statusCode = 503;
+        break;
+      case 'validation':
+        userMessage = '⚠️ AI response validation failed. The AI returned malformed data. This is usually temporary - please try again.';
+        statusCode = 500;
+        break;
+      default:
+        userMessage = `❌ ${errorMessage}`;
+        statusCode = 500;
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to generate course',
-        message: errorMessage,
-        hint: 'Check server logs for details'
+        error: errorInfo.type,
+        message: userMessage,
+        details: errorMessage,
+        hint: errorInfo.retryable 
+          ? 'This error is usually temporary. Please try again in a few moments.' 
+          : 'This error requires configuration changes. Please contact support.'
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
@@ -605,7 +631,6 @@ function buildCourseBundle(
 }
 
 async function translateCourse(
-  llm: LLMClient,
   sourceLocale: 'en' | 'es',
   targetLocale: 'en' | 'es',
   course: CourseContentBundle
@@ -627,7 +652,9 @@ Return JSON matching:
 
 Source JSON:
 ${JSON.stringify(course)}`;
-  return classifyWithRetry(llm, prompt, CourseTranslationSchema, JSON_SYSTEM_PROMPT);
+  
+  const { result } = await classifyWithProviderFallback(prompt, CourseTranslationSchema, JSON_SYSTEM_PROMPT);
+  return result;
 }
 
 function resolveCourseLocales(

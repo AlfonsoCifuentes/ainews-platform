@@ -121,6 +121,11 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    unoptimized: false, // Keep optimization ON for better performance
+    minimumCacheTTL: 60, // Cache images for at least 60 seconds
+    dangerouslyAllowSVG: true, // Allow SVG placeholders
+    contentDispositionType: 'attachment', // Security for SVGs
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
     serverActions: {

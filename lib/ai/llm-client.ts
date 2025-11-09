@@ -535,3 +535,279 @@ export function getAvailableProviders(): LLMProvider[] {
 
   return available;
 }
+
+/**
+ * Enhanced error classifier to determine error type and provide actionable feedback
+ */
+export function classifyLLMError(error: unknown): {
+  type: 'rate_limit' | 'auth' | 'timeout' | 'network' | 'validation' | 'config' | 'unknown';
+  message: string;
+  retryable: boolean;
+  providerSpecific?: string;
+} {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorLower = errorMessage.toLowerCase();
+
+  // Rate limit errors
+  if (
+    errorLower.includes('rate limit') ||
+    errorLower.includes('too many requests') ||
+    errorLower.includes('429') ||
+    errorLower.includes('quota')
+  ) {
+    return {
+      type: 'rate_limit',
+      message: `Rate limit exceeded. ${errorMessage}`,
+      retryable: true,
+      providerSpecific: errorMessage
+    };
+  }
+
+  // Authentication errors
+  if (
+    errorLower.includes('unauthorized') ||
+    errorLower.includes('401') ||
+    errorLower.includes('api key') ||
+    errorLower.includes('authentication') ||
+    errorLower.includes('invalid key')
+  ) {
+    return {
+      type: 'auth',
+      message: `Authentication failed. Check your API key configuration. ${errorMessage}`,
+      retryable: false,
+      providerSpecific: errorMessage
+    };
+  }
+
+  // Timeout errors
+  if (
+    errorLower.includes('timeout') ||
+    errorLower.includes('timed out') ||
+    errorLower.includes('aborted')
+  ) {
+    return {
+      type: 'timeout',
+      message: `Request timeout. The AI model took too long to respond. ${errorMessage}`,
+      retryable: true,
+      providerSpecific: errorMessage
+    };
+  }
+
+  // Network errors
+  if (
+    errorLower.includes('network') ||
+    errorLower.includes('fetch failed') ||
+    errorLower.includes('econnrefused') ||
+    errorLower.includes('enotfound')
+  ) {
+    return {
+      type: 'network',
+      message: `Network error. Cannot reach the AI provider. ${errorMessage}`,
+      retryable: true,
+      providerSpecific: errorMessage
+    };
+  }
+
+  // Validation errors (Zod)
+  if (error instanceof z.ZodError || errorLower.includes('validation') || errorLower.includes('schema')) {
+    return {
+      type: 'validation',
+      message: `Response validation failed. The AI returned malformed data. ${errorMessage}`,
+      retryable: true,
+      providerSpecific: errorMessage
+    };
+  }
+
+  // Configuration errors
+  if (errorLower.includes('missing api key') || errorLower.includes('not configured')) {
+    return {
+      type: 'config',
+      message: `Provider not configured. ${errorMessage}`,
+      retryable: false,
+      providerSpecific: errorMessage
+    };
+  }
+
+  return {
+    type: 'unknown',
+    message: errorMessage,
+    retryable: true,
+    providerSpecific: errorMessage
+  };
+}
+
+/**
+ * Try all available LLM providers in sequence until one succeeds
+ * This provides true multi-provider fallback for course generation
+ */
+export async function classifyWithAllProviders<T>(
+  basePrompt: string,
+  schema: z.ZodSchema<T>,
+  systemPrompt: string,
+  maxAttemptsPerProvider = 2,
+): Promise<{ result: T; provider: LLMProvider; attempts: number }> {
+  const availableProviders = getAvailableProviders();
+  
+  if (availableProviders.length === 0) {
+    throw new Error(
+      '❌ CRITICAL: No LLM providers configured!\n\n' +
+      'Please add at least one API key to your .env.local file:\n' +
+      '  • ANTHROPIC_API_KEY=sk-ant-... (Recommended - best for JSON)\n' +
+      '  • DEEPSEEK_API_KEY=sk-... (High quality, affordable)\n' +
+      '  • MISTRAL_API_KEY=... (European provider, high quality)\n' +
+      '  • GEMINI_API_KEY=... (Google Gemini)\n' +
+      '  • OPENROUTER_API_KEY=sk-or-... (Multi-provider gateway)\n' +
+      '  • GROQ_API_KEY=... (Fast inference)\n' +
+      '  • TOGETHER_API_KEY=... (Meta models)\n\n' +
+      'Get free API keys from:\n' +
+      '  • Anthropic: https://console.anthropic.com/\n' +
+      '  • DeepSeek: https://platform.deepseek.com/\n' +
+      '  • Mistral: https://console.mistral.ai/\n' +
+      '  • Google AI Studio: https://aistudio.google.com/\n' +
+      '  • OpenRouter: https://openrouter.ai/\n' +
+      '  • Groq: https://console.groq.com/\n' +
+      '  • Together AI: https://api.together.xyz/'
+    );
+  }
+
+  console.log(`[LLM Fallback] 🔄 Starting multi-provider fallback with ${availableProviders.length} providers available`);
+  console.log(`[LLM Fallback] 📋 Provider order: ${availableProviders.join(' → ')}`);
+
+  const allErrors: Array<{
+    provider: LLMProvider;
+    attempt: number;
+    error: ReturnType<typeof classifyLLMError>;
+  }> = [];
+
+  for (const provider of availableProviders) {
+    console.log(`\n[LLM Fallback] 🤖 Trying provider: ${provider.toUpperCase()}`);
+    
+    let llmClient: LLMClient;
+    try {
+      llmClient = createLLMClient(provider);
+      console.log(`[LLM Fallback] ✅ ${provider} client initialized`);
+    } catch (clientError) {
+      const errorInfo = classifyLLMError(clientError);
+      console.error(`[LLM Fallback] ❌ ${provider} initialization failed:`, errorInfo.message);
+      allErrors.push({ provider, attempt: 0, error: errorInfo });
+      continue;
+    }
+
+    for (let attempt = 1; attempt <= maxAttemptsPerProvider; attempt++) {
+      const prompt =
+        attempt === 1
+          ? basePrompt
+          : `${basePrompt}\n\nREMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt} of ${maxAttemptsPerProvider}.`;
+
+      try {
+        console.log(`[LLM Fallback] 🔄 ${provider} attempt ${attempt}/${maxAttemptsPerProvider}...`);
+        const result = await llmClient.classify(prompt, schema, systemPrompt);
+        
+        console.log(`[LLM Fallback] ✅ SUCCESS with ${provider} on attempt ${attempt}!`);
+        console.log(`[LLM Fallback] 📊 Total attempts across all providers: ${allErrors.length + attempt}`);
+        
+        return {
+          result,
+          provider,
+          attempts: allErrors.length + attempt
+        };
+      } catch (error) {
+        const errorInfo = classifyLLMError(error);
+        console.error(`[LLM Fallback] ❌ ${provider} attempt ${attempt}/${maxAttemptsPerProvider} failed:`);
+        console.error(`[LLM Fallback]    Type: ${errorInfo.type}`);
+        console.error(`[LLM Fallback]    Message: ${errorInfo.message}`);
+        console.error(`[LLM Fallback]    Retryable: ${errorInfo.retryable}`);
+        
+        allErrors.push({ provider, attempt, error: errorInfo });
+
+        // If it's not retryable (auth/config error), skip remaining attempts for this provider
+        if (!errorInfo.retryable) {
+          console.warn(`[LLM Fallback] ⚠️  ${provider} has non-retryable error (${errorInfo.type}), moving to next provider`);
+          break;
+        }
+
+        // Wait before retry (exponential backoff)
+        if (attempt < maxAttemptsPerProvider) {
+          const waitTime = 500 * attempt;
+          console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+
+    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${maxAttemptsPerProvider} attempts, trying next provider...`);
+  }
+
+  // All providers failed - generate detailed error report
+  console.error(`\n[LLM Fallback] ❌ CRITICAL: ALL ${availableProviders.length} PROVIDERS FAILED!`);
+  console.error(`[LLM Fallback] 📊 Total attempts: ${allErrors.length}`);
+  
+  const errorsByType = allErrors.reduce((acc, { error }) => {
+    acc[error.type] = (acc[error.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  console.error(`[LLM Fallback] 📈 Error breakdown:`, errorsByType);
+
+  // Build detailed error message
+  const errorReport = allErrors.map(({ provider, attempt, error }) => 
+    `  • ${provider} (attempt ${attempt}): ${error.type.toUpperCase()} - ${error.message}`
+  ).join('\n');
+
+  const actionableAdvice = generateActionableAdvice(allErrors);
+
+  throw new Error(
+    `❌ Course generation failed - all ${availableProviders.length} AI providers exhausted after ${allErrors.length} attempts.\n\n` +
+    `📋 FAILURE DETAILS:\n${errorReport}\n\n` +
+    `💡 RECOMMENDED ACTIONS:\n${actionableAdvice}\n\n` +
+    `🔧 TROUBLESHOOTING:\n` +
+    `  1. Check your API keys are correctly configured in .env.local\n` +
+    `  2. Verify you haven't exceeded free tier limits\n` +
+    `  3. Try again in a few minutes (rate limits reset)\n` +
+    `  4. Add more API keys for better redundancy\n\n` +
+    `Available providers: ${availableProviders.join(', ')}`
+  );
+}
+
+function generateActionableAdvice(
+  errors: Array<{ provider: LLMProvider; attempt: number; error: ReturnType<typeof classifyLLMError> }>
+): string {
+  const errorTypes = new Set(errors.map(e => e.error.type));
+  const advice: string[] = [];
+
+  if (errorTypes.has('rate_limit')) {
+    advice.push('  ⏰ RATE LIMIT: You\'ve hit usage limits. Wait 5-10 minutes or add more API keys for redundancy.');
+  }
+
+  if (errorTypes.has('auth')) {
+    advice.push('  🔑 AUTH ERROR: Check your API keys in .env.local. Make sure they\'re valid and properly formatted.');
+  }
+
+  if (errorTypes.has('timeout')) {
+    advice.push('  ⏱️  TIMEOUT: Requests are taking too long. Try a simpler course topic or shorter duration.');
+  }
+
+  if (errorTypes.has('network')) {
+    advice.push('  🌐 NETWORK: Cannot reach AI providers. Check your internet connection or firewall settings.');
+  }
+
+  if (errorTypes.has('validation')) {
+    advice.push('  ⚠️  VALIDATION: AI is returning malformed data. This is usually temporary - try again.');
+  }
+
+  if (errorTypes.has('config')) {
+    advice.push('  ⚙️  CONFIG: Missing configuration. Add API keys to .env.local (see .env.example).');
+  }
+
+  if (advice.length === 0) {
+    advice.push('  ❓ UNKNOWN: Unexpected error. Check server logs and try again in a few minutes.');
+  }
+
+  // Add provider-specific advice
+  const failedProviders = new Set(errors.map(e => e.provider));
+  if (failedProviders.size === 1) {
+    advice.push(`\n  💡 TIP: Only ${Array.from(failedProviders)[0]} is configured. Add more API keys for better reliability!`);
+  }
+
+  return advice.join('\n');
+}

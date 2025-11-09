@@ -140,12 +140,13 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
           <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
             <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
               <Image
-                src={hero.image_url || '/placeholder-news.jpg'}
+                src={hero.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"%3E%3Crect fill="%23111827" width="1200" height="630"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="48" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
                 alt={getLocalizedString(hero, 'title', locale)}
                 fill
                 priority
                 className="object-cover scale-110 transition-transform duration-700 group-hover:scale-100"
                 sizes="100vw"
+                unoptimized={!hero.image_url}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
               
@@ -198,11 +199,12 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
               <article className="relative h-full overflow-hidden rounded-3xl border border-border/50 bg-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10">
                 <div className="relative h-56 overflow-hidden">
                   <Image
-                    src={article.image_url || '/placeholder-news.jpg'}
+                    src={article.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="450"%3E%3Crect fill="%23111827" width="800" height="450"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="32" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
                     alt={getLocalizedString(article, 'title', locale)}
                     fill
                     className="object-cover scale-105 transition-transform duration-500 group-hover:scale-100"
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized={!article.image_url}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
                   
@@ -257,11 +259,12 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                 <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5">
                   <div className={`relative overflow-hidden ${isLarge ? 'h-80' : 'h-48'}`}>
                     <Image
-                      src={article.image_url || '/placeholder-news.jpg'}
+                      src={article.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="450"%3E%3Crect fill="%23111827" width="800" height="450"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="32" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
                       alt={getLocalizedString(article, 'title', locale)}
                       fill
                       className="object-cover scale-105 transition-transform duration-500 group-hover:scale-100"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      unoptimized={!article.image_url}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                     
