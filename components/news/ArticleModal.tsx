@@ -147,7 +147,7 @@ export function ArticleModal({
               )}
 
               {/* Full Content */}
-              {content && content.length > 100 ? (
+              {content && content.length > 100 && content !== summary ? (
                 <div 
                   className="prose prose-lg dark:prose-invert max-w-none
                     prose-headings:font-bold prose-headings:tracking-tight
@@ -158,13 +158,13 @@ export function ArticleModal({
                     prose-pre:bg-muted prose-pre:border prose-pre:border-border"
                   dangerouslySetInnerHTML={{ __html: content }}
                 />
-              ) : (
+              ) : content && content.length > 100 ? (
                 <div className="prose prose-lg dark:prose-invert max-w-none">
                   <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                    {content || summary}
+                    {content}
                   </p>
                 </div>
-              )}
+              ) : null}
 
               {/* Read Original Link + Actions */}
               {article.source_url && (

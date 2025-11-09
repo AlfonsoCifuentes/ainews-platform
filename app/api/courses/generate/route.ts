@@ -160,38 +160,43 @@ export async function POST(req: NextRequest) {
     const availableProviders = getAvailableProviders();
     console.log(`${logPrefix} 📊 Available providers:`, availableProviders);
     console.log(`${logPrefix} 🔑 API Keys status:`, {
+      hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasGemini: !!process.env.GEMINI_API_KEY,
       hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
       hasGroq: !!process.env.GROQ_API_KEY,
-      geminiKeyLength: process.env.GEMINI_API_KEY?.length || 0,
-      openRouterKeyLength: process.env.OPENROUTER_API_KEY?.length || 0,
-      groqKeyLength: process.env.GROQ_API_KEY?.length || 0
+      hasTogether: !!process.env.TOGETHER_API_KEY,
+      hasDeepSeek: !!process.env.DEEPSEEK_API_KEY,
+      hasMistral: !!process.env.MISTRAL_API_KEY
     });
-    
+
     if (availableProviders.length === 0) {
       console.error(`${logPrefix} ❌ CRITICAL: No LLM API keys configured!`);
       console.error(`${logPrefix} 💡 Add at least one API key to .env.local:`);
+      console.error(`${logPrefix}    - ANTHROPIC_API_KEY=your_key_here (recommended)`);
       console.error(`${logPrefix}    - GEMINI_API_KEY=your_key_here`);
       console.error(`${logPrefix}    - OPENROUTER_API_KEY=your_key_here`);
       console.error(`${logPrefix}    - GROQ_API_KEY=your_key_here`);
+      console.error(`${logPrefix}    - TOGETHER_API_KEY=your_key_here`);
+      console.error(`${logPrefix}    - DEEPSEEK_API_KEY=your_key_here`);
+      console.error(`${logPrefix}    - MISTRAL_API_KEY=your_key_here`);
       return NextResponse.json(
         {
           success: false,
           error: 'LLM API not configured',
           message: 'No AI provider is currently available. Please configure API keys in your environment.',
-          details: 'Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in .env.local'
+          details: 'Set at least one LLM API key in .env.local'
         },
         { status: 503 }
       );
     }
-    
-    // Use automatic fallback system (Gemini → OpenRouter → Groq)
+
+    // Use automatic fallback system (Anthropic → Gemini → OpenRouter → Groq → Together → DeepSeek → Mistral)
     console.log(`${logPrefix} ⏳ Step 5/8: Creating LLM client with fallback...`);
     let llm;
     try {
       llm = createLLMClientWithFallback();
       console.log(`${logPrefix} ✅ LLM client created successfully`);
-      console.log(`${logPrefix} 🤖 Active providers: ${availableProviders.join(' → ')}`);
+      console.log(`${logPrefix} 🤖 Provider order: ${availableProviders.join(' → ')}`);
     } catch (llmError) {
       console.error(`${logPrefix} ❌ All LLM providers failed:`, llmError);
       console.error(`${logPrefix} Error details:`, llmError instanceof Error ? llmError.stack : llmError);

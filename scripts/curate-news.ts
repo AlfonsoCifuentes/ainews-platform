@@ -30,7 +30,7 @@ import { createLLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getBestArticleImage } from '../lib/services/image-scraper';
-import { ultraScrapeArticleImage } from '../lib/services/ultra-image-scraper';
+import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scraper';
 import { validateImageEnhanced } from '../lib/services/image-validator';
 import { initializeImageHashCache } from '../lib/services/image-validator';
 import { z } from 'zod';
@@ -269,25 +269,31 @@ Is this article relevant to AI/ML/tech? Return JSON only.`;
         ArticleClassificationSchema,
         systemPrompt
       );
-      
+
       console.log(`[LLM:${provider.name}] ✓ Classified "${article.title.slice(0, 40)}..." (score: ${result.quality_score}, category: ${result.category})`);
       return result;
-      
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // If rate limited or provider failed, try next provider
       if (errorMessage.includes('429') || errorMessage.includes('rate_limit') || errorMessage.includes('quota')) {
         console.log(`[LLM:${provider.name}] ⚠ Rate limited, trying next provider...`);
         continue;
       }
-      
+
+      // Schema validation errors - try next provider
+      if (errorMessage.includes('schema') || errorMessage.includes('invalid_enum_value')) {
+        console.log(`[LLM:${provider.name}] ⚠ Schema error, trying next provider...`);
+        continue;
+      }
+
       // Other errors, try next provider
       console.error(`[LLM:${provider.name}] ✗ Error: ${errorMessage.slice(0, 100)}, trying next provider...`);
       continue;
     }
   }
-  
+
   // All providers failed
   console.error(`[LLM] ✗ All providers failed for "${article.title.slice(0, 40)}"`);
   return null;
@@ -444,20 +450,20 @@ async function storeArticles(
         contentSnippet: article.contentSnippet
       });
       
-      // LAYER 2: If Layer 1 failed, use ULTRA scraper (Playwright + AI Vision)
+      // LAYER 2: If Layer 1 failed, use ADVANCED scraper (Multi-layer webscraping)
       if (!imageUrl) {
-        console.log(`[ImageValidator] Layer 1 failed, trying ULTRA scraper (Playwright + AI)...`);
+        console.log(`[ImageValidator] Layer 1 failed, trying ADVANCED scraper (Multi-layer webscraping)...`);
         try {
-          const ultraResult = await ultraScrapeArticleImage(article.link, article.title || '');
+          const advancedResult = await scrapeArticleImageAdvanced(article.link);
           
-          if (ultraResult.imageUrl && ultraResult.confidence > 0.6) {
-            imageUrl = ultraResult.imageUrl;
-            console.log(`[ImageValidator] ✅ ULTRA scraper SUCCESS! Method: ${ultraResult.method}, Confidence: ${(ultraResult.confidence * 100).toFixed(1)}%`);
+          if (advancedResult && advancedResult.confidence > 0.4) {
+            imageUrl = advancedResult.url;
+            console.log(`[ImageValidator] ✅ ADVANCED scraper SUCCESS! Method: ${advancedResult.method}, Confidence: ${(advancedResult.confidence * 100).toFixed(1)}%`);
           } else {
-            console.warn(`[ImageValidator] ULTRA scraper found image but confidence too low: ${(ultraResult.confidence * 100).toFixed(1)}%`);
+            console.warn(`[ImageValidator] ADVANCED scraper found image but confidence too low`);
           }
-        } catch (ultraError) {
-          console.error(`[ImageValidator] ULTRA scraper failed:`, ultraError instanceof Error ? ultraError.message : ultraError);
+        } catch (advancedError) {
+          console.error(`[ImageValidator] ADVANCED scraper failed:`, advancedError instanceof Error ? advancedError.message : advancedError);
         }
       }
 
@@ -482,24 +488,66 @@ async function storeArticles(
         }
       }
       
-      // LAYER 3: If all else fails, generate unique fallback using Unsplash
+      // LAYER 3: If all else fails, use Pexels API as fallback (more reliable than Unsplash Source)
       if (!imageUrl) {
-        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - using unique fallback`);
+        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - trying Pexels API`);
         
-        // Generate UNIQUE fallback URL using Unsplash Source API with random seed
-        // Each article gets a different image based on title + link hash
-        const articleHash = `${article.title}${article.link}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const randomSeed = articleHash % 10000; // Generate seed 0-9999
+        try {
+          // Use Pexels API for more reliable fallback images
+          const searchQuery = classification.category || 'artificial intelligence';
+          const pexelsResponse = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=1&page=${Math.floor(Math.random() * 100) + 1}`,
+            {
+              headers: {
+                'Authorization': process.env.PEXELS_API_KEY || 'dummy_key_for_fallback'
+              },
+              signal: AbortSignal.timeout(5000)
+            }
+          );
+          
+          if (pexelsResponse.ok) {
+            const pexelsData = await pexelsResponse.json() as { photos?: Array<{ src?: { large?: string } }> };
+            if (pexelsData.photos?.[0]?.src?.large) {
+              imageUrl = pexelsData.photos[0].src.large;
+              console.log(`[ImageValidator] ✓ Got fallback from Pexels API`);
+            }
+          }
+        } catch (pexelsError) {
+          console.warn(`[ImageValidator] Pexels API failed:`, pexelsError instanceof Error ? pexelsError.message : pexelsError);
+        }
         
-        // Unsplash Source API with query + random seed = unique image every time
-        // Categories: ai, technology, computer, robotics, data
-        const categories = ['ai', 'technology', 'computer', 'robotics', 'data', 'science'];
-        const category = categories[articleHash % categories.length];
+        // If Pexels also fails, use Pixabay as last resort
+        if (!imageUrl) {
+          try {
+            const searchQuery = classification.category || 'artificial intelligence';
+            const pixabayResponse = await fetch(
+              `https://pixabay.com/api/?key=${process.env.PIXABAY_API_KEY || 'dummy'}&q=${encodeURIComponent(searchQuery)}&image_type=photo&per_page=1&page=${Math.floor(Math.random() * 50) + 1}`,
+              { signal: AbortSignal.timeout(5000) }
+            );
+            
+            if (pixabayResponse.ok) {
+              const pixabayData = await pixabayResponse.json() as { hits?: Array<{ largeImageURL?: string }> };
+              if (pixabayData.hits?.[0]?.largeImageURL) {
+                imageUrl = pixabayData.hits[0].largeImageURL;
+                console.log(`[ImageValidator] ✓ Got fallback from Pixabay API`);
+              }
+            }
+          } catch (pixabayError) {
+            console.warn(`[ImageValidator] Pixabay API failed:`, pixabayError instanceof Error ? pixabayError.message : pixabayError);
+          }
+        }
         
-        // Use Unsplash Source API - generates random image from category with seed
-        imageUrl = `https://source.unsplash.com/1600x900/?${category},artificial-intelligence&sig=${randomSeed}`;
+        // Final fallback: Use Unsplash Source API with unique seed
+        if (!imageUrl) {
+          console.warn(`[ImageValidator] All APIs failed, using Unsplash Source as final fallback`);
+          const articleHash = `${article.title}${article.link}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const randomSeed = articleHash % 10000;
+          const categories = ['ai', 'technology', 'computer', 'robotics', 'data', 'science', 'machine-learning', 'neural-network'];
+          const category = categories[articleHash % categories.length];
+          imageUrl = `https://images.unsplash.com/photo-${1600000000 + randomSeed}?w=1600&h=900&fit=crop`;
+        }
         
-        console.log(`[ImageValidator] Generated unique fallback: ${imageUrl}`);
+        console.log(`[ImageValidator] Generated fallback: ${imageUrl}`);
         invalidImageCount++;
       }
       
@@ -593,49 +641,43 @@ async function main() {
 
   try {
     // Initialize ALL available LLM providers for fallback
+    const { getAvailableProviders } = await import('../lib/ai/llm-client');
+    const availableProviders = getAvailableProviders();
+
+    console.log('[News Curator] Available LLM providers:', availableProviders);
+
     const providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }> = [];
-    
-    // Try Gemini first (best JSON support, 60 RPM)
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        providers.push({ name: 'Gemini', client: createLLMClient('gemini') });
-        console.log('[News Curator] ✓ Gemini client initialized');
-      } catch (error) {
-        console.log('[News Curator] ⚠ Gemini initialization failed:', error);
+
+    // Try providers in priority order: Anthropic → Gemini → OpenRouter → Groq → Together → DeepSeek → Mistral
+    const providerOrder = ['anthropic', 'gemini', 'openrouter', 'groq', 'together', 'deepseek', 'mistral'];
+
+    for (const providerName of providerOrder) {
+      if (availableProviders.includes(providerName as any)) {
+        try {
+          const client = createLLMClient(providerName as any);
+          providers.push({ name: providerName, client });
+          console.log(`[News Curator] ✓ ${providerName} client initialized`);
+        } catch (error) {
+          console.log(`[News Curator] ⚠ ${providerName} initialization failed:`, error instanceof Error ? error.message : error);
+        }
       }
     }
-    
-    // OpenRouter as fallback (multiple models, good limits)
-    if (process.env.OPENROUTER_API_KEY) {
-      try {
-        providers.push({ name: 'OpenRouter', client: createLLMClient('openrouter') });
-        console.log('[News Curator] ✓ OpenRouter client initialized');
-      } catch (error) {
-        console.log('[News Curator] ⚠ OpenRouter initialization failed:', error);
-      }
-    }
-    
-    // Groq as last resort (30 RPM, but free)
-    if (process.env.GROQ_API_KEY) {
-      try {
-        providers.push({ name: 'Groq', client: createLLMClient('groq') });
-        console.log('[News Curator] ✓ Groq client initialized');
-      } catch (error) {
-        console.log('[News Curator] ⚠ Groq initialization failed:', error);
-      }
-    }
-    
+
     if (providers.length === 0) {
       console.error('[News Curator] ✗ CRITICAL ERROR: No LLM providers available!');
-      console.error('[News Curator] Please configure at least ONE of these GitHub Secrets:');
-      console.error('  1. GEMINI_API_KEY (recommended - best JSON support)');
-      console.error('  2. OPENROUTER_API_KEY (good fallback)');
-      console.error('  3. GROQ_API_KEY (last resort)');
-      console.error('[News Curator] Go to: https://github.com/AlfonsoCifuentes/ainews-platform/settings/secrets/actions');
-      throw new Error('No LLM providers available. Set GEMINI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in GitHub Secrets.');
+      console.error('[News Curator] Please configure at least ONE of these environment variables:');
+      console.error('  - ANTHROPIC_API_KEY (recommended - best JSON responses)');
+      console.error('  - GEMINI_API_KEY (Google\'s Gemini)');
+      console.error('  - OPENROUTER_API_KEY (multi-provider)');
+      console.error('  - GROQ_API_KEY (fast inference)');
+      console.error('  - TOGETHER_API_KEY (Meta models)');
+      console.error('  - DEEPSEEK_API_KEY (Chinese provider)');
+      console.error('  - MISTRAL_API_KEY (European provider)');
+      throw new Error('No LLM providers available. Configure at least one API key.');
     }
-    
+
     console.log(`[News Curator] Initialized ${providers.length} LLM provider(s) with automatic fallback`);
+    console.log(`[News Curator] Provider order: ${providers.map(p => p.name).join(' → ')}`);
     
     const db = getSupabaseServerClient();
     console.log('[News Curator] ✓ Supabase client initialized');

@@ -46,7 +46,7 @@ export async function GET(
     let userProgress = null;
     if (userId) {
       const { data: progress } = await db
-        .from('user_progress')
+        .from('course_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('course_id', id);
