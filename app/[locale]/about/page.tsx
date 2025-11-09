@@ -9,7 +9,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
     <main className="container mx-auto px-4 py-12">
       <div className="flex items-center gap-4 mb-6">
         <Image 
-          src="/images/AINEWS_logo.png" 
+          src="/images/ainews-logo.png" 
           alt="AINews Logo" 
           width={64}
           height={64}

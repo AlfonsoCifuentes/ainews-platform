@@ -31,6 +31,7 @@ export default async function CourseDetailPage({
   const db = getSupabaseServerClient();
 
   // Fetch course details
+  console.log('Fetching course with ID:', id, 'for locale:', locale);
   const { data: course, error } = await db
     .from('courses')
     .select(`
@@ -50,7 +51,10 @@ export default async function CourseDetailPage({
     .eq('id', id)
     .single();
 
+  console.log('Course query result:', { course: !!course, error });
+
   if (error || !course) {
+    console.log('Course not found, calling notFound()');
     notFound();
   }
 

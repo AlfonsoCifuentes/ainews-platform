@@ -22,7 +22,7 @@ import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
     icons: {
-      icon: '/images/AINEWS_logo.png',
-      apple: '/images/AINEWS_logo.png',
+      icon: '/images/ainews-logo.png',
+      apple: '/images/ainews-logo.png',
     },
     manifest: '/manifest.webmanifest',
     alternates: {

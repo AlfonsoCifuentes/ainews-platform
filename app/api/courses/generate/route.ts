@@ -166,7 +166,15 @@ export async function POST(req: NextRequest) {
       hasGroq: !!process.env.GROQ_API_KEY,
       hasTogether: !!process.env.TOGETHER_API_KEY,
       hasDeepSeek: !!process.env.DEEPSEEK_API_KEY,
-      hasMistral: !!process.env.MISTRAL_API_KEY
+      hasMistral: !!process.env.MISTRAL_API_KEY,
+      // Debug: show actual values (first 10 chars)
+      anthropicValue: process.env.ANTHROPIC_API_KEY?.substring(0, 10) + '...',
+      geminiValue: process.env.GEMINI_API_KEY?.substring(0, 10) + '...',
+      openRouterValue: process.env.OPENROUTER_API_KEY?.substring(0, 10) + '...',
+      groqValue: process.env.GROQ_API_KEY?.substring(0, 10) + '...',
+      togetherValue: process.env.TOGETHER_API_KEY?.substring(0, 10) + '...',
+      deepSeekValue: process.env.DEEPSEEK_API_KEY?.substring(0, 10) + '...',
+      mistralValue: process.env.MISTRAL_API_KEY?.substring(0, 10) + '...'
     });
 
     if (availableProviders.length === 0) {
