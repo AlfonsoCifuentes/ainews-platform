@@ -6,7 +6,7 @@
  */
 
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback, LLMClient } from '@/lib/ai/llm-client';
 import { z } from 'zod';
 
 // ============================================
@@ -38,44 +38,21 @@ export interface ExtractionResult {
 
 export class EntityExtractor {
   private db = getSupabaseServerClient();
-  private llm: LLMClient;
+  private llm: LLMClient | null = null;
 
   constructor() {
-    // Inicializar LLM client (usar Gemini primero, fallback a OpenRouter)
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const openrouterKey = process.env.OPENROUTER_API_KEY;
-    const groqKey = process.env.GROQ_API_KEY;
-
-    if (geminiKey) {
-      this.llm = new LLMClient(
-        geminiKey,
-        'https://generativelanguage.googleapis.com/v1beta',
-        'gemini-pro',
-        'gemini'
-      );
-    } else if (openrouterKey) {
-      this.llm = new LLMClient(
-        openrouterKey,
-        'https://openrouter.ai/api/v1',
-        'google/gemini-flash-1.5',
-        'openrouter'
-      );
-    } else if (groqKey) {
-      this.llm = new LLMClient(
-        groqKey,
-        'https://api.groq.com/openai/v1',
-        'llama-3.1-70b-versatile',
-        'groq'
-      );
-    } else {
-      throw new Error('No LLM API key configured');
-    }
+    // LLM client will be initialized lazily in extractFromArticle()
   }
 
   /**
    * Extrae entidades y relaciones de un artículo
    */
   async extractFromArticle(articleId: string): Promise<ExtractionResult> {
+    // Initialize LLM client with Ollama-first fallback
+    if (!this.llm) {
+      this.llm = await createLLMClientWithFallback();
+    }
+
     // Obtener artículo
     const { data: article } = await this.db
       .from('news_articles')
@@ -141,7 +118,7 @@ Only extract entities and relations that are clearly mentioned. Be precise.`;
         ),
       });
 
-      const result = await this.llm.classify(prompt, schema);
+      const result = await this.llm!.classify(prompt, schema);
 
       return {
         entities: result.entities || [],

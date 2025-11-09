@@ -55,6 +55,11 @@ export class LLMClient {
       return this.generateGemini(prompt, validatedOptions);
     }
 
+    // Ollama has a different API structure
+    if (this.provider === 'ollama') {
+      return this.generateOllama(prompt, validatedOptions);
+    }
+
     // Anthropic has a different API structure
     if (this.provider === 'anthropic') {
       return this.generateAnthropic(prompt, validatedOptions);
@@ -226,6 +231,56 @@ export class LLMClient {
     };
   }
 
+  private async generateOllama(
+    prompt: string,
+    options: GenerateOptions,
+  ): Promise<LLMResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        stream: false,
+        options: {
+          temperature: options.temperature,
+          top_p: options.topP,
+          num_predict: options.maxTokens || 4000,
+          stop: options.stop,
+        },
+      }),
+      signal: AbortSignal.timeout(120000), // 2 minutes for local Ollama
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Ollama API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+      );
+    }
+
+    const data = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content ?? '';
+
+    return {
+      content: cleanLLMResponse(rawContent),
+      model: data.model || this.model,
+      usage: {
+        promptTokens: data.usage?.prompt_eval_count ?? 0,
+        completionTokens: data.usage?.eval_count ?? 0,
+        totalTokens: (data.usage?.prompt_eval_count ?? 0) + (data.usage?.eval_count ?? 0),
+      },
+      finishReason: data.choices?.[0]?.finish_reason ?? 'unknown',
+    };
+  }
+
   async classify<T>(
     text: string,
     schema: z.ZodSchema<T>,
@@ -267,6 +322,17 @@ export class LLMClient {
         }
       }
 
+      // Strategy 3: Fix malformed Unicode escapes that come from Ollama
+      // Replace invalid \uXXsY patterns with proper UTF-8 encoding
+      jsonContent = jsonContent.replace(/\\u00([0-9a-fA-F]{2})s([0-9a-fA-F])/g, (_match, hex1) => {
+        // These are usually UTF-8 sequences - try to decode properly
+        const charCode = parseInt(hex1, 16);
+        return String.fromCharCode(charCode);
+      });
+      
+      // Fix incomplete escapes at end of strings
+      jsonContent = jsonContent.replace(/"([^"]*?)\\u00[0-9a-fA-F]{0,3}$/g, '"$1"');
+
       const parsed = JSON.parse(jsonContent);
       return schema.parse(parsed);
     } catch (error) {
@@ -288,7 +354,7 @@ export class LLMClient {
   }
 }
 
-export type LLMProvider = 'openrouter' | 'groq' | 'gemini' | 'anthropic' | 'together' | 'deepseek' | 'mistral';
+export type LLMProvider = 'ollama' | 'openrouter' | 'groq' | 'gemini' | 'anthropic' | 'together' | 'deepseek' | 'mistral';
 
 export function createLLMClient(
   provider: LLMProvider,
@@ -299,6 +365,13 @@ export function createLLMClient(
   let defaultModel: string;
 
   switch (provider) {
+    case 'ollama':
+      // Ollama doesn't need API key, uses local instance
+      apiKey = 'ollama-local';
+      baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
+      defaultModel = 'llama3.2:3b'; // Small, fast model for development
+      break;
+
     case 'openrouter':
       apiKey = process.env.OPENROUTER_API_KEY;
       baseUrl = 'https://openrouter.ai/api/v1';
@@ -353,23 +426,65 @@ export function createLLMClient(
 
 /**
  * Create LLM client with automatic fallback to available providers
- * Tries providers in order: Anthropic → Gemini → OpenRouter → Groq → Together → DeepSeek → Mistral
+ * In development: Ollama first, then cloud providers
+ * In production: Cloud providers only (Ollama not available)
  */
-export function createLLMClientWithFallback(): LLMClient {
-  const providers: LLMProvider[] = [
-    'anthropic', // Best for JSON responses - PRIMARY
-    'deepseek',  // Chinese provider - HIGH QUALITY
-    'mistral',   // European provider - HIGH QUALITY
-    'gemini',    // Google's Gemini
-    'openrouter', // Multi-provider
-    'groq',      // Fast inference
-    'together'   // Meta models
-  ];
+export async function createLLMClientWithFallback(): Promise<LLMClient> {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isVercel = process.env.VERCEL === '1';
+
+  // In development, try Ollama first with actual availability check
+  if (isDevelopment && !isVercel) {
+    try {
+      // Quick check if Ollama is running
+      const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+      const response = await fetch(`${ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(3000) // 3 second timeout
+      });
+
+      if (response.ok) {
+        const ollamaClient = createLLMClient('ollama');
+        console.log('[LLM] Using Ollama provider (local development)');
+        return ollamaClient;
+      } else {
+        console.warn('[LLM] Ollama API responded but not OK, falling back to cloud providers');
+      }
+    } catch (error) {
+      console.warn('[LLM] Ollama not available, falling back to cloud providers:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
+  // Production or Ollama fallback: Cloud providers only
+  let providers: LLMProvider[];
+
+  if (isDevelopment && !isVercel) {
+    // Development fallback (after Ollama)
+    providers = [
+      'anthropic', // Best for JSON responses
+      'deepseek',  // Chinese provider - HIGH QUALITY
+      'mistral',   // European provider - HIGH QUALITY
+      'gemini',    // Google's Gemini
+      'openrouter', // Multi-provider
+      'groq',      // Fast inference
+      'together'   // Meta models
+    ];
+  } else {
+    // Production: Cloud providers only
+    providers = [
+      'anthropic', // Best for JSON responses - PRIMARY
+      'deepseek',  // Chinese provider - HIGH QUALITY
+      'mistral',   // European provider - HIGH QUALITY
+      'gemini',    // Google's Gemini
+      'openrouter', // Multi-provider
+      'groq',      // Fast inference
+      'together'   // Meta models
+    ];
+  }
 
   for (const provider of providers) {
     try {
       const client = createLLMClient(provider);
-      console.log(`[LLM] Using ${provider} provider`);
+      console.log(`[LLM] Using ${provider} provider${isDevelopment && provider === 'ollama' ? ' (local development)' : ''}`);
       return client;
     } catch (error) {
       console.warn(`[LLM] ${provider} not available:`, error instanceof Error ? error.message : 'Unknown error');
@@ -377,7 +492,11 @@ export function createLLMClientWithFallback(): LLMClient {
   }
 
   throw new Error(
-    'No LLM providers available. Please configure at least one API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, DEEPSEEK_API_KEY, or MISTRAL_API_KEY'
+    'No LLM providers available. ' +
+    (isDevelopment && !isVercel
+      ? 'For development, install Ollama and run: ollama pull llama3.2:3b'
+      : 'Please configure at least one API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, DEEPSEEK_API_KEY, or MISTRAL_API_KEY'
+    )
   );
 }
 
@@ -387,13 +506,32 @@ export function createLLMClientWithFallback(): LLMClient {
 export function getAvailableProviders(): LLMProvider[] {
   const available: LLMProvider[] = [];
 
+  // Check if Ollama is available (for local development)
+  if (process.env.NODE_ENV === 'development' || process.env.OLLAMA_BASE_URL) {
+    try {
+      // Quick check if Ollama is running
+      fetch(process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api/tags', {
+        signal: AbortSignal.timeout(2000)
+      }).then(response => {
+        if (response.ok) {
+          console.log('[LLM] Ollama detected and available');
+        }
+      }).catch(() => {
+        console.log('[LLM] Ollama not available');
+      });
+      available.push('ollama');
+    } catch {
+      // Ollama not available
+    }
+  }
+
   if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');
+  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');
+  if (process.env.MISTRAL_API_KEY) available.push('mistral');
   if (process.env.GEMINI_API_KEY) available.push('gemini');
   if (process.env.OPENROUTER_API_KEY) available.push('openrouter');
   if (process.env.GROQ_API_KEY) available.push('groq');
   if (process.env.TOGETHER_API_KEY) available.push('together');
-  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');
-  if (process.env.MISTRAL_API_KEY) available.push('mistral');
 
   return available;
 }

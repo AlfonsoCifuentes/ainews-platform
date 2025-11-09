@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config';
-import { createLLMClient } from '../lib/ai/llm-client';
+import { createLLMClientWithFallback } from '../lib/ai/llm-client';
 import Parser from 'rss-parser';
 import { z } from 'zod';
 
@@ -26,8 +26,8 @@ async function main() {
   console.log('[Test Curate] Starting quick test with 20 articles...');
 
   try {
-    const llm = createLLMClient('gemini');
-    console.log('[Test Curate] Initialized Gemini client');
+    const llm = await createLLMClientWithFallback();
+    console.log('[Test Curate] Initialized LLM client with automatic fallback (prioritizes Ollama)');
 
     // Fetch only from one source for speed
     console.log('[Test Curate] Fetching from OpenAI Blog...');

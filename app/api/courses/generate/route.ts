@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { createLLMClientWithFallback, getAvailableProviders } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback, getAvailableProviders, LLMClient } from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 
 // Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
@@ -85,7 +85,7 @@ const localeLabels: Record<'en' | 'es', string> = {
 };
 
 async function classifyWithRetry<T>(
-  llm: ReturnType<typeof createLLMClientWithFallback>,
+  llm: LLMClient,
   basePrompt: string,
   schema: z.ZodSchema<T>,
   systemPrompt: string,
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     console.log(`${logPrefix} ⏳ Step 5/8: Creating LLM client with fallback...`);
     let llm;
     try {
-      llm = createLLMClientWithFallback();
+      llm = await createLLMClientWithFallback();
       console.log(`${logPrefix} ✅ LLM client created successfully`);
       console.log(`${logPrefix} 🤖 Provider order: ${availableProviders.join(' → ')}`);
     } catch (llmError) {
@@ -605,7 +605,7 @@ function buildCourseBundle(
 }
 
 async function translateCourse(
-  llm: ReturnType<typeof createLLMClientWithFallback>,
+  llm: LLMClient,
   sourceLocale: 'en' | 'es',
   targetLocale: 'en' | 'es',
   course: CourseContentBundle

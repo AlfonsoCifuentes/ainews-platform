@@ -15,6 +15,7 @@ import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
 import { estimateDimensionsFromUrl, getOrientationInfo, type OrientationInfo } from './image-orientation';
 import { ultralyticsVision } from './ultralytics-vision';
+import { visualSimilarity } from './visual-similarity';
 
 // Computer Vision API configuration
 const VISION_API_URL = 'https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base';
@@ -509,12 +510,13 @@ export async function verifyImageWithAI(imageUrl: string): Promise<{
 }
 
 /**
- * 🔍 Enhanced image validation with AI
- * Combines existing validation + Computer Vision
+ * 🔍 Enhanced image validation with AI and Visual Similarity
+ * Combines existing validation + Computer Vision + Visual Similarity Detection
  */
 export async function validateImageEnhanced(imageUrl: string, options?: {
   skipAI?: boolean;
   skipComputerVision?: boolean;
+  skipVisualSimilarity?: boolean;
   skipCache?: boolean;
 }): Promise<{
   isValid: boolean;
@@ -524,6 +526,16 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   cvVerified?: boolean;
   cvAnalysis?: string;
   detectedObjects?: string[];
+  visualSimilarity?: {
+    isDuplicate: boolean;
+    isSimilar: boolean;
+    mostSimilar?: {
+      imageUrl: string;
+      hammingDistance: number;
+      similarity: number;
+    };
+    hash: string;
+  };
   hash?: string;
   width?: number;
   height?: number;
@@ -547,8 +559,55 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   let cvVerified = false;
   let cvAnalysis: string | undefined;
   let detectedObjects: string[] | undefined;
+  let visualSimilarityResult: {
+    isDuplicate: boolean;
+    isSimilar: boolean;
+    mostSimilar?: {
+      imageUrl: string;
+      hammingDistance: number;
+      similarity: number;
+    };
+    hash: string;
+  } | undefined;
 
-  // Step 2: AI verification with Hugging Face BLIP (optional)
+  // Step 2: Visual Similarity Check (optional)
+  if (!options?.skipVisualSimilarity) {
+    try {
+      const similarityCheck = await visualSimilarity.checkSimilarity(imageUrl, {
+        duplicateThreshold: 0,  // Exact duplicates only
+        similarThreshold: 5,    // Very similar images
+        maxResults: 3
+      });
+      visualSimilarityResult = similarityCheck;
+
+      // If image is a duplicate, mark as invalid
+      if (similarityCheck.isDuplicate) {
+        return {
+          isValid: false,
+          reason: `Duplicate image detected (similar to: ${similarityCheck.mostSimilar?.imageUrl})`,
+          aiVerified: false,
+          cvVerified: false,
+          visualSimilarity: similarityCheck,
+          hash: basicValidation.hash,
+          width: basicValidation.width,
+          height: basicValidation.height,
+          mime: basicValidation.mime,
+          bytes: basicValidation.bytes
+        };
+      }
+
+      // Log similar images for manual review
+      if (similarityCheck.isSimilar && similarityCheck.mostSimilar) {
+        console.warn(`[ImageValidator] Similar image detected: ${imageUrl} similar to ${similarityCheck.mostSimilar.imageUrl} (distance: ${similarityCheck.mostSimilar.hammingDistance})`);
+      }
+
+    } catch (error) {
+      console.error('[ImageValidator] Visual similarity check failed:', error);
+      // Don't block validation on similarity check failure
+    }
+  }
+
+  // Step 3: AI verification with Hugging Face BLIP (optional)
   if (!options?.skipAI && VISION_ENABLED) {
     const aiValidation = await verifyImageWithAI(imageUrl);
     aiVerified = aiValidation.isValid;
@@ -594,6 +653,7 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
     cvVerified,
     cvAnalysis,
     detectedObjects,
+    visualSimilarity: visualSimilarityResult,
     hash: basicValidation.hash,
     width: basicValidation.width,
     height: basicValidation.height,

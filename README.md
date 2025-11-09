@@ -56,6 +56,12 @@
 - **Trend Detection** — Discover emerging topics and bursty keywords
 - **Global Search** — Unified search across articles, courses, and entities
 
+### 🖼️ **Visual Similarity Detection**
+- **Perceptual Hashing** — dHash algorithm for duplicate image detection
+- **Hamming Distance** — Configurable similarity thresholds
+- **Duplicate Prevention** — Automatic rejection of visually identical images
+- **Content Quality** — Ensures diverse visual content in news feeds
+
 ### 🎨 **Revolutionary Design**
 - **Mobile-First** — Optimized for all screen sizes
 - **Brutalist Minimalism** — Bold typography with kinetic elements

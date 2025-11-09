@@ -12,7 +12,7 @@
 
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback, LLMClient } from '@/lib/ai/llm-client';
 
 // ============================================
 // TYPES
@@ -50,38 +50,10 @@ export interface LearningMetrics {
 
 export class LearningAgent {
   private db = getSupabaseServerClient();
-  private llm: LLMClient;
+  private llm: LLMClient | null = null;
 
   constructor() {
-    // Initialize LLM client with fallback chain: Gemini → OpenRouter → Groq
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    const groqKey = process.env.GROQ_API_KEY;
-
-    if (geminiKey) {
-      this.llm = new LLMClient(
-        geminiKey,
-        'https://generativelanguage.googleapis.com',
-        'gemini-2.0-flash-exp',
-        'gemini'
-      );
-    } else if (openRouterKey) {
-      this.llm = new LLMClient(
-        openRouterKey,
-        'https://openrouter.ai/api/v1',
-        'google/gemini-2.0-flash-exp:free',
-        'openrouter'
-      );
-    } else if (groqKey) {
-      this.llm = new LLMClient(
-        groqKey,
-        'https://api.groq.com/openai/v1',
-        'llama-3.3-70b-versatile',
-        'groq'
-      );
-    } else {
-      throw new Error('No LLM API keys configured');
-    }
+    // LLM client will be initialized lazily in runLearningCycle()
   }
 
   /**
@@ -89,7 +61,12 @@ export class LearningAgent {
    */
   async runLearningCycle(): Promise<LearningMetrics> {
     console.log('🧠 Learning Agent: Iniciando ciclo de aprendizaje...');
-    
+
+    // Initialize LLM client with Ollama-first fallback
+    if (!this.llm) {
+      this.llm = await createLLMClientWithFallback();
+    }
+
     const startTime = Date.now();
     let improvementsMade = 0;
 
@@ -190,7 +167,7 @@ Responde en formato JSON:
           improvementSuggestions: z.array(z.string()),
         });
 
-        const response = await this.llm.classify(analysisPrompt, schema);
+        const response = await this.llm!.classify(analysisPrompt, schema);
 
         commonIssues = response.commonIssues || [];
         improvementSuggestions = response.improvementSuggestions || [];
@@ -266,7 +243,7 @@ Responde en JSON:
           expectedImpact: z.string(),
         });
 
-        const response = await this.llm.classify(improvementPrompt, schema);
+        const response = await this.llm!.classify(improvementPrompt, schema);
 
         // Solo aplicar si hay cambios significativos
         if (response.improvedPrompt !== oldPrompt) {

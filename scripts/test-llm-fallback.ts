@@ -62,7 +62,7 @@ async function testFallbackSystem() {
     const availableProviders = getAvailableProviders();
     console.log(`\nAvailable providers: ${availableProviders.join(', ')}`);
 
-    const llm = createLLMClientWithFallback();
+    const llm = await createLLMClientWithFallback();
     console.log(`✓ Fallback client created successfully`);
 
     const prompt = 'List 3 AI frameworks in JSON format: {"frameworks": ["name1", "name2", "name3"]}';
@@ -93,7 +93,7 @@ async function testClassificationWithStructuredOutput() {
   console.log('='.repeat(60));
 
   try {
-    const llm = createLLMClientWithFallback();
+    const llm = await createLLMClientWithFallback();
     
     const text = 'This article discusses the latest advances in artificial intelligence and machine learning algorithms.';
     const categories = ['Technology', 'Sports', 'Politics', 'Entertainment', 'Science'];

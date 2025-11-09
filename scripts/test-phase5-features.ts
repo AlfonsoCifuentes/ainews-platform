@@ -5,7 +5,7 @@
  * Run with: npm run test:phase5
  */
 
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { calculateSM2, isCardDue } from '@/lib/algorithms/sm2';
 
 // =====================================================
@@ -62,11 +62,7 @@ async function testSM2Algorithm() {
 async function testFlashcardGeneration() {
   console.log('\n📇 Testing AI Flashcard Generation...');
 
-  const llm = new LLMClient(
-    process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY || '',
-    process.env.GROQ_API_KEY ? 'https://api.groq.com/openai/v1' : 'https://openrouter.ai/api/v1',
-    process.env.GROQ_API_KEY ? 'llama-3.1-8b-instant' : 'meta-llama/llama-3.1-8b-instruct:free'
-  );
+  const llm = await createLLMClientWithFallback();
 
   const sampleArticle = {
     title: 'Introduction to Transformers in AI',

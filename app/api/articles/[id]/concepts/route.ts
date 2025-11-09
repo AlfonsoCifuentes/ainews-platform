@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 
 export async function GET(
   req: NextRequest,
@@ -33,11 +33,7 @@ export async function GET(
     const content = article[contentField] as string;
 
     // Use LLM to extract technical concepts
-    const llm = new LLMClient(
-      process.env.OPENROUTER_API_KEY || '',
-      'https://openrouter.ai/api/v1',
-      'openai/gpt-4o-mini'
-    );
+    const llm = await createLLMClientWithFallback();
 
     const isSpanish = locale === 'es';
     const prompt = `${

@@ -234,7 +234,7 @@ export async function GET() {
   if (availableProviders.length > 0) {
     try {
       const { createLLMClientWithFallback } = await import('@/lib/ai/llm-client');
-      const llm = createLLMClientWithFallback();
+      const llm = await createLLMClientWithFallback();
       
       const testPrompt = 'Respond with exactly one word: OK';
       const response = await llm.generate(testPrompt, { 

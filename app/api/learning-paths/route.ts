@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LearningPathGenerator } from '@/lib/ai/learning-path-generator';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { z } from 'zod';
 
 const CreatePathSchema = z.object({
@@ -33,13 +33,7 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = getSupabaseServerClient();
-    const llmClient = new LLMClient(
-      process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY || '',
-      process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.groq.com/openai/v1',
-      process.env.OPENROUTER_API_KEY
-        ? 'meta-llama/llama-3.1-8b-instruct:free'
-        : 'llama3-8b-8192'
-    );
+    const llmClient = await createLLMClientWithFallback();
 
     const generator = new LearningPathGenerator(llmClient, supabase);
     const paths = await generator.getUserLearningPaths(userId);
@@ -61,13 +55,7 @@ export async function POST(req: NextRequest) {
       const data = CreatePathSchema.parse(body);
 
       const supabase = getSupabaseServerClient();
-      const llmClient = new LLMClient(
-        process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY || '',
-        process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.groq.com/openai/v1',
-        process.env.OPENROUTER_API_KEY
-          ? 'meta-llama/llama-3.1-8b-instruct:free'
-          : 'llama3-8b-8192'
-      );
+      const llmClient = await createLLMClientWithFallback();
 
       const generator = new LearningPathGenerator(llmClient, supabase);
 
@@ -85,13 +73,7 @@ export async function POST(req: NextRequest) {
       const data = UpdateProgressSchema.parse(body);
 
       const supabase = getSupabaseServerClient();
-      const llmClient = new LLMClient(
-        process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY || '',
-        process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.groq.com/openai/v1',
-        process.env.OPENROUTER_API_KEY
-          ? 'meta-llama/llama-3.1-8b-instruct:free'
-          : 'llama3-8b-8192'
-      );
+      const llmClient = await createLLMClientWithFallback();
 
       const generator = new LearningPathGenerator(llmClient, supabase);
 

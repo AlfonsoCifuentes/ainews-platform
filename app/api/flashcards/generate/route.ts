@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/db/supabase-server';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 
 const GenerateSchema = z.object({
   contentId: z.string().uuid(),
@@ -57,11 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate flashcards using LLM
-    const llm = new LLMClient(
-      process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY || '',
-      process.env.GROQ_API_KEY ? 'https://api.groq.com/openai/v1' : 'https://openrouter.ai/api/v1',
-      process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'meta-llama/llama-3.1-8b-instruct:free'
-    );
+    const llm = await createLLMClientWithFallback();
 
     const prompt = locale === 'en'
       ? `Generate ${count} flashcards for learning from this content. Each flashcard should have:

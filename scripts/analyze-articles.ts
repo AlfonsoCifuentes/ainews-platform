@@ -7,7 +7,7 @@
  */
 
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { createLLMClient } from '@/lib/ai/llm-client';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { load } from 'cheerio';
 import { z } from 'zod';
 
@@ -178,7 +178,7 @@ async function fixDuplicateContent(articleId: string, content: string, _sourceUr
   console.log(`\n🔧 Attempting to fix duplicate content for article ${articleId}...`);
   
   try {
-    const llm = createLLMClient('openrouter', 'google/gemini-2.0-flash-exp:free');
+    const llm = await createLLMClientWithFallback();
 
     // Detect language
     const isSpanish = content.includes('ción') || content.includes('ñ') || 

@@ -350,7 +350,7 @@ async function layer5_VisionValidation(imageUrl: string): Promise<number> {
   console.log('  👁️ Layer 5: AI Vision validation...');
   
   try {
-    const llm = createLLMClientWithFallback();
+    const llm = await createLLMClientWithFallback();
     
     const prompt = `Analyze this image and determine if it's suitable as a news article featured image.
 

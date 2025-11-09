@@ -26,7 +26,7 @@ if (existsSync(envLocal)) {
 import Parser from 'rss-parser';
 import { load } from 'cheerio';
 import pLimit from 'p-limit';
-import { createLLMClient } from '../lib/ai/llm-client';
+import { createLLMClientWithFallback, LLMClient } from '../lib/ai/llm-client';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getBestArticleImage } from '../lib/services/image-scraper';
@@ -34,6 +34,7 @@ import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scrap
 import { validateImageEnhanced } from '../lib/services/image-validator';
 import { enhancedImageDescription } from '../lib/services/enhanced-image-description';
 import { initializeImageHashCache } from '../lib/services/image-validator';
+import { visualSimilarity } from '../lib/services/visual-similarity';
 import { z } from 'zod';
 
 const parser = new Parser({
@@ -74,13 +75,22 @@ interface RawArticle {
 
 async function fetchRSSFeeds(): Promise<RawArticle[]> {
   console.log(`[RSS] Fetching from ${AI_NEWS_SOURCES.length} sources...`);
-  const articles: RawArticle[] = [];
+  let articles: RawArticle[] = [];
   
   for (const source of AI_NEWS_SOURCES) {
     try {
       const feed = await parser.parseURL(source.url);
       
-      for (const item of feed.items.slice(0, 10)) { // Limit to 10 per source
+      // Limit to most recent 10 articles per source to avoid overload
+      const recentItems = feed.items
+        .sort((a, b) => {
+          const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+          const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+          return dateB - dateA; // Most recent first
+        })
+        .slice(0, 10);
+      
+      for (const item of recentItems) {
         if (!item.title || !item.link) continue;
         
         articles.push({
@@ -94,11 +104,28 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
         });
       }
       
-      console.log(`[RSS] ✓ ${source.name}: ${feed.items.length} articles`);
+      console.log(`[RSS] ✓ ${source.name}: ${recentItems.length} articles (from ${feed.items.length} total)`);
     } catch (error) {
       console.error(`[RSS] ✗ ${source.name} failed:`, error);
     }
   }
+  
+  console.log(`\n[RSS] ✓ Total articles fetched: ${articles.length}`);
+  
+  // Limit total articles to prevent overwhelming the LLM (prioritize most recent)
+  const MAX_ARTICLES_TO_PROCESS = 100; // Process max 100 articles per run
+  if (articles.length > MAX_ARTICLES_TO_PROCESS) {
+    console.log(`[RSS] ⚠ Limiting to ${MAX_ARTICLES_TO_PROCESS} most recent articles (from ${articles.length} total)`);
+    articles = articles
+      .sort((a, b) => {
+        const dateA = new Date(a.pubDate).getTime();
+        const dateB = new Date(b.pubDate).getTime();
+        return dateB - dateA; // Most recent first
+      })
+      .slice(0, MAX_ARTICLES_TO_PROCESS);
+  }
+  
+  console.log(`[RSS] Final articles to process: ${articles.length}\n`);
   
   return articles;
 }
@@ -256,9 +283,9 @@ function cleanContent(html: string | undefined): string {
  * Multi-LLM classifier with automatic fallback on rate limits
  * Tries providers in order: Gemini -> OpenRouter -> Groq
  */
-async function classifyWithFallback(
+async function classifyArticle(
   article: RawArticle,
-  providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }>,
+  llmClient: LLMClient,
   systemPrompt: string
 ): Promise<z.infer<typeof ArticleClassificationSchema> | null> {
   const content = cleanContent(article.content) || article.contentSnippet || '';
@@ -267,53 +294,37 @@ Content: ${content.slice(0, 500)}...
 
 Is this article relevant to AI/ML/tech? Return JSON only.`;
 
-  for (const provider of providers) {
-    try {
-      const result = await provider.client.classify(
-        prompt,
-        ArticleClassificationSchema,
-        systemPrompt
-      );
+  try {
+    const result = await llmClient.classify(
+      prompt,
+      ArticleClassificationSchema,
+      systemPrompt
+    );
 
-      console.log(`[LLM:${provider.name}] ✓ Classified "${article.title.slice(0, 40)}..." (score: ${result.quality_score}, category: ${result.category})`);
-      return result;
+    console.log(`[LLM] ✓ Classified "${article.title.slice(0, 40)}..." (score: ${result.quality_score}, category: ${result.category})`);
+    return result;
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // If rate limited or provider failed, try next provider
-      if (errorMessage.includes('429') || errorMessage.includes('rate_limit') || errorMessage.includes('quota')) {
-        console.log(`[LLM:${provider.name}] ⚠ Rate limited, trying next provider...`);
-        continue;
-      }
-
-      // Schema validation errors - try next provider
-      if (errorMessage.includes('schema') || errorMessage.includes('invalid_enum_value')) {
-        console.log(`[LLM:${provider.name}] ⚠ Schema error, trying next provider...`);
-        continue;
-      }
-
-      // Other errors, try next provider
-      console.error(`[LLM:${provider.name}] ✗ Error: ${errorMessage.slice(0, 100)}, trying next provider...`);
-      continue;
-    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[LLM] ✗ Classification failed for "${article.title.slice(0, 40)}": ${errorMessage.slice(0, 100)}`);
+    return null;
   }
-
-  // All providers failed
-  console.error(`[LLM] ✗ All providers failed for "${article.title.slice(0, 40)}"`);
-  return null;
 }
 
 async function filterAndClassifyArticles(
-  articles: RawArticle[], 
-  providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }>
+  articles: RawArticle[],
+  llmClient: LLMClient
 ) {
-  console.log('[LLM] Filtering articles with multi-provider fallback...');
-  console.log(`[LLM] Available providers: ${providers.map(p => p.name).join(', ')}`);
-  
-  const classified = [];
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-  
+  console.log(`[LLM] Filtering ${articles.length} articles with LLM...`);
+  console.log(`[LLM] Processing in parallel (max 5 concurrent)...`);
+
+  const classified: Array<{
+    article: RawArticle;
+    classification: z.infer<typeof ArticleClassificationSchema>;
+  }> = [];
+  const pLimit = (await import('p-limit')).default;
+  const limit = pLimit(5); // Process 5 articles at a time
+
   const systemPrompt = `You are a JSON-only response AI. You MUST respond ONLY with valid JSON, no markdown, no explanations, no formatting.
 Your response must match this exact structure:
 {
@@ -322,29 +333,47 @@ Your response must match this exact structure:
   "category": "machinelearning" | "nlp" | "computervision" | "robotics" | "ethics" | "business" | "research" | "tools" | "news" | "other",
   "summary": string
 }`;
-  
-  for (let i = 0; i < articles.length; i++) {
-    const article = articles[i];
-    
-    const result = await classifyWithFallback(article, providers, systemPrompt);
-    
-    if (result && result.relevant && result.quality_score >= 0.6) {
-      classified.push({ article, classification: result });
-    }
-    
-    // Small delay between articles to be nice to APIs
-    if ((i + 1) % 3 === 0) {
-      await delay(500);
-    }
-  }
-  
+
+  let processedCount = 0;
+  let relevantCount = 0;
+  let filteredCount = 0;
+
+  const tasks = articles.map((article, index) =>
+    limit(async () => {
+      try {
+        const result = await classifyArticle(article, llmClient, systemPrompt);
+        processedCount++;
+
+        if (result && result.relevant && result.quality_score >= 0.6) {
+          classified.push({ article, classification: result });
+          relevantCount++;
+        } else {
+          filteredCount++;
+        }
+
+        // Progress indicator every 10 articles
+        if (processedCount % 10 === 0) {
+          console.log(`[LLM] Progress: ${processedCount}/${articles.length} (${relevantCount} relevant, ${filteredCount} filtered)`);
+        }
+
+        return result;
+      } catch (error) {
+        processedCount++;
+        console.error(`[LLM] ✗ Error processing article ${index + 1}:`, error);
+        return null;
+      }
+    })
+  );
+
+  await Promise.all(tasks);
+
   console.log(`[LLM] ✓ ${classified.length}/${articles.length} articles passed filter`);
   return classified;
 }
 
 async function translateArticle(
   article: RawArticle,
-  _llm: ReturnType<typeof createLLMClient>, // Not used anymore, kept for signature compatibility
+  _llm: LLMClient, // Not used anymore, kept for signature compatibility
   targetLanguage: 'en' | 'es',
   retries = 3
 ): Promise<z.infer<typeof TranslationSchema> | null> {
@@ -397,21 +426,37 @@ async function translateArticle(
   return null;
 }
 
-async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'openai/text-embedding-ada-002',
-      input: text.slice(0, 8000)
-    })
-  });
-  
-  const data = await response.json();
-  return data.data[0].embedding;
+async function generateEmbedding(text: string): Promise<number[] | null> {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/text-embedding-ada-002',
+        input: text.slice(0, 8000)
+      })
+    });
+    
+    if (!response.ok) {
+      console.warn(`[Embeddings] API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (!data?.data?.[0]?.embedding) {
+      console.warn('[Embeddings] Invalid response format:', JSON.stringify(data).slice(0, 200));
+      return null;
+    }
+    
+    return data.data[0].embedding;
+  } catch (error) {
+    console.warn('[Embeddings] Error generating embedding:', error instanceof Error ? error.message : error);
+    return null;
+  }
 }
 
 async function storeArticles(
@@ -517,6 +562,16 @@ async function storeArticles(
             if (!aiValidation.aiVerified && !aiValidation.cvVerified) {
               console.log(`[ImageValidator] ℹ️ Image passed basic checks (AI/CV not available)`);
             }
+
+            // Store visual similarity hash for future duplicate detection
+            if (aiValidation.visualSimilarity?.hash) {
+              try {
+                await visualSimilarity.storeHash(imageUrl, aiValidation.visualSimilarity.hash, undefined); // Will be updated with article ID after insertion
+                console.log(`[VisualSimilarity] ✓ Stored hash for image validation`);
+              } catch (hashError) {
+                console.warn(`[VisualSimilarity] Failed to store hash:`, hashError instanceof Error ? hashError.message : hashError);
+              }
+            }
           }
         } catch (aiError) {
           console.warn(`[ImageValidator] Validation skipped:`, aiError instanceof Error ? aiError.message : aiError);
@@ -579,7 +634,7 @@ async function storeArticles(
           const articleHash = `${article.title}${article.link}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
           const randomSeed = articleHash % 10000;
           const categories = ['ai', 'technology', 'computer', 'robotics', 'data', 'science', 'machine-learning', 'neural-network'];
-          const category = categories[articleHash % categories.length];
+          const _category = categories[articleHash % categories.length];
           imageUrl = `https://images.unsplash.com/photo-${1600000000 + randomSeed}?w=1600&h=900&fit=crop`;
         }
         
@@ -640,14 +695,19 @@ async function storeArticles(
       
       if (articleError) throw articleError;
       
-  const embeddingBase = `${bilingual.title_en} ${bilingual.summary_en} ${bilingual.content_en.slice(0, 1000)}`;
+      const embeddingBase = `${bilingual.title_en} ${bilingual.summary_en} ${bilingual.content_en.slice(0, 1000)}`;
       const embedding = await generateEmbedding(embeddingBase);
       
-      await db.from('content_embeddings').insert({
-        content_id: insertedArticle.id,
-        content_type: 'article',
-        embedding
-      });
+      // Only store embedding if generation was successful
+      if (embedding && insertedArticle?.id) {
+        await db.from('content_embeddings').insert({
+          content_id: insertedArticle.id,
+          content_type: 'article',
+          embedding
+        });
+      } else if (!embedding) {
+        console.warn(`[DB] ⚠️ Skipping embedding for article (generation failed)`);
+      }
       
       console.log(`[DB] ✓ ${article.title.slice(0, 50)}...`);
       successCount++;
@@ -676,57 +736,20 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // Initialize ALL available LLM providers for fallback
-    const { getAvailableProviders } = await import('../lib/ai/llm-client');
-    const availableProviders = getAvailableProviders();
+    // Initialize LLM client with automatic fallback (prioritizes Ollama in development)
+    const llmClient = await createLLMClientWithFallback();
+    console.log('[News Curator] ✓ LLM client initialized with automatic fallback');
 
-    console.log('[News Curator] Available LLM providers:', availableProviders);
-
-    const providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }> = [];
-
-    // Try providers in priority order: Anthropic → DeepSeek → Mistral → Gemini → OpenRouter → Groq → Together
-    const providerOrder = ['anthropic', 'deepseek', 'mistral', 'gemini', 'openrouter', 'groq', 'together'];
-
-    for (const providerName of providerOrder) {
-      if (availableProviders.includes(providerName as any)) {
-        try {
-          const client = createLLMClient(providerName as any);
-          providers.push({ name: providerName, client });
-          console.log(`[News Curator] ✓ ${providerName} client initialized`);
-        } catch (error) {
-          console.log(`[News Curator] ⚠ ${providerName} initialization failed:`, error instanceof Error ? error.message : error);
-        }
-      }
-    }
-
-    if (providers.length === 0) {
-      console.error('[News Curator] ✗ CRITICAL ERROR: No LLM providers available!');
-      console.error('[News Curator] Please configure at least ONE of these environment variables:');
-      console.error('  - ANTHROPIC_API_KEY (recommended - best JSON responses)');
-      console.error('  - DEEPSEEK_API_KEY (Chinese provider - high quality)');
-      console.error('  - MISTRAL_API_KEY (European provider - high quality)');
-      console.error('  - GEMINI_API_KEY (Google\'s Gemini)');
-      console.error('  - OPENROUTER_API_KEY (multi-provider)');
-      console.error('  - GROQ_API_KEY (fast inference)');
-      console.error('  - TOGETHER_API_KEY (Meta models)');
-      console.error('  - DEEPSEEK_API_KEY (Chinese provider)');
-      console.error('  - MISTRAL_API_KEY (European provider)');
-      throw new Error('No LLM providers available. Configure at least one API key.');
-    }
-
-    console.log(`[News Curator] Initialized ${providers.length} LLM provider(s) with automatic fallback`);
-    console.log(`[News Curator] Provider order: ${providers.map(p => p.name).join(' → ')}`);
-    
     const db = getSupabaseServerClient();
     console.log('[News Curator] ✓ Supabase client initialized');
-    
+
     // Initialize image hash cache to prevent duplicates
     console.log('[ImageValidator] Initializing image hash cache...');
     await initializeImageHashCache();
     console.log('[ImageValidator] ✓ Cache initialized');
 
     const rawArticles = await fetchRSSFeeds();
-    const classified = await filterAndClassifyArticles(rawArticles, providers) as Array<{
+    const classified = await filterAndClassifyArticles(rawArticles, llmClient) as Array<{
       article: RawArticle;
       classification: z.infer<typeof ArticleClassificationSchema>;
       translation?: z.infer<typeof TranslationSchema>;
@@ -748,32 +771,28 @@ async function main() {
             const targetLanguage: 'en' | 'es' = item.article.source.language === 'es' ? 'en' : 'es';
             console.log(`[Translation] Processing ${index + 1}/${classified.length}: "${item.article.title.slice(0, 40)}..." → ${targetLanguage}`);
             
-            // Try providers in order until one succeeds
+            // Translate using the primary LLM client
             let translationResult = null;
-            for (const provider of providers) {
-              try {
-                translationResult = await translateArticle(item.article, provider.client, targetLanguage);
-                
-                if (translationResult) {
-                  console.log(`[Translation:${provider.name}] ✓ Success for "${item.article.title.slice(0, 40)}..."`);
-                  translationSuccessCount++;
-                  break;
-                } else {
-                  console.log(`[Translation:${provider.name}] ⚠ Returned null, trying next provider...`);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.log(`[Translation:${provider.name}] ✗ Error: ${errorMessage.slice(0, 100)}, trying next provider...`);
-                continue;
+            try {
+              translationResult = await translateArticle(item.article, llmClient, targetLanguage);
+
+              if (translationResult) {
+                console.log(`[Translation] ✓ Success for "${item.article.title.slice(0, 40)}..."`);
+                translationSuccessCount++;
+              } else {
+                console.log(`[Translation] ⚠ Returned null`);
               }
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              console.log(`[Translation] ✗ Error: ${errorMessage.slice(0, 100)}`);
             }
-            
+
             if (translationResult) {
               item.translation = translationResult;
               item.translationLanguage = targetLanguage;
             } else {
               translationFailCount++;
-              console.error(`[Translation] ✗ CRITICAL: All providers failed for "${item.article.title.slice(0, 40)}..."`);
+              console.error(`[Translation] ✗ CRITICAL: Translation failed for "${item.article.title.slice(0, 40)}..."`);
               console.error(`[Translation] ⚠ Article will be stored WITHOUT translation!`);
             }
           } catch (error) {
