@@ -18,16 +18,12 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import type { NormalizedModule } from '@/lib/courses/normalize';
 
 interface QuizQuestion {
   question: string;
   options: string[];
   correct_answer: number;
-}
-
-interface Resource {
-  title: string;
-  url: string;
 }
 
 interface CurrentProgress {
@@ -38,20 +34,10 @@ interface CurrentProgress {
   completed_at?: string;
 }
 
-interface Module {
-  id: string;
-  title_en: string;
-  title_es: string;
-  description_en: string;
-  description_es: string;
-  content_en: string;
-  content_es: string;
-  content_type: 'video' | 'article' | 'quiz' | 'interactive';
-  video_url?: string;
+type Module = NormalizedModule & {
+  video_url?: string | null;
   quiz_questions?: QuizQuestion[];
-  resources?: Resource[];
-  duration_minutes: number;
-}
+};
 
 interface ModulePlayerProps {
   locale: 'en' | 'es';

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -16,31 +17,23 @@ export async function GET(
     const userId = searchParams.get('userId'); // Optional for progress tracking
     
     // Fetch course with modules
-    const { data: course, error: courseError } = await db
+    const { data: rawCourse, error: courseError } = await db
       .from('courses')
       .select(`
         *,
-        course_modules (
-          id,
-          order_index,
-          title_en,
-          title_es,
-          content_en,
-          content_es,
-          type,
-          estimated_time,
-          resources
-        )
+        course_modules (*)
       `)
       .eq('id', id)
       .single();
     
-    if (courseError || !course) {
+    if (courseError || !rawCourse) {
       return NextResponse.json(
         { success: false, error: 'Course not found' },
         { status: 404 }
       );
     }
+
+    const course = normalizeCourseRecord(rawCourse);
     
     // Fetch user progress if userId provided
     let userProgress = null;
@@ -57,13 +50,14 @@ export async function GET(
     // Increment view count
     await db
       .from('courses')
-      .update({ view_count: (course.view_count || 0) + 1 })
+      .update({ view_count: course.view_count + 1 })
       .eq('id', id);
     
     return NextResponse.json({
       success: true,
       data: {
         ...course,
+        view_count: course.view_count + 1,
         user_progress: userProgress
       }
     });

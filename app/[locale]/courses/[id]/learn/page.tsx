@@ -4,6 +4,7 @@ import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { ModulePlayer } from '@/components/courses/ModulePlayer';
 import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
+import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
 export default async function CourseLearnPage({
   params,
@@ -34,38 +35,23 @@ export default async function CourseLearnPage({
   }
 
   // Fetch course with modules
-  const { data: course } = await db
+  const { data: rawCourse } = await db
     .from('courses')
     .select(`
       *,
-      course_modules (
-        id,
-        title_en,
-        title_es,
-        description_en,
-        description_es,
-        content_en,
-        content_es,
-        order_index,
-        duration_minutes,
-        content_type,
-        video_url,
-        quiz_questions,
-        resources,
-        is_free
-      )
+      course_modules (*)
     `)
     .eq('id', id)
     .single();
 
-  if (!course) {
+  if (!rawCourse) {
     notFound();
   }
 
+  const course = normalizeCourseRecord(rawCourse);
+
   // Sort modules
-  const sortedModules = [...(course.course_modules || [])].sort(
-    (a, b) => a.order_index - b.order_index
-  );
+  const sortedModules = course.course_modules;
 
   // Get current module (first module if not specified)
   const currentModule = moduleId
@@ -103,7 +89,11 @@ export default async function CourseLearnPage({
         <ModuleSidebar
           locale={locale}
           courseId={id}
-          course={course}
+          course={{
+            title_en: course.title_en,
+            title_es: course.title_es,
+            thumbnail_url: course.thumbnail_url ?? null,
+          }}
           modules={sortedModules}
           currentModuleId={currentModule.id}
           userProgress={userProgress}

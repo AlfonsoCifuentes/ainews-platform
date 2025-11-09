@@ -472,7 +472,7 @@ async function storeArticles(
   
   let successCount = 0;
   const duplicateImageCount = 0;
-  let invalidImageCount = 0;
+  let skippedImageCount = 0;
   
   for (const { article, classification, translation } of classified) {
     try {
@@ -579,67 +579,10 @@ async function storeArticles(
         }
       }
       
-      // LAYER 3: If all else fails, use Pexels API as fallback (more reliable than Unsplash Source)
       if (!imageUrl) {
-        console.warn(`[ImageValidator] No valid unique image found for "${article.title.slice(0, 50)}..." - trying Pexels API`);
-        
-        try {
-          // Use Pexels API for more reliable fallback images
-          const searchQuery = classification.category || 'artificial intelligence';
-          const pexelsResponse = await fetch(
-            `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=1&page=${Math.floor(Math.random() * 100) + 1}`,
-            {
-              headers: {
-                'Authorization': process.env.PEXELS_API_KEY || 'dummy_key_for_fallback'
-              },
-              signal: AbortSignal.timeout(5000)
-            }
-          );
-          
-          if (pexelsResponse.ok) {
-            const pexelsData = await pexelsResponse.json() as { photos?: Array<{ src?: { large?: string } }> };
-            if (pexelsData.photos?.[0]?.src?.large) {
-              imageUrl = pexelsData.photos[0].src.large;
-              console.log(`[ImageValidator] ✓ Got fallback from Pexels API`);
-            }
-          }
-        } catch (pexelsError) {
-          console.warn(`[ImageValidator] Pexels API failed:`, pexelsError instanceof Error ? pexelsError.message : pexelsError);
-        }
-        
-        // If Pexels also fails, use Pixabay as last resort
-        if (!imageUrl) {
-          try {
-            const searchQuery = classification.category || 'artificial intelligence';
-            const pixabayResponse = await fetch(
-              `https://pixabay.com/api/?key=${process.env.PIXABAY_API_KEY || 'dummy'}&q=${encodeURIComponent(searchQuery)}&image_type=photo&per_page=1&page=${Math.floor(Math.random() * 50) + 1}`,
-              { signal: AbortSignal.timeout(5000) }
-            );
-            
-            if (pixabayResponse.ok) {
-              const pixabayData = await pixabayResponse.json() as { hits?: Array<{ largeImageURL?: string }> };
-              if (pixabayData.hits?.[0]?.largeImageURL) {
-                imageUrl = pixabayData.hits[0].largeImageURL;
-                console.log(`[ImageValidator] ✓ Got fallback from Pixabay API`);
-              }
-            }
-          } catch (pixabayError) {
-            console.warn(`[ImageValidator] Pixabay API failed:`, pixabayError instanceof Error ? pixabayError.message : pixabayError);
-          }
-        }
-        
-        // Final fallback: Use Unsplash Source API with unique seed
-        if (!imageUrl) {
-          console.warn(`[ImageValidator] All APIs failed, using Unsplash Source as final fallback`);
-          const articleHash = `${article.title}${article.link}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const randomSeed = articleHash % 10000;
-          const categories = ['ai', 'technology', 'computer', 'robotics', 'data', 'science', 'machine-learning', 'neural-network'];
-          const _category = categories[articleHash % categories.length];
-          imageUrl = `https://images.unsplash.com/photo-${1600000000 + randomSeed}?w=1600&h=900&fit=crop`;
-        }
-        
-        console.log(`[ImageValidator] Generated fallback: ${imageUrl}`);
-        invalidImageCount++;
+        console.warn(`[ImageValidator] ❌ No original image found for "${article.title.slice(0, 50)}...". Skipping article.`);
+        skippedImageCount++;
+        continue;
       }
       
       const originalLanguage: 'en' | 'es' = article.source.language === 'es' ? 'es' : 'en';
@@ -719,8 +662,8 @@ async function storeArticles(
   
   console.log('\n[DB] Storage complete!');
   console.log(`  - Articles stored: ${successCount}`);
-  console.log(`  - Images validated: ${successCount - invalidImageCount}`);
-  console.log(`  - Fallback images used: ${invalidImageCount}`);
+  console.log(`  - Unique images stored: ${successCount}`);
+  console.log(`  - Skipped (missing original image): ${skippedImageCount}`);
   console.log(`  - Duplicate images avoided: ${duplicateImageCount}`);
 }
 

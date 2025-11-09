@@ -3,14 +3,12 @@
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import type { NormalizedModule } from '@/lib/courses/normalize';
 
-interface Module {
-  id: string;
-  title_en: string;
-  title_es: string;
-  order_index: number;
-  is_free: boolean;
-}
+type Module = Pick<
+  NormalizedModule,
+  'id' | 'title_en' | 'title_es' | 'order_index' | 'is_free'
+>;
 
 interface Progress {
   module_id: string;

@@ -20,6 +20,7 @@ import {
   PlayCircle
 } from 'lucide-react';
 import Image from 'next/image';
+import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
 export default async function CourseDetailPage({
   params,
@@ -32,31 +33,23 @@ export default async function CourseDetailPage({
 
   // Fetch course details
   console.log('Fetching course with ID:', id, 'for locale:', locale);
-  const { data: course, error } = await db
+  const { data: rawCourse, error } = await db
     .from('courses')
     .select(`
       *,
-      course_modules (
-        id,
-        title_en,
-        title_es,
-        content_en,
-        content_es,
-        order_index,
-        duration_minutes,
-        content_type,
-        is_free
-      )
+      course_modules (*)
     `)
     .eq('id', id)
     .single();
 
-  console.log('Course query result:', { course: !!course, error });
+  console.log('Course query result:', { course: !!rawCourse, error });
 
-  if (error || !course) {
+  if (error || !rawCourse) {
     console.log('Course not found, calling notFound()');
     notFound();
   }
+
+  const course = normalizeCourseRecord(rawCourse);
 
   // Check enrollment status
   let enrollment = null;
@@ -94,13 +87,13 @@ export default async function CourseDetailPage({
     .limit(10);
 
   // Calculate stats
-  const totalModules = course.course_modules?.length || 0;
+  const totalModules = course.course_modules.length;
   const completedModules = userProgress?.filter((p) => p.completed).length || 0;
   const progressPercentage = totalModules > 0 ? (completedModules / totalModules) * 100 : 0;
 
   const avgRating = reviews && reviews.length > 0
     ? reviews.reduce((acc: number, r) => acc + r.rating, 0) / reviews.length
-    : 0;
+    : course.rating_avg;
 
   const t = locale === 'en' ? {
     overview: 'Overview',
@@ -146,8 +139,14 @@ export default async function CourseDetailPage({
     advanced: 'Avanzado',
   };
 
-  const title = locale === 'en' ? course.title_en : course.title_es;
-  const description = locale === 'en' ? course.description_en : course.description_es;
+  const title = (locale === 'en' ? course.title_en : course.title_es) ?? 'Course';
+  const description = (locale === 'en' ? course.description_en : course.description_es) ?? '';
+  const categoryLabel = course.category ?? (locale === 'en' ? 'AI & ML' : 'IA & ML');
+  const durationMinutes = course.duration_minutes || 0;
+  const durationLabel = durationMinutes >= 60
+    ? `${Math.round(durationMinutes / 60)} ${t.hours}`
+    : `${durationMinutes} ${locale === 'en' ? 'minutes' : 'minutos'}`;
+  const learningObjectives = locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
@@ -160,7 +159,7 @@ export default async function CourseDetailPage({
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
                 <BookOpen className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">
-                  {course.category}
+                  {categoryLabel}
                 </span>
               </div>
 
@@ -181,11 +180,11 @@ export default async function CourseDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{course.enrolled_count || 0} {t.students}</span>
+                  <span className="font-medium">{course.enrollment_count || 0} {t.students}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{Math.ceil((course.total_duration_minutes || 0) / 60)} {t.hours}</span>
+                  <span className="font-medium">{durationLabel}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-muted-foreground" />
@@ -256,7 +255,7 @@ export default async function CourseDetailPage({
                 {t.whatYouWillLearn}
               </h2>
               <ul className="grid md:grid-cols-2 gap-4">
-                {(locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es)?.map((objective: string, i: number) => (
+                {learningObjectives.map((objective, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <span>{objective}</span>
@@ -273,7 +272,7 @@ export default async function CourseDetailPage({
               </h2>
               <CourseModulesList
                 locale={locale}
-                modules={course.course_modules || []}
+                modules={course.course_modules}
                 courseId={id}
                 enrollment={enrollment}
                 userProgress={userProgress || []}
@@ -324,7 +323,7 @@ export default async function CourseDetailPage({
                 <div>
                   <span className="text-sm text-muted-foreground">{t.difficulty}</span>
                   <p className="font-semibold mt-1">
-                    {t[course.difficulty_level as 'beginner' | 'intermediate' | 'advanced']}
+                    {t[course.difficulty]}
                   </p>
                 </div>
                 {course.prerequisites_en && (
@@ -384,7 +383,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: '
 
   const { data: course } = await db
     .from('courses')
-    .select('title_en, title_es, description_en, description_es, thumbnail_url')
+    .select('title_en, title_es, description_en, description_es')
     .eq('id', id)
     .single();
 
@@ -403,7 +402,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: '
     openGraph: {
       title,
       description,
-      images: course.thumbnail_url ? [{ url: course.thumbnail_url }] : [],
     },
   };
 }

@@ -16,16 +16,12 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import type { NormalizedModule } from '@/lib/courses/normalize';
 
-interface Module {
-  id: string;
-  title_en: string;
-  title_es: string;
-  order_index: number;
-  duration_minutes: number;
-  content_type: 'video' | 'article' | 'quiz' | 'interactive';
-  is_free: boolean;
-}
+type Module = Pick<
+  NormalizedModule,
+  'id' | 'title_en' | 'title_es' | 'order_index' | 'duration_minutes' | 'content_type' | 'is_free'
+>;
 
 interface Progress {
   module_id: string;
@@ -35,7 +31,7 @@ interface Progress {
 interface Course {
   title_en: string;
   title_es: string;
-  thumbnail_url?: string;
+  thumbnail_url?: string | null;
 }
 
 interface ModuleSidebarProps {
