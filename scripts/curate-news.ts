@@ -32,6 +32,7 @@ import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getBestArticleImage } from '../lib/services/image-scraper';
 import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scraper';
 import { validateImageEnhanced } from '../lib/services/image-validator';
+import { enhancedImageDescription } from '../lib/services/enhanced-image-description';
 import { initializeImageHashCache } from '../lib/services/image-validator';
 import { z } from 'zod';
 
@@ -65,6 +66,10 @@ interface RawArticle {
   content?: string;
   enclosure?: { url: string };
   source: NewsSource;
+  // Enhanced fields added during processing
+  imageUrl?: string;
+  image_alt_text?: string;
+  processedContent?: string;
 }
 
 async function fetchRSSFeeds(): Promise<RawArticle[]> {
@@ -471,20 +476,51 @@ async function storeArticles(
       if (imageUrl) {
         console.log(`[ImageValidator] Validating image with AI Computer Vision...`);
         try {
-          const aiValidation = await validateImageEnhanced(imageUrl, { skipCache: true });
-          
+          const aiValidation = await validateImageEnhanced(imageUrl, {
+            skipCache: true,
+            skipComputerVision: false // Enable computer vision validation
+          });
+
           if (!aiValidation.isValid) {
-            console.warn(`[ImageValidator] ⚠️ AI rejected image: ${aiValidation.reason}`);
-            console.warn(`[ImageValidator] AI Caption: ${aiValidation.aiCaption || 'N/A'}`);
+            console.warn(`[ImageValidator] ⚠️ Image rejected: ${aiValidation.reason}`);
+            if (aiValidation.aiCaption) {
+              console.warn(`[ImageValidator] AI Caption: ${aiValidation.aiCaption}`);
+            }
+            if (aiValidation.cvAnalysis) {
+              console.warn(`[ImageValidator] CV Analysis: ${aiValidation.cvAnalysis}`);
+            }
             imageUrl = null; // Discard invalid image
-          } else if (aiValidation.aiVerified) {
-            console.log(`[ImageValidator] ✅ AI verified image: "${aiValidation.aiCaption}"`);
           } else {
-            console.log(`[ImageValidator] ℹ️ Image passed basic checks (AI not available)`);
+            console.log(`[ImageValidator] ✅ Image validated successfully`);
+
+            if (aiValidation.aiVerified) {
+              console.log(`[ImageValidator] 🤖 AI verified: "${aiValidation.aiCaption}"`);
+            }
+
+            if (aiValidation.cvVerified && aiValidation.detectedObjects) {
+              console.log(`[ImageValidator] 👁️ Computer Vision: ${aiValidation.detectedObjects.slice(0, 5).join(', ')}${aiValidation.detectedObjects.length > 5 ? '...' : ''}`);
+              console.log(`[ImageValidator] 📊 CV Analysis: ${aiValidation.cvAnalysis}`);
+            }
+
+            // Generate enhanced accessibility description
+            if (enhancedImageDescription.isAvailable()) {
+              try {
+                const description = await enhancedImageDescription.generateDescription(imageUrl);
+                console.log(`[ImageValidator] ♿ Enhanced alt text: "${description.accessibilityAlt}"`);
+                // Store the enhanced description for later use in the article
+                article.image_alt_text = description.accessibilityAlt;
+              } catch (descError) {
+                console.warn(`[ImageValidator] Failed to generate enhanced description:`, descError instanceof Error ? descError.message : descError);
+              }
+            }
+
+            if (!aiValidation.aiVerified && !aiValidation.cvVerified) {
+              console.log(`[ImageValidator] ℹ️ Image passed basic checks (AI/CV not available)`);
+            }
           }
         } catch (aiError) {
-          console.warn(`[ImageValidator] AI validation skipped:`, aiError instanceof Error ? aiError.message : aiError);
-          // Continue with the image even if AI fails
+          console.warn(`[ImageValidator] Validation skipped:`, aiError instanceof Error ? aiError.message : aiError);
+          // Continue with the image even if validation fails
         }
       }
       
@@ -648,8 +684,8 @@ async function main() {
 
     const providers: Array<{ name: string; client: ReturnType<typeof createLLMClient> }> = [];
 
-    // Try providers in priority order: Anthropic → Gemini → OpenRouter → Groq → Together → DeepSeek → Mistral
-    const providerOrder = ['anthropic', 'gemini', 'openrouter', 'groq', 'together', 'deepseek', 'mistral'];
+    // Try providers in priority order: Anthropic → DeepSeek → Mistral → Gemini → OpenRouter → Groq → Together
+    const providerOrder = ['anthropic', 'deepseek', 'mistral', 'gemini', 'openrouter', 'groq', 'together'];
 
     for (const providerName of providerOrder) {
       if (availableProviders.includes(providerName as any)) {
@@ -667,6 +703,8 @@ async function main() {
       console.error('[News Curator] ✗ CRITICAL ERROR: No LLM providers available!');
       console.error('[News Curator] Please configure at least ONE of these environment variables:');
       console.error('  - ANTHROPIC_API_KEY (recommended - best JSON responses)');
+      console.error('  - DEEPSEEK_API_KEY (Chinese provider - high quality)');
+      console.error('  - MISTRAL_API_KEY (European provider - high quality)');
       console.error('  - GEMINI_API_KEY (Google\'s Gemini)');
       console.error('  - OPENROUTER_API_KEY (multi-provider)');
       console.error('  - GROQ_API_KEY (fast inference)');

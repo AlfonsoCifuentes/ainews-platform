@@ -27,7 +27,7 @@
     "ai:ultra-fix-images": "tsx scripts/fix-missing-images.ts",
     "ai:check-images": "tsx scripts/check-missing-images.ts",
     "ai:check-duplicates": "tsx scripts/check-duplicate-images.ts",
-    "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
+    "ai:test-ultralytics": "tsx scripts/test-ultralytics.ts",
     "ai:test-strategies": "tsx scripts/test-image-strategies.ts",
     "ai:diagnose-courses": "tsx scripts/diagnose-courses.ts",
     "ai:test-courses": "tsx scripts/test-courses-complete.ts",

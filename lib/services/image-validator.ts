@@ -14,6 +14,7 @@ import { getSupabaseServerClient } from '../db/supabase';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
 import { estimateDimensionsFromUrl, getOrientationInfo, type OrientationInfo } from './image-orientation';
+import { ultralyticsVision } from './ultralytics-vision';
 
 // Computer Vision API configuration
 const VISION_API_URL = 'https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base';
@@ -513,12 +514,16 @@ export async function verifyImageWithAI(imageUrl: string): Promise<{
  */
 export async function validateImageEnhanced(imageUrl: string, options?: {
   skipAI?: boolean;
+  skipComputerVision?: boolean;
   skipCache?: boolean;
 }): Promise<{
   isValid: boolean;
   reason?: string;
   aiVerified?: boolean;
   aiCaption?: string;
+  cvVerified?: boolean;
+  cvAnalysis?: string;
+  detectedObjects?: string[];
   hash?: string;
   width?: number;
   height?: number;
@@ -527,35 +532,68 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
 }> {
   // Step 1: Standard validation
   const basicValidation = await validateAndRegisterImage(imageUrl, options?.skipCache);
-  
+
   if (!basicValidation.isValid) {
     return {
       isValid: false,
       reason: basicValidation.error || 'Failed basic validation',
-      aiVerified: false
+      aiVerified: false,
+      cvVerified: false
     };
   }
 
-  // Step 2: AI verification (optional)
+  let aiVerified = false;
+  let aiCaption: string | undefined;
+  let cvVerified = false;
+  let cvAnalysis: string | undefined;
+  let detectedObjects: string[] | undefined;
+
+  // Step 2: AI verification with Hugging Face BLIP (optional)
   if (!options?.skipAI && VISION_ENABLED) {
     const aiValidation = await verifyImageWithAI(imageUrl);
-    
-    return {
-      isValid: basicValidation.isValid && aiValidation.isValid,
-      reason: !aiValidation.isValid ? `AI rejected: ${aiValidation.caption || aiValidation.error}` : undefined,
-      aiVerified: aiValidation.isValid,
-      aiCaption: aiValidation.caption,
-      hash: basicValidation.hash,
-      width: basicValidation.width,
-      height: basicValidation.height,
-      mime: basicValidation.mime,
-      bytes: basicValidation.bytes
-    };
+    aiVerified = aiValidation.isValid;
+    aiCaption = aiValidation.caption;
   }
 
+  // Step 3: Computer Vision verification with Ultralytics (optional)
+  if (!options?.skipComputerVision && ultralyticsVision.isAvailable()) {
+    const cvValidation = await ultralyticsVision.analyzeImage(imageUrl);
+    cvVerified = cvValidation.isValid;
+    cvAnalysis = cvValidation.reasoning;
+    detectedObjects = cvValidation.detectedObjects;
+
+    // If computer vision rejects the image, mark as invalid
+    if (!cvValidation.isValid) {
+      return {
+        isValid: false,
+        reason: `Computer vision rejected: ${cvValidation.reasoning}`,
+        aiVerified,
+        aiCaption,
+        cvVerified: false,
+        cvAnalysis,
+        detectedObjects,
+        hash: basicValidation.hash,
+        width: basicValidation.width,
+        height: basicValidation.height,
+        mime: basicValidation.mime,
+        bytes: basicValidation.bytes
+      };
+    }
+  }
+
+  // Overall validation: basic validation must pass, and if AI/CV are enabled, they should also pass
+  const overallValid = basicValidation.isValid &&
+    (!VISION_ENABLED || options?.skipAI || aiVerified) &&
+    (!ultralyticsVision.isAvailable() || options?.skipComputerVision || cvVerified);
+
   return {
-    isValid: basicValidation.isValid,
-    aiVerified: false,
+    isValid: overallValid,
+    reason: !overallValid ? 'Failed enhanced validation' : undefined,
+    aiVerified,
+    aiCaption,
+    cvVerified,
+    cvAnalysis,
+    detectedObjects,
     hash: basicValidation.hash,
     width: basicValidation.width,
     height: basicValidation.height,

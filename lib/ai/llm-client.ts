@@ -357,13 +357,13 @@ export function createLLMClient(
  */
 export function createLLMClientWithFallback(): LLMClient {
   const providers: LLMProvider[] = [
-    'anthropic', // Best for JSON responses
+    'anthropic', // Best for JSON responses - PRIMARY
+    'deepseek',  // Chinese provider - HIGH QUALITY
+    'mistral',   // European provider - HIGH QUALITY
     'gemini',    // Google's Gemini
     'openrouter', // Multi-provider
     'groq',      // Fast inference
-    'together',  // Meta models
-    'deepseek',  // Chinese provider
-    'mistral'    // European provider
+    'together'   // Meta models
   ];
 
   for (const provider of providers) {
