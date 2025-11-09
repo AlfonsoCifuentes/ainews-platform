@@ -27,13 +27,6 @@ interface ImageResult {
   method: string;
 }
 
-interface ScrapingAttempt {
-  success: boolean;
-  image: ImageResult | null;
-  error?: string;
-  layer: number;
-}
-
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -213,6 +206,7 @@ function isValidImageUrl(url: string): boolean {
   return url.startsWith('http');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractDimensions(element: any, $: any): { width?: number; height?: number } {
   const width = parseInt($(element).attr('width') || '0');
   const height = parseInt($(element).attr('height') || '0');
@@ -290,7 +284,7 @@ function layer2_JsonLD(html: string, baseUrl: string): ImageResult | null {
           method: 'structured-data'
         };
       }
-    } catch (error) {
+    } catch {
       // Invalid JSON, skip
     }
   }
@@ -298,6 +292,7 @@ function layer2_JsonLD(html: string, baseUrl: string): ImageResult | null {
   return null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractImageFromSchema(obj: any): string | null {
   if (!obj) return null;
   
@@ -390,7 +385,7 @@ function layer4_ArticleContent(html: string, baseUrl: string): ImageResult | nul
   
   const $ = load(html);
   
-  const candidates: Array<{ url: string; score: number; dims: any }> = [];
+  const candidates: Array<{ url: string; score: number; dims: { width?: number; height?: number } }> = [];
   
   for (const selector of ARTICLE_CONTENT_SELECTORS) {
     const images = $(selector);
@@ -399,7 +394,7 @@ function layer4_ArticleContent(html: string, baseUrl: string): ImageResult | nul
       const $img = $(element);
       
       // Try multiple attributes
-      let url = $img.attr('src') || 
+      const url = $img.attr('src') || 
                 $img.attr('data-src') || 
                 $img.attr('data-lazy-src') ||
                 $img.attr('data-original');
