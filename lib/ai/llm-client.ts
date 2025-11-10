@@ -356,6 +356,40 @@ export class LLMClient {
 
 export type LLMProvider = 'ollama' | 'openrouter' | 'groq' | 'gemini' | 'anthropic' | 'together' | 'deepseek' | 'mistral';
 
+const providerCooldowns = new Map<LLMProvider, number>();
+
+const GENERAL_BACKOFF_MS = 750;
+const TIMEOUT_BACKOFF_MS = 2000;
+const RATE_LIMIT_BASE_MS = 5000;
+const RATE_LIMIT_MAX_MS = 20000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function addJitter(ms: number): number {
+  const jitter = Math.floor(ms * 0.2 * Math.random());
+  return ms + jitter;
+}
+
+function computeBackoffMs(
+  error: ReturnType<typeof classifyLLMError>,
+  attempt: number,
+): number {
+  if (error.type === 'rate_limit') {
+    const wait = RATE_LIMIT_BASE_MS * Math.max(attempt, 1);
+    return addJitter(Math.min(wait, RATE_LIMIT_MAX_MS));
+  }
+
+  if (error.type === 'timeout') {
+    return addJitter(Math.min(TIMEOUT_BACKOFF_MS * Math.max(attempt, 1), 8000));
+  }
+
+  return addJitter(Math.min(GENERAL_BACKOFF_MS * Math.max(attempt, 1), 4000));
+}
+
 export function createLLMClient(
   provider: LLMProvider,
   model?: string,
@@ -679,6 +713,12 @@ export async function classifyWithAllProviders<T>(
     error: ReturnType<typeof classifyLLMError>;
   }> = [];
 
+  const attemptsPerProvider = availableProviders.length === 1
+    ? Math.max(maxAttemptsPerProvider, 4)
+    : maxAttemptsPerProvider;
+
+  let totalAttempts = 0;
+
   for (const provider of availableProviders) {
     console.log(`\n[LLM Fallback] 🤖 Trying provider: ${provider.toUpperCase()}`);
     
@@ -693,23 +733,34 @@ export async function classifyWithAllProviders<T>(
       continue;
     }
 
-    for (let attempt = 1; attempt <= maxAttemptsPerProvider; attempt++) {
+    for (let attempt = 1; attempt <= attemptsPerProvider; attempt++) {
+      const cooldownUntil = providerCooldowns.get(provider) ?? 0;
+      const now = Date.now();
+      if (cooldownUntil > now) {
+        const waitBeforeAttempt = cooldownUntil - now;
+        console.log(`[LLM Fallback] ⏳ ${provider} cooling down for ${waitBeforeAttempt}ms before attempt ${attempt}/${attemptsPerProvider}`);
+        await sleep(waitBeforeAttempt);
+      }
+
       const prompt =
         attempt === 1
           ? basePrompt
-          : `${basePrompt}\n\nREMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt} of ${maxAttemptsPerProvider}.`;
+          : `${basePrompt}\n\nREMEMBER: Return valid JSON that matches the provided schema exactly. Do not include prose, markdown fences, or commentary. Attempt ${attempt} of ${attemptsPerProvider}.`;
 
       try {
-        console.log(`[LLM Fallback] 🔄 ${provider} attempt ${attempt}/${maxAttemptsPerProvider}...`);
+        console.log(`[LLM Fallback] 🔄 ${provider} attempt ${attempt}/${attemptsPerProvider}...`);
+        totalAttempts += 1;
         const result = await llmClient.classify(prompt, schema, systemPrompt);
         
         console.log(`[LLM Fallback] ✅ SUCCESS with ${provider} on attempt ${attempt}!`);
-        console.log(`[LLM Fallback] 📊 Total attempts across all providers: ${allErrors.length + attempt}`);
+        console.log(`[LLM Fallback] 📊 Total attempts across all providers: ${totalAttempts}`);
+
+        providerCooldowns.delete(provider);
         
         return {
           result,
           provider,
-          attempts: allErrors.length + attempt
+          attempts: totalAttempts
         };
       } catch (error) {
         const errorInfo = classifyLLMError(error);
@@ -718,7 +769,7 @@ export async function classifyWithAllProviders<T>(
         console.error(`[LLM Fallback]    Message: ${errorInfo.message}`);
         console.error(`[LLM Fallback]    Retryable: ${errorInfo.retryable}`);
         
-        allErrors.push({ provider, attempt, error: errorInfo });
+  allErrors.push({ provider, attempt, error: errorInfo });
 
         // If it's not retryable (auth/config error), skip remaining attempts for this provider
         if (!errorInfo.retryable) {
@@ -727,20 +778,23 @@ export async function classifyWithAllProviders<T>(
         }
 
         // Wait before retry (exponential backoff)
-        if (attempt < maxAttemptsPerProvider) {
-          const waitTime = 500 * attempt;
-          console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry...`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        if (attempt < attemptsPerProvider) {
+          const waitTime = computeBackoffMs(errorInfo, attempt);
+          console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry due to ${errorInfo.type}...`);
+          if (errorInfo.type === 'rate_limit') {
+            providerCooldowns.set(provider, Date.now() + waitTime);
+          }
+          await sleep(waitTime);
         }
       }
     }
 
-    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${maxAttemptsPerProvider} attempts, trying next provider...`);
+    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${attemptsPerProvider} attempts, trying next provider...`);
   }
 
   // All providers failed - generate detailed error report
   console.error(`\n[LLM Fallback] ❌ CRITICAL: ALL ${availableProviders.length} PROVIDERS FAILED!`);
-  console.error(`[LLM Fallback] 📊 Total attempts: ${allErrors.length}`);
+  console.error(`[LLM Fallback] 📊 Total attempts: ${totalAttempts}`);
   
   const errorsByType = allErrors.reduce((acc, { error }) => {
     acc[error.type] = (acc[error.type] || 0) + 1;
@@ -757,7 +811,7 @@ export async function classifyWithAllProviders<T>(
   const actionableAdvice = generateActionableAdvice(allErrors);
 
   throw new Error(
-    `❌ Course generation failed - all ${availableProviders.length} AI providers exhausted after ${allErrors.length} attempts.\n\n` +
+  `❌ Course generation failed - all ${availableProviders.length} AI providers exhausted after ${totalAttempts} attempts.\n\n` +
     `📋 FAILURE DETAILS:\n${errorReport}\n\n` +
     `💡 RECOMMENDED ACTIONS:\n${actionableAdvice}\n\n` +
     `🔧 TROUBLESHOOTING:\n` +
