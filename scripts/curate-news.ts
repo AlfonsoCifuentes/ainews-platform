@@ -264,7 +264,7 @@ async function scrapeArticlePage(url: string): Promise<{ image: string | null; c
 			'#content',
 		];
 
-		let contentHtml: string | undefined;
+		let contentHtml: string | null | undefined;
 		for (const selector of contentCandidates) {
 			const node = $(selector);
 			if (node.length && node.text().trim().length > 200) {
