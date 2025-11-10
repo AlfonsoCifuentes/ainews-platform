@@ -658,11 +658,11 @@ export function createLLMClient(
  * In production: Cloud providers only (Ollama not available)
  */
 export async function createLLMClientWithFallback(): Promise<LLMClient> {
-  const isDevelopment = process.env.NODE_ENV === 'development';
   const isVercel = process.env.VERCEL === '1';
 
-  // In development, try Ollama first with actual availability check
-  if (isDevelopment && !isVercel) {
+  // ALWAYS try Ollama FIRST (local model) - no API costs!
+  // Only skip on Vercel where local services aren't available
+  if (!isVercel) {
     try {
       // Quick check if Ollama is running
       const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
@@ -672,7 +672,7 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
 
       if (response.ok) {
         const ollamaClient = createLLMClient('ollama');
-        console.log('[LLM] Using Ollama provider (local development)');
+        console.log('[LLM] ✓ Using Ollama provider (LOCAL MODEL - NO API COSTS)');
         return ollamaClient;
       } else {
         console.warn('[LLM] Ollama API responded but not OK, falling back to cloud providers');
@@ -682,37 +682,21 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     }
   }
 
-  // Production or Ollama fallback: Cloud providers only
-  let providers: LLMProvider[];
-
-  if (isDevelopment && !isVercel) {
-    // Development fallback (after Ollama)
-    providers = [
-      'anthropic', // Best for JSON responses
-      'deepseek',  // Chinese provider - HIGH QUALITY
-      'mistral',   // European provider - HIGH QUALITY
-      'gemini',    // Google's Gemini
-      'openrouter', // Multi-provider
-      'groq',      // Fast inference
-      'together'   // Meta models
-    ];
-  } else {
-    // Production: Cloud providers only
-    providers = [
-      'anthropic', // Best for JSON responses - PRIMARY
-      'deepseek',  // Chinese provider - HIGH QUALITY
-      'mistral',   // European provider - HIGH QUALITY
-      'gemini',    // Google's Gemini
-      'openrouter', // Multi-provider
-      'groq',      // Fast inference
-      'together'   // Meta models
-    ];
-  }
+  // Fallback to cloud providers (ordered by free tier availability)
+  const providers: LLMProvider[] = [
+    'groq',      // PRIMARY CLOUD - Free tier generous (30 req/min)
+    'gemini',    // Google's Gemini - Free tier available
+    'openrouter', // Multi-provider - Free models available
+    'together',  // Meta models - Free tier
+    'mistral',   // European provider - May have free tier
+    'deepseek',  // Out of credits
+    'anthropic'  // FALLBACK ONLY - Out of credits
+  ];
 
   for (const provider of providers) {
     try {
       const client = createLLMClient(provider);
-      console.log(`[LLM] Using ${provider} provider${isDevelopment && provider === 'ollama' ? ' (local development)' : ''}`);
+      console.log(`[LLM] ✓ Using ${provider} provider (cloud fallback)`);
       return client;
     } catch (error) {
       console.warn(`[LLM] ${provider} not available:`, error instanceof Error ? error.message : 'Unknown error');
@@ -721,8 +705,8 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
 
   throw new Error(
     'No LLM providers available. ' +
-    (isDevelopment && !isVercel
-      ? 'For development, install Ollama and run: ollama pull llama3.2:3b'
+    (!isVercel
+      ? 'For local usage, install Ollama and run: ollama pull llama3.2:3b'
       : 'Please configure at least one API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, DEEPSEEK_API_KEY, or MISTRAL_API_KEY'
     )
   );

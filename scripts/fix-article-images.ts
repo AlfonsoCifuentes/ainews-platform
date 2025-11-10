@@ -20,6 +20,51 @@ if (existsSync(envLocal)) {
 import { load } from 'cheerio';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 
+/**
+ * Capture screenshot using urlbox.io as fallback for blocked sites
+ * Free tier: 1,000 requests/month
+ */
+async function captureScreenshot(url: string): Promise<string | null> {
+  const apiKey = process.env.URLBOX_API_KEY;
+  const apiSecret = process.env.URLBOX_API_SECRET;
+  
+  if (!apiKey || !apiSecret) {
+    console.log(`  ⚠️  urlbox.io not configured (skipping screenshot fallback)`);
+    return null;
+  }
+
+  try {
+    console.log(`  📸 Capturing screenshot with urlbox.io...`);
+    
+    // Generate HMAC token for authentication
+    const crypto = await import('crypto');
+    const queryString = `url=${encodeURIComponent(url)}&width=1200&height=630&format=png&quality=80&retina=false&thumb_width=800&wait_until=requestsfinished&block_ads=true&hide_cookie_banners=true`;
+    const token = crypto
+      .createHmac('sha256', apiSecret)
+      .update(queryString)
+      .digest('hex');
+    
+    const screenshotUrl = `https://api.urlbox.io/v1/${apiKey}/${token}/png?${queryString}`;
+    
+    // Validate the screenshot URL is accessible
+    const response = await fetch(screenshotUrl, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (response.ok) {
+      console.log(`  ✓ Screenshot captured: ${screenshotUrl.slice(0, 60)}...`);
+      return screenshotUrl;
+    } else {
+      console.log(`  ⚠️  Screenshot failed: HTTP ${response.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`  ✗ Screenshot error:`, error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
 async function scrapeArticleImage(url: string): Promise<string | null> {
   try {
     console.log(`  Scraping: ${url.slice(0, 60)}...`);
@@ -33,6 +78,12 @@ async function scrapeArticleImage(url: string): Promise<string | null> {
     
     if (!response.ok) {
       console.warn(`  ⚠️  HTTP ${response.status}`);
+      
+      // Fallback to urlbox.io for 403 Forbidden and 429 Rate Limited
+      if (response.status === 403 || response.status === 429) {
+        return await captureScreenshot(url);
+      }
+      
       return null;
     }
     
@@ -88,13 +139,12 @@ async function main() {
   
   const db = getSupabaseServerClient();
   
-  // Get articles with default/placeholder images
+  // Get ALL articles with default/placeholder images (no limit)
   const { data: articles, error } = await db
     .from('news_articles')
     .select('id, title_en, title_es, source_url, image_url')
-    .or('image_url.is.null,image_url.like.%unsplash%')
-    .order('published_at', { ascending: false })
-    .limit(50);
+    .or('image_url.is.null,image_url.like.%unsplash%,image_url.like.%googleusercontent%,image_url.like.%redditmedia%')
+    .order('published_at', { ascending: false });
   
   if (error) {
     console.error('[Fix Images] Database error:', error);

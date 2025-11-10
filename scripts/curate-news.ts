@@ -398,15 +398,23 @@ async function filterAndClassifyArticles(articles: RawArticle[], llmClient: LLMC
 
 	console.log(`[LLM] Filtering ${articles.length} articles...`);
 	const limit = pLimit(5);
-	const systemPrompt = `You are a JSON-only response AI. You MUST respond ONLY with valid JSON, no markdown, no explanations, no formatting.
-Your response must match this exact structure:
+	const systemPrompt = `You are a strict JSON-only API. CRITICAL RULES:
+1. Return ONLY valid JSON, no markdown code blocks, no explanations
+2. Use double quotes for ALL strings
+3. For optional fields, use empty string "" instead of null or undefined
+4. Escape special characters in strings (use \\" for quotes, \\n for newlines)
+5. Numbers must be plain numbers without quotes
+
+Required JSON structure:
 {
-	"relevant": boolean,
-	"quality_score": number (0-1),
-	"category": "machinelearning" | "nlp" | "computervision" | "robotics" | "ethics" | "business" | "research" | "tools" | "news" | "other",
-	"summary": string,
-	"image_alt_text": string | undefined
-}`;
+	"relevant": true,
+	"quality_score": 0.85,
+	"category": "news",
+	"summary": "Brief description here",
+	"image_alt_text": "Description for image or empty string"
+}
+
+Valid categories: "machinelearning", "nlp", "computervision", "robotics", "ethics", "business", "research", "tools", "news", "other"`;
 
 	const tasks = articles.map((article) =>
 		limit(async () => {
