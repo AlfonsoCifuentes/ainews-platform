@@ -11,6 +11,16 @@ export const generateOptionsSchema = z.object({
 
 export type GenerateOptions = z.infer<typeof generateOptionsSchema>;
 
+export type LLMProvider =
+  | 'ollama'
+  | 'openrouter'
+  | 'groq'
+  | 'gemini'
+  | 'anthropic'
+  | 'together'
+  | 'deepseek'
+  | 'mistral';
+
 export interface LLMResponse {
   content: string;
   model: string;
@@ -34,6 +44,67 @@ function cleanLLMResponse(content: string): string {
   }
   
   return cleaned.trim();
+}
+
+type LLMErrorMetadata = {
+  provider?: LLMProvider;
+  status?: number;
+  retryAfterMs?: number;
+  rawBody?: string;
+};
+
+class LLMProviderError extends Error {
+  constructor(message: string, readonly metadata: LLMErrorMetadata = {}) {
+    super(message);
+    this.name = 'LLMProviderError';
+  }
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return numeric <= 3600 ? numeric * 1000 : numeric; // Header may be seconds or ms
+  }
+
+  const date = Date.parse(value);
+  if (!Number.isNaN(date)) {
+    const diff = date - Date.now();
+    return diff > 0 ? diff : undefined;
+  }
+
+  return undefined;
+}
+
+function extractRetryAfterFromBody(body: string | undefined): number | undefined {
+  if (!body) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(body);
+    const raw = parsed?.retry_after ?? parsed?.error?.retry_after;
+    if (typeof raw === 'number' && raw >= 0) {
+      return raw <= 3600 ? raw * 1000 : raw;
+    }
+    const asString = parsed?.error?.message ?? parsed?.message;
+    if (typeof asString === 'string') {
+      const match = asString.match(/retry(?:-|\s*)after[:\s]+(\d+)/i);
+      if (match) {
+        const value = Number(match[1]);
+        if (Number.isFinite(value)) {
+          return value <= 3600 ? value * 1000 : value;
+        }
+      }
+    }
+  } catch {
+    // ignore body parse failures
+  }
+
+  return undefined;
 }
 
 export class LLMClient {
@@ -97,8 +168,17 @@ export class LLMClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const retryAfterMs =
+        parseRetryAfter(response.headers.get('retry-after')) ??
+        extractRetryAfterFromBody(errorText);
+      throw new LLMProviderError(
         `LLM API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+        {
+          provider: this.provider,
+          status: response.status,
+          retryAfterMs,
+          rawBody: errorText,
+        },
       );
     }
 
@@ -162,8 +242,17 @@ export class LLMClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const retryAfterMs =
+        parseRetryAfter(response.headers.get('retry-after')) ??
+        extractRetryAfterFromBody(errorText);
+      throw new LLMProviderError(
         `Gemini API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+        {
+          provider: this.provider,
+          status: response.status,
+          retryAfterMs,
+          rawBody: errorText,
+        },
       );
     }
 
@@ -211,8 +300,17 @@ export class LLMClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const retryAfterMs =
+        parseRetryAfter(response.headers.get('retry-after')) ??
+        extractRetryAfterFromBody(errorText);
+      throw new LLMProviderError(
         `Anthropic API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+        {
+          provider: this.provider,
+          status: response.status,
+          retryAfterMs,
+          rawBody: errorText,
+        },
       );
     }
 
@@ -261,8 +359,17 @@ export class LLMClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const retryAfterMs =
+        parseRetryAfter(response.headers.get('retry-after')) ??
+        extractRetryAfterFromBody(errorText);
+      throw new LLMProviderError(
         `Ollama API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+        {
+          provider: this.provider,
+          status: response.status,
+          retryAfterMs,
+          rawBody: errorText,
+        },
       );
     }
 
@@ -354,8 +461,6 @@ export class LLMClient {
   }
 }
 
-export type LLMProvider = 'ollama' | 'openrouter' | 'groq' | 'gemini' | 'anthropic' | 'together' | 'deepseek' | 'mistral';
-
 const providerCooldowns = new Map<LLMProvider, number>();
 
 const GENERAL_BACKOFF_MS = 750;
@@ -379,8 +484,10 @@ function computeBackoffMs(
   attempt: number,
 ): number {
   if (error.type === 'rate_limit') {
-    const wait = RATE_LIMIT_BASE_MS * Math.max(attempt, 1);
-    return addJitter(Math.min(wait, RATE_LIMIT_MAX_MS));
+    const base = RATE_LIMIT_BASE_MS * Math.max(attempt, 1);
+    const withRetryAfter = error.retryAfterMs ? Math.max(base, error.retryAfterMs) : base;
+    const ceiling = error.retryAfterMs ? Math.max(error.retryAfterMs, RATE_LIMIT_MAX_MS) : RATE_LIMIT_MAX_MS;
+    return addJitter(Math.min(withRetryAfter, ceiling));
   }
 
   if (error.type === 'timeout') {
@@ -573,17 +680,25 @@ export function getAvailableProviders(): LLMProvider[] {
 /**
  * Enhanced error classifier to determine error type and provide actionable feedback
  */
-export function classifyLLMError(error: unknown): {
+type ClassifiedLLMError = {
   type: 'rate_limit' | 'auth' | 'timeout' | 'network' | 'validation' | 'config' | 'unknown';
   message: string;
   retryable: boolean;
   providerSpecific?: string;
-} {
+  retryAfterMs?: number;
+  provider?: LLMProvider;
+  status?: number;
+};
+
+export function classifyLLMError(error: unknown): ClassifiedLLMError {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorLower = errorMessage.toLowerCase();
+  const metadata = error instanceof LLMProviderError ? error.metadata : undefined;
+  const status = metadata?.status;
 
   // Rate limit errors
   if (
+    status === 429 ||
     errorLower.includes('rate limit') ||
     errorLower.includes('too many requests') ||
     errorLower.includes('429') ||
@@ -593,7 +708,10 @@ export function classifyLLMError(error: unknown): {
       type: 'rate_limit',
       message: `Rate limit exceeded. ${errorMessage}`,
       retryable: true,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      retryAfterMs: metadata?.retryAfterMs,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -609,7 +727,9 @@ export function classifyLLMError(error: unknown): {
       type: 'auth',
       message: `Authentication failed. Check your API key configuration. ${errorMessage}`,
       retryable: false,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -623,7 +743,9 @@ export function classifyLLMError(error: unknown): {
       type: 'timeout',
       message: `Request timeout. The AI model took too long to respond. ${errorMessage}`,
       retryable: true,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -638,7 +760,9 @@ export function classifyLLMError(error: unknown): {
       type: 'network',
       message: `Network error. Cannot reach the AI provider. ${errorMessage}`,
       retryable: true,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -648,7 +772,9 @@ export function classifyLLMError(error: unknown): {
       type: 'validation',
       message: `Response validation failed. The AI returned malformed data. ${errorMessage}`,
       retryable: true,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -658,7 +784,9 @@ export function classifyLLMError(error: unknown): {
       type: 'config',
       message: `Provider not configured. ${errorMessage}`,
       retryable: false,
-      providerSpecific: errorMessage
+      providerSpecific: errorMessage,
+      provider: metadata?.provider,
+      status
     };
   }
 
@@ -666,7 +794,9 @@ export function classifyLLMError(error: unknown): {
     type: 'unknown',
     message: errorMessage,
     retryable: true,
-    providerSpecific: errorMessage
+    providerSpecific: errorMessage,
+    provider: metadata?.provider,
+    status
   };
 }
 
@@ -764,12 +894,15 @@ export async function classifyWithAllProviders<T>(
         };
       } catch (error) {
         const errorInfo = classifyLLMError(error);
-        console.error(`[LLM Fallback] ❌ ${provider} attempt ${attempt}/${maxAttemptsPerProvider} failed:`);
+        console.error(`[LLM Fallback] ❌ ${provider} attempt ${attempt}/${attemptsPerProvider} failed:`);
         console.error(`[LLM Fallback]    Type: ${errorInfo.type}`);
         console.error(`[LLM Fallback]    Message: ${errorInfo.message}`);
         console.error(`[LLM Fallback]    Retryable: ${errorInfo.retryable}`);
-        
-  allErrors.push({ provider, attempt, error: errorInfo });
+        if (typeof errorInfo.retryAfterMs === 'number') {
+          console.error(`[LLM Fallback]    Retry-After: ${errorInfo.retryAfterMs}ms`);
+        }
+
+        allErrors.push({ provider, attempt, error: errorInfo });
 
         // If it's not retryable (auth/config error), skip remaining attempts for this provider
         if (!errorInfo.retryable) {
@@ -782,7 +915,9 @@ export async function classifyWithAllProviders<T>(
           const waitTime = computeBackoffMs(errorInfo, attempt);
           console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry due to ${errorInfo.type}...`);
           if (errorInfo.type === 'rate_limit') {
-            providerCooldowns.set(provider, Date.now() + waitTime);
+            const nextAvailable = Math.max(providerCooldowns.get(provider) ?? 0, Date.now() + waitTime);
+            providerCooldowns.set(provider, nextAvailable);
+            console.log(`[LLM Fallback] 🚦 ${provider} cooling down until ${new Date(nextAvailable).toISOString()}`);
           }
           await sleep(waitTime);
         }
@@ -804,9 +939,12 @@ export async function classifyWithAllProviders<T>(
   console.error(`[LLM Fallback] 📈 Error breakdown:`, errorsByType);
 
   // Build detailed error message
-  const errorReport = allErrors.map(({ provider, attempt, error }) => 
-    `  • ${provider} (attempt ${attempt}): ${error.type.toUpperCase()} - ${error.message}`
-  ).join('\n');
+  const errorReport = allErrors.map(({ provider, attempt, error }) => {
+    const retryHint = typeof error.retryAfterMs === 'number'
+      ? ` (retry after ~${Math.round(error.retryAfterMs / 1000)}s)`
+      : '';
+    return `  • ${provider} (attempt ${attempt}): ${error.type.toUpperCase()} - ${error.message}${retryHint}`;
+  }).join('\n');
 
   const actionableAdvice = generateActionableAdvice(allErrors);
 

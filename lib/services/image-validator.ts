@@ -31,6 +31,49 @@ const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   '.bmp': 'image/bmp',
 };
 
+const GENERIC_IMAGE_DOMAINS = [
+  'source.unsplash.com',
+  'images.unsplash.com',
+  'unsplash.com',
+  'cdn.pixabay.com',
+  'pixabay.com',
+  'images.pexels.com',
+  'pexels.com',
+  'cdn.pexels.com',
+  'picsum.photos',
+  'dummyimage.com',
+  'placeholder.com',
+  'placehold.it',
+  'placehold.co',
+  'via.placeholder.com',
+  'placekitten.com',
+  'loremflickr.com',
+];
+
+function matchesGenericImageDomain(hostname: string): boolean {
+  return GENERIC_IMAGE_DOMAINS.some((domain) =>
+    hostname === domain || hostname.endsWith(`.${domain}`)
+  );
+}
+
+function getStockImageBlockReason(url: string): string | null {
+  if (!url) return 'Missing image URL';
+  if (url.startsWith('data:')) {
+    return 'Data URI images are not allowed';
+  }
+
+  try {
+    const { hostname } = new URL(url);
+    if (matchesGenericImageDomain(hostname.toLowerCase())) {
+      return `Stock image host blocked: ${hostname}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function guessMimeFromUrl(url: string): string | null {
   try {
     const { pathname } = new URL(url);
@@ -156,12 +199,21 @@ function isDuplicateImage(url: string): boolean {
 /**
  * Validates image URL and captures metadata
  */
-async function validateImageUrl(url: string): Promise<ImageValidationResult> {
-  // Check cache first (avoid duplicate HEAD requests)
-  const cached = imageUrlCache.get(url) as ImageValidationResult | null;
-  if (cached) {
-    console.log(`[ImageValidator] Cache hit for: ${url}`);
-    return cached;
+interface ValidateImageUrlOptions {
+  skipDuplicateCheck?: boolean;
+  skipCache?: boolean;
+}
+
+async function validateImageUrl(
+  url: string,
+  options: ValidateImageUrlOptions = {}
+): Promise<ImageValidationResult> {
+  if (!options.skipCache) {
+    const cached = imageUrlCache.get(url) as ImageValidationResult | null;
+    if (cached) {
+      console.log(`[ImageValidator] Cache hit for: ${url}`);
+      return cached;
+    }
   }
 
   // SSRF Protection: Validate image URL before fetching
@@ -178,7 +230,7 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
   }
 
   // Check for duplicate first (fast)
-  if (isDuplicateImage(url)) {
+  if (!options.skipDuplicateCheck && isDuplicateImage(url)) {
     const result = {
       isValid: false,
       isDuplicate: true,
@@ -196,7 +248,7 @@ async function validateImageUrl(url: string): Promise<ImageValidationResult> {
     const requestHeaders = buildImageRequestHeaders(url);
 
     // Fetch image headers to check validity
-    let response = await fetch(url, {
+  let response = await fetch(url, {
       method: 'HEAD',
       headers: requestHeaders,
       signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -345,7 +397,7 @@ function isBlacklistedImage(url: string): boolean {
 /**
  * Registers a new image hash in cache
  */
-function registerImageHash(url: string): void {
+export function registerImageHash(url: string): void {
   const hash = generateImageHash(url);
   imageHashCache.add(hash);
 }
@@ -355,7 +407,11 @@ function registerImageHash(url: string): void {
  */
 export async function validateAndRegisterImage(
   url: string | null,
-  skipDuplicateCheck = false
+  options: {
+    skipDuplicateCheck?: boolean;
+    skipRegister?: boolean;
+    skipCache?: boolean;
+  } = {}
 ): Promise<ImageValidationResult> {
   // Initialize cache on first use
   await initializeImageHashCache();
@@ -368,7 +424,15 @@ export async function validateAndRegisterImage(
     };
   }
 
-  // Check blacklist
+  const stockReason = getStockImageBlockReason(url);
+  if (stockReason) {
+    return {
+      isValid: false,
+      isDuplicate: false,
+      error: stockReason
+    };
+  }
+
   if (isBlacklistedImage(url)) {
     return {
       isValid: false,
@@ -388,20 +452,12 @@ export async function validateAndRegisterImage(
     };
   }
 
-  // Skip duplicate check if requested (for testing)
-  if (skipDuplicateCheck) {
-    const result = await validateImageUrl(url);
-    if (result.isValid && result.hash) {
-      registerImageHash(url);
-    }
-    return result;
-  }
+  const result = await validateImageUrl(url, {
+    skipDuplicateCheck: options.skipDuplicateCheck,
+    skipCache: options.skipCache,
+  });
 
-  // Full validation
-  const result = await validateImageUrl(url);
-  
-  // Register if valid
-  if (result.isValid && result.hash) {
+  if (result.isValid && result.hash && !options.skipRegister) {
     registerImageHash(url);
   }
 
@@ -518,6 +574,7 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   skipComputerVision?: boolean;
   skipVisualSimilarity?: boolean;
   skipCache?: boolean;
+  skipRegister?: boolean;
 }): Promise<{
   isValid: boolean;
   reason?: string;
@@ -543,7 +600,10 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   bytes?: number;
 }> {
   // Step 1: Standard validation
-  const basicValidation = await validateAndRegisterImage(imageUrl, options?.skipCache);
+  const basicValidation = await validateAndRegisterImage(imageUrl, {
+    skipCache: options?.skipCache,
+    skipRegister: options?.skipRegister,
+  });
 
   if (!basicValidation.isValid) {
     return {

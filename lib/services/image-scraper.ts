@@ -628,14 +628,18 @@ export async function getBestArticleImage(
     enclosure?: { url?: string };
     content?: string;
     contentSnippet?: string;
-  }
+  },
+  options: {
+    skipRegister?: boolean;
+    skipCache?: boolean;
+  } = {}
 ): Promise<string | null> {
   // Strategy 0: Check if URL itself is an oEmbed-supported embed (Twitter, YouTube, etc.)
   if (isOEmbedUrl(articleUrl)) {
     console.log('[ImageScraper] Article URL is oEmbed-supported, trying oEmbed API...');
     const oembedResult = await getOEmbedImage(articleUrl);
     if (oembedResult.imageUrl) {
-      const validation = await validateAndRegisterImage(oembedResult.imageUrl);
+      const validation = await validateAndRegisterImage(oembedResult.imageUrl, options);
       if (validation.isValid) {
         console.log(`[ImageScraper] ✓ Valid image from oEmbed (${oembedResult.provider})`);
         return oembedResult.imageUrl;
@@ -647,7 +651,7 @@ export async function getBestArticleImage(
   if (rssItem) {
     const rssImage = extractImageFromRSS(rssItem);
     if (rssImage) {
-      const validation = await validateAndRegisterImage(rssImage);
+      const validation = await validateAndRegisterImage(rssImage, options);
       if (validation.isValid) {
         console.log('[ImageScraper] ✓ Valid image from RSS feed');
         return rssImage;
@@ -661,7 +665,7 @@ export async function getBestArticleImage(
       const oembedImages = await getOEmbedImagesFromContent(content);
       
       for (const imageUrl of oembedImages) {
-        const validation = await validateAndRegisterImage(imageUrl);
+        const validation = await validateAndRegisterImage(imageUrl, options);
         if (validation.isValid) {
           console.log('[ImageScraper] ✓ Valid image from oEmbed in RSS content');
           return imageUrl;
@@ -671,5 +675,16 @@ export async function getBestArticleImage(
   }
 
   // Strategy 2: Fallback to scraping article page
-  return await scrapeArticleImage(articleUrl);
+  const scrapedUrl = await scrapeArticleImage(articleUrl);
+  if (!scrapedUrl) {
+    return null;
+  }
+
+  const validation = await validateAndRegisterImage(scrapedUrl, options);
+  if (validation.isValid) {
+    return scrapedUrl;
+  }
+
+  console.log(`[ImageScraper] Scraped image invalid: ${validation.error}`);
+  return null;
 }
