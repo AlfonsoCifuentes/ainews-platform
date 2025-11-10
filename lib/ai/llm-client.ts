@@ -33,6 +33,38 @@ export interface LLMResponse {
 }
 
 /**
+ * Rate limit configuration for exponential backoff
+ */
+interface RateLimitConfig {
+  maxRetries: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+  jitterMs: number;
+}
+
+const DEFAULT_RATE_LIMIT_CONFIG: RateLimitConfig = {
+  maxRetries: 5,
+  initialDelayMs: 1000, // 1 second
+  maxDelayMs: 60000,    // 60 seconds
+  backoffMultiplier: 2,
+  jitterMs: 500,        // Random jitter to prevent thundering herd
+};
+
+/**
+ * Calculate delay for exponential backoff with jitter
+ */
+function calculateBackoffDelay(
+  attempt: number,
+  config: RateLimitConfig = DEFAULT_RATE_LIMIT_CONFIG
+): number {
+  const exponentialDelay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
+  const cappedDelay = Math.min(exponentialDelay, config.maxDelayMs);
+  const jitter = Math.random() * config.jitterMs;
+  return cappedDelay + jitter;
+}
+
+/**
  * Cleans LLM response content by removing markdown code fences and extracting JSON
  */
 function cleanLLMResponse(content: string): string {
@@ -115,6 +147,116 @@ export class LLMClient {
     private readonly provider: LLMProvider = 'openrouter',
   ) {}
 
+  /**
+   * Fetch with automatic rate limit handling and exponential backoff
+   */
+  private async fetchWithRateLimitRetry(
+    url: string,
+    options: RequestInit,
+    config: RateLimitConfig = DEFAULT_RATE_LIMIT_CONFIG
+  ): Promise<Response> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+
+        // Success - return response
+        if (response.ok) {
+          if (attempt > 0) {
+            console.log(`[LLM RateLimit] ✅ Request succeeded after ${attempt} retries`);
+          }
+          return response;
+        }
+
+        // Handle rate limit (429)
+        if (response.status === 429) {
+          const errorText = await response.text();
+          
+          // Extract retry-after from headers or body
+          const retryAfterMs =
+            parseRetryAfter(response.headers.get('retry-after')) ??
+            extractRetryAfterFromBody(errorText);
+
+          let delayMs: number;
+          if (retryAfterMs) {
+            // Use server-specified delay, capped at max
+            delayMs = Math.min(retryAfterMs, config.maxDelayMs);
+            console.warn(
+              `[LLM RateLimit] ⏸️  Rate limited (429). Server requested ${retryAfterMs}ms delay. ` +
+              `Using ${delayMs}ms. Retry ${attempt + 1}/${config.maxRetries}`
+            );
+          } else {
+            // Use exponential backoff
+            delayMs = calculateBackoffDelay(attempt, config);
+            console.warn(
+              `[LLM RateLimit] ⏸️  Rate limited (429). Exponential backoff: ${delayMs.toFixed(0)}ms. ` +
+              `Retry ${attempt + 1}/${config.maxRetries}`
+            );
+          }
+
+          if (attempt < config.maxRetries) {
+            await sleep(delayMs);
+            continue; // Retry
+          }
+
+          // Max retries exceeded
+          throw new LLMProviderError(
+            `Rate limit exceeded after ${config.maxRetries} retries. ${errorText}`,
+            {
+              provider: this.provider,
+              status: 429,
+              retryAfterMs,
+              rawBody: errorText,
+            }
+          );
+        }
+
+        // Other HTTP errors - throw immediately
+        const errorText = await response.text();
+        throw new LLMProviderError(
+          `LLM API request failed: ${response.status} ${response.statusText}\n${errorText}`,
+          {
+            provider: this.provider,
+            status: response.status,
+            rawBody: errorText,
+          }
+        );
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // If it's already an LLMProviderError, rethrow it
+        if (error instanceof LLMProviderError) {
+          throw error;
+        }
+
+        // Network/timeout errors - retry with exponential backoff
+        const isNetworkError =
+          lastError.message.includes('fetch') ||
+          lastError.message.includes('network') ||
+          lastError.message.includes('ECONNREFUSED') ||
+          lastError.message.includes('ETIMEDOUT') ||
+          lastError.message.includes('aborted');
+
+        if (isNetworkError && attempt < config.maxRetries) {
+          const delayMs = calculateBackoffDelay(attempt, config);
+          console.warn(
+            `[LLM Network] ⚠️  Network error: ${lastError.message}. ` +
+            `Retrying in ${delayMs.toFixed(0)}ms (${attempt + 1}/${config.maxRetries})`
+          );
+          await sleep(delayMs);
+          continue; // Retry
+        }
+
+        // Non-retryable error or max retries exceeded
+        throw lastError;
+      }
+    }
+
+    // Should never reach here, but just in case
+    throw lastError || new Error('Max retries exceeded');
+  }
+
   async generate(
     prompt: string,
     options?: Partial<GenerateOptions>,
@@ -137,50 +279,37 @@ export class LLMClient {
     }
 
     // OpenRouter, Groq, Together, DeepSeek, Mistral use OpenAI-compatible API
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        ...(this.provider === 'openrouter' && {
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews-platform.vercel.app',
-          'X-Title': 'AI News Platform'
-        })
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: validatedOptions.temperature,
-        max_tokens: validatedOptions.maxTokens,
-        top_p: validatedOptions.topP,
-        frequency_penalty: validatedOptions.frequencyPenalty,
-        presence_penalty: validatedOptions.presencePenalty,
-        stop: validatedOptions.stop,
-      }),
-      // Add timeout to prevent hanging requests
-      signal: AbortSignal.timeout(60000), // 60 seconds for LLM generation
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const retryAfterMs =
-        parseRetryAfter(response.headers.get('retry-after')) ??
-        extractRetryAfterFromBody(errorText);
-      throw new LLMProviderError(
-        `LLM API request failed: ${response.status} ${response.statusText}\n${errorText}`,
-        {
-          provider: this.provider,
-          status: response.status,
-          retryAfterMs,
-          rawBody: errorText,
+    const response = await this.fetchWithRateLimitRetry(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+          ...(this.provider === 'openrouter' && {
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews-platform.vercel.app',
+            'X-Title': 'AI News Platform'
+          })
         },
-      );
-    }
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: validatedOptions.temperature,
+          max_tokens: validatedOptions.maxTokens,
+          top_p: validatedOptions.topP,
+          frequency_penalty: validatedOptions.frequencyPenalty,
+          presence_penalty: validatedOptions.presencePenalty,
+          stop: validatedOptions.stop,
+        }),
+        // Add timeout to prevent hanging requests
+        signal: AbortSignal.timeout(60000), // 60 seconds for LLM generation
+      }
+    );
 
     const data = await response.json();
 
@@ -217,7 +346,7 @@ export class LLMClient {
       generationConfig.stopSequences = options.stop;
     }
 
-    const response = await fetch(
+    const response = await this.fetchWithRateLimitRetry(
       `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
       {
         method: 'POST',
@@ -240,22 +369,6 @@ export class LLMClient {
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      const retryAfterMs =
-        parseRetryAfter(response.headers.get('retry-after')) ??
-        extractRetryAfterFromBody(errorText);
-      throw new LLMProviderError(
-        `Gemini API request failed: ${response.status} ${response.statusText}\n${errorText}`,
-        {
-          provider: this.provider,
-          status: response.status,
-          retryAfterMs,
-          rawBody: errorText,
-        },
-      );
-    }
-
     const data = await response.json();
     const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
@@ -275,44 +388,31 @@ export class LLMClient {
     prompt: string,
     options: GenerateOptions,
   ): Promise<LLMResponse> {
-    const response = await fetch(`${this.baseUrl}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: options.maxTokens || 4000,
-        temperature: options.temperature,
-        top_p: options.topP,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        ...(options.stop && { stop_sequences: options.stop }),
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const retryAfterMs =
-        parseRetryAfter(response.headers.get('retry-after')) ??
-        extractRetryAfterFromBody(errorText);
-      throw new LLMProviderError(
-        `Anthropic API request failed: ${response.status} ${response.statusText}\n${errorText}`,
-        {
-          provider: this.provider,
-          status: response.status,
-          retryAfterMs,
-          rawBody: errorText,
+    const response = await this.fetchWithRateLimitRetry(
+      `${this.baseUrl}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
         },
-      );
-    }
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: options.maxTokens || 4000,
+          temperature: options.temperature,
+          top_p: options.topP,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          ...(options.stop && { stop_sequences: options.stop }),
+        }),
+        signal: AbortSignal.timeout(60000),
+      }
+    );
 
     const data = await response.json();
     const rawContent = data.content?.[0]?.text ?? '';
@@ -333,45 +433,32 @@ export class LLMClient {
     prompt: string,
     options: GenerateOptions,
   ): Promise<LLMResponse> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
+    const response = await this.fetchWithRateLimitRetry(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          stream: false,
+          options: {
+            temperature: options.temperature,
+            top_p: options.topP,
+            num_predict: options.maxTokens || 4000,
+            stop: options.stop,
           },
-        ],
-        stream: false,
-        options: {
-          temperature: options.temperature,
-          top_p: options.topP,
-          num_predict: options.maxTokens || 4000,
-          stop: options.stop,
-        },
-      }),
-      signal: AbortSignal.timeout(120000), // 2 minutes for local Ollama
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const retryAfterMs =
-        parseRetryAfter(response.headers.get('retry-after')) ??
-        extractRetryAfterFromBody(errorText);
-      throw new LLMProviderError(
-        `Ollama API request failed: ${response.status} ${response.statusText}\n${errorText}`,
-        {
-          provider: this.provider,
-          status: response.status,
-          retryAfterMs,
-          rawBody: errorText,
-        },
-      );
-    }
+        }),
+        signal: AbortSignal.timeout(120000), // 2 minutes for local Ollama
+      }
+    );
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content ?? '';
