@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Cloud, Zap, Info, Download, Check } from 'lucide-react';
+import { Brain, Cloud, Zap, Info, Download, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -105,6 +105,28 @@ export function LLMProviderSelector({
                   <div className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                     <span><strong>WebGPU</strong> acelerado en GPUs modernas</span>
+                  </div>
+                </div>
+
+                {/* Características desbloqueables */}
+                <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-yellow-300 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    🔓 Funciones que se desbloquean:
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500">💬</span>
+                      <span>Chatbot IA ilimitado</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500">🤖</span>
+                      <span>Chat estilo ChatGPT</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500">✨</span>
+                      <span>Generación de cursos sin límites</span>
+                    </div>
                   </div>
                 </div>
 

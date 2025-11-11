@@ -8,7 +8,8 @@
       "trending": "Trending",
       "kg": "Knowledge Graph",
       "leaderboard": "Leaderboard",
-      "about": "About",
+      "chatbot": "AI Chatbot",
+      "chat": "AI Chat",
       "login": "Sign In",
       "signup": "Sign Up",
       "settings": "Settings"
@@ -300,5 +301,13 @@
     "courses": "Courses",
     "readMore": "Read More",
     "aiGenerated": "AI Generated"
+  },
+  "chatbot": {
+    "title": "AI Chatbot - Local & Private",
+    "description": "Chat with your private AI assistant powered by local models"
+  },
+  "chat": {
+    "title": "AI Chat - ChatGPT Style",
+    "description": "ChatGPT-style interface powered by your local AI model"
   }
 }
