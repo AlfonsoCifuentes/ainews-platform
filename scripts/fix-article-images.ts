@@ -19,49 +19,148 @@ if (existsSync(envLocal)) {
 
 import { load } from 'cheerio';
 import { getSupabaseServerClient } from '../lib/db/supabase';
+import { chromium, type Browser } from 'playwright';
+
+let browserInstance: Browser | null = null;
 
 /**
- * Capture screenshot using urlbox.io as fallback for blocked sites
- * Free tier: 1,000 requests/month
+ * Get or create a persistent browser instance
+ * 100% FREE - uses local Playwright
  */
-async function captureScreenshot(url: string): Promise<string | null> {
-  const apiKey = process.env.URLBOX_API_KEY;
-  const apiSecret = process.env.URLBOX_API_SECRET;
-  
-  if (!apiKey || !apiSecret) {
-    console.log(`  ⚠️  urlbox.io not configured (skipping screenshot fallback)`);
-    return null;
+async function getBrowser(): Promise<Browser> {
+  if (!browserInstance) {
+    browserInstance = await chromium.launch({
+      headless: true,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-web-security',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
+    });
   }
+  return browserInstance;
+}
 
+/**
+ * Scrape with advanced Playwright anti-detection for blocked sites
+ * 100% FREE - no API costs, unlimited usage
+ */
+async function scrapeWithPlaywright(url: string): Promise<string | null> {
+  let context = null;
+  let page = null;
+  
   try {
-    console.log(`  📸 Capturing screenshot with urlbox.io...`);
+    console.log(`  🎭 Using Playwright with anti-detection...`);
     
-    // Generate HMAC token for authentication
-    const crypto = await import('crypto');
-    const queryString = `url=${encodeURIComponent(url)}&width=1200&height=630&format=png&quality=80&retina=false&thumb_width=800&wait_until=requestsfinished&block_ads=true&hide_cookie_banners=true`;
-    const token = crypto
-      .createHmac('sha256', apiSecret)
-      .update(queryString)
-      .digest('hex');
+    const browser = await getBrowser();
     
-    const screenshotUrl = `https://api.urlbox.io/v1/${apiKey}/${token}/png?${queryString}`;
-    
-    // Validate the screenshot URL is accessible
-    const response = await fetch(screenshotUrl, {
-      method: 'HEAD',
-      signal: AbortSignal.timeout(5000)
+    // Create context with realistic fingerprint
+    context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      extraHTTPHeaders: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0'
+      }
     });
     
-    if (response.ok) {
-      console.log(`  ✓ Screenshot captured: ${screenshotUrl.slice(0, 60)}...`);
-      return screenshotUrl;
-    } else {
-      console.log(`  ⚠️  Screenshot failed: HTTP ${response.status}`);
+    page = await context.newPage();
+    
+    // Remove automation detection
+    await page.addInitScript(() => {
+      // Override the navigator.webdriver property
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => false,
+      });
+      
+      // Mock plugins and mimeTypes
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+      
+      // Mock languages
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+      });
+    });
+    
+    // Navigate with timeout
+    await page.goto(url, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 15000 
+    });
+    
+    // Wait a bit for dynamic content
+    await page.waitForTimeout(2000);
+    
+    // Extract image using multiple selectors
+    const imageUrl = await page.evaluate(() => {
+      const selectors = [
+        'meta[property="og:image"]',
+        'meta[name="twitter:image"]',
+        'meta[property="twitter:image"]',
+        'meta[name="og:image"]',
+        'article img[src*="featured"]',
+        'article img[src*="hero"]',
+        '.article-image img',
+        '.post-thumbnail img',
+        'article img:not([src*="avatar"]):not([src*="icon"]):not([src*="logo"])',
+        'main img:not([src*="avatar"]):not([src*="icon"]):not([src*="logo"])',
+        '.content img:not([src*="avatar"]):not([src*="icon"]):not([src*="logo"])'
+      ];
+      
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const attr = selector.startsWith('meta') ? 'content' : 'src';
+          let imgUrl = element.getAttribute(attr);
+          
+          if (imgUrl) {
+            // Make absolute URL
+            if (imgUrl.startsWith('//')) {
+              imgUrl = 'https:' + imgUrl;
+            } else if (imgUrl.startsWith('/')) {
+              imgUrl = window.location.origin + imgUrl;
+            }
+            
+            // Validate it's an actual image URL
+            if (imgUrl.startsWith('http') && 
+                !imgUrl.includes('avatar') && 
+                !imgUrl.includes('icon') &&
+                !imgUrl.includes('logo') &&
+                !imgUrl.includes('1x1')) {
+              return imgUrl;
+            }
+          }
+        }
+      }
       return null;
+    });
+    
+    if (imageUrl) {
+      console.log(`  ✓ Found with Playwright: ${imageUrl.slice(0, 60)}...`);
+      return imageUrl;
     }
-  } catch (error) {
-    console.error(`  ✗ Screenshot error:`, error instanceof Error ? error.message : String(error));
+    
+    console.log(`  ⚠️  No image found with Playwright`);
     return null;
+    
+  } catch (error) {
+    console.error(`  ✗ Playwright error:`, error instanceof Error ? error.message : String(error));
+    return null;
+  } finally {
+    if (page) await page.close().catch(() => {});
+    if (context) await context.close().catch(() => {});
   }
 }
 
@@ -79,9 +178,10 @@ async function scrapeArticleImage(url: string): Promise<string | null> {
     if (!response.ok) {
       console.warn(`  ⚠️  HTTP ${response.status}`);
       
-      // Fallback to urlbox.io for 403 Forbidden and 429 Rate Limited
+      // Fallback to Playwright for 403 Forbidden and 429 Rate Limited
+      // 100% FREE - no API costs!
       if (response.status === 403 || response.status === 429) {
-        return await captureScreenshot(url);
+        return await scrapeWithPlaywright(url);
       }
       
       return null;
@@ -191,6 +291,12 @@ async function main() {
   console.log(`\n[Fix Images] Complete!`);
   console.log(`  ✓ Fixed: ${fixed}`);
   console.log(`  ✗ Failed: ${failed}`);
+  
+  // Cleanup browser instance
+  if (browserInstance) {
+    await browserInstance.close();
+    browserInstance = null;
+  }
   
   process.exit(0);
 }
