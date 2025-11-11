@@ -109,7 +109,7 @@ export function BookmarksClient({ locale }: BookmarksClientProps) {
         locale={locale}
         onClose={() => setSelectedArticle(null)}
         translations={{
-          readTime: tNews('readTime'),
+          readTime: tNews('modal.readTime'), // Use modal translation with {{minutes}} placeholder
           aiGenerated: tNews('aiGenerated'),
           close: tCommon('buttons.close'),
           category: translateCategory(selectedArticle?.category || 'machinelearning'),

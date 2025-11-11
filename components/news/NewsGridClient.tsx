@@ -122,7 +122,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
           locale={locale}
           onClose={() => setSelectedArticle(null)}
           translations={{
-            readTime: t('card.readTime'),
+            readTime: t('modal.readTime'), // Use modal translation with {{minutes}} placeholder
             aiGenerated: t('card.aiGenerated'),
             close: tCommon('buttons.close'),
             category: translateCategory(selectedArticle.category),

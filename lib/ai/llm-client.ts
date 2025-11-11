@@ -485,6 +485,7 @@ export class LLMClient {
       : text;
 
     let llmResponse: LLMResponse | null = null;
+    let jsonContent = '';
     
     try {
       llmResponse = await this.generate(prompt, {
@@ -494,7 +495,7 @@ export class LLMClient {
 
       // Response content is already cleaned by generate()
       // Try multiple strategies to extract valid JSON
-      let jsonContent = llmResponse.content;
+      jsonContent = llmResponse.content;
       
       // Strategy 1: Extract JSON object with regex (greedy match for nested objects)
       const jsonMatch = jsonContent.match(/\{(?:[^{}]|\{[^{}]*\})*\}/s);
@@ -538,11 +539,23 @@ export class LLMClient {
       
       // Log the problematic response for debugging
       if (llmResponse) {
-        console.error('[LLM] Raw response that failed to parse:', llmResponse.content.substring(0, 200));
+        console.error('[LLM] ❌ Raw response that failed to parse:');
+        console.error('[LLM] First 500 chars:', llmResponse.content.substring(0, 500));
+        console.error('[LLM] Last 200 chars:', llmResponse.content.substring(Math.max(0, llmResponse.content.length - 200)));
+        
+        // Check if the response looks like an error message instead of JSON
+        const lowerContent = llmResponse.content.toLowerCase();
+        if (lowerContent.includes('error') || lowerContent.includes('failed') || 
+            lowerContent.includes('cannot') || lowerContent.includes('unable')) {
+          throw new Error(
+            `LLM returned an error message instead of JSON: ${llmResponse.content.substring(0, 200)}`
+          );
+        }
       }
       
       throw new Error(
-        `Failed to parse LLM classification response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to parse LLM classification response: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
+        `Received: "${jsonContent.substring(0, 100)}..."`
       );
     }
   }

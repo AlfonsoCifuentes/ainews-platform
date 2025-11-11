@@ -25,6 +25,7 @@
     "ai:retranslate": "tsx scripts/retranslate-articles.ts",
     "ai:fix-images": "tsx scripts/fix-article-images.ts",
     "ai:ultra-fix-images": "tsx scripts/fix-missing-images.ts",
+    "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
     "ai:check-images": "tsx scripts/check-missing-images.ts",
     "ai:check-duplicates": "tsx scripts/check-duplicate-images.ts",
     "ai:test-ultralytics": "tsx scripts/test-ultralytics.ts",
