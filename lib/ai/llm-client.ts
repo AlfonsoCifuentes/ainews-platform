@@ -488,6 +488,11 @@ export class LLMClient {
     let jsonContent = '';
     
     try {
+      // Log when using Ollama to show local generation
+      if (this.provider === 'ollama') {
+        console.log(`[LLM] 🏠 Using local Ollama model: ${this.model} (ZERO API COST)`);
+      }
+      
       llmResponse = await this.generate(prompt, {
         temperature: 0.3,
         maxTokens: 4000, // Increased for complex schemas like course generation
@@ -743,36 +748,27 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
 
 /**
  * Get list of available LLM providers
+ * Priority order: Ollama (local, free) → Cloud providers (by quality/cost)
  */
 export function getAvailableProviders(): LLMProvider[] {
   const available: LLMProvider[] = [];
 
-  // Check if Ollama is available (for local development)
-  if (process.env.NODE_ENV === 'development' || process.env.OLLAMA_BASE_URL) {
-    try {
-      // Quick check if Ollama is running
-      fetch(process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api/tags', {
-        signal: AbortSignal.timeout(2000)
-      }).then(response => {
-        if (response.ok) {
-          console.log('[LLM] Ollama detected and available');
-        }
-      }).catch(() => {
-        console.log('[LLM] Ollama not available');
-      });
-      available.push('ollama');
-    } catch {
-      // Ollama not available
-    }
+  // ALWAYS try Ollama first if not on Vercel (local = FREE!)
+  // This is synchronous detection - we'll verify it's actually running when we try to use it
+  const isVercel = process.env.VERCEL === '1';
+  if (!isVercel) {
+    available.push('ollama');
+    console.log('[LLM] 🎯 Ollama added as PRIMARY provider (local, zero cost)');
   }
 
-  if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');
-  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');
-  if (process.env.MISTRAL_API_KEY) available.push('mistral');
-  if (process.env.GEMINI_API_KEY) available.push('gemini');
-  if (process.env.OPENROUTER_API_KEY) available.push('openrouter');
-  if (process.env.GROQ_API_KEY) available.push('groq');
-  if (process.env.TOGETHER_API_KEY) available.push('together');
+  // Cloud providers ordered by: quality for JSON generation + free tier availability
+  if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');  // Best for JSON
+  if (process.env.GROQ_API_KEY) available.push('groq');            // Fast, generous free tier
+  if (process.env.GEMINI_API_KEY) available.push('gemini');        // Good free tier
+  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');    // High quality
+  if (process.env.MISTRAL_API_KEY) available.push('mistral');      // European, good quality
+  if (process.env.OPENROUTER_API_KEY) available.push('openrouter'); // Multi-provider
+  if (process.env.TOGETHER_API_KEY) available.push('together');    // Meta models
 
   return available;
 }
@@ -957,6 +953,24 @@ export async function classifyWithAllProviders<T>(
 
   for (const provider of availableProviders) {
     console.log(`\n[LLM Fallback] 🤖 Trying provider: ${provider.toUpperCase()}`);
+    
+    // Special handling for Ollama - verify it's actually running
+    if (provider === 'ollama') {
+      try {
+        const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+        const response = await fetch(`${ollamaUrl}/api/tags`, {
+          signal: AbortSignal.timeout(2000)
+        });
+        if (!response.ok) {
+          console.warn(`[LLM Fallback] ⚠️  Ollama not responding, skipping to cloud providers`);
+          continue;
+        }
+        console.log(`[LLM Fallback] ✅ Ollama is running and ready (LOCAL - ZERO COST)`);
+      } catch (ollamaError) {
+        console.warn(`[LLM Fallback] ⚠️  Ollama not available (${ollamaError instanceof Error ? ollamaError.message : 'unknown error'}), skipping to cloud providers`);
+        continue;
+      }
+    }
     
     let llmClient: LLMClient;
     try {
