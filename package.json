@@ -26,6 +26,7 @@
     "ai:fix-images": "tsx scripts/fix-article-images.ts",
     "ai:ultra-fix-images": "tsx scripts/fix-missing-images.ts",
     "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
+    "ai:fix-google-images": "tsx scripts/fix-google-news-images.ts",
     "ai:remove-duplicates": "tsx scripts/remove-duplicate-articles.ts",
     "ai:clean-reddit": "tsx scripts/clean-reddit-metadata.ts",
     "ai:check-images": "tsx scripts/check-missing-images.ts",
