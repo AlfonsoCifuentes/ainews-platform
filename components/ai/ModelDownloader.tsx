@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BrowserLLM, RECOMMENDED_MODELS, type DownloadProgress } from '@/lib/ai/browser-llm';
+import { BrowserLLM, RECOMMENDED_MODELS, type DownloadProgress, listCachedModels, getModelDisplayName } from '@/lib/ai/browser-llm';
 import { getBrowserLLM, setBrowserLLM } from '@/lib/ai/browser-llm';
 
 interface ModelDownloaderProps {
@@ -66,6 +66,70 @@ export function ModelDownloader({
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [cachedModels, setCachedModels] = useState<string[]>([]);
+  const [selectedCachedModel, setSelectedCachedModel] = useState<string | null>(null);
+  const [isLoadingCache, setIsLoadingCache] = useState(true);
+
+  // Detectar modelos en caché al montar
+  useEffect(() => {
+    async function detectCachedModels() {
+      setIsLoadingCache(true);
+      try {
+        const cached = await listCachedModels();
+        console.log('[ModelDownloader] Detected cached models:', cached);
+        setCachedModels(cached);
+        
+        // Si hay modelos en caché y no estamos forzando cambio
+        if (cached.length > 0 && !allowModelChange) {
+          // Auto-seleccionar el primer modelo en caché
+          setSelectedCachedModel(cached[0]);
+          
+          // Verificar si ya hay una instancia cargada
+          const existing = getBrowserLLM();
+          if (existing?.isReady()) {
+            setIsComplete(true);
+          } else {
+            // Auto-cargar el primer modelo en caché
+            await loadCachedModel(cached[0]);
+          }
+        }
+      } catch (err) {
+        console.error('[ModelDownloader] Error detecting cached models:', err);
+      } finally {
+        setIsLoadingCache(false);
+      }
+    }
+    
+    detectCachedModels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowModelChange]);
+
+  const loadCachedModel = async (modelId: string) => {
+    setIsDownloading(true);
+    setError(null);
+    setDownloadProgress({ status: 'loading', progress: 50 });
+
+    try {
+      console.log(`[ModelDownloader] Loading cached model: ${modelId}`);
+      const llm = new BrowserLLM({ modelId });
+
+      await llm.initialize((progress) => {
+        setDownloadProgress(progress);
+      });
+
+      setBrowserLLM(llm);
+      setIsComplete(true);
+      setDownloadProgress({ status: 'ready', progress: 100 });
+
+      onComplete?.();
+    } catch (err) {
+      console.error('[ModelDownloader] Error loading cached model:', err);
+      setError('Error loading model from cache. Please download again.');
+      setDownloadProgress(null);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     // Don't auto-detect if user explicitly wants to change model
@@ -144,12 +208,17 @@ export function ModelDownloader({
                 <div className="space-y-2">
                   <CardTitle className="text-3xl font-bold flex items-center gap-2">
                     <Brain className="w-8 h-8 text-primary" />
-                    {allowModelChange ? 'Cambiar Modelo AI' : 'Descargar Modelo AI'}
+                    {isLoadingCache ? 'Detectando modelos...' : (allowModelChange ? 'Cambiar Modelo AI' : 'Descargar Modelo AI')}
                   </CardTitle>
                   <CardDescription className="text-base">
-                    {allowModelChange 
-                      ? 'Selecciona un nuevo modelo para descargar'
-                      : 'Ejecuta AI directamente en tu navegador - 100% gratis, privado y offline'
+                    {isLoadingCache 
+                      ? 'Buscando modelos ya descargados en tu navegador...'
+                      : (allowModelChange 
+                        ? 'Selecciona un nuevo modelo para descargar o usa uno ya descargado'
+                        : cachedModels.length > 0 
+                          ? `${cachedModels.length} modelo${cachedModels.length > 1 ? 's' : ''} encontrado${cachedModels.length > 1 ? 's' : ''} - Carga instantánea disponible`
+                          : 'Ejecuta AI directamente en tu navegador - 100% gratis, privado y offline'
+                      )
                     }
                   </CardDescription>
                 </div>
@@ -189,6 +258,61 @@ export function ModelDownloader({
                   </div>
                 </AlertDescription>
               </Alert>
+
+              {/* Cached Models Selector */}
+              {cachedModels.length > 0 && !isComplete && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Modelos ya descargados:
+                  </label>
+                  <div className="grid gap-2">
+                    {cachedModels.map((modelId) => (
+                      <motion.button
+                        key={modelId}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setSelectedCachedModel(modelId);
+                          loadCachedModel(modelId);
+                        }}
+                        disabled={isDownloading}
+                        className={`
+                          p-3 rounded-lg border-2 text-left transition-all
+                          ${selectedCachedModel === modelId
+                            ? 'border-green-500 bg-green-500/10'
+                            : 'border-border hover:border-green-500/50 bg-background'
+                          }
+                          ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}
+                        `}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                              <Check className="w-5 h-5 text-green-500" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">
+                                {getModelDisplayName(modelId)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Ya descargado - Cargar instantáneamente
+                              </div>
+                            </div>
+                          </div>
+                          <Zap className="w-5 h-5 text-green-500" />
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                  
+                  {cachedModels.length > 0 && (
+                    <div className="text-center text-xs text-muted-foreground">
+                      o descarga un modelo nuevo abajo ↓
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Model Selection */}
               {!isDownloading && !isComplete && (

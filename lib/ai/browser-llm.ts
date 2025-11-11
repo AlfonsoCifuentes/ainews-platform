@@ -279,3 +279,90 @@ export function setBrowserLLM(instance: BrowserLLM | null): void {
 export function isBrowserLLMReady(): boolean {
   return browserLLMInstance?.isReady() ?? false;
 }
+
+/**
+ * List all cached models in IndexedDB
+ */
+export async function listCachedModels(): Promise<string[]> {
+  try {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return [];
+    }
+
+    const dbName = 'transformers_cache'; // Default cache name used by @xenova/transformers
+    const storeName = 'onnx'; // Store name for model files
+    
+    return new Promise((resolve) => {
+      const request = indexedDB.open(dbName);
+      
+      request.onerror = () => {
+        console.warn('[BrowserLLM] Could not open IndexedDB');
+        resolve([]);
+      };
+      
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        
+        // Check if the object store exists
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.close();
+          resolve([]);
+          return;
+        }
+        
+        const transaction = db.transaction([storeName], 'readonly');
+        const objectStore = transaction.objectStore(storeName);
+        const getAllKeys = objectStore.getAllKeys();
+        
+        getAllKeys.onsuccess = () => {
+          const keys = getAllKeys.result as string[];
+          
+          // Extract unique model IDs from cache keys
+          // Keys look like: "Xenova/TinyLlama-1.1B-Chat-v1.0/onnx/model.onnx"
+          const modelIds = new Set<string>();
+          
+          keys.forEach((key) => {
+            const parts = key.split('/');
+            if (parts.length >= 2) {
+              const modelId = `${parts[0]}/${parts[1]}`;
+              modelIds.add(modelId);
+            }
+          });
+          
+          db.close();
+          resolve(Array.from(modelIds));
+        };
+        
+        getAllKeys.onerror = () => {
+          db.close();
+          resolve([]);
+        };
+      };
+    });
+  } catch (error) {
+    console.warn('[BrowserLLM] Error listing cached models:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if a specific model is cached
+ */
+export async function isModelCached(modelId: string): Promise<boolean> {
+  const cachedModels = await listCachedModels();
+  return cachedModels.includes(modelId);
+}
+
+/**
+ * Get user-friendly name for a model ID
+ */
+export function getModelDisplayName(modelId: string): string {
+  const nameMap: Record<string, string> = {
+    'Xenova/TinyLlama-1.1B-Chat-v1.0': 'TinyLlama 1.1B',
+    'Xenova/distilgpt2': 'DistilGPT2',
+    'Xenova/gpt2': 'GPT-2',
+    'Xenova/distilbert-base-uncased': 'DistilBERT',
+  };
+  
+  return nameMap[modelId] || modelId.split('/').pop() || modelId;
+}

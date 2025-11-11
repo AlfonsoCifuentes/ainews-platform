@@ -3,6 +3,7 @@ import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { calculateReadingTime, formatArticleContent, extractPlainText } from '@/lib/utils/content-formatter';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
@@ -97,6 +98,14 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const title = getLocalizedString(article, 'title', locale);
   const summary = getLocalizedString(article, 'summary', locale);
   const content = getLocalizedString(article, 'content', locale);
+  
+  // Calculate reading time from content
+  const textForReadingTime = content || summary || '';
+  const plainText = extractPlainText(textForReadingTime);
+  const readingTime = calculateReadingTime(plainText);
+  
+  // Format content with proper paragraphs
+  const formattedContent = content ? formatArticleContent(content) : null;
 
   return (
     <main className="min-h-screen">
@@ -150,7 +159,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
             <div className="flex flex-wrap items-center gap-4 text-sm text-white/80">
               <span>{formatRelativeTimeFromNow(article.published_at, locale)}</span>
               <span>•</span>
-              <span>{article.reading_time_minutes || 5} min {locale === 'en' ? 'read' : 'lectura'}</span>
+              <span>{readingTime} min {locale === 'en' ? 'read' : 'lectura'}</span>
               <span>•</span>
               <span>{Math.round(article.quality_score * 100)}% {locale === 'en' ? 'Quality Score' : 'Puntuación de Calidad'}</span>
             </div>
@@ -172,13 +181,19 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
           </div>
 
           {/* Main Content */}
-          <div className="prose prose-lg dark:prose-invert max-w-none">
-            {content ? (
-              <div dangerouslySetInnerHTML={{ __html: content }} />
+          <div className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-2xl prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic">
+            {formattedContent ? (
+              <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
             ) : (
-              <p className="whitespace-pre-wrap text-base leading-relaxed">
-                {summary}
-              </p>
+              <div className="space-y-6">
+                {summary.split('\n\n').map((paragraph, index) => (
+                  paragraph.trim() && (
+                    <p key={index} className="leading-relaxed text-base md:text-lg text-foreground/90 first-letter:text-2xl first-letter:font-bold first-letter:text-primary">
+                      {paragraph.trim()}
+                    </p>
+                  )
+                ))}
+              </div>
             )}
           </div>
 

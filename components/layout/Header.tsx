@@ -13,10 +13,9 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Primary navigation items (always visible in navbar)
-const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'chatbot' | 'chat'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'chat'; href: string }> = [
   { key: 'news', href: '/news' },
   { key: 'courses', href: '/courses' },
-  { key: 'chatbot', href: '/chatbot' },
   { key: 'chat', href: '/chat' },
 ];
 
