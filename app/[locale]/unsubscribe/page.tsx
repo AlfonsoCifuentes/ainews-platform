@@ -48,7 +48,7 @@ export default async function UnsubscribePage({
         </div>
 
         <form action={`/${locale}/api/unsubscribe`} method="POST" className="space-y-4">
-          <input type="hidden" name="email" value={email} />
+          <input type="hidden" id="email" name="email" value={email} />
           
           <p className="text-sm text-muted-foreground">
             {locale === 'en'

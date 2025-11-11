@@ -41,11 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
-    icons: {
-      icon: '/images/ainews-logo.png',
-      apple: '/images/ainews-logo.png',
-    },
-    manifest: '/manifest.webmanifest',
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.vercel.app'),
     alternates: {
       languages: {
         en: '/en',
