@@ -497,6 +497,22 @@ export class LLMClient {
       // Try multiple strategies to extract valid JSON
       jsonContent = llmResponse.content;
       
+      // Early check: if response clearly looks like an error message, fail fast
+      const firstChars = jsonContent.trim().substring(0, 50).toLowerCase();
+      if (!firstChars.startsWith('{') && !firstChars.startsWith('[')) {
+        if (firstChars.startsWith('error') || 
+            firstChars.startsWith('an error') ||
+            firstChars.startsWith('sorry') ||
+            firstChars.startsWith('i cannot') ||
+            firstChars.startsWith('unable') ||
+            firstChars.startsWith('failed')) {
+          console.error('[LLM] ❌ LLM returned error text instead of JSON:', jsonContent.substring(0, 300));
+          throw new Error(
+            `LLM returned error text instead of JSON: "${jsonContent.substring(0, 200)}..."`
+          );
+        }
+      }
+      
       // Strategy 1: Extract JSON object with regex (greedy match for nested objects)
       const jsonMatch = jsonContent.match(/\{(?:[^{}]|\{[^{}]*\})*\}/s);
       if (jsonMatch) {
@@ -850,11 +866,17 @@ export function classifyLLMError(error: unknown): ClassifiedLLMError {
     };
   }
 
-  // Validation errors (Zod)
-  if (error instanceof z.ZodError || errorLower.includes('validation') || errorLower.includes('schema')) {
+  // Validation errors (Zod + JSON parsing)
+  if (error instanceof z.ZodError || 
+      errorLower.includes('validation') || 
+      errorLower.includes('schema') ||
+      errorLower.includes('json') ||
+      errorLower.includes('parse') ||
+      errorLower.includes('unexpected token') ||
+      errorLower.includes('returned error text')) {
     return {
       type: 'validation',
-      message: `Response validation failed. The AI returned malformed data. ${errorMessage}`,
+      message: `Response validation failed. The AI returned malformed or invalid data. ${errorMessage}`,
       retryable: true,
       providerSpecific: errorMessage,
       provider: metadata?.provider,
