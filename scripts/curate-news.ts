@@ -140,7 +140,18 @@ function cleanContent(html: string | undefined | null): string {
 }
 
 function sanitizeSummary(summary: string): string {
-	return summary.replace(/\s+/g, ' ').trim().slice(0, 400);
+	const cleaned = summary
+		// Remove Reddit metadata
+		.replace(/submitted by \/u\/[\w-]+\s*(\[link\])?(\s*\[comments\])?/gi, '')
+		// Remove other common metadata patterns
+		.replace(/\[link\]\s*\[comments\]/gi, '')
+		.replace(/Read more at.*$/i, '')
+		.replace(/Continue reading.*$/i, '')
+		// Normalize whitespace
+		.replace(/\s+/g, ' ')
+		.trim();
+	
+	return cleaned.slice(0, 400);
 }
 
 function inferLanguageFromSource(article: RawArticle): 'en' | 'es' {
