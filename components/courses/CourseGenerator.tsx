@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { LLMProviderSelector } from './LLMProviderSelector';
+import { isBrowserLLMReady } from '@/lib/ai/browser-llm';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -152,6 +154,7 @@ const progressSteps = [
 ] as const;
 
 export function CourseGenerator({ locale, translations }: CourseGeneratorProps) {
+  const [showProviderSelector, setShowProviderSelector] = useState(false);
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');
@@ -162,11 +165,40 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleGenerate = () => {
+  const handleProviderSelected = (provider: 'browser' | 'cloud') => {
+    setShowProviderSelector(false);
+    
+    // Si eligió browser, verificar que esté listo
+    if (provider === 'browser' && !isBrowserLLMReady()) {
+      setError('Browser model not ready. Please download it first.');
+      return;
+    }
+    
+    console.log(`User selected provider: ${provider} - starting generation`);
+    
+    // Proceder con la generación
+    handleGenerateWithProvider(provider);
+  };
+
+  const handleInitiateGenerate = () => {
+    if (!topic.trim()) {
+      return;
+    }
+    
+    // Mostrar selector de provider
+    setShowProviderSelector(true);
+  };
+
+  const handleGenerateWithProvider = (provider: 'browser' | 'cloud') => {
     if (!topic.trim()) {
       return;
     }
 
+    // Log which provider was selected
+    console.log(`[Course Generator] Using provider: ${provider.toUpperCase()}`);
+    
+    // For now, both use the API (browser LLM integration would be client-side)
+    // Future: If browser, generate locally; if cloud, use API
     startTransition(async () => {
       const logger = new CourseGenerationLogger();
       
@@ -390,7 +422,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         {/* Generate Button */}
         <motion.button
           type="button"
-          onClick={handleGenerate}
+          onClick={handleInitiateGenerate}
           disabled={!topic.trim() || isPending}
           whileHover={{ scale: isPending ? 1 : 1.02 }}
           whileTap={{ scale: isPending ? 1 : 0.98 }}
@@ -398,6 +430,34 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         >
           {isPending ? translations.generating : translations.generateButton}
         </motion.button>
+
+        {/* Provider Selector Modal */}
+        <AnimatePresence>
+          {showProviderSelector && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+              onClick={() => setShowProviderSelector(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="w-full max-w-4xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <LLMProviderSelector
+                  onProviderSelected={handleProviderSelected}
+                  onBrowserModelReady={() => {
+                    // Model downloaded, user can select it
+                  }}
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Progress Indicator */}
         <AnimatePresence>

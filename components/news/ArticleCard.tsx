@@ -6,6 +6,7 @@ import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
@@ -45,6 +46,13 @@ export function ArticleCard({
   const title = getLocalizedString(article, 'title', locale);
   const summary = getLocalizedString(article, 'summary', locale);
   const relativeTime = formatRelativeTimeFromNow(article.published_at, locale);
+  
+  // Generar imagen con fallback automático si no hay imagen
+  const imageUrl = getImageWithFallback(
+    article.image_url,
+    title,
+    article.category
+  );
 
   return (
     <motion.article
@@ -59,22 +67,15 @@ export function ArticleCard({
     >
       {/* Image */}
       <div className="relative h-48 w-full overflow-hidden">
-        {article.image_url ? (
-          <Image
-            src={article.image_url}
-            alt={title}
-            fill
-            priority={priority}
-            className="scale-105 object-cover transition-transform duration-500 group-hover:scale-110"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-            <span className="text-6xl" aria-hidden>
-              🤖
-            </span>
-          </div>
-        )}
+        <Image
+          src={imageUrl}
+          alt={title}
+          fill
+          priority={priority}
+          className="scale-105 object-cover transition-transform duration-500 group-hover:scale-110"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          unoptimized={imageUrl.startsWith('data:')}
+        />
 
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

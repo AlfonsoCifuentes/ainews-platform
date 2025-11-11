@@ -12,6 +12,7 @@ import { RecommendedArticles } from '@/components/news/RecommendedArticles';
 import { useReadingTracker } from '@/lib/hooks/useReadingTracker';
 import { formatDate } from '@/lib/utils/format';
 import { useTranslations } from 'next-intl';
+import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 interface Article {
   id: string;
@@ -104,18 +105,17 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
       </header>
 
       {/* Featured Image */}
-      {article.image_url && (
-        <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-white/10">
-          <Image
-            src={article.image_url}
-            alt={title}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 1024px) 100vw, 1024px"
-          />
-        </div>
-      )}
+      <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-white/10">
+        <Image
+          src={getImageWithFallback(article.image_url, title, article.category)}
+          alt={title}
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 1024px) 100vw, 1024px"
+          unoptimized={!article.image_url || article.image_url.startsWith('data:')}
+        />
+      </div>
 
       {/* Content */}
       {content && (
