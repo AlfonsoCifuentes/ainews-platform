@@ -748,17 +748,20 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
 
 /**
  * Get list of available LLM providers
- * Priority order: Ollama (local, free) → Cloud providers (by quality/cost)
+ * Priority order: Ollama (local OR remote via tunnel) → Cloud providers (by quality/cost)
  */
 export function getAvailableProviders(): LLMProvider[] {
   const available: LLMProvider[] = [];
 
-  // ALWAYS try Ollama first if not on Vercel (local = FREE!)
-  // This is synchronous detection - we'll verify it's actually running when we try to use it
-  const isVercel = process.env.VERCEL === '1';
-  if (!isVercel) {
+  // ALWAYS try Ollama FIRST - even on Vercel if OLLAMA_BASE_URL is configured
+  // This allows using Ollama via ngrok/cloudflare tunnel from Vercel
+  const ollamaUrl = process.env.OLLAMA_BASE_URL;
+  const hasOllamaUrl = !!ollamaUrl;
+  
+  if (hasOllamaUrl || process.env.VERCEL !== '1') {
     available.push('ollama');
-    console.log('[LLM] 🎯 Ollama added as PRIMARY provider (local, zero cost)');
+    const location = hasOllamaUrl ? `remote (${ollamaUrl})` : 'local';
+    console.log(`[LLM] 🎯 Ollama added as PRIMARY provider (${location}, zero cost)`);
   }
 
   // Cloud providers ordered by: quality for JSON generation + free tier availability

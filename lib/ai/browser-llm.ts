@@ -1,0 +1,261 @@
+/**
+ * Browser-based LLM using Transformers.js
+ * Runs models directly in the browser using WebGPU/WASM
+ * 
+ * Benefits:
+ * - $0.00 API costs after initial download
+ * - Works 100% offline
+ * - Complete privacy (nothing leaves browser)
+ * - WebGPU acceleration on modern GPUs
+ */
+
+import { pipeline, env, type TextGenerationPipeline } from '@xenova/transformers';
+
+// Configure Transformers.js
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+env.allowRemoteModels = true;
+
+export interface BrowserLLMConfig {
+  modelId: string;
+  maxTokens?: number;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+}
+
+export interface DownloadProgress {
+  status: 'downloading' | 'loading' | 'ready' | 'error';
+  progress: number; // 0-100
+  file?: string;
+  loaded?: number;
+  total?: number;
+}
+
+const DEFAULT_CONFIG: BrowserLLMConfig = {
+  modelId: 'Xenova/Phi-3.5-mini-instruct', // 3.8GB, very capable
+  maxTokens: 2000,
+  temperature: 0.7,
+  topK: 50,
+  topP: 0.9,
+};
+
+// Recommended models by use case
+export const RECOMMENDED_MODELS = {
+  // Best quality (larger download)
+  premium: 'Xenova/Phi-3.5-mini-instruct', // 3.8GB - Best for course generation
+  
+  // Balanced (medium size)
+  balanced: 'Xenova/Qwen2-1.5B-Instruct', // 1.5GB - Good balance
+  
+  // Fast (smaller download)
+  fast: 'Xenova/TinyLlama-1.1B-Chat-v1.0', // 637MB - Quick summaries
+  
+  // Ultra-light (minimal download)
+  ultralight: 'Xenova/SmolLM-360M-Instruct', // 360MB - Basic tasks
+} as const;
+
+export class BrowserLLM {
+  private generator: TextGenerationPipeline | null = null;
+  private config: BrowserLLMConfig;
+  private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  
+  constructor(config: Partial<BrowserLLMConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+  
+  /**
+   * Initialize the model (downloads on first use, then cached)
+   */
+  async initialize(
+    onProgress?: (progress: DownloadProgress) => void
+  ): Promise<void> {
+    // If already initialized, return immediately
+    if (this.isInitialized) {
+      return;
+    }
+    
+    // If initialization is in progress, wait for it
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+    
+    // Start initialization
+    this.initializationPromise = this._initialize(onProgress);
+    
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+  
+  private async _initialize(
+    onProgress?: (progress: DownloadProgress) => void
+  ): Promise<void> {
+    try {
+      console.log(`[BrowserLLM] Initializing model: ${this.config.modelId}`);
+      
+      onProgress?.({
+        status: 'downloading',
+        progress: 0,
+        file: this.config.modelId,
+      });
+      
+      this.generator = await pipeline(
+        'text-generation',
+        this.config.modelId,
+        {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          progress_callback: (data: any) => {
+            if (data.status === 'progress') {
+              const progress = Math.round((data.loaded / data.total) * 100);
+              
+              onProgress?.({
+                status: 'downloading',
+                progress,
+                file: data.file,
+                loaded: data.loaded,
+                total: data.total,
+              });
+              
+              console.log(
+                `[BrowserLLM] Downloading ${data.file}: ${progress}% (${Math.round(data.loaded / 1024 / 1024)}MB / ${Math.round(data.total / 1024 / 1024)}MB)`
+              );
+            } else if (data.status === 'done') {
+              onProgress?.({
+                status: 'loading',
+                progress: 100,
+                file: data.file,
+              });
+            }
+          },
+        }
+      );
+      
+      this.isInitialized = true;
+      
+      onProgress?.({
+        status: 'ready',
+        progress: 100,
+      });
+      
+      console.log('[BrowserLLM] ✅ Model ready!');
+      
+    } catch (error) {
+      console.error('[BrowserLLM] ❌ Initialization failed:', error);
+      
+      onProgress?.({
+        status: 'error',
+        progress: 0,
+      });
+      
+      throw new Error(
+        `Failed to initialize browser LLM: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+  
+  /**
+   * Generate text using the browser-based model
+   */
+  async generate(
+    prompt: string,
+    options: {
+      maxTokens?: number;
+      temperature?: number;
+      systemPrompt?: string;
+    } = {}
+  ): Promise<string> {
+    if (!this.isInitialized || !this.generator) {
+      throw new Error('Model not initialized. Call initialize() first.');
+    }
+    
+    const fullPrompt = options.systemPrompt
+      ? `<|system|>\n${options.systemPrompt}<|end|>\n<|user|>\n${prompt}<|end|>\n<|assistant|>`
+      : prompt;
+    
+    try {
+      console.log('[BrowserLLM] 🧠 Generating with browser model (ZERO COST)...');
+      
+      const result = await this.generator(fullPrompt, {
+        max_new_tokens: options.maxTokens || this.config.maxTokens,
+        temperature: options.temperature || this.config.temperature,
+        top_k: this.config.topK,
+        top_p: this.config.topP,
+        do_sample: true,
+      });
+      
+      // Extract generated text from result
+      let generatedText: string;
+      if (Array.isArray(result)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        generatedText = (result[0] as any)?.generated_text || '';
+      } else if ('generated_text' in result) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        generatedText = (result as any).generated_text;
+      } else {
+        generatedText = String(result);
+      }
+      
+      // Remove the prompt from the response if present
+      const response = generatedText.replace(fullPrompt, '').trim();
+      
+      console.log('[BrowserLLM] ✅ Generation complete (100% FREE)');
+      
+      return response;
+      
+    } catch (error) {
+      console.error('[BrowserLLM] ❌ Generation failed:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Check if model is ready to use
+   */
+  isReady(): boolean {
+    return this.isInitialized && this.generator !== null;
+  }
+  
+  /**
+   * Get model info
+   */
+  getModelInfo() {
+    return {
+      modelId: this.config.modelId,
+      isReady: this.isReady(),
+      config: this.config,
+    };
+  }
+  
+  /**
+   * Estimate model download size
+   */
+  static getModelSize(modelId: string): string {
+    const sizes: Record<string, string> = {
+      'Xenova/Phi-3.5-mini-instruct': '3.8GB',
+      'Xenova/Qwen2-1.5B-Instruct': '1.5GB',
+      'Xenova/TinyLlama-1.1B-Chat-v1.0': '637MB',
+      'Xenova/SmolLM-360M-Instruct': '360MB',
+    };
+    
+    return sizes[modelId] || 'Unknown';
+  }
+}
+
+// Singleton instance for easy access
+let browserLLMInstance: BrowserLLM | null = null;
+
+export function getBrowserLLM(): BrowserLLM | null {
+  return browserLLMInstance;
+}
+
+export function setBrowserLLM(instance: BrowserLLM | null): void {
+  browserLLMInstance = instance;
+}
+
+export function isBrowserLLMReady(): boolean {
+  return browserLLMInstance?.isReady() ?? false;
+}
