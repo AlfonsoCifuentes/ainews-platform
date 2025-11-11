@@ -16,6 +16,15 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 env.allowRemoteModels = true;
 
+// Set HuggingFace token for authenticated model access
+// This allows downloading private or gated models like Phi-3.5 and Qwen2
+const HF_TOKEN = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY;
+if (HF_TOKEN) {
+  console.log('[BrowserLLM] ✅ HuggingFace API token configured for authenticated model access');
+}
+// Note: The token will be automatically used by @xenova/transformers when making requests
+// to HuggingFace Hub if NEXT_PUBLIC_HUGGINGFACE_API_KEY is set
+
 export interface BrowserLLMConfig {
   modelId: string;
   maxTokens?: number;
@@ -104,35 +113,45 @@ export class BrowserLLM {
         file: this.config.modelId,
       });
       
+      // Prepare pipeline options
+      const pipelineOptions: Record<string, unknown> = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        progress_callback: (data: any) => {
+          if (data.status === 'progress') {
+            const progress = Math.round((data.loaded / data.total) * 100);
+            
+            onProgress?.({
+              status: 'downloading',
+              progress,
+              file: data.file,
+              loaded: data.loaded,
+              total: data.total,
+            });
+            
+            console.log(
+              `[BrowserLLM] Downloading ${data.file}: ${progress}% (${Math.round(data.loaded / 1024 / 1024)}MB / ${Math.round(data.total / 1024 / 1024)}MB)`
+            );
+          } else if (data.status === 'done') {
+            onProgress?.({
+              status: 'loading',
+              progress: 100,
+              file: data.file,
+            });
+          }
+        },
+      };
+      
+      // Add HuggingFace token if available (for gated/private models)
+      const HF_TOKEN = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY;
+      if (HF_TOKEN) {
+        console.log('[BrowserLLM] Using HuggingFace authentication token');
+        pipelineOptions.authorization = `Bearer ${HF_TOKEN}`;
+      }
+      
       this.generator = await pipeline(
         'text-generation',
         this.config.modelId,
-        {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          progress_callback: (data: any) => {
-            if (data.status === 'progress') {
-              const progress = Math.round((data.loaded / data.total) * 100);
-              
-              onProgress?.({
-                status: 'downloading',
-                progress,
-                file: data.file,
-                loaded: data.loaded,
-                total: data.total,
-              });
-              
-              console.log(
-                `[BrowserLLM] Downloading ${data.file}: ${progress}% (${Math.round(data.loaded / 1024 / 1024)}MB / ${Math.round(data.total / 1024 / 1024)}MB)`
-              );
-            } else if (data.status === 'done') {
-              onProgress?.({
-                status: 'loading',
-                progress: 100,
-                file: data.file,
-              });
-            }
-          },
-        }
+        pipelineOptions
       );
       
       this.isInitialized = true;
