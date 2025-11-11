@@ -20,13 +20,20 @@ export function LLMProviderSelector({
 }: LLMProviderSelectorProps) {
   const [showDownloader, setShowDownloader] = useState(false);
   const [isModelReady, setIsModelReady] = useState(isBrowserLLMReady());
+  const [forceShowDownloader, setForceShowDownloader] = useState(false);
 
   const handleBrowserLLM = () => {
-    if (isModelReady) {
+    if (isModelReady && !forceShowDownloader) {
       onProviderSelected('browser');
     } else {
       setShowDownloader(true);
     }
+  };
+
+  const handleChangeModel = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que active el card
+    setForceShowDownloader(true);
+    setShowDownloader(true);
   };
 
   const handleCloudAPI = () => {
@@ -35,6 +42,7 @@ export function LLMProviderSelector({
 
   const handleModelDownloadComplete = () => {
     setShowDownloader(false);
+    setForceShowDownloader(false);
     setIsModelReady(true);
     onBrowserModelReady?.();
   };
@@ -83,7 +91,7 @@ export function LLMProviderSelector({
                       )}
                     </CardTitle>
                     <CardDescription>
-                      {isModelReady ? 'Modelo descargado y listo' : '3.8GB descarga única'}
+                      {isModelReady ? 'Modelo descargado y listo' : '637MB descarga única'}
                     </CardDescription>
                   </div>
                 </div>
@@ -141,22 +149,36 @@ export function LLMProviderSelector({
                   </AlertDescription>
                 </Alert>
 
-                <Button
-                  className="w-full gap-2"
-                  variant={isModelReady ? 'default' : 'outline'}
-                >
-                  {isModelReady ? (
-                    <>
-                      <Brain className="w-4 h-4" />
-                      Usar Modelo Local
-                    </>
-                  ) : (
-                    <>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 gap-2"
+                    variant={isModelReady ? 'default' : 'outline'}
+                  >
+                    {isModelReady ? (
+                      <>
+                        <Brain className="w-4 h-4" />
+                        Usar Modelo Local
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Descargar Modelo (637MB)
+                      </>
+                    )}
+                  </Button>
+                  
+                  {isModelReady && (
+                    <Button
+                      onClick={handleChangeModel}
+                      variant="outline"
+                      size="icon"
+                      className="flex-shrink-0"
+                      title="Cambiar modelo"
+                    >
                       <Download className="w-4 h-4" />
-                      Descargar Modelo (3.8GB)
-                    </>
+                    </Button>
                   )}
-                </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -247,9 +269,11 @@ export function LLMProviderSelector({
             onComplete={handleModelDownloadComplete}
             onSkip={() => {
               setShowDownloader(false);
+              setForceShowDownloader(false);
               handleCloudAPI();
             }}
             autoShow
+            allowModelChange={forceShowDownloader}
           />
         )}
       </AnimatePresence>

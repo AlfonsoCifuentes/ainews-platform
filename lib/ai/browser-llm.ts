@@ -33,7 +33,7 @@ export interface DownloadProgress {
 }
 
 const DEFAULT_CONFIG: BrowserLLMConfig = {
-  modelId: 'Xenova/Phi-3.5-mini-instruct', // 3.8GB, very capable
+  modelId: 'Xenova/TinyLlama-1.1B-Chat-v1.0', // 637MB, public model
   maxTokens: 2000,
   temperature: 0.7,
   topK: 50,
@@ -41,18 +41,19 @@ const DEFAULT_CONFIG: BrowserLLMConfig = {
 };
 
 // Recommended models by use case
+// IMPORTANT: Using models from Xenova's public HuggingFace repos that don't require authentication
 export const RECOMMENDED_MODELS = {
-  // Best quality (larger download)
-  premium: 'Xenova/Phi-3.5-mini-instruct', // 3.8GB - Best for course generation
+  // Best quality (larger download) - PUBLIC, no auth needed
+  premium: 'Xenova/TinyLlama-1.1B-Chat-v1.0', // 637MB - Best available public model
   
-  // Balanced (medium size)
-  balanced: 'Xenova/Qwen2-1.5B-Instruct', // 1.5GB - Good balance
+  // Balanced (medium size) - PUBLIC, no auth needed  
+  balanced: 'Xenova/distilgpt2', // ~350MB - Good for text generation
   
-  // Fast (smaller download)
-  fast: 'Xenova/TinyLlama-1.1B-Chat-v1.0', // 637MB - Quick summaries
+  // Fast (smaller download) - PUBLIC, no auth needed
+  fast: 'Xenova/gpt2', // ~250MB - Classic GPT-2
   
-  // Ultra-light (minimal download)
-  ultralight: 'Xenova/SmolLM-360M-Instruct', // 360MB - Basic tasks
+  // Ultra-light (minimal download) - PUBLIC, no auth needed
+  ultralight: 'Xenova/distilbert-base-uncased', // ~250MB - Lightweight
 } as const;
 
 export class BrowserLLM {
@@ -235,10 +236,10 @@ export class BrowserLLM {
    */
   static getModelSize(modelId: string): string {
     const sizes: Record<string, string> = {
-      'Xenova/Phi-3.5-mini-instruct': '3.8GB',
-      'Xenova/Qwen2-1.5B-Instruct': '1.5GB',
       'Xenova/TinyLlama-1.1B-Chat-v1.0': '637MB',
-      'Xenova/SmolLM-360M-Instruct': '360MB',
+      'Xenova/distilgpt2': '350MB',
+      'Xenova/gpt2': '250MB',
+      'Xenova/distilbert-base-uncased': '250MB',
     };
     
     return sizes[modelId] || 'Unknown';

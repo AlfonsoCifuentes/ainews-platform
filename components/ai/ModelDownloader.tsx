@@ -14,6 +14,7 @@ interface ModelDownloaderProps {
   onComplete?: () => void;
   onSkip?: () => void;
   autoShow?: boolean;
+  allowModelChange?: boolean; // Permitir cambiar modelo aunque ya haya uno descargado
 }
 
 const MODEL_INFO: Record<keyof typeof RECOMMENDED_MODELS, {
@@ -24,29 +25,29 @@ const MODEL_INFO: Record<keyof typeof RECOMMENDED_MODELS, {
   description: string;
 }> = {
   premium: {
-    name: 'Phi-3.5 Mini',
-    size: '3.8GB',
-    quality: '⭐⭐⭐⭐⭐',
-    speed: '🚀🚀🚀',
-    description: 'Best quality, ideal for course generation',
-  },
-  balanced: {
-    name: 'Qwen2 1.5B',
-    size: '1.5GB',
+    name: 'TinyLlama 1.1B',
+    size: '637MB',
     quality: '⭐⭐⭐⭐',
     speed: '🚀🚀🚀🚀',
+    description: 'Best quality available, ideal for course generation',
+  },
+  balanced: {
+    name: 'DistilGPT2',
+    size: '350MB',
+    quality: '⭐⭐⭐',
+    speed: '🚀🚀🚀🚀🚀',
     description: 'Perfect balance of quality and speed',
   },
   fast: {
-    name: 'TinyLlama',
-    size: '637MB',
+    name: 'GPT-2',
+    size: '250MB',
     quality: '⭐⭐⭐',
     speed: '🚀🚀🚀🚀🚀',
     description: 'Fast summaries and classifications',
   },
   ultralight: {
-    name: 'SmolLM',
-    size: '360MB',
+    name: 'DistilBERT',
+    size: '250MB',
     quality: '⭐⭐',
     speed: '🚀🚀🚀🚀🚀',
     description: 'Ultra lightweight for basic tasks',
@@ -57,6 +58,7 @@ export function ModelDownloader({
   onComplete,
   onSkip,
   autoShow = false,
+  allowModelChange = false,
 }: ModelDownloaderProps) {
   const [isOpen, setIsOpen] = useState(autoShow);
   const [selectedModel, setSelectedModel] = useState<keyof typeof RECOMMENDED_MODELS>('premium');
@@ -66,12 +68,15 @@ export function ModelDownloader({
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    // Check if model already downloaded
-    const existing = getBrowserLLM();
-    if (existing?.isReady()) {
-      setIsComplete(true);
+    // Don't auto-detect if user explicitly wants to change model
+    // This allows changing models
+    if (!autoShow || allowModelChange) {
+      const existing = getBrowserLLM();
+      if (existing?.isReady() && !allowModelChange) {
+        setIsComplete(true);
+      }
     }
-  }, []);
+  }, [autoShow, allowModelChange]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -139,10 +144,13 @@ export function ModelDownloader({
                 <div className="space-y-2">
                   <CardTitle className="text-3xl font-bold flex items-center gap-2">
                     <Brain className="w-8 h-8 text-primary" />
-                    Descargar Modelo AI
+                    {allowModelChange ? 'Cambiar Modelo AI' : 'Descargar Modelo AI'}
                   </CardTitle>
                   <CardDescription className="text-base">
-                    Ejecuta AI directamente en tu navegador - 100% gratis, privado y offline
+                    {allowModelChange 
+                      ? 'Selecciona un nuevo modelo para descargar'
+                      : 'Ejecuta AI directamente en tu navegador - 100% gratis, privado y offline'
+                    }
                   </CardDescription>
                 </div>
                 {!isDownloading && !isComplete && (
