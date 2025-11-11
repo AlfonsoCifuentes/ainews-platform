@@ -8,6 +8,7 @@ import type { INewsArticle } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { calculateReadingTime, extractPlainText } from '@/lib/utils/content-formatter';
 import { ShareButtons } from '@/components/shared/ShareButtons';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 
@@ -16,7 +17,6 @@ type ArticleModalProps = {
   locale: Locale;
   onClose: () => void;
   translations: {
-    readTime: string;
     aiGenerated: string;
     close: string;
     category: string;
@@ -58,6 +58,11 @@ export function ArticleModal({
   const content = getLocalizedString(article, 'content', locale);
   const summary = getLocalizedString(article, 'summary', locale);
   const relativeTime = formatRelativeTimeFromNow(article.published_at, locale);
+  
+  // Calculate reading time from content
+  const textForReadingTime = content || summary || '';
+  const plainText = extractPlainText(textForReadingTime);
+  const readingMinutes = calculateReadingTime(plainText);
 
   return (
     <AnimatePresence>
@@ -117,10 +122,7 @@ export function ArticleModal({
                     <span>{relativeTime}</span>
                     <span>•</span>
                     <span>
-                      {translations.readTime.replace(
-                        '{{minutes}}',
-                        String(article.reading_time_minutes ?? 5)
-                      )}
+                      {readingMinutes} min {locale === 'en' ? 'read' : 'lectura'}
                     </span>
                     {article.ai_generated && (
                       <>

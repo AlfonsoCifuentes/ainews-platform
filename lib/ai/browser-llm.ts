@@ -105,6 +105,11 @@ export class BrowserLLM {
     onProgress?: (progress: DownloadProgress) => void
   ): Promise<void> {
     try {
+      // Ensure modelId is a valid string
+      if (!this.config.modelId || typeof this.config.modelId !== 'string') {
+        throw new Error(`Invalid modelId: ${this.config.modelId}`);
+      }
+      
       console.log(`[BrowserLLM] Initializing model: ${this.config.modelId}`);
       
       onProgress?.({
@@ -148,9 +153,13 @@ export class BrowserLLM {
         pipelineOptions.authorization = `Bearer ${HF_TOKEN}`;
       }
       
+      // Ensure modelId is passed as string to pipeline
+      const modelIdString = String(this.config.modelId);
+      console.log(`[BrowserLLM] Loading pipeline for model: ${modelIdString}`);
+      
       this.generator = await pipeline(
         'text-generation',
-        this.config.modelId,
+        modelIdString,
         pipelineOptions
       );
       
