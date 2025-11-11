@@ -36,8 +36,11 @@ export function Footer() {
             <Link href="/courses" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
               {t('nav.courses')}
             </Link>
-            <Link href="/about" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
-              {t('nav.about')}
+            <Link href="/chatbot" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
+              {t('nav.chatbot')}
+            </Link>
+            <Link href="/chat" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
+              {t('nav.chat')}
             </Link>
           </nav>
         </div>
