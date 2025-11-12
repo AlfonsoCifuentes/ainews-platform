@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { isBrowserLLMReady, getBrowserLLM } from '@/lib/ai/browser-llm';
 import { ModelDownloader } from '@/components/ai/ModelDownloader';
+import { useWebLLM } from '@/hooks/use-web-llm';
 
 interface Message {
   id: string;
@@ -36,10 +37,17 @@ export function ChatbotClient({ locale }: ChatbotClientProps) {
   const [showDownloader, setShowDownloader] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Check model ready status only on client side
+  // WebLLM hook for automatic detection
+  const { cachedModels } = useWebLLM({
+    autoLoadFromCache: false
+  });
+
+  // Check model ready status only on client side - detect both legacy and WebLLM
   useEffect(() => {
-    setModelReady(isBrowserLLMReady());
-  }, []);
+    const hasLegacyModel = isBrowserLLMReady();
+    const hasWebLLMModels = cachedModels.length > 0;
+    setModelReady(hasLegacyModel || hasWebLLMModels);
+  }, [cachedModels]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

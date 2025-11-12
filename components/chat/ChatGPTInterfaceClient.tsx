@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { isBrowserLLMReady, getBrowserLLM } from '@/lib/ai/browser-llm';
 import { ModelDownloader } from '@/components/ai/ModelDownloader';
+import { useWebLLM } from '@/hooks/use-web-llm';
 
 interface Message {
   id: string;
@@ -43,12 +44,19 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
   const [showSidebar, setShowSidebar] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // WebLLM hook for automatic detection
+  const { cachedModels } = useWebLLM({
+    autoLoadFromCache: false
+  });
+
   const currentConversation = conversations.find(c => c.id === currentConversationId);
 
-  // Check model ready status only on client side
+  // Check model ready status only on client side - detect both legacy and WebLLM
   useEffect(() => {
-    setModelReady(isBrowserLLMReady());
-  }, []);
+    const hasLegacyModel = isBrowserLLMReady();
+    const hasWebLLMModels = cachedModels.length > 0;
+    setModelReady(hasLegacyModel || hasWebLLMModels);
+  }, [cachedModels]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
