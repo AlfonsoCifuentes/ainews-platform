@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, ExternalLink, Clock, Tag } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Clock, Tag, BookOpen } from 'lucide-react';
 import { Link } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { BookmarkButton } from '@/components/news/BookmarkButton';
@@ -13,6 +13,7 @@ import { useReadingTracker } from '@/lib/hooks/useReadingTracker';
 import { formatDate } from '@/lib/utils/format';
 import { useTranslations } from 'next-intl';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { formatArticleContent, calculateReadingTime } from '@/lib/utils/text-formatter';
 
 interface Article {
   id: string;
@@ -41,6 +42,16 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
   const title = article[`title_${locale}`] || article.title_en;
   const summary = article[`summary_${locale}`] || article.summary_en;
   const content = article[`content_${locale}`] || article.content_en;
+
+  // Format content for better readability
+  const formattedContent = useMemo(() => {
+    return content ? formatArticleContent(content) : '';
+  }, [content]);
+
+  // Calculate reading time
+  const readingTime = useMemo(() => {
+    return content ? calculateReadingTime(content) : 0;
+  }, [content]);
 
   useEffect(() => {
     // Track page view for analytics (ignore umami type)
@@ -72,6 +83,12 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
               {formatDate(new Date(article.published_at), locale)}
             </time>
           </div>
+          {readingTime > 0 && (
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span>{readingTime} {locale === 'es' ? 'min lectura' : 'min read'}</span>
+            </div>
+          )}
           {article.ai_generated && (
             <span className="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-300">
               AI Generated
@@ -121,8 +138,8 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
       {content && (
         <div className="prose prose-invert prose-lg max-w-none">
           <div
-            dangerouslySetInnerHTML={{ __html: content }}
-            className="article-content space-y-4 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: formattedContent }}
+            className="article-content"
           />
         </div>
       )}

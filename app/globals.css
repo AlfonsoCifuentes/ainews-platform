@@ -159,6 +159,84 @@
   }
 }
 
+/* Article Content Formatting */
+.article-content {
+  @apply text-gray-200;
+}
+
+.article-content p {
+  @apply mb-4 leading-relaxed text-base;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.article-content h1 {
+  @apply text-3xl font-bold mt-8 mb-4;
+  background: linear-gradient(to right, #fff, #9ca3af);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.article-content h2 {
+  @apply text-2xl font-bold mt-6 mb-3 text-white;
+}
+
+.article-content h3 {
+  @apply text-xl font-semibold mt-4 mb-2 text-gray-100;
+}
+
+.article-content ul,
+.article-content ol {
+  @apply space-y-2 mb-4 ml-4;
+}
+
+.article-content ul {
+  @apply list-disc list-inside;
+}
+
+.article-content ol {
+  @apply list-decimal list-inside;
+}
+
+.article-content li {
+  @apply leading-relaxed;
+}
+
+.article-content blockquote {
+  @apply border-l-4 border-primary pl-4 italic my-4 text-muted-foreground;
+}
+
+.article-content pre {
+  @apply bg-black/40 rounded-lg p-4 overflow-x-auto mb-4;
+}
+
+.article-content code {
+  @apply font-mono text-sm;
+}
+
+.article-content a {
+  @apply text-primary hover:underline;
+  word-break: break-word;
+}
+
+.article-content strong {
+  @apply font-bold text-white;
+}
+
+.article-content em {
+  @apply italic;
+}
+
+/* Improve readability with better line spacing */
+.article-content p + p {
+  @apply mt-4;
+}
+
+.article-content p + h2,
+.article-content p + h3 {
+  @apply mt-8;
+}
 
 
 @layer base {
