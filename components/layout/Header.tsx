@@ -65,6 +65,7 @@ export function Header() {
                 sizes="40px"
                 className="object-contain"
                 priority
+                fetchPriority="high"
               />
             </div>
             <span className="text-sm md:text-base font-semibold uppercase tracking-[0.2rem] md:tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">

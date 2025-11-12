@@ -303,6 +303,15 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
         if (!response.ok) {
           logger.warn(`HTTP error: ${response.status} ${response.statusText}`);
+          
+          // Specific handling for 429 Rate Limit
+          if (response.status === 429) {
+            const rateLimitMessage = locale === 'es' 
+              ? '⏰ Límite de uso alcanzado. Todos los servicios de IA están ocupados. Por favor, espera 5-10 minutos e intenta nuevamente. 💡 Sugerencia: Descarga un modelo local para generar cursos ilimitados sin esperas.'
+              : '⏰ Rate limit exceeded. All AI services are at capacity. Please wait 5-10 minutes and try again. 💡 Tip: Download a local model to generate unlimited courses without waiting.';
+            throw new Error(rateLimitMessage);
+          }
+          
           const errorMessage = (payload && (payload.error || payload.message)) || `Server error: ${response.status}`;
           throw new Error(errorMessage);
         }
