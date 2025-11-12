@@ -91,6 +91,7 @@ export default async function LocaleLayout({
             src={umamiScriptSrc}
             strategy="lazyOnload"
             data-website-id={umamiSiteId}
+            crossOrigin="anonymous"
           />
         ) : null}
         <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>

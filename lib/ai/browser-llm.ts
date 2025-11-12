@@ -73,6 +73,12 @@ export class BrowserLLM {
   
   constructor(config: Partial<BrowserLLMConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    
+    // Ensure modelId is always a valid non-empty string
+    if (!this.config.modelId || typeof this.config.modelId !== 'string' || this.config.modelId.trim() === '') {
+      console.warn('[BrowserLLM] Invalid modelId provided:', this.config.modelId, 'Using default:', DEFAULT_CONFIG.modelId);
+      this.config.modelId = DEFAULT_CONFIG.modelId;
+    }
   }
   
   /**

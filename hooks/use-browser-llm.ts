@@ -34,8 +34,11 @@ export function useBrowserLLM(options: UseBrowserLLMOptions = {}) {
     setError(null);
 
     try {
+      // Use provided modelId or default to a free public model
+      const modelId = options.modelId || 'HuggingFaceTB/SmolLM2-135M-Instruct';
+      
       const instance = new BrowserLLM({
-        modelId: options.modelId,
+        modelId,
       });
 
       await instance.initialize((prog) => {
