@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ModelDownloader } from '@/components/ai/ModelDownloader';
 import { isBrowserLLMReady } from '@/lib/ai/browser-llm';
+import { useWebLLM } from '@/hooks/use-web-llm';
 
 interface LLMProviderSelectorProps {
   onProviderSelected: (provider: 'browser' | 'cloud') => void;
@@ -21,11 +22,19 @@ export function LLMProviderSelector({
   const [showDownloader, setShowDownloader] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
   const [forceShowDownloader, setForceShowDownloader] = useState(false);
+  
+  // WebLLM hook for automatic detection
+  const { cachedModels } = useWebLLM({
+    autoLoadFromCache: false
+  });
 
   // Check model ready status only on client side
   useEffect(() => {
-    setIsModelReady(isBrowserLLMReady());
-  }, []);
+    // Detect both legacy browser-llm AND WebLLM cached models
+    const hasLegacyModel = isBrowserLLMReady();
+    const hasWebLLMModels = cachedModels.length > 0;
+    setIsModelReady(hasLegacyModel || hasWebLLMModels);
+  }, [cachedModels]);
 
   const handleBrowserLLM = () => {
     if (isModelReady && !forceShowDownloader) {
@@ -96,7 +105,9 @@ export function LLMProviderSelector({
                       )}
                     </CardTitle>
                     <CardDescription>
-                      {isModelReady ? 'Modelo descargado y listo' : '637MB descarga única'}
+                      {isModelReady 
+                        ? `${cachedModels.length > 0 ? `${cachedModels.length} modelo${cachedModels.length > 1 ? 's' : ''} disponible${cachedModels.length > 1 ? 's' : ''}` : 'Modelo descargado y listo'}` 
+                        : '637MB descarga única'}
                     </CardDescription>
                   </div>
                 </div>
