@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Cloud, Zap, Info, Download, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,13 @@ export function LLMProviderSelector({
   onBrowserModelReady,
 }: LLMProviderSelectorProps) {
   const [showDownloader, setShowDownloader] = useState(false);
-  const [isModelReady, setIsModelReady] = useState(isBrowserLLMReady());
+  const [isModelReady, setIsModelReady] = useState(false);
   const [forceShowDownloader, setForceShowDownloader] = useState(false);
+
+  // Check model ready status only on client side
+  useEffect(() => {
+    setIsModelReady(isBrowserLLMReady());
+  }, []);
 
   const handleBrowserLLM = () => {
     if (isModelReady && !forceShowDownloader) {

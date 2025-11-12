@@ -38,12 +38,17 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
   const [currentConversationId, setCurrentConversationId] = useState('1');
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [modelReady, setModelReady] = useState(isBrowserLLMReady());
+  const [modelReady, setModelReady] = useState(false);
   const [showDownloader, setShowDownloader] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentConversation = conversations.find(c => c.id === currentConversationId);
+
+  // Check model ready status only on client side
+  useEffect(() => {
+    setModelReady(isBrowserLLMReady());
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

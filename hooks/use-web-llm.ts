@@ -5,7 +5,6 @@ import {
   DEFAULT_WEBLLM_MODEL_ID,
   detectWebLLMCachedModels,
   generateWebLLMCompletion,
-  getLoadedWebLLMModelId,
   getWebLLMSnapshot,
   isWebGPUSupported,
   loadWebLLMModel,
@@ -40,10 +39,16 @@ export interface UseWebLLMResult {
 
 export function useWebLLM(options: UseWebLLMOptions = {}): UseWebLLMResult {
   const { defaultModelId = DEFAULT_WEBLLM_MODEL_ID, autoLoadFromCache = false, onReady } = options;
-  const snapshot = useSyncExternalStore(subscribeWebLLM, getWebLLMSnapshot, getWebLLMSnapshot);
+  
+  // Server-safe snapshot function that returns empty state during SSR
+  const getServerSnapshot = useCallback((): WebLLMSnapshot => {
+    return { engine: null, modelId: null, ready: false };
+  }, []);
+  
+  const snapshot = useSyncExternalStore(subscribeWebLLM, getWebLLMSnapshot, getServerSnapshot);
 
   const [supported, setSupported] = useState<boolean>(false);
-  const [selectedModelId, setSelectedModelId] = useState<string>(() => getLoadedWebLLMModelId() ?? defaultModelId);
+  const [selectedModelId, setSelectedModelId] = useState<string>(defaultModelId);
   const [cachedModels, setCachedModels] = useState<WebLLMModelMetadata[]>([]);
   const [checkingCache, setCheckingCache] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);

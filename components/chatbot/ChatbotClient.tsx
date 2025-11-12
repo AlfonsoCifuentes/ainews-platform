@@ -32,9 +32,14 @@ export function ChatbotClient({ locale }: ChatbotClientProps) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [modelReady, setModelReady] = useState(isBrowserLLMReady());
+  const [modelReady, setModelReady] = useState(false);
   const [showDownloader, setShowDownloader] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check model ready status only on client side
+  useEffect(() => {
+    setModelReady(isBrowserLLMReady());
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
