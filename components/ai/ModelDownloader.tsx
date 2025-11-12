@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Check, X, Loader2, Info, Zap, Brain } from 'lucide-react';
+import { Download, Check, X, Loader2, Info, Zap, Brain, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BrowserLLM, RECOMMENDED_MODELS, type DownloadProgress, listCachedModels, getModelDisplayName } from '@/lib/ai/browser-llm';
 import { getBrowserLLM, setBrowserLLM } from '@/lib/ai/browser-llm';
+import { useWebLLM } from '@/hooks/use-web-llm';
+import { Badge } from '@/components/ui/Badge';
+import { WEBLLM_MODEL_CATALOG, getWebLLMModelMetadata, type WebLLMModelMetadata } from '@/lib/ai/web-llm';
 
 interface ModelDownloaderProps {
   onComplete?: () => void;
@@ -69,6 +72,37 @@ export function ModelDownloader({
   const [cachedModels, setCachedModels] = useState<string[]>([]);
   const [selectedCachedModel, setSelectedCachedModel] = useState<string | null>(null);
   const [isLoadingCache, setIsLoadingCache] = useState(true);
+
+  const {
+    supported: webLLMSupported,
+    cachedModels: webLLMCachedModels,
+    checkingCache: checkingWebLLMCache,
+    isLoading: webLLMIsLoading,
+    progress: webLLMProgress,
+    statusText: webLLMStatusText,
+    selectedModelId: webLLMSelectedModelId,
+    setSelectedModelId: setWebLLMSelectedModelId,
+    loadModel: loadWebLLM,
+    ready: webLLMReady,
+    error: webLLMError,
+    refreshCachedModels: refreshWebLLMCachedModels,
+  } = useWebLLM({ autoLoadFromCache: false });
+
+  const webLLMAvailableModels = useMemo<WebLLMModelMetadata[]>(() => {
+    const catalog = new Map<string, WebLLMModelMetadata>();
+    for (const model of WEBLLM_MODEL_CATALOG) {
+      catalog.set(model.modelId, model);
+    }
+    for (const cached of webLLMCachedModels) {
+      catalog.set(cached.modelId, cached);
+    }
+    if (webLLMSelectedModelId && !catalog.has(webLLMSelectedModelId)) {
+      catalog.set(webLLMSelectedModelId, getWebLLMModelMetadata(webLLMSelectedModelId));
+    }
+    return Array.from(catalog.values());
+  }, [webLLMCachedModels, webLLMSelectedModelId]);
+
+  const webLLMSelectedIsCached = webLLMCachedModels.some((model) => model.modelId === webLLMSelectedModelId);
 
   // Detectar modelos en caché al montar
   useEffect(() => {
@@ -356,6 +390,114 @@ export function ModelDownloader({
                   </div>
                 </div>
               )}
+
+              {/* WebLLM Large Models */}
+              <div className="space-y-4 border-t border-primary/20 pt-6">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-primary" />
+                      Modelos WebLLM (≥ 1 GB)
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Activa modelos gigantes directamente en tu GPU para máxima calidad y privacidad.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => void refreshWebLLMCachedModels()}
+                    disabled={checkingWebLLMCache || webLLMIsLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${checkingWebLLMCache ? 'animate-spin' : ''}`} />
+                    {checkingWebLLMCache ? 'Escaneando caché...' : 'Re-escanear caché'}
+                  </Button>
+                </div>
+
+                {!webLLMSupported ? (
+                  <Alert className="border-blue-500/40 bg-blue-500/10">
+                    <Info className="w-4 h-4 text-blue-400" />
+                    <AlertDescription className="text-sm">
+                      Tu navegador no soporta WebGPU todavía. Usa Chrome o Edge 113+ en escritorio para activar WebLLM.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {webLLMAvailableModels.map((model) => {
+                        const isActive = model.modelId === webLLMSelectedModelId;
+                        const cached = webLLMCachedModels.some((item) => item.modelId === model.modelId);
+                        return (
+                          <motion.button
+                            key={model.modelId}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => setWebLLMSelectedModelId(model.modelId)}
+                            className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
+                              isActive
+                                ? 'border-primary bg-primary/15 shadow-lg'
+                                : 'border-white/10 bg-white/5 hover:border-primary/60 hover:bg-primary/10'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold">{model.label}</span>
+                              {model.recommended && <Badge variant="outline">Recomendado</Badge>}
+                              {cached && <Badge variant="secondary">En caché</Badge>}
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">{model.description}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Tamaño: {model.size}</p>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {webLLMIsLoading && (
+                      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{webLLMSelectedIsCached ? 'Cargando modelo en caché…' : 'Descargando modelo WebLLM…'}</span>
+                          <span>{Math.round(webLLMProgress)}%</span>
+                        </div>
+                        <Progress value={webLLMProgress} className="h-2" />
+                        {webLLMStatusText && <p className="text-xs text-muted-foreground">{webLLMStatusText}</p>}
+                      </div>
+                    )}
+
+                    {webLLMError && (
+                      <Alert variant="destructive">
+                        <X className="w-4 h-4" />
+                        <AlertDescription className="text-sm">{webLLMError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <Button
+                        onClick={() => void loadWebLLM(webLLMSelectedModelId)}
+                        size="lg"
+                        className="gap-2"
+                        disabled={webLLMIsLoading}
+                      >
+                        <Download className="w-5 h-5" />
+                        {webLLMIsLoading
+                          ? 'Preparando modelo WebLLM...'
+                          : webLLMSelectedIsCached
+                            ? 'Activar modelo WebLLM en caché'
+                            : 'Descargar modelo WebLLM (5GB)'}
+                      </Button>
+
+                      {webLLMReady ? (
+                        <Badge variant="success" className="w-fit">
+                          Activo: {getWebLLMModelMetadata(webLLMSelectedModelId).label}
+                        </Badge>
+                      ) : (
+                        <p className="text-xs text-muted-foreground max-w-sm">
+                          Los modelos WebLLM entregan respuestas premium sin depender de la nube. Descarga una vez y utilízalos offline.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Download Progress */}
               {isDownloading && downloadProgress && (
