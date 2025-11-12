@@ -533,11 +533,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
                           index <= currentStep ? 'font-semibold text-foreground' : 'text-muted-foreground'
                         }`}
                       >
-                        {step.key === 'analyzing' && translations.progress.analyzing}
-                        {step.key === 'outline' && translations.progress.outline}
-                        {step.key === 'content' && translations.progress.content}
-                        {step.key === 'quizzes' && translations.progress.quizzes}
-                        {step.key === 'finalizing' && translations.progress.finalizing}
+                        {step.key === 'analyzing' ? translations.progress.analyzing : ''}
+                        {step.key === 'outline' ? translations.progress.outline : ''}
+                        {step.key === 'content' ? translations.progress.content : ''}
+                        {step.key === 'quizzes' ? translations.progress.quizzes : ''}
+                        {step.key === 'finalizing' ? translations.progress.finalizing : ''}
                       </span>
                       {index === currentStep && (
                         <motion.div

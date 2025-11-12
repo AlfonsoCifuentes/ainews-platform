@@ -10,6 +10,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/supabase-server';
 import sharp from 'sharp';
 
+// Force dynamic rendering to avoid build-time errors with Sharp
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB upload limit
 const TARGET_SIZE_KB = 100;
 const TARGET_DIMENSIONS = 200;

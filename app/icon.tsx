@@ -16,19 +16,28 @@ export default function Icon() {
     (
       <div
         style={{
-          fontSize: 24,
-          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+          fontSize: 20,
+          background: '#0a0e27',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'white',
+          color: '#3b82f6',
           fontWeight: 'bold',
-          borderRadius: '20%',
+          borderRadius: '6px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
       >
-        AI
+        <div style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          lineHeight: '1'
+        }}>
+          <span style={{ fontSize: '14px', fontWeight: '900' }}>AI</span>
+          <span style={{ fontSize: '8px', marginTop: '-2px', color: '#60a5fa' }}>News</span>
+        </div>
       </div>
     ),
     {

@@ -14,17 +14,27 @@ export default function AppleIcon() {
       <div
         style={{
           fontSize: 100,
-          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+          background: '#0a0e27',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'white',
+          color: '#3b82f6',
           fontWeight: 'bold',
+          borderRadius: '20px',
         }}
       >
-        AI
+        <div style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          lineHeight: '1',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '80px', fontWeight: '900' }}>AI</span>
+          <span style={{ fontSize: '36px', marginTop: '-12px', color: '#60a5fa' }}>News</span>
+        </div>
       </div>
     ),
     {
