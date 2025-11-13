@@ -19,6 +19,13 @@ type CourseGenerationResponse = {
   data?: CourseGenerationResult;
   error?: string;
   message?: string;
+  details?: string;
+  hint?: string;
+  debug?: {
+    serverLogs: string[];
+    totalLogLines: number;
+    executionTimeMs: number;
+  };
 };
 
 // 🔍 Advanced Client-Side Logger
@@ -245,6 +252,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
         // 🔍 Log response
         logger.response(response.status, response.statusText, response.headers);
+        
+        // Log to browser console for debugging
+        console.log(`%c🔍 COURSE GENERATOR - RESPONSE RECEIVED`, 'font-weight: bold; color: #00ff00; font-size: 14px');
+        console.log(`Status: ${response.status} ${response.statusText}`);
+        console.log(`Duration: ${fetchDuration}s`);
 
         let payload: CourseGenerationResponse | null = null;
         let rawText = '';
@@ -265,6 +277,20 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             payload = JSON.parse(rawText) as CourseGenerationResponse;
             logger.step(6, 8, 'Response parsed successfully');
             logger.responseBody(payload);
+            
+            // Log payload to browser console
+            console.log(`%c✅ Payload parsed successfully`, 'color: #00ff00; font-weight: bold');
+            console.log(`Success: ${payload.success}`);
+            
+            // If error response with debug logs, dump them
+            if (!payload.success && payload.debug?.serverLogs) {
+              console.log(`%c📋 SERVER-SIDE LOGS (${payload.debug.serverLogs.length} lines):`, 'color: #ffaa00; font-weight: bold');
+              payload.debug.serverLogs.forEach((log, idx) => {
+                const total = payload?.debug?.serverLogs.length || 0;
+                console.log(`  [${idx + 1}/${total}] ${log}`);
+              });
+              console.log(`Execution time: ${payload.debug.executionTimeMs}ms`);
+            }
           } catch (jsonError) {
             logger.error(jsonError);
             logger.warn('Failed to parse JSON. Raw response:');
@@ -292,6 +318,15 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             const rateLimitMessage = locale === 'es' 
               ? '⏰ Límite de uso alcanzado. Todos los servicios de IA están ocupados. Por favor, espera 5-10 minutos e intenta nuevamente. 💡 Sugerencia: Descarga un modelo local para generar cursos ilimitados sin esperas.'
               : '⏰ Rate limit exceeded. All AI services are at capacity. Please wait 5-10 minutes and try again. 💡 Tip: Download a local model to generate unlimited courses without waiting.';
+            
+            // Also dump server logs if they're available in 429 response
+            if (payload?.debug?.serverLogs) {
+              console.log(`%c🚨 RATE LIMIT 429 - SERVER LOGS:`, 'color: #ff0000; font-weight: bold; font-size: 14px');
+              payload.debug.serverLogs.forEach((log) => {
+                console.log(log);
+              });
+            }
+            
             throw new Error(rateLimitMessage);
           }
           

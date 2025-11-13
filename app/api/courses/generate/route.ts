@@ -132,6 +132,25 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const logPrefix = `[Course Generator ${new Date().toISOString()}]`;
 
+  // Capture all console logs/errors for debugging
+  const capturedLogs: string[] = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  
+  console.log = (...args: unknown[]) => {
+    originalLog(...args);
+    capturedLogs.push(args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' '));
+  };
+  
+  console.error = (...args: unknown[]) => {
+    originalError(...args);
+    capturedLogs.push(`[ERROR] ${args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ')}`);
+  };
+
   console.log('='.repeat(80));
   console.log(`${logPrefix} 🚀 NEW COURSE GENERATION REQUEST STARTED`);
   console.log('='.repeat(80));
@@ -478,6 +497,10 @@ Requirements:
 
     console.log('='.repeat(80));
 
+    // Restore original console functions before returning
+    console.log = originalLog;
+    console.error = originalError;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -586,6 +609,10 @@ Requirements:
         statusCode = 500;
     }
 
+    // Restore original console functions before returning
+    console.log = originalLog;
+    console.error = originalError;
+
     return NextResponse.json(
       {
         success: false,
@@ -594,7 +621,12 @@ Requirements:
         details: errorMessage,
         hint: errorInfo.retryable 
           ? 'This error is usually temporary. Please try again in a few moments.' 
-          : 'This error requires configuration changes. Please contact support.'
+          : 'This error requires configuration changes. Please contact support.',
+        debug: {
+          serverLogs: capturedLogs,
+          totalLogLines: capturedLogs.length,
+          executionTimeMs: Date.now() - startedAt
+        }
       },
       { status: statusCode }
     );
