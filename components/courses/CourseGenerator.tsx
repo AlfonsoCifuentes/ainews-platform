@@ -3,9 +3,7 @@
 import { useState, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { LLMProviderSelector } from './LLMProviderSelector';
 import { LocalModelInfo } from './LocalModelInfo';
-import { isBrowserLLMReady } from '@/lib/ai/browser-llm';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -155,7 +153,6 @@ const progressSteps = [
 ] as const;
 
 export function CourseGenerator({ locale, translations }: CourseGeneratorProps) {
-  const [showProviderSelector, setShowProviderSelector] = useState(false);
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');
@@ -166,28 +163,13 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleProviderSelected = (provider: 'browser' | 'cloud') => {
-    setShowProviderSelector(false);
-    
-    // Si eligió browser, verificar que esté listo
-    if (provider === 'browser' && !isBrowserLLMReady()) {
-      setError('Browser model not ready. Please download it first.');
-      return;
-    }
-    
-    console.log(`User selected provider: ${provider} - starting generation`);
-    
-    // Proceder con la generación
-    handleGenerateWithProvider(provider);
-  };
-
   const handleInitiateGenerate = () => {
     if (!topic.trim()) {
       return;
     }
     
-    // Mostrar selector de provider
-    setShowProviderSelector(true);
+    // For now, skip provider selector and go straight to cloud API
+    handleGenerateWithProvider('cloud');
   };
 
   const handleGenerateWithProvider = (provider: 'browser' | 'cloud') => {
@@ -369,7 +351,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       {/* Local Model Information Banner */}
       <LocalModelInfo />
 
-      <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleInitiateGenerate(); }}>
+      <div className="space-y-6">
         {/* Topic Input */}
         <div>
           <label htmlFor="topic" className="mb-2 block text-sm font-semibold">
@@ -446,7 +428,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           {isPending ? translations.generating : translations.generateButton}
         </motion.button>
 
-        {/* Provider Selector Modal */}
+        {/* Provider Selector Modal - Disabled for now */}
+        {/* 
         <AnimatePresence>
           {showProviderSelector && (
             <motion.div
@@ -473,6 +456,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             </motion.div>
           )}
         </AnimatePresence>
+        */}
 
         {/* Progress Indicator */}
         <AnimatePresence>
@@ -615,7 +599,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             </motion.div>
           )}
         </AnimatePresence>
-      </form>
+      </div>
     </div>
   );
 }
