@@ -568,8 +568,8 @@ const providerCooldowns = new Map<LLMProvider, number>();
 
 const GENERAL_BACKOFF_MS = 750;
 const TIMEOUT_BACKOFF_MS = 2000;
-const RATE_LIMIT_BASE_MS = 5000;
-const RATE_LIMIT_MAX_MS = 20000;
+const RATE_LIMIT_BASE_MS = 500; // Reduced from 5000 for faster provider switching
+const RATE_LIMIT_MAX_MS = 3000; // Reduced from 20000 for faster failover
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -1050,11 +1050,11 @@ export async function classifyWithAllProviders<T>(
 
         // If it's not retryable (auth/config error), skip remaining attempts for this provider
         if (!errorInfo.retryable) {
-          console.warn(`[LLM Fallback] ⚠️  ${provider} has non-retryable error (${errorInfo.type}), skipping to next provider`);
+          console.warn(`[LLM Fallback] ⚠️  ${provider} has non-retryable error (${errorInfo.type}), MOVING TO NEXT PROVIDER`);
           break;
         }
 
-        // Wait before retry (exponential backoff)
+        // Wait before retry (exponential backoff) - but ONLY if retrying the same provider
         if (attempt < attemptsPerProvider) {
           const waitTime = computeBackoffMs(errorInfo, attempt);
           console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry ${attempt + 1}/${attemptsPerProvider}...`);
@@ -1064,11 +1064,14 @@ export async function classifyWithAllProviders<T>(
             console.log(`[LLM Fallback] 🚦 ${provider} cooling down until ${new Date(nextAvailable).toISOString()}`);
           }
           await sleep(waitTime);
+        } else {
+          // Exhausted attempts for this provider, move to next
+          console.log(`[LLM Fallback] ⏭️  ${provider} exhausted (${attemptsPerProvider} attempt(s)), JUMPING TO NEXT PROVIDER`);
         }
       }
     }
 
-    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${attemptsPerProvider} attempts, moving to next provider...`);
+    console.log(`[LLM Fallback] ⏭️  Moving to next provider...`);
   }
 
   // LOOP ENDED - all providers tried
