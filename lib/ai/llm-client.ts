@@ -178,26 +178,10 @@ export class LLMClient {
             parseRetryAfter(response.headers.get('retry-after')) ??
             extractRetryAfterFromBody(errorText);
 
-          // CRITICAL: For multi-provider fallback scenarios, 429 means "this provider is exhausted".
-          // Don't waste time retrying the same provider multiple times - fail fast so
-          // classifyWithAllProviders can try the next provider immediately.
-          // Internal retries (backoff of 1,2,4,8,16 seconds) don't help because rate limits
-          // typically last MINUTES or HOURS, not seconds.
-          if (config.maxRetries > 0) {
-            // Only retry on 429 if we have a specific retry-after time from the server
-            // AND we actually have retries left
-            if (!retryAfterMs && attempt < config.maxRetries) {
-              const delayMs = calculateBackoffDelay(attempt, config);
-              console.warn(
-                `[LLM RateLimit] ⏸️  Rate limited (429). Exponential backoff: ${delayMs.toFixed(0)}ms. ` +
-                `Retry ${attempt + 1}/${config.maxRetries}`
-              );
-              await sleep(delayMs);
-              continue; // Retry with backoff
-            }
-          }
-
-          // Otherwise, fail immediately and let the provider loop try the next provider
+          // CRITICAL: NEVER retry 429 internally!
+          // Rate limits mean the provider is exhausted. Retrying after 1,2,4,8,16 seconds
+          // WON'T help because rate limits last MINUTES or HOURS.
+          // Instead, fail immediately so classifyWithAllProviders can try the next provider.
           console.warn(`[LLM RateLimit] ⚠️  Rate limited (429) - failing immediately to try next provider`);
           throw new LLMProviderError(
             `Rate limit exceeded. ${errorText}`,
@@ -764,26 +748,48 @@ export function getAvailableProviders(): LLMProvider[] {
 
   // Cloud providers ordered by: free tier generosity + reliability
   // Groq: 30 requests/minute free (most generous for JSON generation tasks)
-  if (process.env.GROQ_API_KEY) available.push('groq');            
+  if (process.env.GROQ_API_KEY) {
+    available.push('groq');
+    console.log(`[LLM] ✅ Groq configured and available`);
+  }
   
   // OpenRouter: Multi-provider with good free models
-  if (process.env.OPENROUTER_API_KEY) available.push('openrouter');
+  if (process.env.OPENROUTER_API_KEY) {
+    available.push('openrouter');
+    console.log(`[LLM] ✅ OpenRouter configured and available`);
+  }
   
   // Anthropic: Best for JSON but lower free tier limits
-  if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');  
+  if (process.env.ANTHROPIC_API_KEY) {
+    available.push('anthropic');
+    console.log(`[LLM] ✅ Anthropic configured and available`);
+  }
   
   // Google Gemini: Good free tier
-  if (process.env.GEMINI_API_KEY) available.push('gemini');        
+  if (process.env.GEMINI_API_KEY) {
+    available.push('gemini');
+    console.log(`[LLM] ✅ Gemini configured and available`);
+  }
   
   // DeepSeek: High quality but may hit limits faster
-  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');    
+  if (process.env.DEEPSEEK_API_KEY) {
+    available.push('deepseek');
+    console.log(`[LLM] ✅ DeepSeek configured and available`);
+  }
   
   // Mistral: European provider
-  if (process.env.MISTRAL_API_KEY) available.push('mistral');      
+  if (process.env.MISTRAL_API_KEY) {
+    available.push('mistral');
+    console.log(`[LLM] ✅ Mistral configured and available`);
+  }
   
   // Together: Meta models
-  if (process.env.TOGETHER_API_KEY) available.push('together');    
+  if (process.env.TOGETHER_API_KEY) {
+    available.push('together');
+    console.log(`[LLM] ✅ Together configured and available`);
+  }
 
+  console.log(`[LLM] 📊 Total available providers: ${available.length}`);
   return available;
 }
 
@@ -970,7 +976,7 @@ export async function classifyWithAllProviders<T>(
   let totalAttempts = 0;
 
   for (const provider of availableProviders) {
-    console.log(`\n[LLM Fallback] 🤖 Trying provider: ${provider.toUpperCase()}`);
+    console.log(`\n[LLM Fallback] 🤖 Trying provider ${availableProviders.indexOf(provider) + 1}/${availableProviders.length}: ${provider.toUpperCase()}`);
     
     // Special handling for Ollama - verify it's actually running
     if (provider === 'ollama') {
