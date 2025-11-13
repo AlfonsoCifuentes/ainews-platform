@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { LLMProviderSelector } from './LLMProviderSelector';
+import { LocalModelInfo } from './LocalModelInfo';
 import { isBrowserLLMReady } from '@/lib/ai/browser-llm';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -368,6 +369,9 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         </motion.h2>
         <p className="text-muted-foreground">{translations.subtitle}</p>
       </div>
+
+      {/* Local Model Information Banner */}
+      <LocalModelInfo />
 
       <div className="space-y-6">
         {/* Topic Input */}
