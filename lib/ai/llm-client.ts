@@ -1007,6 +1007,13 @@ export async function classifyWithAllProviders<T>(
       continue;
     }
 
+    // Add small delay between providers to avoid hammering all APIs at once
+    if (availableProviders.indexOf(provider) > 0) {
+      const delayBetweenProviders = 100; // 100ms delay between provider attempts
+      console.log(`[LLM Fallback] ⏳ Brief delay before ${provider}...`);
+      await sleep(delayBetweenProviders);
+    }
+
     for (let attempt = 1; attempt <= attemptsPerProvider; attempt++) {
       const cooldownUntil = providerCooldowns.get(provider) ?? 0;
       const now = Date.now();

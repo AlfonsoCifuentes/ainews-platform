@@ -171,32 +171,34 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [isPending, startTransition] = useTransition();
 
   // Diagnostics
-  const handleDiagnosis = async () => {
-    console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
-    console.log(`%c🔧 RUNNING PROVIDER DIAGNOSTIC TEST`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
-    console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
+  const handleDiagnosis = () => {
+    // SIMPLE: Just log something to verify button is working
+    console.log('🔧 DIAGNOSTIC BUTTON CLICKED');
+    console.log('═'.repeat(80));
+    console.log('🔧 RUNNING PROVIDER DIAGNOSTIC TEST');
+    console.log('═'.repeat(80));
     
-    try {
-      const diagResponse = await fetch('/api/courses/diagnose-providers');
-      const diagData = await diagResponse.json();
-      
-      console.log(`%cEnvironment: ${diagData.environment}`, 'color: #00aaff; font-weight: bold');
-      console.log(`%cProvider Status:`, 'color: #ffaa00; font-weight: bold');
-      
-      Object.entries(diagData.providers).forEach(([name, config]) => {
-        const configData = config as { configured: boolean; keyPrefix: string };
-        const status = configData.configured ? '✅' : '❌';
-        console.log(`  ${status} ${name.toUpperCase()}: ${configData.configured ? 'CONFIGURED' : 'NOT SET'} (${configData.keyPrefix})`);
+    // Now fetch diagnosis
+    fetch('/api/courses/diagnose-providers')
+      .then(res => res.json())
+      .then((diagData) => {
+        console.log(`Environment: ${diagData.environment}`);
+        console.log(`Provider Status:`);
+        
+        Object.entries(diagData.providers).forEach(([name, config]) => {
+          const configData = config as { configured: boolean; keyPrefix: string };
+          const status = configData.configured ? '✅' : '❌';
+          console.log(`  ${status} ${name.toUpperCase()}: ${configData.configured ? 'CONFIGURED' : 'NOT SET'} (${configData.keyPrefix})`);
+        });
+        
+        console.log('─'.repeat(80));
+        console.log(diagData.summary.message);
+        console.log(`Configured: ${diagData.summary.configured}/${diagData.summary.total} (${diagData.summary.percentage})`);
+        console.log('═'.repeat(80));
+      })
+      .catch((error) => {
+        console.error('❌ Diagnostic request failed:', error);
       });
-      
-      console.log(`%c${'─'.repeat(80)}`, 'color: #ffaa00');
-      console.log(`%c${diagData.summary.message}`, diagData.summary.configured === 0 ? 'color: #ff0000; font-weight: bold; font-size: 14px' : 'color: #00ff00; font-weight: bold; font-size: 14px');
-      console.log(`%cConfigured: ${diagData.summary.configured}/${diagData.summary.total} (${diagData.summary.percentage})`, 'color: #ffaa00; font-weight: bold');
-      console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
-    } catch (error) {
-      console.error(`%c❌ Diagnostic request failed:`, 'color: #ff0000; font-weight: bold');
-      console.error(error);
-    }
   };
 
   const handleInitiateGenerate = () => {
