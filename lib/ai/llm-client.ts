@@ -762,14 +762,27 @@ export function getAvailableProviders(): LLMProvider[] {
     console.log(`[LLM] 🎯 Ollama added as PRIMARY provider (${location}, zero cost)`);
   }
 
-  // Cloud providers ordered by: quality for JSON generation + free tier availability
-  if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');  // Best for JSON
-  if (process.env.GROQ_API_KEY) available.push('groq');            // Fast, generous free tier
-  if (process.env.GEMINI_API_KEY) available.push('gemini');        // Good free tier
-  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');    // High quality
-  if (process.env.MISTRAL_API_KEY) available.push('mistral');      // European, good quality
-  if (process.env.OPENROUTER_API_KEY) available.push('openrouter'); // Multi-provider
-  if (process.env.TOGETHER_API_KEY) available.push('together');    // Meta models
+  // Cloud providers ordered by: free tier generosity + reliability
+  // Groq: 30 requests/minute free (most generous for JSON generation tasks)
+  if (process.env.GROQ_API_KEY) available.push('groq');            
+  
+  // OpenRouter: Multi-provider with good free models
+  if (process.env.OPENROUTER_API_KEY) available.push('openrouter');
+  
+  // Anthropic: Best for JSON but lower free tier limits
+  if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');  
+  
+  // Google Gemini: Good free tier
+  if (process.env.GEMINI_API_KEY) available.push('gemini');        
+  
+  // DeepSeek: High quality but may hit limits faster
+  if (process.env.DEEPSEEK_API_KEY) available.push('deepseek');    
+  
+  // Mistral: European provider
+  if (process.env.MISTRAL_API_KEY) available.push('mistral');      
+  
+  // Together: Meta models
+  if (process.env.TOGETHER_API_KEY) available.push('together');    
 
   return available;
 }
