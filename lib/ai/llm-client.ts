@@ -976,7 +976,10 @@ export async function classifyWithAllProviders<T>(
   let totalAttempts = 0;
 
   for (const provider of availableProviders) {
-    console.log(`\n[LLM Fallback] 🤖 Trying provider ${availableProviders.indexOf(provider) + 1}/${availableProviders.length}: ${provider.toUpperCase()}`);
+    const providerIndex = availableProviders.indexOf(provider) + 1;
+    console.log(`\n[LLM Fallback] ${'═'.repeat(60)}`);
+    console.log(`[LLM Fallback] 🤖 [${providerIndex}/${availableProviders.length}] Attempting provider: ${provider.toUpperCase()}`);
+    console.log(`[LLM Fallback] ${'═'.repeat(60)}`);
     
     // Special handling for Ollama - verify it's actually running
     if (provider === 'ollama') {
@@ -1078,12 +1081,14 @@ export async function classifyWithAllProviders<T>(
       }
     }
 
-    console.log(`[LLM Fallback] ⏭️  Moving to next provider...`);
+    console.log(`[LLM Fallback] ⏭️  Provider ${providerIndex}/${availableProviders.length} (${provider.toUpperCase()}) FAILED - Moving to next...`);
   }
 
   // LOOP ENDED - all providers tried
-  console.log(`[LLM Fallback] ⚠️  LOOP ENDED - Tried all ${availableProviders.length} providers, none succeeded`);
-  console.log(`${'═'.repeat(80)}\n`);
+  console.log(`\n[LLM Fallback] ${'═'.repeat(80)}`);
+  console.log(`[LLM Fallback] ⚠️  LOOP ENDED - Tried ALL ${availableProviders.length} providers`);
+  console.log(`[LLM Fallback] ⚠️  NONE of them succeeded`);
+  console.log(`[LLM Fallback] ${'═'.repeat(80)}\n`);
 
   // All providers failed - generate detailed error report
   console.error(`\n${'═'.repeat(80)}`);
