@@ -178,31 +178,29 @@ export class LLMClient {
             parseRetryAfter(response.headers.get('retry-after')) ??
             extractRetryAfterFromBody(errorText);
 
-          let delayMs: number;
-          if (retryAfterMs) {
-            // Use server-specified delay, capped at max
-            delayMs = Math.min(retryAfterMs, config.maxDelayMs);
-            console.warn(
-              `[LLM RateLimit] ⏸️  Rate limited (429). Server requested ${retryAfterMs}ms delay. ` +
-              `Using ${delayMs}ms. Retry ${attempt + 1}/${config.maxRetries}`
-            );
-          } else {
-            // Use exponential backoff
-            delayMs = calculateBackoffDelay(attempt, config);
-            console.warn(
-              `[LLM RateLimit] ⏸️  Rate limited (429). Exponential backoff: ${delayMs.toFixed(0)}ms. ` +
-              `Retry ${attempt + 1}/${config.maxRetries}`
-            );
+          // CRITICAL: For multi-provider fallback scenarios, 429 means "this provider is exhausted".
+          // Don't waste time retrying the same provider multiple times - fail fast so
+          // classifyWithAllProviders can try the next provider immediately.
+          // Internal retries (backoff of 1,2,4,8,16 seconds) don't help because rate limits
+          // typically last MINUTES or HOURS, not seconds.
+          if (config.maxRetries > 0) {
+            // Only retry on 429 if we have a specific retry-after time from the server
+            // AND we actually have retries left
+            if (!retryAfterMs && attempt < config.maxRetries) {
+              const delayMs = calculateBackoffDelay(attempt, config);
+              console.warn(
+                `[LLM RateLimit] ⏸️  Rate limited (429). Exponential backoff: ${delayMs.toFixed(0)}ms. ` +
+                `Retry ${attempt + 1}/${config.maxRetries}`
+              );
+              await sleep(delayMs);
+              continue; // Retry with backoff
+            }
           }
 
-          if (attempt < config.maxRetries) {
-            await sleep(delayMs);
-            continue; // Retry
-          }
-
-          // Max retries exceeded
+          // Otherwise, fail immediately and let the provider loop try the next provider
+          console.warn(`[LLM RateLimit] ⚠️  Rate limited (429) - failing immediately to try next provider`);
           throw new LLMProviderError(
-            `Rate limit exceeded after ${config.maxRetries} retries. ${errorText}`,
+            `Rate limit exceeded. ${errorText}`,
             {
               provider: this.provider,
               status: 429,
