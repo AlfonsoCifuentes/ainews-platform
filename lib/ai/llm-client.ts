@@ -1071,6 +1071,10 @@ export async function classifyWithAllProviders<T>(
     console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${attemptsPerProvider} attempts, moving to next provider...`);
   }
 
+  // LOOP ENDED - all providers tried
+  console.log(`[LLM Fallback] ⚠️  LOOP ENDED - Tried all ${availableProviders.length} providers, none succeeded`);
+  console.log(`${'═'.repeat(80)}\n`);
+
   // All providers failed - generate detailed error report
   console.error(`\n${'═'.repeat(80)}`);
   console.error(`[LLM Fallback] ❌ CRITICAL: ALL ${availableProviders.length} PROVIDER(S) FAILED!`);
