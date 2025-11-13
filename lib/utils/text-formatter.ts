@@ -93,8 +93,15 @@ export function formatArticleContent(content: string): string {
   // Split plain text into paragraphs intelligently
   const paragraphs = smartSplitIntoParagraphs(formatted);
   
+  // Skip the first blockquote if it appears at the start (to prevent text cutoff)
+  let startIndex = 0;
+  if (paragraphs.length > 0 && paragraphs[0].startsWith('<blockquote>')) {
+    startIndex = 1;
+  }
+  
   // Format each paragraph, with special treatment for the first one
   return paragraphs
+    .slice(startIndex)
     .map((p, index) => {
       // Skip if already formatted as list or quote
       if (p.startsWith('<ul>') || p.startsWith('<ol>') || p.startsWith('<blockquote>')) {
