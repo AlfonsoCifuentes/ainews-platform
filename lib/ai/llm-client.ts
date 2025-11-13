@@ -939,8 +939,11 @@ export async function classifyWithAllProviders<T>(
     );
   }
 
-  console.log(`[LLM Fallback] 🔄 Starting multi-provider fallback with ${availableProviders.length} providers available`);
+  console.log(`\n${'═'.repeat(80)}`);
+  console.log(`[LLM Fallback] 🔄 Starting multi-provider fallback with ${availableProviders.length} provider(s)`);
   console.log(`[LLM Fallback] 📋 Provider order: ${availableProviders.join(' → ')}`);
+  console.log(`[LLM Fallback] 💡 HINT: If you're getting rate limits, add more API keys to .env.local for redundancy`);
+  console.log(`${'═'.repeat(80)}\n`);
 
   const allErrors: Array<{
     provider: LLMProvider;
@@ -948,8 +951,9 @@ export async function classifyWithAllProviders<T>(
     error: ReturnType<typeof classifyLLMError>;
   }> = [];
 
+  // If only ONE provider, reduce retry attempts on rate limit to fail faster and show helpful error
   const attemptsPerProvider = availableProviders.length === 1
-    ? Math.max(maxAttemptsPerProvider, 4)
+    ? 1  // Only try once on single provider - fail fast and show error message with instructions
     : maxAttemptsPerProvider;
 
   let totalAttempts = 0;
@@ -1006,7 +1010,7 @@ export async function classifyWithAllProviders<T>(
         const result = await llmClient.classify(prompt, schema, systemPrompt);
         
         console.log(`[LLM Fallback] ✅ SUCCESS with ${provider} on attempt ${attempt}!`);
-        console.log(`[LLM Fallback] 📊 Total attempts across all providers: ${totalAttempts}`);
+        console.log(`[LLM Fallback] 📊 Total attempts across all providers: ${totalAttempts}\n`);
 
         providerCooldowns.delete(provider);
         
@@ -1017,26 +1021,26 @@ export async function classifyWithAllProviders<T>(
         };
       } catch (error) {
         const errorInfo = classifyLLMError(error);
-        console.error(`[LLM Fallback] ❌ ${provider} attempt ${attempt}/${attemptsPerProvider} failed:`);
-        console.error(`[LLM Fallback]    Type: ${errorInfo.type}`);
-        console.error(`[LLM Fallback]    Message: ${errorInfo.message}`);
-        console.error(`[LLM Fallback]    Retryable: ${errorInfo.retryable}`);
+        console.error(`[LLM Fallback] ❌ ${provider} attempt ${attempt}/${attemptsPerProvider} FAILED`);
+        console.error(`[LLM Fallback]    └─ Error Type: ${errorInfo.type.toUpperCase()}`);
+        console.error(`[LLM Fallback]    └─ Message: ${errorInfo.message}`);
+        console.error(`[LLM Fallback]    └─ Retryable: ${errorInfo.retryable}`);
         if (typeof errorInfo.retryAfterMs === 'number') {
-          console.error(`[LLM Fallback]    Retry-After: ${errorInfo.retryAfterMs}ms`);
+          console.error(`[LLM Fallback]    └─ Retry-After: ${errorInfo.retryAfterMs}ms`);
         }
 
         allErrors.push({ provider, attempt, error: errorInfo });
 
         // If it's not retryable (auth/config error), skip remaining attempts for this provider
         if (!errorInfo.retryable) {
-          console.warn(`[LLM Fallback] ⚠️  ${provider} has non-retryable error (${errorInfo.type}), moving to next provider`);
+          console.warn(`[LLM Fallback] ⚠️  ${provider} has non-retryable error (${errorInfo.type}), skipping to next provider`);
           break;
         }
 
         // Wait before retry (exponential backoff)
         if (attempt < attemptsPerProvider) {
           const waitTime = computeBackoffMs(errorInfo, attempt);
-          console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry due to ${errorInfo.type}...`);
+          console.log(`[LLM Fallback] ⏳ Waiting ${waitTime}ms before retry ${attempt + 1}/${attemptsPerProvider}...`);
           if (errorInfo.type === 'rate_limit') {
             const nextAvailable = Math.max(providerCooldowns.get(provider) ?? 0, Date.now() + waitTime);
             providerCooldowns.set(provider, nextAvailable);
@@ -1047,11 +1051,12 @@ export async function classifyWithAllProviders<T>(
       }
     }
 
-    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${attemptsPerProvider} attempts, trying next provider...`);
+    console.log(`[LLM Fallback] ⚠️  ${provider} exhausted all ${attemptsPerProvider} attempts, moving to next provider...`);
   }
 
   // All providers failed - generate detailed error report
-  console.error(`\n[LLM Fallback] ❌ CRITICAL: ALL ${availableProviders.length} PROVIDERS FAILED!`);
+  console.error(`\n${'═'.repeat(80)}`);
+  console.error(`[LLM Fallback] ❌ CRITICAL: ALL ${availableProviders.length} PROVIDER(S) FAILED!`);
   console.error(`[LLM Fallback] 📊 Total attempts: ${totalAttempts}`);
   
   const errorsByType = allErrors.reduce((acc, { error }) => {
@@ -1060,6 +1065,7 @@ export async function classifyWithAllProviders<T>(
   }, {} as Record<string, number>);
   
   console.error(`[LLM Fallback] 📈 Error breakdown:`, errorsByType);
+  console.error(`[LLM Fallback] ⚠️  This means ALL configured providers are unreachable or exhausted`);
 
   // Build detailed error message
   const errorReport = allErrors.map(({ provider, attempt, error }) => {
@@ -1089,9 +1095,13 @@ function generateActionableAdvice(
 ): string {
   const errorTypes = new Set(errors.map(e => e.error.type));
   const advice: string[] = [];
+  const providers = Array.from(new Set(errors.map(e => e.provider)));
 
   if (errorTypes.has('rate_limit')) {
-    advice.push('  ⏰ RATE LIMIT: You\'ve hit usage limits. Wait 5-10 minutes or add more API keys for redundancy.');
+    advice.push('  ⏰ RATE LIMIT: You\'ve hit API usage limits. Your options:');
+    advice.push('     1. Wait 5-10 minutes (free tier limits reset automatically)');
+    advice.push('     2. Add more API provider keys to .env.local for automatic fallback');
+    advice.push('     3. Download Ollama for unlimited free local generation (zero cost)');
   }
 
   if (errorTypes.has('auth')) {
@@ -1119,9 +1129,17 @@ function generateActionableAdvice(
   }
 
   // Add provider-specific advice
-  const failedProviders = new Set(errors.map(e => e.provider));
-  if (failedProviders.size === 1) {
-    advice.push(`\n  💡 TIP: Only ${Array.from(failedProviders)[0]} is configured. Add more API keys for better reliability!`);
+  if (providers.length === 1) {
+    const provider = providers[0];
+    advice.push(`\n  💡 CRITICAL HINT: Only ${provider.toUpperCase()} is configured!`);
+    advice.push(`     👉 Add more API keys to .env.local for automatic redundancy:`);
+    advice.push(`        - ANTHROPIC_API_KEY (recommended - best for JSON)`);
+    advice.push(`        - GROQ_API_KEY (fast inference)`);
+    advice.push(`        - GEMINI_API_KEY (good free tier)`);
+    advice.push(`        - DEEPSEEK_API_KEY (high quality, affordable)`);
+    advice.push(`     👉 Or install Ollama for unlimited zero-cost generation`);
+    advice.push(`        - Download: https://ollama.ai`);
+    advice.push(`        - Command: ollama pull neural-chat:latest`);
   }
 
   return advice.join('\n');

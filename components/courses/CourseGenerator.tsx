@@ -381,6 +381,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           </label>
           <select
             id="difficulty"
+            name="difficulty"
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value as Difficulty)}
             disabled={isPending}
@@ -394,7 +395,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
         {/* Duration */}
         <div>
-          <label htmlFor="duration" className="mb-2 block text-sm font-semibold">
+          <label className="mb-3 block text-sm font-semibold">
             {translations.durationLabel}
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -402,6 +403,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
               <button
                 key={dur}
                 type="button"
+                name="duration"
+                value={dur}
                 onClick={() => setDuration(dur)}
                 disabled={isPending}
                 className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
