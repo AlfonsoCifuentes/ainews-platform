@@ -360,20 +360,16 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   return (
     <div className="glass rounded-3xl p-8 shadow-xl">
       <div className="mb-8 text-center">
-        <motion.h2
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 text-3xl font-bold"
-        >
+        <h2 className="mb-3 text-3xl font-bold">
           {translations.title}
-        </motion.h2>
+        </h2>
         <p className="text-muted-foreground">{translations.subtitle}</p>
       </div>
 
       {/* Local Model Information Banner */}
       <LocalModelInfo />
 
-      <div className="space-y-6">
+      <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleInitiateGenerate(); }}>
         {/* Topic Input */}
         <div>
           <label htmlFor="topic" className="mb-2 block text-sm font-semibold">
@@ -382,8 +378,14 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           <input
             id="topic"
             type="text"
-            value={topic}
+            value={topic || ''}
             onChange={(e) => setTopic(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && topic.trim() && !isPending) {
+                e.preventDefault();
+                handleInitiateGenerate();
+              }
+            }}
             placeholder={translations.topicPlaceholder}
             disabled={isPending}
             className="w-full rounded-2xl border border-border bg-background px-5 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
@@ -613,7 +615,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </form>
     </div>
   );
 }
