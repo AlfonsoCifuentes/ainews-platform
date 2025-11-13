@@ -61,73 +61,9 @@ function generateContentFromSummary(summary: string, title: string): string {
   return `${intro}\n\n${body}`;
 }
 
-/**
- * Fetch article content from source URL using LLM
- */
-async function fetchAndExtractContent(sourceUrl: string, title: string): Promise<string | null> {
-  try {
-    // Try to fetch the page content
-    const response = await fetch(sourceUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      signal: AbortSignal.timeout(10000) // 10 second timeout
-    });
-    
-    if (!response.ok) {
-      console.log(`   ⚠️  Failed to fetch: ${response.status}`);
-      return null;
-    }
-    
-    const html = await response.text();
-    
-    // Basic extraction of text content from HTML
-    // Remove script and style tags
-    let text = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    // Find content that looks like article text (heuristic)
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 50);
-    
-    if (sentences.length < 3) {
-      return null;
-    }
-    
-    // Take first 10-15 sentences as article content
-    const content = sentences.slice(0, 12).join('. ') + '.';
-    
-    return content.length > 200 ? content : null;
-  } catch (error) {
-    console.log(`   ⚠️  Error fetching: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return null;
-  }
-}
-
-/**
- * Check if content needs formatting
- */
-function needsFormatting(content: string | null): boolean {
-  if (!content) return true;
-  if (content.length < 100) return true;
-  
-  // Check if already has paragraph structure
-  const hasLineBreaks = content.includes('\n\n') || content.includes('</p>');
-  const hasListStructure = content.includes('<ul>') || content.includes('<ol>');
-  
-  // If it's just one long block of text, it needs formatting
-  if (!hasLineBreaks && !hasListStructure && content.length > 500) {
-    return true;
-  }
-  
-  return false;
-}
-
 async function fixArticleContent() {
   console.log('🔍 Starting article content check and fix...\n');
+  console.log('🧹 This will clean and re-format ALL articles\n');
   
   // Fetch all articles
   const { data: articles, error } = await supabase
@@ -147,12 +83,11 @@ async function fixArticleContent() {
   
   console.log(`📊 Total articles: ${articles.length}\n`);
   
-  let missingContent = 0;
-  let needsFormatCount = 0;
+  let cleaned = 0;
   let updated = 0;
   let errors = 0;
   
-  // Process each article
+  // Process each article - FORCE re-format on ALL
   for (let i = 0; i < articles.length; i++) {
     const article = articles[i];
     const progress = `[${i + 1}/${articles.length}]`;
@@ -161,57 +96,31 @@ async function fixArticleContent() {
     let newContentEn = article.content_en;
     let newContentEs = article.content_es;
     
-    // Check English content
-    if (!article.content_en || article.content_en.trim().length < 100) {
-      console.log(`${progress} ⚠️  Missing EN content: ${article.title_en.substring(0, 50)}...`);
-      missingContent++;
-      
-      // Try to generate content
-      if (article.summary_en && article.summary_en.length > 50) {
-        newContentEn = generateContentFromSummary(article.summary_en, article.title_en);
-        console.log(`   ✅ Generated content from summary (${newContentEn.length} chars)`);
-        needsUpdate = true;
-      } else if (article.source_url) {
-        console.log(`   🌐 Attempting to fetch from source...`);
-        const fetchedContent = await fetchAndExtractContent(article.source_url, article.title_en);
-        if (fetchedContent) {
-          newContentEn = fetchedContent;
-          console.log(`   ✅ Fetched content (${newContentEn.length} chars)`);
-          needsUpdate = true;
-        }
-      }
-    } else if (needsFormatting(article.content_en)) {
-      needsFormatCount++;
-      // Content exists but needs formatting - we'll format it later
-    }
-    
-    // Check Spanish content
-    if (!article.content_es || article.content_es.trim().length < 100) {
-      if (article.summary_es && article.summary_es.length > 50) {
-        newContentEs = generateContentFromSummary(article.summary_es, article.title_es);
-        needsUpdate = true;
-      } else if (newContentEn && newContentEn !== article.content_en) {
-        // Use same content as English if we just generated it
-        newContentEs = newContentEn;
-        needsUpdate = true;
-      }
-    }
-    
-    // Apply formatting to all content
-    if (newContentEn) {
-      const formatted = formatArticleContent(newContentEn);
-      if (formatted !== newContentEn) {
+    // Re-format ALL content to clean navigation/metadata
+    if (article.content_en && article.content_en.length > 50) {
+      const formatted = formatArticleContent(article.content_en);
+      if (formatted !== article.content_en) {
         newContentEn = formatted;
         needsUpdate = true;
+        cleaned++;
       }
+    } else if (article.summary_en && article.summary_en.length > 50) {
+      // No content, generate from summary
+      newContentEn = formatArticleContent(generateContentFromSummary(article.summary_en, article.title_en));
+      needsUpdate = true;
     }
     
-    if (newContentEs) {
-      const formatted = formatArticleContent(newContentEs);
-      if (formatted !== newContentEs) {
+    if (article.content_es && article.content_es.length > 50) {
+      const formatted = formatArticleContent(article.content_es);
+      if (formatted !== article.content_es) {
         newContentEs = formatted;
         needsUpdate = true;
+        cleaned++;
       }
+    } else if (article.summary_es && article.summary_es.length > 50) {
+      // No content, generate from summary
+      newContentEs = formatArticleContent(generateContentFromSummary(article.summary_es, article.title_es));
+      needsUpdate = true;
     }
     
     // Update article if needed
@@ -229,14 +138,16 @@ async function fixArticleContent() {
         console.log(`${progress} ❌ Error updating: ${updateError.message}`);
         errors++;
       } else {
-        console.log(`${progress} ✅ Updated: ${article.title_en.substring(0, 50)}...`);
+        if (i % 20 === 0) {
+          console.log(`${progress} ✅ Cleaned: ${article.title_en.substring(0, 50)}...`);
+        }
         updated++;
       }
     }
     
-    // Add small delay to avoid rate limiting
-    if (i % 10 === 0 && i > 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Add small delay every 50 items
+    if (i % 50 === 0 && i > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
   
@@ -245,8 +156,7 @@ async function fixArticleContent() {
   console.log('📊 Summary:');
   console.log('='.repeat(60));
   console.log(`Total articles processed: ${articles.length}`);
-  console.log(`Missing content found: ${missingContent}`);
-  console.log(`Needed formatting: ${needsFormatCount}`);
+  console.log(`🧹 Cleaned & reformatted: ${cleaned}`);
   console.log(`✅ Successfully updated: ${updated}`);
   console.log(`❌ Errors: ${errors}`);
   console.log('='.repeat(60));

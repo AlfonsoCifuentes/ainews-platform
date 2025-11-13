@@ -10,6 +10,46 @@
  */
 
 /**
+ * Cleans content by removing navigation elements, metadata, and redundant info
+ */
+function cleanArticleContent(content: string): string {
+  // Remove common navigation/metadata patterns
+  let cleaned = content;
+  
+  // Remove "Inicio", "Tecnología", navigation breadcrumbs
+  cleaned = cleaned.replace(/^(Inicio|Home|Technology|Tecnología|News|Noticias|Category|Categoría)[^\n.]*/gmi, '');
+  
+  // Remove "ChatGPT DD de mes de YYYY" timestamps
+  cleaned = cleaned.replace(/ChatGPT\s+\d{1,2}\s+de\s+\w+\s+de\s+\d{4}/gi, '');
+  
+  // Remove social media sharing links
+  cleaned = cleaned.replace(/(Share|Compartir|Cuota)\s*(Twitter|Facebook|Pinterest|WhatsApp|LinkedIn|Telegram|Copy URL)*/gi, '');
+  
+  // Remove "Copy URL" and similar
+  cleaned = cleaned.replace(/Copy\s*(URL|Link)/gi, '');
+  
+  // Remove device/category tags at start
+  cleaned = cleaned.replace(/^Dispositivos con (IA|AI)[^\n.]*/gmi, '');
+  
+  // Remove URLs at start of paragraphs
+  cleaned = cleaned.replace(/^https?:\/\/[^\s]+/gmi, '');
+  
+  // Clean up orphaned punctuation at start
+  cleaned = cleaned.replace(/^\s*[.,;:!?]+\s*/gm, '');
+  
+  // Remove repeated words (common in scraping errors)
+  cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1');
+  
+  // Clean up multiple spaces and normalize
+  cleaned = cleaned
+    .replace(/\s{3,}/g, ' ')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .trim();
+  
+  return cleaned;
+}
+
+/**
  * Formats raw article content into readable HTML
  * @param content - Raw content string (may include HTML or plain text)
  * @returns Formatted HTML string with proper paragraphs and styling
@@ -17,15 +57,24 @@
 export function formatArticleContent(content: string): string {
   if (!content) return '';
 
+  // Clean content first
+  let formatted = cleanArticleContent(content);
+
   // Remove excessive whitespace and normalize line breaks
-  let formatted = content
+  formatted = formatted
     .trim()
     .replace(/\r\n/g, '\n') // Normalize Windows line breaks
     .replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive line breaks
 
-  // If content already has HTML tags, use it as-is but improve spacing
+  // If content already has HTML tags, clean and improve
   if (/<[^>]+>/.test(formatted)) {
-    return improveHtmlFormatting(formatted);
+    // Extract text from HTML, clean it, then re-format
+    const textOnly = formatted.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (textOnly.length < 100) return formatted; // Too short, keep as is
+    
+    // Clean the text and re-format
+    const cleanedText = cleanArticleContent(textOnly);
+    formatted = cleanedText;
   }
 
   // Detect and convert lists before paragraph splitting
@@ -56,8 +105,9 @@ export function formatArticleContent(content: string): string {
 }
 
 /**
- * Improves existing HTML formatting
+ * Improves existing HTML formatting (not currently used but kept for potential future use)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function improveHtmlFormatting(html: string): string {
   return html
     // Ensure paragraphs have proper spacing
