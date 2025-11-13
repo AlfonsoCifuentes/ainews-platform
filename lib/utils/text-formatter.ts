@@ -16,31 +16,38 @@ function cleanArticleContent(content: string): string {
   // Remove common navigation/metadata patterns
   let cleaned = content;
   
-  // Remove "Inicio", "Tecnología", navigation breadcrumbs
-  cleaned = cleaned.replace(/^(Inicio|Home|Technology|Tecnología|News|Noticias|Category|Categoría)[^\n.]*/gmi, '');
+  // Remove "La entrada [Title]" patterns (common in WordPress)
+  cleaned = cleaned.replace(/La entrada [^.]*$/gi, '');
+  cleaned = cleaned.replace(/The entry [^.]*$/gi, '');
+  cleaned = cleaned.replace(/Leer más[^.]*$/gi, '');
+  cleaned = cleaned.replace(/Read more[^.]*$/gi, '');
+  cleaned = cleaned.replace(/Continue reading[^.]*$/gi, '');
   
-  // Remove "ChatGPT DD de mes de YYYY" timestamps
+  // Remove navigation breadcrumbs (more comprehensive)
+  cleaned = cleaned.replace(/^(Inicio|Home|Technology|Tecnología|News|Noticias|Category|Categoría|Dispositivos con IA|Devices with AI)[^\n.]*(?=\s|$)/gmi, '');
+  
+  // Remove article metadata patterns
   cleaned = cleaned.replace(/ChatGPT\s+\d{1,2}\s+de\s+\w+\s+de\s+\d{4}/gi, '');
+  cleaned = cleaned.replace(/Published on[^.]*\d{4}/gi, '');
+  cleaned = cleaned.replace(/Publicado el[^.]*\d{4}/gi, '');
   
-  // Remove social media sharing links
-  cleaned = cleaned.replace(/(Share|Compartir|Cuota)\s*(Twitter|Facebook|Pinterest|WhatsApp|LinkedIn|Telegram|Copy URL)*/gi, '');
+  // Remove social media sharing links and buttons
+  cleaned = cleaned.replace(/(Share|Compartir|Cuota)\s*(on\s*)?(Twitter|Facebook|Pinterest|WhatsApp|LinkedIn|Telegram|Instagram|Reddit)*/gi, '');
+  cleaned = cleaned.replace(/Copy\s*(URL|Link|Enlace)/gi, '');
   
-  // Remove "Copy URL" and similar
-  cleaned = cleaned.replace(/Copy\s*(URL|Link)/gi, '');
+  // Remove common web UI elements
+  cleaned = cleaned.replace(/(Click here|Haz clic aquí|Subscribe|Suscríbete|Newsletter)/gi, '');
   
-  // Remove device/category tags at start
-  cleaned = cleaned.replace(/^Dispositivos con (IA|AI)[^\n.]*/gmi, '');
-  
-  // Remove URLs at start of paragraphs
+  // Remove URLs at start of text
   cleaned = cleaned.replace(/^https?:\/\/[^\s]+/gmi, '');
   
-  // Clean up orphaned punctuation at start
+  // Clean up orphaned punctuation
   cleaned = cleaned.replace(/^\s*[.,;:!?]+\s*/gm, '');
   
-  // Remove repeated words (common in scraping errors)
+  // Remove repeated words (scraping errors)
   cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1');
   
-  // Clean up multiple spaces and normalize
+  // Remove excessive spaces and normalize
   cleaned = cleaned
     .replace(/\s{3,}/g, ' ')
     .replace(/\n\s*\n\s*\n/g, '\n\n')
