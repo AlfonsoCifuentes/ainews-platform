@@ -93,6 +93,15 @@ const localeLabels: Record<'en' | 'es', string> = {
 /**
  * Wrapper around classifyWithAllProviders that tries all available LLM providers
  * This replaces the old classifyWithRetry that only used one provider
+ * 
+ * CRITICAL FIX: We set maxAttemptsPerProvider=1 (not 2) because internally,
+ * each LLMClient.fetchWithRateLimitRetry() will ALSO retry up to 5 times on 429.
+ * 
+ * Without this: 1 rate-limited provider wastes 2 attempts × 5 retries = 10 mins
+ * before trying the next provider. With 7+ providers available, user waits hours!
+ * 
+ * With this: 1 attempt per provider means we quickly fallback through all 7
+ * providers in seconds instead of hours.
  */
 async function classifyWithProviderFallback<T>(
   basePrompt: string,
@@ -105,7 +114,7 @@ async function classifyWithProviderFallback<T>(
       basePrompt,
       schema,
       systemPrompt,
-      2 // Max 2 attempts per provider
+      1 // CRITICAL: 1 attempt only! Internal retries will handle 429
     );
     console.log(`[Classify] ✅ Classification succeeded with ${provider} after ${attempts} total attempts`);
     return { result, provider };
