@@ -29,6 +29,28 @@ const OLLAMA_DEFAULT_URL = 'http://localhost:11434';
 const OLLAMA_TIMEOUT_MS = 5000;
 
 /**
+ * Get possible Ollama URLs to try (for Windows, macOS, Linux)
+ */
+function getPossibleOllamaUrls(): string[] {
+  const baseUrls = [
+    'http://localhost:11434',      // Default
+    'http://127.0.0.1:11434',      // Explicit localhost
+    'http://host.docker.internal:11434', // Docker on Windows/Mac
+    'http://ollama:11434',          // Docker compose service name
+  ];
+
+  // On Windows, also try the actual hostname
+  if (typeof window === 'undefined') {
+    const hostname = process.env.HOSTNAME || 'localhost';
+    if (hostname !== 'localhost') {
+      baseUrls.push(`http://${hostname}:11434`);
+    }
+  }
+
+  return baseUrls;
+}
+
+/**
  * Check if Ollama is running and accessible
  */
 export async function checkOllamaAvailability(
@@ -37,18 +59,66 @@ export async function checkOllamaAvailability(
   isRunning: boolean;
   version?: string;
   error?: string;
+  detectedUrl?: string;
+}> {
+  // If a specific URL is provided, try it first
+  if (baseUrl !== OLLAMA_DEFAULT_URL) {
+    return checkSingleOllamaUrl(baseUrl);
+  }
+
+  // Otherwise, try all possible URLs
+  const possibleUrls = getPossibleOllamaUrls();
+  
+  for (const url of possibleUrls) {
+    const result = await checkSingleOllamaUrl(url);
+    if (result.isRunning) {
+      return { ...result, detectedUrl: url };
+    }
+  }
+
+  // None found
+  return {
+    isRunning: false,
+    error: `Ollama not found on any of: ${possibleUrls.join(', ')}`
+  };
+}
+
+/**
+ * Check a single Ollama URL
+ */
+async function checkSingleOllamaUrl(
+  url: string
+): Promise<{
+  isRunning: boolean;
+  version?: string;
+  error?: string;
 }> {
   try {
-    const response = await fetch(`${baseUrl}/api/version`, {
-      signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS)
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
 
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        isRunning: true,
-        version: data.version || 'unknown'
-      };
+    const response = await fetch(`${url}/api/version`, {
+      signal: controller.signal,
+      // No-cors mode for browser requests (with type assertion)
+      ...(typeof window !== 'undefined' && { mode: 'no-cors' })
+    }) as Response;
+
+    clearTimeout(timeoutId);
+
+    if (response.ok || response.status === 0) { // 0 for no-cors
+      try {
+        const data = await response.json();
+        return {
+          isRunning: true,
+          version: data.version || 'unknown'
+        };
+      } catch {
+        // no-cors response, assume it's running
+        return {
+          isRunning: true,
+          version: 'detected'
+        };
+      }
     }
 
     return {
@@ -69,10 +139,20 @@ export async function checkOllamaAvailability(
 export async function getOllamaModels(
   baseUrl: string = OLLAMA_DEFAULT_URL
 ): Promise<LocalModel[]> {
+  // First, check if the URL is actually running
+  const availability = await checkOllamaAvailability(baseUrl);
+  const actualUrl = availability.detectedUrl || baseUrl;
+
+  if (!availability.isRunning) {
+    console.warn(`[Local Models] Ollama not accessible at ${baseUrl}`);
+    return [];
+  }
+
   try {
-    const response = await fetch(`${baseUrl}/api/tags`, {
-      signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS)
-    });
+    const response = await fetch(`${actualUrl}/api/tags`, {
+      signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS),
+      ...(typeof window !== 'undefined' && { mode: 'no-cors' })
+    }) as Response;
 
     if (!response.ok) {
       console.warn(`[Local Models] Failed to fetch Ollama models: HTTP ${response.status}`);
@@ -87,7 +167,7 @@ export async function getOllamaModels(
         const localModel: LocalModel = {
           name: model.name,
           provider: 'ollama',
-          baseUrl,
+          baseUrl: actualUrl,
           size: (model.size || 0) / (1024 ** 3), // Convert bytes to GB
           quantization: extractQuantization(model.name),
           lastChecked: new Date(),
@@ -197,27 +277,30 @@ export async function detectLocalModels(
   console.log('[Local Models] 🔍 Detecting local AI models...');
 
   const availability = await checkOllamaAvailability(baseUrl);
+  const actualUrl = availability.detectedUrl || baseUrl;
   
   if (!availability.isRunning) {
     console.log('[Local Models] ⚠️  Ollama not running. Setup instructions:');
+    console.log('[Local Models] ℹ️  Tried URLs:', getPossibleOllamaUrls().join(', '));
     return {
       hasOllama: false,
-      ollamaUrl: baseUrl,
+      ollamaUrl: actualUrl,
       availableModels: [],
       instructions: getOllamaSetupInstructions()
     };
   }
 
-  console.log(`[Local Models] ✅ Ollama detected (v${availability.version})`);
+  console.log(`[Local Models] ✅ Ollama detected at ${actualUrl} (v${availability.version})`);
 
-  const models = await getOllamaModels(baseUrl);
+  const models = await getOllamaModels(actualUrl);
   const recommended = getRecommendedModel(models);
 
   if (models.length === 0) {
+    console.log('[Local Models] ⚠️  No models found. Instructions:');
     return {
       hasOllama: true,
       ollamaVersion: availability.version,
-      ollamaUrl: baseUrl,
+      ollamaUrl: actualUrl,
       availableModels: [],
       instructions: getFirstModelInstructions()
     };
@@ -236,7 +319,7 @@ export async function detectLocalModels(
   return {
     hasOllama: true,
     ollamaVersion: availability.version,
-    ollamaUrl: baseUrl,
+    ollamaUrl: actualUrl,
     availableModels: models,
     recommendedModel: recommended
   };

@@ -13,7 +13,15 @@ export async function GET(_req: NextRequest) {
 
   try {
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    console.log('[API] ℹ️  Trying to detect Ollama at:', ollamaUrl);
+    
     const setup = await detectLocalModels(ollamaUrl);
+
+    console.log('[API] Detection result:', {
+      hasOllama: setup.hasOllama,
+      detectedUrl: setup.ollamaUrl,
+      modelCount: setup.availableModels.length
+    });
 
     const response = {
       success: true,
