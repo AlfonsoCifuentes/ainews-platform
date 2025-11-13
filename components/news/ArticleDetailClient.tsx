@@ -136,10 +136,11 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
 
       {/* Content */}
       {content && (
-        <div className="prose prose-invert prose-lg max-w-none">
-          <div
+        <div className="max-w-4xl mx-auto">
+          {/* Content wrapper with optimal reading width */}
+          <div 
+            className="article-content prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: formattedContent }}
-            className="article-content"
           />
         </div>
       )}

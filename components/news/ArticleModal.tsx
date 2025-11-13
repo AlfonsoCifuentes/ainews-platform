@@ -9,6 +9,7 @@ import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { calculateReadingTime, extractPlainText } from '@/lib/utils/content-formatter';
+import { formatArticleContent } from '@/lib/utils/text-formatter';
 import { ShareButtons } from '@/components/shared/ShareButtons';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 
@@ -63,6 +64,9 @@ export function ArticleModal({
   const textForReadingTime = content || summary || '';
   const plainText = extractPlainText(textForReadingTime);
   const readingMinutes = calculateReadingTime(plainText);
+
+  // Format content for better readability
+  const formattedContent = content ? formatArticleContent(content) : '';
 
   return (
     <AnimatePresence>
@@ -141,32 +145,22 @@ export function ArticleModal({
             <div className="p-8 md:p-12">
               {/* Summary */}
               {summary && (
-                <div className="mb-8 p-6 rounded-2xl bg-muted/50 border-l-4 border-primary">
-                  <p className="text-lg leading-relaxed text-muted-foreground italic">
+                <div className="mb-8 p-6 rounded-2xl bg-blue-500/10 border-l-4 border-blue-500">
+                  <p className="text-xl leading-relaxed text-gray-200 italic">
                     {summary}
                   </p>
                 </div>
               )}
 
               {/* Full Content */}
-              {content && content.length > 100 && content !== summary ? (
-                <div 
-                  className="prose prose-lg dark:prose-invert max-w-none
-                    prose-headings:font-bold prose-headings:tracking-tight
-                    prose-p:leading-relaxed prose-p:text-foreground/90
-                    prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                    prose-img:rounded-xl prose-img:shadow-lg
-                    prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded
-                    prose-pre:bg-muted prose-pre:border prose-pre:border-border"
-                  dangerouslySetInnerHTML={{ __html: content }}
-                />
-              ) : content && content.length > 100 ? (
-                <div className="prose prose-lg dark:prose-invert max-w-none">
-                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                    {content}
-                  </p>
+              {formattedContent && (
+                <div className="max-w-4xl mx-auto">
+                  <div 
+                    className="article-content"
+                    dangerouslySetInnerHTML={{ __html: formattedContent }}
+                  />
                 </div>
-              ) : null}
+              )}
 
               {/* Read Original Link + Actions */}
               {article.source_url && (

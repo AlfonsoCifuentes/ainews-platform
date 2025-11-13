@@ -1,10 +1,12 @@
 /**
- * Text Formatter Utility
- * Automatically formats article content for better readability
- * - Splits text into proper paragraphs
- * - Adds proper spacing and typography
- * - Handles lists, quotes, and code blocks
- * - Preserves markdown formatting if present
+ * Text Formatter Utility - Enhanced for Maximum Readability
+ * Automatically formats article content with:
+ * - Intelligent paragraph detection and splitting
+ * - Automatic list detection (numbered and bulleted)
+ * - Quote block detection
+ * - Proper spacing and typography
+ * - Drop cap for first paragraph
+ * - Preserves markdown formatting
  */
 
 /**
@@ -16,7 +18,7 @@ export function formatArticleContent(content: string): string {
   if (!content) return '';
 
   // Remove excessive whitespace and normalize line breaks
-  const formatted = content
+  let formatted = content
     .trim()
     .replace(/\r\n/g, '\n') // Normalize Windows line breaks
     .replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive line breaks
@@ -26,8 +28,31 @@ export function formatArticleContent(content: string): string {
     return improveHtmlFormatting(formatted);
   }
 
-  // Otherwise, convert plain text to formatted HTML
-  return convertPlainTextToHtml(formatted);
+  // Detect and convert lists before paragraph splitting
+  formatted = detectAndFormatLists(formatted);
+
+  // Detect and convert blockquotes
+  formatted = detectAndFormatQuotes(formatted);
+
+  // Split plain text into paragraphs intelligently
+  const paragraphs = smartSplitIntoParagraphs(formatted);
+  
+  // Format each paragraph, with special treatment for the first one
+  return paragraphs
+    .map((p, index) => {
+      // Skip if already formatted as list or quote
+      if (p.startsWith('<ul>') || p.startsWith('<ol>') || p.startsWith('<blockquote>')) {
+        return p;
+      }
+      
+      // First paragraph gets drop-cap style
+      if (index === 0) {
+        return `<p class="first-paragraph mb-6 text-lg leading-relaxed">${formatParagraph(p)}</p>`;
+      }
+      
+      return `<p class="mb-5 leading-[1.8] text-base text-gray-200">${formatParagraph(p)}</p>`;
+    })
+    .join('\n');
 }
 
 /**
@@ -36,127 +61,353 @@ export function formatArticleContent(content: string): string {
 function improveHtmlFormatting(html: string): string {
   return html
     // Ensure paragraphs have proper spacing
-    .replace(/<p>/g, '<p class="mb-4 leading-relaxed">')
-    // Style headings
-    .replace(/<h1>/g, '<h1 class="text-3xl font-bold mt-8 mb-4">')
-    .replace(/<h2>/g, '<h2 class="text-2xl font-bold mt-6 mb-3">')
-    .replace(/<h3>/g, '<h3 class="text-xl font-semibold mt-4 mb-2">')
-    // Style lists
-    .replace(/<ul>/g, '<ul class="list-disc list-inside space-y-2 mb-4 ml-4">')
-    .replace(/<ol>/g, '<ol class="list-decimal list-inside space-y-2 mb-4 ml-4">')
-    .replace(/<li>/g, '<li class="leading-relaxed">')
-    // Style blockquotes
-    .replace(/<blockquote>/g, '<blockquote class="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground">')
+    .replace(/<p>/g, '<p class="mb-5 leading-[1.8] text-gray-200">')
+    // Style headings with better hierarchy
+    .replace(/<h1>/g, '<h1 class="text-4xl font-bold mt-10 mb-5 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">')
+    .replace(/<h2>/g, '<h2 class="text-3xl font-bold mt-8 mb-4 text-white">')
+    .replace(/<h3>/g, '<h3 class="text-2xl font-semibold mt-6 mb-3 text-gray-100">')
+    .replace(/<h4>/g, '<h4 class="text-xl font-semibold mt-4 mb-2 text-gray-200">')
+    // Style lists with better spacing
+    .replace(/<ul>/g, '<ul class="list-disc list-outside space-y-3 mb-6 ml-6 text-gray-200">')
+    .replace(/<ol>/g, '<ol class="list-decimal list-outside space-y-3 mb-6 ml-6 text-gray-200">')
+    .replace(/<li>/g, '<li class="leading-[1.8] pl-2">')
+    // Style blockquotes with border and background
+    .replace(/<blockquote>/g, '<blockquote class="border-l-4 border-blue-500 bg-blue-500/10 pl-6 pr-4 py-4 italic my-6 text-gray-300 rounded-r-lg">')
     // Style code blocks
-    .replace(/<pre>/g, '<pre class="bg-black/40 rounded-lg p-4 overflow-x-auto mb-4">')
-    .replace(/<code>/g, '<code class="font-mono text-sm">')
+    .replace(/<pre>/g, '<pre class="bg-black/60 border border-white/10 rounded-xl p-6 overflow-x-auto mb-6 text-sm">')
+    .replace(/<code>/g, '<code class="font-mono text-blue-300">')
     // Style links
-    .replace(/<a /g, '<a class="text-primary hover:underline" ');
+    .replace(/<a /g, '<a class="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors" ');
 }
 
 /**
- * Converts plain text to formatted HTML
+ * Detects and formats lists from plain text patterns
  */
-function convertPlainTextToHtml(text: string): string {
-  // Split into paragraphs (separated by double line breaks)
-  const paragraphs = text.split(/\n\n+/);
-
-  return paragraphs
-    .map(para => {
-      const trimmed = para.trim();
-      if (!trimmed) return '';
-
-      // Detect and format headings (lines that start with # or are ALL CAPS and short)
-      if (trimmed.startsWith('#')) {
-        const level = trimmed.match(/^#+/)?.[0].length || 1;
-        const headingText = trimmed.replace(/^#+\s*/, '');
-        return formatHeading(headingText, Math.min(level, 3));
-      }
-
-      // Detect headings by pattern (ALL CAPS, short lines)
-      if (isLikelyHeading(trimmed)) {
-        return formatHeading(trimmed, 2);
-      }
-
-      // Detect lists (lines starting with -, *, •, or numbers)
-      if (/^[-*•]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
-        return formatList(trimmed);
-      }
-
-      // Detect blockquotes (lines starting with >)
-      if (trimmed.startsWith('>')) {
-        const quoteText = trimmed.replace(/^>\s*/, '');
-        return `<blockquote class="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground">${escapeHtml(quoteText)}</blockquote>`;
-      }
-
-      // Detect code blocks (indented lines or lines with backticks)
-      if (trimmed.startsWith('    ') || /^```/.test(trimmed)) {
-        const codeText = trimmed.replace(/^```\w*\n?/, '').replace(/```$/, '').trim();
-        return `<pre class="bg-black/40 rounded-lg p-4 overflow-x-auto mb-4"><code class="font-mono text-sm">${escapeHtml(codeText)}</code></pre>`;
-      }
-
-      // Regular paragraph with inline formatting
-      return formatParagraph(trimmed);
-    })
-    .filter(Boolean)
-    .join('\n');
-}
-
-/**
- * Checks if a line is likely a heading
- */
-function isLikelyHeading(text: string): boolean {
-  // ALL CAPS and shorter than 60 chars (likely a heading)
-  if (text === text.toUpperCase() && text.length < 60 && !/^\d/.test(text)) {
-    return true;
-  }
-  
-  // Short line ending with colon (likely a heading)
-  if (text.length < 50 && text.endsWith(':')) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Formats a heading
- */
-function formatHeading(text: string, level: number): string {
-  const cleanText = escapeHtml(text.replace(/[:#]+$/, '').trim());
-  
-  switch (level) {
-    case 1:
-      return `<h1 class="text-3xl font-bold mt-8 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">${cleanText}</h1>`;
-    case 2:
-      return `<h2 class="text-2xl font-bold mt-6 mb-3">${cleanText}</h2>`;
-    case 3:
-      return `<h3 class="text-xl font-semibold mt-4 mb-2">${cleanText}</h3>`;
-    default:
-      return `<h2 class="text-2xl font-bold mt-6 mb-3">${cleanText}</h2>`;
-  }
-}
-
-/**
- * Formats a list (bullet or numbered)
- */
-function formatList(text: string): string {
+function detectAndFormatLists(text: string): string {
   const lines = text.split('\n');
-  const isBullet = /^[-*•]\s/.test(lines[0]);
-  
-  const listItems = lines
-    .map(line => {
-      const content = line.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
-      return content ? `<li class="leading-relaxed">${escapeHtml(content)}</li>` : '';
-    })
-    .filter(Boolean)
-    .join('\n');
+  const result: string[] = [];
+  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+  let listItems: string[] = [];
 
-  if (isBullet) {
-    return `<ul class="list-disc list-inside space-y-2 mb-4 ml-4">\n${listItems}\n</ul>`;
-  } else {
-    return `<ol class="list-decimal list-inside space-y-2 mb-4 ml-4">\n${listItems}\n</ol>`;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Detect bullet points: - item, • item, * item
+    const bulletMatch = line.match(/^[-•*]\s+(.+)$/);
+    
+    // Detect numbered items: 1. item, 1) item
+    const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+    
+    if (bulletMatch) {
+      if (!inList || listType !== 'ul') {
+        // Close previous list if needed
+        if (inList && listItems.length > 0) {
+          result.push(formatListBlock(listItems, listType!));
+          listItems = [];
+        }
+        inList = true;
+        listType = 'ul';
+      }
+      listItems.push(bulletMatch[1]);
+    } else if (numberedMatch) {
+      if (!inList || listType !== 'ol') {
+        // Close previous list if needed
+        if (inList && listItems.length > 0) {
+          result.push(formatListBlock(listItems, listType!));
+          listItems = [];
+        }
+        inList = true;
+        listType = 'ol';
+      }
+      listItems.push(numberedMatch[1]);
+    } else {
+      // Not a list item
+      if (inList && listItems.length > 0) {
+        result.push(formatListBlock(listItems, listType!));
+        listItems = [];
+        inList = false;
+        listType = null;
+      }
+      if (line) {
+        result.push(line);
+      }
+    }
   }
+
+  // Close any remaining list
+  if (inList && listItems.length > 0) {
+    result.push(formatListBlock(listItems, listType!));
+  }
+
+  return result.join('\n\n');
+}
+
+/**
+ * Formats a list block
+ */
+function formatListBlock(items: string[], type: 'ul' | 'ol'): string {
+  const tag = type;
+  const itemsHtml = items
+    .map(item => `<li class="leading-[1.8] pl-2">${formatParagraph(item)}</li>`)
+    .join('\n');
+  
+  const className = type === 'ul' 
+    ? 'list-disc list-outside space-y-3 mb-6 ml-6 text-gray-200'
+    : 'list-decimal list-outside space-y-3 mb-6 ml-6 text-gray-200';
+  
+  return `<${tag} class="${className}">\n${itemsHtml}\n</${tag}>`;
+}
+
+/**
+ * Detects and formats blockquotes from plain text patterns
+ */
+function detectAndFormatQuotes(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let inQuote = false;
+  let quoteLines: string[] = [];
+
+  for (const line of lines) {
+    // Detect quote: > text or "text" at start
+    const quoteMatch = line.trim().match(/^>\s+(.+)$/);
+    
+    if (quoteMatch) {
+      inQuote = true;
+      quoteLines.push(quoteMatch[1]);
+    } else {
+      // Check for quote end
+      if (inQuote && quoteLines.length > 0) {
+        result.push(formatQuoteBlock(quoteLines.join(' ')));
+        quoteLines = [];
+        inQuote = false;
+      }
+      if (line.trim()) {
+        result.push(line);
+      }
+    }
+  }
+
+  // Close any remaining quote
+  if (inQuote && quoteLines.length > 0) {
+    result.push(formatQuoteBlock(quoteLines.join(' ')));
+  }
+
+  return result.join('\n\n');
+}
+
+/**
+ * Formats a quote block
+ */
+function formatQuoteBlock(text: string): string {
+  return `<blockquote class="border-l-4 border-blue-500 bg-blue-500/10 pl-6 pr-4 py-4 italic my-6 text-gray-300 rounded-r-lg">${formatParagraph(text)}</blockquote>`;
+}
+
+/**
+ * Intelligently splits plain text into paragraphs
+ * Uses sentence boundary detection + intelligent grouping
+ */
+function smartSplitIntoParagraphs(text: string): string[] {
+  // First, check if text already has line breaks (preserve them as paragraph boundaries)
+  if (text.includes('\n')) {
+    const parts = text.split(/\n\n+/);
+    const result: string[] = [];
+
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+
+      // Check if this is already a formatted block (list, quote, etc)
+      if (trimmed.startsWith('<')) {
+        result.push(trimmed);
+        continue;
+      }
+
+      // If this part has single line breaks, treat them as paragraph separators
+      if (trimmed.includes('\n')) {
+        const subParts = trimmed.split('\n').filter(p => p.trim());
+        
+        // If we have very short parts, group them
+        const grouped = groupShortParagraphs(subParts);
+        result.push(...grouped);
+      } else {
+        // Single paragraph, but might be too long
+        const split = splitLongParagraph(trimmed);
+        result.push(...split);
+      }
+    }
+    return result.filter(p => p.trim().length > 0);
+  }
+
+  // Pure plain text - split by sentences and group intelligently
+  const sentences = splitIntoSentences(text);
+  return groupSentences(sentences);
+}
+
+/**
+ * Groups short paragraphs together for better readability
+ */
+function groupShortParagraphs(paragraphs: string[]): string[] {
+  const result: string[] = [];
+  let buffer: string[] = [];
+  let bufferLength = 0;
+
+  for (const p of paragraphs) {
+    const trimmed = p.trim();
+    if (!trimmed) continue;
+
+    buffer.push(trimmed);
+    bufferLength += trimmed.length;
+
+    // Flush buffer if:
+    // 1. We've accumulated enough text (> 400 chars)
+    // 2. Current paragraph is long enough to stand alone (> 300 chars)
+    // 3. Paragraph ends with sentence-ending punctuation
+    const shouldFlush = 
+      bufferLength > 400 ||
+      (trimmed.length > 300 && buffer.length === 1) ||
+      (trimmed.match(/[.!?]$/) && bufferLength > 200);
+
+    if (shouldFlush) {
+      result.push(buffer.join(' '));
+      buffer = [];
+      bufferLength = 0;
+    }
+  }
+
+  // Add remaining
+  if (buffer.length > 0) {
+    result.push(buffer.join(' '));
+  }
+
+  return result;
+}
+
+/**
+ * Splits a very long paragraph into smaller, readable chunks
+ */
+function splitLongParagraph(text: string): string[] {
+  // If paragraph is reasonable length, keep it
+  if (text.length <= 800) return [text];
+
+  // Split into sentences and regroup
+  const sentences = splitIntoSentences(text);
+  return groupSentences(sentences);
+}
+
+/**
+ * Splits text into sentences using intelligent boundary detection
+ */
+function splitIntoSentences(text: string): string[] {
+  const sentences: string[] = [];
+  let currentSentence = '';
+  let inQuote = false;
+  let quoteChar = '';
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    currentSentence += char;
+
+    // Track if we're inside quotes
+    if ((char === '"' || char === "'") && (i === 0 || text[i - 1] !== '\\')) {
+      if (!inQuote) {
+        inQuote = true;
+        quoteChar = char;
+      } else if (char === quoteChar) {
+        inQuote = false;
+        quoteChar = '';
+      }
+    }
+
+    // Don't split inside quotes
+    if (inQuote) continue;
+
+    // Check if we've reached a sentence boundary
+    if (char === '.' || char === '!' || char === '?') {
+      // Avoid splitting on common abbreviations
+      if (char === '.' && isCommonAbbreviation(currentSentence)) {
+        continue;
+      }
+
+      // Look ahead for capital letter after spaces
+      if (i === text.length - 1) {
+        // End of text
+        const trimmed = currentSentence.trim();
+        if (trimmed) sentences.push(trimmed);
+        currentSentence = '';
+      } else if (nextChar === ' ' || nextChar === '\n') {
+        // Check if next non-space character is capital
+        let j = i + 1;
+        while (j < text.length && (text[j] === ' ' || text[j] === '\n')) j++;
+        
+        if (j < text.length && /[A-Z0-9"]/.test(text[j])) {
+          // Sentence boundary found
+          const trimmed = currentSentence.trim();
+          if (trimmed) sentences.push(trimmed);
+          currentSentence = '';
+          i = j - 1; // Skip whitespace
+        }
+      }
+    }
+  }
+
+  // Add remaining text
+  if (currentSentence.trim()) {
+    sentences.push(currentSentence.trim());
+  }
+
+  return sentences.filter(s => s.length > 0);
+}
+
+/**
+ * Checks if text ends with a common abbreviation
+ */
+function isCommonAbbreviation(text: string): boolean {
+  const common = ['Mr.', 'Mrs.', 'Dr.', 'Ms.', 'Prof.', 'Sr.', 'Jr.', 'etc.', 'e.g.', 'i.e.', 'vs.', 'Inc.', 'Ltd.', 'Corp.'];
+  const lastWord = text.trim().split(/\s+/).pop() || '';
+  return common.includes(lastWord);
+}
+
+/**
+ * Groups sentences into readable paragraphs (3-5 sentences each)
+ */
+function groupSentences(sentences: string[]): string[] {
+  if (sentences.length === 0) return [];
+  if (sentences.length <= 2) return [sentences.join(' ')];
+
+  const paragraphs: string[] = [];
+  let currentParagraph: string[] = [];
+  let currentLength = 0;
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    currentParagraph.push(trimmed);
+    currentLength += trimmed.length;
+
+    // Break paragraph when:
+    // 1. We have 4-5 sentences AND reasonable length
+    // 2. Current paragraph > 500 chars
+    // 3. Sentence ends with ! or ? (natural break point) AND we have at least 2 sentences
+    const shouldBreak =
+      (currentParagraph.length >= 4 && currentLength > 300) ||
+      currentLength > 500 ||
+      (currentParagraph.length >= 2 && trimmed.match(/[!?]$/) && currentLength > 200);
+
+    if (shouldBreak && currentParagraph.length > 0) {
+      paragraphs.push(currentParagraph.join(' '));
+      currentParagraph = [];
+      currentLength = 0;
+    }
+  }
+
+  // Add remaining sentences
+  if (currentParagraph.length > 0) {
+    paragraphs.push(currentParagraph.join(' '));
+  }
+
+  return paragraphs;
 }
 
 /**
@@ -166,26 +417,29 @@ function formatParagraph(text: string): string {
   let formatted = escapeHtml(text);
 
   // Bold: **text** or __text__
-  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>');
-  formatted = formatted.replace(/__(.+?)__/g, '<strong class="font-bold">$1</strong>');
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+  formatted = formatted.replace(/__(.+?)__/g, '<strong class="font-bold text-white">$1</strong>');
 
-  // Italic: *text* or _text_
-  formatted = formatted.replace(/\*(.+?)\*/g, '<em class="italic">$1</em>');
-  formatted = formatted.replace(/_(.+?)_/g, '<em class="italic">$1</em>');
+  // Italic: *text* or _text_ (but not in URLs or markdown that's already bold)
+  formatted = formatted.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="italic text-gray-100">$1</em>');
+  formatted = formatted.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em class="italic text-gray-100">$1</em>');
 
   // Inline code: `code`
-  formatted = formatted.replace(/`(.+?)`/g, '<code class="bg-black/40 px-1.5 py-0.5 rounded font-mono text-sm">$1</code>');
+  formatted = formatted.replace(/`(.+?)`/g, '<code class="bg-black/60 border border-white/10 px-2 py-0.5 rounded font-mono text-sm text-blue-300">$1</code>');
 
   // Links: [text](url)
-  formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
-
-  // Auto-link URLs
   formatted = formatted.replace(
-    /(?<!href="|src=")https?:\/\/[^\s<]+/g,
-    '<a href="$&" class="text-primary hover:underline break-all" target="_blank" rel="noopener noreferrer">$&</a>'
+    /\[(.+?)\]\((.+?)\)/g, 
+    '<a href="$2" class="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>'
   );
 
-  return `<p class="mb-4 leading-relaxed text-base">${formatted}</p>`;
+  // Auto-link URLs (but not if already in href)
+  formatted = formatted.replace(
+    /(?<!href="|src="|">)https?:\/\/[^\s<]+(?=[<\s]|$)/g,
+    '<a href="$&" class="text-blue-400 hover:text-blue-300 underline underline-offset-4 break-all transition-colors" target="_blank" rel="noopener noreferrer">$&</a>'
+  );
+
+  return formatted;
 }
 
 /**
