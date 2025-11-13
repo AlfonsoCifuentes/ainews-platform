@@ -170,6 +170,35 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Diagnostics
+  const handleDiagnosis = async () => {
+    console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
+    console.log(`%c🔧 RUNNING PROVIDER DIAGNOSTIC TEST`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
+    console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
+    
+    try {
+      const diagResponse = await fetch('/api/courses/diagnose-providers');
+      const diagData = await diagResponse.json();
+      
+      console.log(`%cEnvironment: ${diagData.environment}`, 'color: #00aaff; font-weight: bold');
+      console.log(`%cProvider Status:`, 'color: #ffaa00; font-weight: bold');
+      
+      Object.entries(diagData.providers).forEach(([name, config]) => {
+        const configData = config as { configured: boolean; keyPrefix: string };
+        const status = configData.configured ? '✅' : '❌';
+        console.log(`  ${status} ${name.toUpperCase()}: ${configData.configured ? 'CONFIGURED' : 'NOT SET'} (${configData.keyPrefix})`);
+      });
+      
+      console.log(`%c${'─'.repeat(80)}`, 'color: #ffaa00');
+      console.log(`%c${diagData.summary.message}`, diagData.summary.configured === 0 ? 'color: #ff0000; font-weight: bold; font-size: 14px' : 'color: #00ff00; font-weight: bold; font-size: 14px');
+      console.log(`%cConfigured: ${diagData.summary.configured}/${diagData.summary.total} (${diagData.summary.percentage})`, 'color: #ffaa00; font-weight: bold');
+      console.log(`%c${'═'.repeat(80)}`, 'font-weight: bold; color: #ffaa00; font-size: 14px');
+    } catch (error) {
+      console.error(`%c❌ Diagnostic request failed:`, 'color: #ff0000; font-weight: bold');
+      console.error(error);
+    }
+  };
+
   const handleInitiateGenerate = () => {
     if (!topic.trim()) {
       return;
@@ -253,10 +282,13 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         // 🔍 Log response
         logger.response(response.status, response.statusText, response.headers);
         
-        // Log to browser console for debugging
+        // Log to browser console for debugging - ALWAYS DO THIS FIRST
+        console.log(`%c${'═'.repeat(80)}`, 'color: #00ff00; font-weight: bold');
         console.log(`%c🔍 COURSE GENERATOR - RESPONSE RECEIVED`, 'font-weight: bold; color: #00ff00; font-size: 14px');
-        console.log(`Status: ${response.status} ${response.statusText}`);
-        console.log(`Duration: ${fetchDuration}s`);
+        console.log(`%cStatus: ${response.status} ${response.statusText}`, response.ok ? 'color: #00ff00' : 'color: #ff0000');
+        console.log(`%cDuration: ${fetchDuration}s`, 'color: #ffaa00');
+        console.log(`%cContent-Type: ${response.headers.get('content-type')}`, 'color: #00aaff');
+        console.log(`%c${'═'.repeat(80)}`, 'color: #00ff00; font-weight: bold');
 
         let payload: CourseGenerationResponse | null = null;
         let rawText = '';
@@ -265,8 +297,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           logger.step(5, 8, 'Parsing response JSON...');
           rawText = await response.text();
           
+          console.log(`%c📝 Response text received: ${rawText.length} bytes`, 'color: #ffaa00; font-weight: bold');
+          
           if (!rawText) {
             logger.warn('Response body is empty!');
+            console.log(`%c⚠️ WARNING: Response body is empty!`, 'color: #ff0000; font-weight: bold');
             throw new Error('Server returned empty response');
           }
 
@@ -284,27 +319,29 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             
             // If error response with debug logs, dump them
             if (!payload.success && payload.debug?.serverLogs) {
-              console.log(`%c📋 SERVER-SIDE LOGS (${payload.debug.serverLogs.length} lines):`, 'color: #ffaa00; font-weight: bold');
+              console.log(`%c📋 SERVER-SIDE LOGS (${payload.debug.serverLogs.length} lines):`, 'color: #ffaa00; font-weight: bold; font-size: 12px');
               payload.debug.serverLogs.forEach((log, idx) => {
                 const total = payload?.debug?.serverLogs.length || 0;
                 console.log(`  [${idx + 1}/${total}] ${log}`);
               });
-              console.log(`Execution time: ${payload.debug.executionTimeMs}ms`);
+              console.log(`%cExecution time: ${payload.debug.executionTimeMs}ms`, 'color: #ffaa00; font-weight: bold');
             }
           } catch (jsonError) {
             logger.error(jsonError);
             logger.warn('Failed to parse JSON. Raw response:');
-            console.log('═'.repeat(80));
-            console.log('RAW RESPONSE TEXT:');
-            console.log(rawText.substring(0, 1000)); // First 1000 chars
-            if (rawText.length > 1000) {
-              console.log(`... (${rawText.length - 1000} more characters)`);
+            console.log(`%c${'═'.repeat(80)}`, 'color: #ff0000');
+            console.log(`%c❌ RAW RESPONSE TEXT:`, 'color: #ff0000; font-weight: bold');
+            console.log(rawText.substring(0, 2000)); // First 2000 chars
+            if (rawText.length > 2000) {
+              console.log(`%c... (${rawText.length - 2000} more bytes)`, 'color: #ff0000');
             }
-            console.log('═'.repeat(80));
+            console.log(`%c${'═'.repeat(80)}`, 'color: #ff0000');
             throw new Error(`Invalid JSON response: ${jsonError instanceof Error ? jsonError.message : 'Unknown error'}`);
           }
         } catch (parseError) {
           logger.error(parseError, response);
+          console.log(`%c❌ ERROR during response parsing:`, 'color: #ff0000; font-weight: bold; font-size: 12px');
+          console.log(parseError);
           throw new Error(`Failed to read response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
         }
 
@@ -455,16 +492,31 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         </div>
 
         {/* Generate Button */}
-        <motion.button
-          type="button"
-          onClick={handleInitiateGenerate}
-          disabled={!topic.trim() || isPending}
-          whileHover={{ scale: isPending ? 1 : 1.02 }}
-          whileTap={{ scale: isPending ? 1 : 0.98 }}
-          className="w-full rounded-full bg-gradient-to-r from-primary to-primary/80 px-8 py-4 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/40 transition-all hover:shadow-xl hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isPending ? translations.generating : translations.generateButton}
-        </motion.button>
+        <div className="flex gap-3">
+          <motion.button
+            type="button"
+            onClick={handleInitiateGenerate}
+            disabled={!topic.trim() || isPending}
+            whileHover={{ scale: isPending ? 1 : 1.02 }}
+            whileTap={{ scale: isPending ? 1 : 0.98 }}
+            className="flex-1 rounded-full bg-gradient-to-r from-primary to-primary/80 px-8 py-4 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/40 transition-all hover:shadow-xl hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? translations.generating : translations.generateButton}
+          </motion.button>
+          
+          {/* Diagnostic Button */}
+          <motion.button
+            type="button"
+            onClick={handleDiagnosis}
+            disabled={isPending}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Check which LLM providers are configured"
+            className="rounded-full border-2 border-muted-foreground/30 bg-background/50 px-4 py-4 text-sm font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary disabled:opacity-50 transition-all"
+          >
+            🔧
+          </motion.button>
+        </div>
 
         {/* Provider Selector Modal - Disabled for now */}
         {/* 
