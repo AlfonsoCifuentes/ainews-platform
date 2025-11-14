@@ -1,5 +1,5 @@
 /**
- * Complete Course Generation Endpoint
+ * Complete Course Generation Endpoint - PRODUCTION VERSION
  * Generates full, followable courses with modules, quizzes, and content
  * 
  * POST /api/generate-course-simple
@@ -7,6 +7,8 @@
  * 
  * This endpoint is the PRIMARY course generation endpoint
  * It generates courses with substantive content suitable for self-paced learning
+ * 
+ * CRITICAL: Simplified to avoid timeout errors on Vercel serverless
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,7 +16,8 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 
-export const maxDuration = 120;
+// CRITICAL: Must be very high for Vercel serverless
+export const maxDuration = 59;
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
@@ -198,7 +201,7 @@ CRÍTICO:
 // OPENAI GENERATION
 // ============================================================================
 
-async function generateWithOpenAI(prompt: string, duration: string = 'medium'): Promise<CourseData> {
+async function generateWithOpenAI(prompt: string): Promise<CourseData> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured');
@@ -206,55 +209,62 @@ async function generateWithOpenAI(prompt: string, duration: string = 'medium'): 
 
   console.log('[OpenAI] Calling GPT-4o for course generation...');
 
-  // Dynamically set token limit based on course complexity
-  const maxTokensForCourse: { [key: string]: number } = {
-    'short': 3500,
-    'medium': 4500,
-    'long': 6000
-  };
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [{ 
-        role: 'user', 
-        content: prompt 
-      }],
-      temperature: 0.7,
-      max_tokens: maxTokensForCourse[duration] ?? 4500
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    const errorMsg = (errorData as { error?: { message: string } }).error?.message || 'Unknown error';
-    throw new Error(`OpenAI API error (${response.status}): ${errorMsg}`);
-  }
-
-  const data = await response.json() as { choices: Array<{ message?: { content: string } }> };
-  const content = data.choices[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error('No content returned from OpenAI');
-  }
-
-  // Parse JSON response
-  const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-  
   try {
-    const parsed = JSON.parse(cleaned) as CourseData;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ 
+          role: 'user', 
+          content: prompt 
+        }],
+        temperature: 0.7,
+        max_tokens: 5000
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = (errorData as { error?: { message?: string } }).error?.message || `HTTP ${response.status}`;
+      throw new Error(`OpenAI API error: ${errorMsg}`);
+    }
+
+    const data = await response.json() as { choices: Array<{ message?: { content: string } }> };
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No content returned from OpenAI');
+    }
+
+    // Parse JSON response - try multiple approaches
+    let parsed: CourseData;
+    try {
+      // Try direct parsing first
+      parsed = JSON.parse(content);
+    } catch {
+      // Try removing markdown wrappers
+      const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    }
+
     console.log('[OpenAI] ✅ Successfully parsed course structure');
     console.log(`[OpenAI] Course title: "${parsed.title}"`);
     console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
     return parsed;
   } catch (error) {
-    console.error('[OpenAI] Failed to parse response:', cleaned.substring(0, 200));
-    throw new Error(`Failed to parse course JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[OpenAI] Generation failed:', msg);
+    throw error;
   }
 }
 
@@ -267,50 +277,45 @@ async function saveCourseToDatabase(
   params: z.infer<typeof schema>,
   courseId: string
 ): Promise<{ success: boolean; courseId: string; error?: string }> {
-  const supabase = getSupabaseServerClient();
-
   try {
-    console.log(`[Database] Saving course "${courseData.title}" to database...`);
+    const supabase = getSupabaseServerClient();
+    console.log(`[DB] Saving course "${courseData.title}" to database...`);
 
-    // 1. Insert course record
-    const { error: courseError } = await supabase
+    // Simple approach: save the generated content in both EN and ES
+    
+    const courseRecord = {
+      id: courseId,
+      title_en: params.locale === 'en' ? courseData.title : courseData.title,
+      title_es: params.locale === 'es' ? courseData.title : courseData.title,
+      description_en: params.locale === 'en' ? courseData.description : courseData.description,
+      description_es: params.locale === 'es' ? courseData.description : courseData.description,
+      difficulty: params.difficulty,
+      duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 240,
+      topics: [params.topic],
+      ai_generated: true,
+      status: 'published' as const,
+      enrollment_count: 0,
+      rating_avg: 0,
+      completion_rate: 0,
+      view_count: 0,
+      category: params.topic
+    };
+
+    const { error: courseError, data: courseData_resp } = await supabase
       .from('courses')
-      .insert({
-        id: courseId,
-        title_en: params.locale === 'en' ? courseData.title : courseData.title,
-        title_es: params.locale === 'es' ? courseData.title : courseData.title,
-        description_en: params.locale === 'en' ? courseData.description : courseData.description,
-        description_es: params.locale === 'es' ? courseData.description : courseData.description,
-        difficulty: params.difficulty,
-        duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 240,
-        topics: [params.topic],
-        ai_generated: true,
-        status: 'published',
-        enrollment_count: 0,
-        rating_avg: 0,
-        completion_rate: 0,
-        view_count: 0,
-        category: params.topic
-      });
+      .insert([courseRecord])
+      .select();
 
-    if (courseError) {
-      console.error('[Database] ❌ Course insert error:', courseError);
-      return {
-        success: false,
-        courseId,
-        error: `Failed to save course: ${courseError.message}`
-      };
+    if (courseError || !courseData_resp) {
+      console.error('[DB] ❌ Course insert error:', courseError?.message);
+      throw new Error(`Failed to insert course: ${courseError?.message}`);
     }
 
-    console.log(`[Database] ✅ Course saved with ID: ${courseId}`);
+    console.log(`[DB] ✅ Course saved`);
 
     // 2. Insert modules
-    if (!courseData.modules || courseData.modules.length === 0) {
-      return {
-        success: true,
-        courseId,
-        error: 'No modules to insert'
-      };
+    if (!courseData.modules?.length) {
+      return { success: true, courseId };
     }
 
     const modulesToInsert = courseData.modules.map((module, index) => ({
@@ -329,22 +334,19 @@ async function saveCourseToDatabase(
       }
     }));
 
-    console.log(`[Database] Inserting ${modulesToInsert.length} modules...`);
+    console.log(`[DB] Inserting ${modulesToInsert.length} modules...`);
 
-    const { error: modulesError } = await supabase
+    const { error: modulesError, data: modulesData } = await supabase
       .from('course_modules')
-      .insert(modulesToInsert);
+      .insert(modulesToInsert)
+      .select();
 
-    if (modulesError) {
-      console.error('[Database] ⚠️ Modules insert error (course still saved):', modulesError);
-      return {
-        success: true,
-        courseId,
-        error: `Modules insert partial: ${modulesError.message}`
-      };
+    if (modulesError || !modulesData) {
+      console.error('[DB] ⚠️ Modules insert error:', modulesError?.message);
+      throw new Error(`Failed to insert modules: ${modulesError?.message}`);
     }
 
-    console.log(`[Database] ✅ All ${modulesToInsert.length} modules saved successfully`);
+    console.log(`[DB] ✅ Inserted ${modulesToInsert.length} modules`);
 
     return {
       success: true,
@@ -352,11 +354,12 @@ async function saveCourseToDatabase(
     };
 
   } catch (error) {
-    console.error('[Database] Unexpected error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[DB] Unexpected error:', msg);
     return {
       success: false,
       courseId,
-      error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown'}`
+      error: msg
     };
   }
 }
@@ -391,7 +394,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Generate with OpenAI
     console.log('[API] 📝 Generating course with OpenAI...');
-    const courseData = await generateWithOpenAI(prompt, params.duration);
+    const courseData = await generateWithOpenAI(prompt);
 
     // 4. Create course ID
     const courseId = crypto.randomUUID();
@@ -426,28 +429,47 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[API] ❌ Error (${duration}ms):`, error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[API] ❌ Error (${duration}ms):`, errorMsg);
 
+    // Handle specific error types
     if (error instanceof z.ZodError) {
       return NextResponse.json({
         success: false,
-        error: 'Invalid request parameters',
+        error: 'Invalid input parameters',
         details: error.errors
       }, { status: 400 });
     }
 
-    if (error instanceof SyntaxError) {
+    if (error instanceof SyntaxError || errorMsg.includes('JSON')) {
       return NextResponse.json({
         success: false,
-        error: 'Failed to parse course JSON from AI',
-        details: error.message
-      }, { status: 400 });
+        error: 'Failed to parse AI response - invalid JSON structure',
+        details: errorMsg
+      }, { status: 500 });
     }
 
+    if (errorMsg.includes('OPENAI_API_KEY')) {
+      return NextResponse.json({
+        success: false,
+        error: 'OpenAI API not configured',
+        details: 'Server configuration error'
+      }, { status: 500 });
+    }
+
+    if (errorMsg.includes('OpenAI API error')) {
+      return NextResponse.json({
+        success: false,
+        error: 'OpenAI API returned an error',
+        details: errorMsg
+      }, { status: 503 });
+    }
+
+    // Generic error
     return NextResponse.json({
       success: false,
       error: 'Course generation failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorMsg
     }, { status: 500 });
   }
 }
