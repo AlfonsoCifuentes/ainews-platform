@@ -13,6 +13,7 @@ export type GenerateOptions = z.infer<typeof generateOptionsSchema>;
 
 export type LLMProvider =
   | 'ollama'
+  | 'openai'
   | 'openrouter'
   | 'groq'
   | 'gemini'
@@ -616,6 +617,12 @@ export function createLLMClient(
       defaultModel = 'llama3.2:3b'; // Small, fast model for development
       break;
 
+    case 'openai':
+      apiKey = process.env.OPENAI_API_KEY;
+      baseUrl = 'https://api.openai.com/v1';
+      defaultModel = 'gpt-4o';
+      break;
+
     case 'openrouter':
       apiKey = process.env.OPENROUTER_API_KEY;
       baseUrl = 'https://openrouter.ai/api/v1';
@@ -747,6 +754,12 @@ export function getAvailableProviders(): LLMProvider[] {
   }
 
   // Cloud providers ordered by: free tier generosity + reliability
+  // OpenAI: GPT-4o and GPT-4 Turbo - premium models with excellent quality
+  if (process.env.OPENAI_API_KEY) {
+    available.push('openai');
+    console.log(`[LLM] ✅ OpenAI configured and available`);
+  }
+  
   // Groq: 30 requests/minute free (most generous for JSON generation tasks)
   if (process.env.GROQ_API_KEY) {
     available.push('groq');
