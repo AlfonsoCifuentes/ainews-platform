@@ -137,8 +137,8 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
           onClick={() => setSelectedArticle(hero)}
           className="group mb-12 block w-full cursor-pointer text-left"
         >
-          <article className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
-            <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
+          <article className="relative rounded-[2.5rem] bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 shadow-2xl shadow-primary/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl hover:shadow-primary/20">
+            <div className="relative w-full" style={{ aspectRatio: '16 / 9', minHeight: '500px', overflow: 'hidden' }}>
               <Image
                 src={hero.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"%3E%3Crect fill="%23111827" width="1200" height="630"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="48" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
                 alt={getLocalizedString(hero, 'title', locale)}
@@ -150,13 +150,13 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
               
-              <div className="absolute left-8 top-8">
+              <div className="absolute left-8 top-8 z-20">
                 <span className="rounded-full border border-white/30 bg-white/10 px-6 py-2 text-sm font-bold uppercase tracking-wider text-white backdrop-blur-xl">
                   {translateCategory(hero.category)}
                 </span>
               </div>
 
-              <div className="absolute right-8 top-8 flex items-center gap-3 z-10">
+              <div className="absolute right-8 top-8 flex items-center gap-3 z-30">
                 <div onClick={(e) => e.stopPropagation()}>
                   <BookmarkButton article={hero} locale={locale} />
                 </div>
@@ -165,7 +165,7 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                 </div>
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 z-40">
                 <div className="mb-4 flex items-center gap-4 text-sm text-white/80">
                   <span>{formatRelativeTimeFromNow(hero.published_at, locale)}</span>
                   <span>•</span>
@@ -177,12 +177,12 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
                 <p className="mb-8 max-w-3xl text-xl leading-relaxed text-white/90">
                   {getLocalizedString(hero, 'summary', locale)}
                 </p>
-                <div className="inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-bold text-primary transition-all duration-300 group-hover:gap-5 group-hover:bg-primary group-hover:text-white">
+                <button className="inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-bold text-primary transition-all duration-300 hover:gap-5 hover:bg-primary hover:text-white">
                   {tCommon('buttons.readMore')}
                   <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
-                </div>
+                </button>
               </div>
             </div>
           </article>
