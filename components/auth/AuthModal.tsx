@@ -82,7 +82,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
         await signUpWithEmail(email, password, { name, locale });
       }
       
+      // Wait for session to be set in cookies before doing server actions
+      // This ensures router.refresh() has the updated session
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       router.refresh();
+      
+      // Wait a bit more for refresh to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // If there's a pending course enrollment, attempt it
       if (pendingCourseId) {
@@ -103,25 +110,29 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId }),
+        credentials: 'include', // Ensure cookies are sent
       });
 
-      if (response.ok) {
-        // Dispatch event for XP award
-        const event = new CustomEvent('course-enrolled', {
-          detail: { courseId },
-        });
-        window.dispatchEvent(event);
+      const data = await response.json();
 
-        setPendingCourseId(undefined);
-        onClose();
-      } else {
-        throw new Error('Failed to enroll after login');
+      if (!response.ok) {
+        console.error('Enrollment error:', response.status, data);
+        // If enrollment fails, still close modal but show error
+        setError(`Enrollment failed: ${data.error || 'Unknown error'}`);
+        return;
       }
-    } catch (err) {
-      console.error('Auto-enrollment error:', err);
-      // Don't block modal close on enrollment failure
+
+      // Dispatch event for XP award
+      const event = new CustomEvent('course-enrolled', {
+        detail: { courseId },
+      });
+      window.dispatchEvent(event);
+
       setPendingCourseId(undefined);
       onClose();
+    } catch (err) {
+      console.error('Auto-enrollment error:', err);
+      setError(`Enrollment failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
