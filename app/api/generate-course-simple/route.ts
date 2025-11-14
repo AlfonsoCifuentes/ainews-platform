@@ -5,14 +5,15 @@
  * POST /api/generate-course-simple
  * Body: { topic, difficulty, duration, locale }
  * 
- * This endpoint generates courses directly without complex logic
- * that could cause timeouts on Vercel serverless.
+ * Uses LLM client with automatic fallback system
+ * Groq → Gemini → OpenRouter → Together → etc.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 
 // Vercel serverless has strict timeout limits (60s max)
 export const maxDuration = 50;
@@ -102,67 +103,45 @@ Return EXACT JSON structure (valid, no markdown):
 Generate EXACTLY ${moduleCount} modules. Only valid JSON, no explanation.`;
 };
 
-// Call OpenAI with timeout handling
-async function callOpenAI(prompt: string): Promise<CourseData> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY not set');
-  }
-
-  console.log('[OpenAI] Requesting course generation...');
+// Call LLM with automatic provider fallback (Groq → Gemini → OpenRouter → etc)
+async function callLLMWithFallback(prompt: string): Promise<CourseData> {
+  console.log('[LLM] Requesting course generation with provider fallback...');
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini', // Faster model for quick responses
-        messages: [{ 
-          role: 'user', 
-          content: prompt 
-        }],
-        temperature: 0.5,
-        max_tokens: 4000
-      }),
-      signal: controller.signal
+    // Get LLM client with automatic fallback to available providers
+    const llmClient = await createLLMClientWithFallback();
+    console.log('[LLM] Using fallback system to find available provider');
+
+    // Call the LLM
+    const response = await llmClient.generate(prompt, {
+      temperature: 0.5,
+      maxTokens: 4000
     });
 
     clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const error = await response.json() as { error?: { message?: string } };
-      const msg = error.error?.message || `HTTP ${response.status}`;
-      throw new Error(`OpenAI error: ${msg}`);
-    }
-
-    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content from OpenAI');
-    }
-
-    // Parse JSON - handle markdown wrappers
-    const jsonStr = content.includes('```json')
-      ? content.split('```json')[1].split('```')[0].trim()
-      : content.includes('```')
-      ? content.split('```')[1].split('```')[0].trim()
-      : content.trim();
+    console.log('[LLM] ✅ Course generated successfully');
+    
+    // Parse JSON response
+    const jsonStr = response.content.includes('```json')
+      ? response.content.split('```json')[1].split('```')[0].trim()
+      : response.content.includes('```')
+      ? response.content.split('```')[1].split('```')[0].trim()
+      : response.content.trim();
 
     const parsed = JSON.parse(jsonStr) as CourseData;
-    console.log('[OpenAI] ✅ Course generated:', parsed.title);
     return parsed;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error instanceof TypeError && error.message.includes('aborted')) {
-      throw new Error('Course generation timeout - OpenAI took too long');
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    
+    if (errorMsg.includes('aborted')) {
+      throw new Error('Course generation timeout - LLM took too long');
     }
+    
+    console.error('[LLM] Generation failed:', errorMsg);
     throw error;
   }
 }
@@ -242,9 +221,9 @@ export async function POST(req: NextRequest) {
 
     console.log(`[API] Generating course: ${params.topic} (${params.difficulty}, ${params.duration})`);
 
-    // Generate prompt and call OpenAI
+    // Generate prompt and call LLM with automatic fallback
     const prompt = generatePrompt(params.topic, params.difficulty, params.duration, params.locale);
-    const courseData = await callOpenAI(prompt);
+    const courseData = await callLLMWithFallback(prompt);
 
     // Save to database
     const courseId = crypto.randomUUID();
