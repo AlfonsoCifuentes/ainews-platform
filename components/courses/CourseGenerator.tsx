@@ -271,13 +271,47 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         logger.step(3, 8, 'Sending request to server (this may take 30-120 seconds)...');
         const fetchStartTime = Date.now();
 
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
-        });
+        // Retry logic with exponential backoff for Vercel rate limiting
+        let response: Response | null = null;
+        let lastError: Error | null = null;
+        const maxRetries = 5;
+        
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (response.status === 429) {
+              // Rate limited - retry with exponential backoff
+              if (attempt < maxRetries) {
+                const backoffMs = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s, 16s, 32s, 64s
+                logger.step(3, 8, `Rate limited (429). Retrying in ${backoffMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+                continue;
+              }
+            } else {
+              // Success or other error - break out of retry loop
+              break;
+            }
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error('Unknown fetch error');
+            if (attempt < maxRetries) {
+              const backoffMs = Math.pow(2, attempt) * 1000;
+              logger.step(3, 8, `Network error. Retrying in ${backoffMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, backoffMs));
+              continue;
+            }
+          }
+        }
+
+        if (!response) {
+          throw lastError || new Error('Failed to get response after all retries');
+        }
 
         const fetchDuration = ((Date.now() - fetchStartTime) / 1000).toFixed(2);
         logger.step(4, 8, `Received response after ${fetchDuration}s`);
