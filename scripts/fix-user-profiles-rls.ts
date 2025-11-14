@@ -31,12 +31,14 @@ async function fixRLS() {
     ];
 
     for (const policy of policiesToDrop) {
-      await supabase.rpc('drop_policy_if_exists', {
-        table_name: 'user_profiles',
-        policy_name: policy
-      }).catch(() => {
+      try {
+        await supabase.rpc('drop_policy_if_exists', {
+          table_name: 'user_profiles',
+          policy_name: policy
+        });
+      } catch {
         // Silently ignore if RPC doesn't exist
-      });
+      }
     }
 
     console.log('✓ Dropped old policies\n');
@@ -79,14 +81,20 @@ async function fixRLS() {
         WITH CHECK (true);
     `;
 
-    const { error: sqlError } = await supabase.rpc('exec_sql', {
-      sql_string: sql
-    }).catch(async () => {
-      // If exec_sql doesn't exist, try a different approach
+    let sqlError = null;
+
+    try {
+      const response = await supabase.rpc('exec_sql', {
+        sql_string: sql
+      });
+      if (response.error) {
+        sqlError = response.error;
+      }
+    } catch {
+      // If exec_sql doesn't exist, suggest manual approach
       console.log('📝 Note: Apply the following SQL in Supabase dashboard > SQL Editor:\n');
       console.log(sql);
-      return { error: null };
-    });
+    }
 
     if (sqlError) {
       console.error('❌ Error applying policies:', sqlError);
@@ -96,12 +104,11 @@ async function fixRLS() {
     console.log('✓ Created new RLS policies\n');
 
     // Ensure all users have profiles
-    const { error: syncError } = await supabase
-      .rpc('sync_auth_users_to_profiles')
-      .catch(() => ({ error: null }));
-
-    if (!syncError) {
+    try {
+      await supabase.rpc('sync_auth_users_to_profiles');
       console.log('✓ Synced auth.users → user_profiles\n');
+    } catch {
+      // RPC may not exist, which is fine
     }
 
     console.log('✅ user_profiles RLS fixed successfully!\n');
