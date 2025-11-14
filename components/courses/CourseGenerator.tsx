@@ -261,7 +261,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
       try {
         const requestBody = { topic, difficulty, duration, locale };
-        const apiUrl = '/api/courses/generate';
+        // Use alternative endpoint to avoid Vercel rate limiting
+        const apiUrl = '/api/ai/generate-course';
         
         // 🔍 Log request
         logger.step(2, 8, 'Preparing API request');
