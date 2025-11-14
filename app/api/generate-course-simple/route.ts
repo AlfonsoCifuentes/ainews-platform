@@ -198,13 +198,20 @@ CRÍTICO:
 // OPENAI GENERATION
 // ============================================================================
 
-async function generateWithOpenAI(prompt: string): Promise<CourseData> {
+async function generateWithOpenAI(prompt: string, duration: string = 'medium'): Promise<CourseData> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured');
   }
 
   console.log('[OpenAI] Calling GPT-4o for course generation...');
+
+  // Dynamically set token limit based on course complexity
+  const maxTokensForCourse: { [key: string]: number } = {
+    'short': 3500,
+    'medium': 4500,
+    'long': 6000
+  };
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -219,7 +226,7 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
         content: prompt 
       }],
       temperature: 0.7,
-      max_tokens: 4000
+      max_tokens: maxTokensForCourse[duration] ?? 4500
     })
   });
 
@@ -384,7 +391,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Generate with OpenAI
     console.log('[API] 📝 Generating course with OpenAI...');
-    const courseData = await generateWithOpenAI(prompt);
+    const courseData = await generateWithOpenAI(prompt, params.duration);
 
     // 4. Create course ID
     const courseId = crypto.randomUUID();

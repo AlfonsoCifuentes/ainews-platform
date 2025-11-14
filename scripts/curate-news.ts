@@ -134,9 +134,30 @@ function cleanContent(html: string | undefined | null): string {
 	}
 
 	const $ = load(html);
-	$('script, style, iframe, nav, header, footer, aside, form, .ad, .advertisement').remove();
+	// Remove structural elements
+	$('script, style, iframe, nav, header, footer, aside, form').remove();
+	// Remove ads and tracking
+	$('.ad, .advertisement, .ads, [class*="ad-"], [class*="advert"]').remove();
+	// Remove comments sections (various patterns)
+	$('.comments, .comment-section, .discussion, #comments, .wp-comments-area, [class*="comment"]').remove();
+	// Remove sidebars and related content
+	$('.sidebar, .side-bar, .widget-area, [class*="sidebar"], [class*="related-posts"]').remove();
+	// Remove Akismet and reCAPTCHA
+	$('[class*="akismet"], [class*="recaptcha"], [class*="captcha"]').remove();
+	// Remove newsletter signup and forms
+	$('[class*="newsletter"], [class*="signup"], [class*="subscribe"], .form-group, form').remove();
+	
 	const text = $('body').text() || $.text();
-	return text.replace(/\s+/g, ' ').trim();
+	// Remove repeated whitespace
+	let cleaned = text.replace(/\s+/g, ' ').trim();
+	// Remove common footer patterns in Spanish
+	cleaned = cleaned.replace(/DEJA UNA RESPUESTA[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/Cancelar respuesta[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/Este sitio usa Akismet[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/Aprende cómo se procesan[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/\+\s*Noticias[\s\S]*?$/i, '');
+	
+	return cleaned.trim();
 }
 
 function sanitizeSummary(summary: string): string {
