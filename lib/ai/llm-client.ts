@@ -712,6 +712,7 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     'openrouter', // Multi-provider - Free models available
     'together',  // Meta models - Free tier
     'mistral',   // European provider - May have free tier
+    'openai',    // OpenAI - Paid but reliable fallback (if quota available)
     'deepseek',  // Out of credits
     'anthropic'  // FALLBACK ONLY - Out of credits
   ];
