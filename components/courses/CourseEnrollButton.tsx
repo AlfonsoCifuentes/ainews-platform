@@ -51,8 +51,12 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
 
   const handleEnroll = async () => {
     if (!currentUserId) {
-      showToast(t.loginRequired, 'error');
-      router.push(`/${locale}/auth`);
+      // Emit event for auth modal to handle - don't redirect
+      const event = new CustomEvent('request-login', {
+        detail: { courseId, locale },
+      });
+      window.dispatchEvent(event);
+      showToast(t.loginRequired, 'warning');
       return;
     }
 
@@ -69,10 +73,14 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
       const data = await response.json();
 
       if (!response.ok) {
-        // 401 means session expired or lost, redirect to login
+        // 401 means session expired or lost, request login again
         if (response.status === 401) {
+          setCurrentUserId(undefined);
           showToast(t.loginRequired, 'error');
-          router.push(`/${locale}/auth`);
+          const event = new CustomEvent('request-login', {
+            detail: { courseId, locale },
+          });
+          window.dispatchEvent(event);
           return;
         }
         throw new Error(data.error || 'Failed to enroll');
@@ -85,6 +93,7 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
       window.dispatchEvent(event);
 
       showToast(t.success, 'success');
+      // Refresh to update enrollment status
       router.refresh();
     } catch (error) {
       console.error('Enrollment error:', error);
@@ -109,7 +118,7 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
         </>
       ) : (
         <>
-          {userId ? t.enrollNow : <><Lock className="w-5 h-5 mr-2" />{t.enrollNow}</>}
+          {currentUserId ? t.enrollNow : <><Lock className="w-5 h-5 mr-2" />{t.enrollNow}</>}
         </>
       )}
     </Button>

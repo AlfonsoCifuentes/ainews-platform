@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,19 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingCourseId, setPendingCourseId] = useState<string | undefined>();
   const router = useRouter();
+
+  // Listen for login requests from course enroll button
+  useEffect(() => {
+    const handleLoginRequest = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      setPendingCourseId(customEvent.detail?.courseId);
+    };
+
+    window.addEventListener('request-login', handleLoginRequest);
+    return () => window.removeEventListener('request-login', handleLoginRequest);
+  }, []);
 
   const translations = {
     en: {
@@ -35,7 +47,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
       google: 'Google',
       github: 'GitHub',
       signingIn: 'Signing in...',
-      signingUp: 'Creating account...'
+      signingUp: 'Creating account...',
+      enrollingAfterLogin: 'Enrolling in course...',
     },
     es: {
       signin: 'Iniciar Sesión',
@@ -50,7 +63,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
       google: 'Google',
       github: 'GitHub',
       signingIn: 'Iniciando sesión...',
-      signingUp: 'Creando cuenta...'
+      signingUp: 'Creando cuenta...',
+      enrollingAfterLogin: 'Inscribiendo en curso...',
     }
   };
 
@@ -67,8 +81,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
       } else {
         await signUpWithEmail(email, password, { name, locale });
       }
+      
       router.refresh();
-      onClose();
+      
+      // If there's a pending course enrollment, attempt it
+      if (pendingCourseId) {
+        await enrollCourse(pendingCourseId);
+      } else {
+        onClose();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -76,10 +97,40 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
     }
   };
 
+  const enrollCourse = async (courseId: string) => {
+    try {
+      const response = await fetch('/api/courses/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+
+      if (response.ok) {
+        // Dispatch event for XP award
+        const event = new CustomEvent('course-enrolled', {
+          detail: { courseId },
+        });
+        window.dispatchEvent(event);
+
+        setPendingCourseId(undefined);
+        onClose();
+      } else {
+        throw new Error('Failed to enroll after login');
+      }
+    } catch (err) {
+      console.error('Auto-enrollment error:', err);
+      // Don't block modal close on enrollment failure
+      setPendingCourseId(undefined);
+      onClose();
+    }
+  };
+
   const handleOAuth = async (provider: 'google' | 'github') => {
     setLoading(true);
     try {
       await signInWithOAuth(provider);
+      // OAuth redirect will handle close, but set pending course for after
+      // Note: OAuth flow will redirect away, so we can't handle enrollment here
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
