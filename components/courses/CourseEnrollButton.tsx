@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/shared/ToastProvider';
@@ -16,6 +16,24 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
   const router = useRouter();
   const { showToast } = useToast();
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(userId);
+
+  // Auto-detect user from session on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { getClientAuthClient } = await import('@/lib/auth/auth-client');
+        const supabase = getClientAuthClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          setCurrentUserId(user.id);
+        }
+      } catch (error) {
+        console.warn('[CourseEnroll] Auth check failed:', error);
+      }
+    };
+    checkAuth();
+  }, []);
 
   const t = locale === 'en' ? {
     enrollNow: 'Enroll Now',
@@ -32,7 +50,7 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
   };
 
   const handleEnroll = async () => {
-    if (!userId) {
+    if (!currentUserId) {
       showToast(t.loginRequired, 'error');
       router.push(`/${locale}/auth`);
       return;

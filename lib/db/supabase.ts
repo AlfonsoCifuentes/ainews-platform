@@ -13,7 +13,9 @@ function createBrowserClient(): SupabaseClient {
 
   return createClient(url, anonKey, {
     auth: {
-      persistSession: false,
+      persistSession: true, // CRITICAL: Persist session to localStorage so user stays logged in
+      autoRefreshToken: true, // Auto-refresh tokens before expiry
+      detectSessionInUrl: true, // Detect session from URL (OAuth callbacks)
     },
   });
 }
