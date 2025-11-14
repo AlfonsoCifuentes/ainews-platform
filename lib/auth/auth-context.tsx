@@ -74,7 +74,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Use API endpoint for signout
+      const response = await fetch('/api/auth/signout', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        console.warn('SignOut API returned non-OK status:', response.status);
+      }
+    } catch (error) {
+      console.warn('SignOut API error:', error);
+    }
+
+    // Always clear local state regardless of API response
+    setSession(null);
+    setUser(null);
   };
 
   const signInWithGoogle = async () => {
