@@ -676,9 +676,99 @@ export function createLLMClient(
 }
 
 /**
+ * Detect and prepare local Ollama model
+ * If Ollama is running but model isn't pulled, attempts to download it
+ * Model: llama2:7b (4GB download, ~2.7GB compressed, good quality/size ratio)
+ */
+async function prepareLocalModel(): Promise<boolean> {
+  try {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const MODEL = 'llama2:7b';
+
+    // Step 1: Check if Ollama is running
+    const tagsResponse = await fetch(`${ollamaUrl}/api/tags`, {
+      signal: AbortSignal.timeout(3000)
+    });
+
+    if (!tagsResponse.ok) {
+      console.warn('[LOCAL] Ollama not responding, skipping local model');
+      return false;
+    }
+
+    const tagsData = await tagsResponse.json() as { models?: Array<{ name: string }> };
+    const models = tagsData.models || [];
+    const hasModel = models.some(m => m.name.includes('llama2'));
+
+    if (hasModel) {
+      console.log('[LOCAL] ✓ Llama2 model already available locally');
+      return true;
+    }
+
+    // Step 2: Model not found - attempt to pull it
+    console.log(`[LOCAL] 📥 Llama2 model not found. Downloading ${MODEL}...`);
+    console.log('[LOCAL] ⏳ This may take 5-15 minutes (one-time download, ~2.7GB)');
+
+    const pullResponse = await fetch(`${ollamaUrl}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: MODEL }),
+      signal: AbortSignal.timeout(3600000) // 1 hour timeout for download
+    });
+
+    if (!pullResponse.ok) {
+      console.error('[LOCAL] Failed to pull model:', pullResponse.statusText);
+      return false;
+    }
+
+    // Stream the download progress
+    const reader = pullResponse.body?.getReader();
+    if (!reader) {
+      console.error('[LOCAL] No response body for model download');
+      return false;
+    }
+
+    const decoder = new TextDecoder();
+    let lastLog = Date.now();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.trim());
+
+        // Log progress every 5 seconds to avoid spam
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.status && (Date.now() - lastLog > 5000)) {
+              console.log(`[LOCAL] ${data.status}${data.total ? ` (${(data.completed / data.total * 100).toFixed(0)}%)` : ''}`);
+              lastLog = Date.now();
+            }
+          } catch {
+            // Skip non-JSON lines
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    console.log('[LOCAL] ✓ Llama2 model download complete!');
+    return true;
+  } catch (error) {
+    console.warn(
+      '[LOCAL] Could not prepare local model:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    return false;
+  }
+}
+
+/**
  * Create LLM client with automatic fallback to available providers
- * In development: Ollama first, then cloud providers
- * In production: Cloud providers only (Ollama not available)
+ * Priority: Ollama (local) → Cloud providers → Auto-download local model as last resort
  */
 export async function createLLMClientWithFallback(): Promise<LLMClient> {
   const isVercel = process.env.VERCEL === '1';
@@ -713,8 +803,8 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     'together',  // Meta models - Free tier
     'mistral',   // European provider - May have free tier
     'openai',    // OpenAI - Paid but reliable fallback (if quota available)
-    'deepseek',  // Out of credits
-    'anthropic'  // FALLBACK ONLY - Out of credits
+    'deepseek',  // DeepSeek - Alternative
+    'anthropic'  // FALLBACK ONLY - Anthropic
   ];
 
   for (const provider of providers) {
@@ -727,11 +817,26 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     }
   }
 
+  // LAST RESORT: Try to use/download local model
+  if (!isVercel) {
+    console.log('[LLM] ⚠️  All cloud providers exhausted. Attempting to use local model...');
+    const localReady = await prepareLocalModel();
+    if (localReady) {
+      try {
+        const ollamaClient = createLLMClient('ollama');
+        console.log('[LLM] ✓ Using local Llama2 model (LAST RESORT FALLBACK)');
+        return ollamaClient;
+      } catch (error) {
+        console.error('[LLM] Failed to create Ollama client:', error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+  }
+
   throw new Error(
     'No LLM providers available. ' +
     (!isVercel
-      ? 'For local usage, install Ollama and run: ollama pull llama3.2:3b'
-      : 'Please configure at least one API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, DEEPSEEK_API_KEY, or MISTRAL_API_KEY'
+      ? 'All options failed. Try: 1) Install Ollama (https://ollama.ai), 2) Set at least one API key (GROQ_API_KEY, GEMINI_API_KEY, etc.)'
+      : 'Please configure at least one API key: GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, TOGETHER_API_KEY, MISTRAL_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, or ANTHROPIC_API_KEY'
     )
   );
 }
