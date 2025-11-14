@@ -1,8 +1,9 @@
 -- ============================================================================
--- MIGRATION: Fix user_profiles RLS policies
+-- MIGRATION: Fix user_profiles RLS policies (v2 - Safe idempotent version)
 -- Date: 2025-11-14
 -- Issue: user_profiles returning 500 errors on SELECT/UPDATE
 -- Reason: Overly restrictive RLS policies preventing client access
+-- Note: This version safely handles partial migrations
 -- ============================================================================
 
 -- Drop all existing conflicting policies on user_profiles
@@ -11,37 +12,42 @@ DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON user_profiles;
 DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
 DROP POLICY IF EXISTS "Public can view leaderboard" ON user_profiles;
+DROP POLICY IF EXISTS "Public can view all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Users can select own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Service role can manage all profiles" ON user_profiles;
 
 -- Re-enable RLS (in case it was disabled)
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policy 1: Everyone can VIEW all profiles (for leaderboards, discovery)
-CREATE POLICY "Public can view all profiles"
+CREATE POLICY "Public can view all profiles v2"
   ON user_profiles FOR SELECT
   TO public
   USING (true);
 
 -- Policy 2: Authenticated users can SELECT their own profile  
-CREATE POLICY "Users can select own profile"
+CREATE POLICY "Users can select own profile v2"
   ON user_profiles FOR SELECT
   TO authenticated
   USING (auth.uid() = id);
 
 -- Policy 3: Authenticated users can INSERT their own profile
-CREATE POLICY "Users can insert own profile"
+CREATE POLICY "Users can insert own profile v2"
   ON user_profiles FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = id);
 
 -- Policy 4: Authenticated users can UPDATE their own profile
-CREATE POLICY "Users can update own profile"
+CREATE POLICY "Users can update own profile v2"
   ON user_profiles FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
 -- Policy 5: Service role has full access (for migrations, admin operations)
-CREATE POLICY "Service role can manage all profiles"
+CREATE POLICY "Service role can manage all profiles v2"
   ON user_profiles FOR ALL
   TO service_role
   USING (true)
@@ -110,8 +116,17 @@ CREATE TRIGGER on_auth_user_created
 INSERT INTO public.user_profiles (id, display_name, full_name, created_at, updated_at)
 SELECT 
   id,
-  'user_' || substring(id::text, 1, 8),
-  COALESCE(email, 'User'),
+  COALESCE(
+    raw_user_meta_data->>'name',
+    raw_user_meta_data->>'full_name',
+    raw_user_meta_data->>'user_name',
+    'user_' || substring(id::text, 1, 8)
+  ),
+  COALESCE(
+    raw_user_meta_data->>'name',
+    raw_user_meta_data->>'full_name',
+    COALESCE(email, 'User')
+  ),
   created_at,
   created_at
 FROM auth.users

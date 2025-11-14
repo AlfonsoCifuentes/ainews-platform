@@ -11,8 +11,9 @@ const FALLBACK_THEME: UserProfile['theme'] = 'dark';
 function buildFallbackProfile(user: User): UserProfile {
   const now = new Date().toISOString();
   const metadata = user.user_metadata ?? {};
-  const fullName = (metadata.full_name as string | undefined) || (metadata.name as string | undefined) || null;
-  const displayName = (metadata.user_name as string | undefined) || fullName || user.email?.split('@')[0] || null;
+  // Google sends 'name', GitHub sends 'user_name' or 'full_name'
+  const fullName = (metadata.name as string | undefined) || (metadata.full_name as string | undefined) || (metadata.user_name as string | undefined) || null;
+  const displayName = fullName || user.email?.split('@')[0] || null;
   const avatarUrl = (metadata.avatar_url as string | undefined) || (metadata.picture as string | undefined) || null;
   const preferredLocale = (metadata.locale as string | undefined)?.startsWith('es') ? 'es' : 'en';
 

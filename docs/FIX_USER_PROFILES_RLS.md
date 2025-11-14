@@ -79,9 +79,18 @@ BEGIN
   )
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', 'user_' || substring(NEW.id::text, 1, 8)),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', COALESCE(NEW.email, '')),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', NULL),
+    COALESCE(
+      NEW.raw_user_meta_data->>'name',
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'user_name',
+      'user_' || substring(NEW.id::text, 1, 8)
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'name',
+      NEW.raw_user_meta_data->>'full_name',
+      COALESCE(NEW.email, '')
+    ),
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture', NULL),
     COALESCE((NEW.raw_user_meta_data->>'locale')::TEXT, 'en'),
     NOW(),
     NOW()
