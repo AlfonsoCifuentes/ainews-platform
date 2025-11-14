@@ -76,16 +76,32 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
     setError(null);
 
     try {
+      // Get the auth client BEFORE logging in to verify it works
+      const { getClientAuthClient } = await import('@/lib/auth/auth-client');
+      const supabaseClient = getClientAuthClient();
+
       if (mode === 'signin') {
         await signInWithEmail(email, password);
       } else {
         await signUpWithEmail(email, password, { name, locale });
       }
       
-      // Wait for session to be set in cookies before doing server actions
-      // This ensures router.refresh() has the updated session
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for session to be set in cookies  
+      await new Promise(resolve => setTimeout(resolve, 800));
       
+      // Verify user is now authenticated in the client
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Session not established after login');
+      }
+
+      // Dispatch event to notify CourseEnrollButton about new user
+      const event = new CustomEvent('auth-state-changed', {
+        detail: { userId: user.id, user }
+      });
+      window.dispatchEvent(event);
+
       router.refresh();
       
       // Wait a bit more for refresh to complete

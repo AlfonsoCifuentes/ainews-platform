@@ -32,7 +32,19 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
         console.warn('[CourseEnroll] Auth check failed:', error);
       }
     };
+    
     checkAuth();
+
+    // Listen for auth state changes from AuthModal
+    const handleAuthChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.userId) {
+        setCurrentUserId(customEvent.detail.userId);
+      }
+    };
+
+    window.addEventListener('auth-state-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-state-changed', handleAuthChange);
   }, []);
 
   const t = locale === 'en' ? {
