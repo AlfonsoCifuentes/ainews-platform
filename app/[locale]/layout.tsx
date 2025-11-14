@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { setRequestLocale } from 'next-intl/server';
@@ -86,6 +87,7 @@ export default async function LocaleLayout({
       <body
         className={`${inter.className} bg-black text-white antialiased selection:bg-purple-500/40 selection:text-white`}
       >
+        <Analytics />
         {umamiSiteId ? (
           <Script
             src={umamiScriptSrc}
