@@ -262,16 +262,17 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       try {
         const requestBody = { topic, difficulty, duration, locale };
         
-        // Try demo endpoint first (always works, no rate limiting)
-        let apiUrl = '/api/courses/demo';
-        logger.step(2, 8, 'Using demo course generation (instant, no rate limits)');
-        logger.request(apiUrl, requestBody);
+        logger.step(2, 8, 'Starting course generation with direct API');
+        logger.request('/api/generate-course-simple', requestBody);
 
-        logger.step(3, 8, 'Creating demo course...');
+        logger.step(3, 8, 'Calling OpenAI to generate course content...');
         const fetchStartTime = Date.now();
 
-        // Try demo endpoint first
-        let response = await fetch(apiUrl, {
+        // Use the simple endpoint that calls OpenAI directly
+        const apiUrl = '/api/generate-course-simple';
+        
+        // Single request without retries - OpenAI should always work
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -279,173 +280,38 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
           body: JSON.stringify(requestBody)
         });
 
-        if (!response.ok && response.status !== 429) {
-          // Demo failed for non-rate-limit reason - try real generation with retries
-          logger.step(2, 8, 'Demo generation unavailable. Attempting full AI generation...');
-          apiUrl = '/api/ai/generate-course';
-          
-          // Retry logic with exponential backoff for Vercel rate limiting
-          let lastError: Error | null = null;
-          const maxRetries = 5;
-          
-          for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-              response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-              });
-
-              if (response.status === 429) {
-                // Rate limited - retry with exponential backoff
-                if (attempt < maxRetries) {
-                  const backoffMs = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s, 16s, 32s, 64s
-                  logger.step(3, 8, `Rate limited (429). Retrying in ${backoffMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
-                  await new Promise(resolve => setTimeout(resolve, backoffMs));
-                  continue;
-                } else {
-                  // Out of retries
-                  throw new Error('Course generation rate limited after multiple retries. Please try again in a few minutes.');
-                }
-              } else if (response.ok) {
-                // Success
-                break;
-              } else {
-                // Other error
-                break;
-              }
-            } catch (error) {
-              lastError = error instanceof Error ? error : new Error('Unknown fetch error');
-              if (attempt < maxRetries) {
-                const backoffMs = Math.pow(2, attempt) * 1000;
-                logger.step(3, 8, `Network error. Retrying in ${backoffMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
-                await new Promise(resolve => setTimeout(resolve, backoffMs));
-                continue;
-              } else {
-                throw lastError;
-              }
-            }
-          }
+        if (!response.ok) {
+          const errorData = await response.json() as { error?: string; details?: string };
+          throw new Error(errorData.error || `Request failed with status ${response.status}`);
         }
 
+        const responseData = await response.json() as CourseGenerationResponse;
         const fetchDuration = ((Date.now() - fetchStartTime) / 1000).toFixed(2);
         logger.step(4, 8, `Received response after ${fetchDuration}s`);
 
-        // 🔍 Log response
-        logger.response(response.status, response.statusText, response.headers);
+        if (!responseData.success) {
+          throw new Error(responseData.error || 'Course generation failed');
+        }
+
+        if (!responseData.data) {
+          throw new Error('No course data in response');
+        }
+
+        const courseData = responseData.data;
         
-        // Log to browser console for debugging - ALWAYS DO THIS FIRST
-        console.log(`%c${'═'.repeat(80)}`, 'color: #00ff00; font-weight: bold');
-        console.log(`%c🔍 COURSE GENERATOR - RESPONSE RECEIVED`, 'font-weight: bold; color: #00ff00; font-size: 14px');
-        console.log(`%cStatus: ${response.status} ${response.statusText}`, response.ok ? 'color: #00ff00' : 'color: #ff0000');
-        console.log(`%cDuration: ${fetchDuration}s`, 'color: #ffaa00');
-        console.log(`%cContent-Type: ${response.headers.get('content-type')}`, 'color: #00aaff');
-        console.log(`%c${'═'.repeat(80)}`, 'color: #00ff00; font-weight: bold');
-
-        let payload: CourseGenerationResponse | null = null;
-        let rawText = '';
-
-        try {
-          logger.step(5, 8, 'Parsing response JSON...');
-          rawText = await response.text();
-          
-          console.log(`%c📝 Response text received: ${rawText.length} bytes`, 'color: #ffaa00; font-weight: bold');
-          
-          if (!rawText) {
-            logger.warn('Response body is empty!');
-            console.log(`%c⚠️ WARNING: Response body is empty!`, 'color: #ff0000; font-weight: bold');
-            throw new Error('Server returned empty response');
-          }
-
-          logger.info(`Response text length: ${rawText.length} characters`);
-          
-          // Try to parse JSON
-          try {
-            payload = JSON.parse(rawText) as CourseGenerationResponse;
-            logger.step(6, 8, 'Response parsed successfully');
-            logger.responseBody(payload);
-            
-            // Log payload to browser console
-            console.log(`%c✅ Payload parsed successfully`, 'color: #00ff00; font-weight: bold');
-            console.log(`Success: ${payload.success}`);
-            
-            // If error response with debug logs, dump them
-            if (!payload.success && payload.debug?.serverLogs) {
-              console.log(`%c📋 SERVER-SIDE LOGS (${payload.debug.serverLogs.length} lines):`, 'color: #ffaa00; font-weight: bold; font-size: 12px');
-              payload.debug.serverLogs.forEach((log, idx) => {
-                const total = payload?.debug?.serverLogs.length || 0;
-                console.log(`  [${idx + 1}/${total}] ${log}`);
-              });
-              console.log(`%cExecution time: ${payload.debug.executionTimeMs}ms`, 'color: #ffaa00; font-weight: bold');
-            }
-          } catch (jsonError) {
-            logger.error(jsonError);
-            logger.warn('Failed to parse JSON. Raw response:');
-            console.log(`%c${'═'.repeat(80)}`, 'color: #ff0000');
-            console.log(`%c❌ RAW RESPONSE TEXT:`, 'color: #ff0000; font-weight: bold');
-            console.log(rawText.substring(0, 2000)); // First 2000 chars
-            if (rawText.length > 2000) {
-              console.log(`%c... (${rawText.length - 2000} more bytes)`, 'color: #ff0000');
-            }
-            console.log(`%c${'═'.repeat(80)}`, 'color: #ff0000');
-            throw new Error(`Invalid JSON response: ${jsonError instanceof Error ? jsonError.message : 'Unknown error'}`);
-          }
-        } catch (parseError) {
-          logger.error(parseError, response);
-          console.log(`%c❌ ERROR during response parsing:`, 'color: #ff0000; font-weight: bold; font-size: 12px');
-          console.log(parseError);
-          throw new Error(`Failed to read response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-        }
-
-        logger.step(7, 8, 'Validating response data...');
-
-        if (!response.ok) {
-          logger.warn(`HTTP error: ${response.status} ${response.statusText}`);
-          
-          // Specific handling for 429 Rate Limit
-          if (response.status === 429) {
-            const rateLimitMessage = locale === 'es' 
-              ? '⏰ Límite de uso alcanzado. Todos los servicios de IA están ocupados. Por favor, espera 5-10 minutos e intenta nuevamente. 💡 Sugerencia: Descarga un modelo local para generar cursos ilimitados sin esperas.'
-              : '⏰ Rate limit exceeded. All AI services are at capacity. Please wait 5-10 minutes and try again. 💡 Tip: Download a local model to generate unlimited courses without waiting.';
-            
-            // Also dump server logs if they're available in 429 response
-            if (payload?.debug?.serverLogs) {
-              console.log(`%c🚨 RATE LIMIT 429 - SERVER LOGS:`, 'color: #ff0000; font-weight: bold; font-size: 14px');
-              payload.debug.serverLogs.forEach((log) => {
-                console.log(log);
-              });
-            }
-            
-            throw new Error(rateLimitMessage);
-          }
-          
-          const errorMessage = (payload && (payload.error || payload.message)) || `Server error: ${response.status}`;
-          throw new Error(errorMessage);
-        }
-
-        if (!payload || !payload.success || !payload.data) {
-          logger.warn('Response validation failed');
-          console.log(`${logger['prefix']} Payload:`, payload);
-          const errorMessage =
-            (payload && (payload.error || payload.message)) || translations.result.errorDescription;
-          throw new Error(errorMessage);
-        }
-
         // Success - set to 100%
-        logger.step(8, 8, 'Course generated successfully!');
+        logger.step(5, 8, 'Course generated successfully!');
         setProgress(100);
         setCurrentStep(progressSteps.length - 1);
         setEstimatedTimeLeft(0);
-        setResult(payload.data);
+        setResult(courseData);
         setTopic('');
         
-        // 🔍 Log success
-        logger.success(payload.data);
+        // Log success
+        logger.success(courseData);
 
       } catch (generationError) {
-        // 🔍 Log error
+        // Log error
         logger.error(generationError);
         
         const fallback = translations.result.errorDescription;
