@@ -1,7 +1,6 @@
 /**
  * Simple course generation endpoint
- * Generates courses directly without database persistence
- * Uses OpenAI to ensure reliability and speed
+ * Generates courses with OpenAI and saves to database
  * 
  * POST /api/generate-course-simple
  * Body: { topic, difficulty, duration, locale }
@@ -10,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -126,6 +126,58 @@ export async function POST(req: NextRequest) {
     const courseData = await generateWithOpenAI(prompt);
     const courseId = generateId();
 
+    // Save to database
+    const supabase = getSupabaseServerClient();
+    
+    // Create course record
+    const { error: courseError } = await supabase
+      .from('courses')
+      .insert({
+        id: courseId,
+        title_en: courseData.title,
+        title_es: courseData.title,
+        description_en: courseData.description,
+        description_es: courseData.description,
+        category: params.topic,
+        difficulty: params.difficulty,
+        estimated_duration_minutes: params.duration === 'short' ? 30 : params.duration === 'medium' ? 60 : 120,
+        is_ai_generated: true,
+        source: 'openai'
+      });
+
+    if (courseError) {
+      console.warn('[Course Generation] Failed to save course to database:', courseError);
+      // Don't throw - still return the course data even if DB save fails
+    } else {
+      console.log('[Course Generation] Course saved to database:', courseId);
+    }
+
+    // Create module records
+    if (courseData.modules && courseData.modules.length > 0) {
+      const modulesToInsert = courseData.modules.map((module, index) => ({
+        course_id: courseId,
+        order_index: index,
+        title_en: module.title,
+        title_es: module.title,
+        description_en: module.description,
+        description_es: module.description,
+        content_en: module.content,
+        content_es: module.content,
+        estimated_minutes: 15
+      }));
+
+      const { error: modulesError } = await supabase
+        .from('course_modules')
+        .insert(modulesToInsert);
+
+      if (modulesError) {
+        console.warn('[Course Generation] Failed to save modules to database:', modulesError);
+        // Don't throw - course was created, modules are optional
+      } else {
+        console.log('[Course Generation] Modules saved to database:', modulesToInsert.length);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -134,7 +186,7 @@ export async function POST(req: NextRequest) {
         description: courseData.description,
         modules_count: courseData.modules?.length || 0,
         estimated_duration_minutes: params.duration === 'short' ? 30 : params.duration === 'medium' ? 60 : 120,
-        content: courseData // Full course content
+        content: courseData
       }
     });
 
