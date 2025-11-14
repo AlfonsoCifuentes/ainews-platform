@@ -2,6 +2,8 @@
  * Demo course generation endpoint
  * Returns a sample course without hitting rate limits
  * Perfect for testing the UI and flow
+ * 
+ * Build v2 - Force Vercel redeploy to include this endpoint
  */
 
 import { NextRequest, NextResponse } from 'next/server';
