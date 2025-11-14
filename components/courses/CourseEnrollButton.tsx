@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { getSupabaseClient } from '@/lib/db/supabase';
 import { useToast } from '@/components/shared/ToastProvider';
 import { Loader2, Lock } from 'lucide-react';
 
@@ -42,33 +41,37 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
     setIsEnrolling(true);
 
     try {
-      const supabase = getSupabaseClient();
-
-      // Create enrollment
-      const { error: enrollError } = await supabase
-        .from('course_enrollments')
-        .insert({
-          user_id: userId,
-          course_id: courseId,
-          enrolled_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (enrollError) throw enrollError;
-
-      // Award XP for enrollment
-      await supabase.rpc('award_xp', {
-        p_user_id: userId,
-        p_amount: 50,
-        p_source: 'course_enrollment',
+      // Call API endpoint instead of direct database access
+      const response = await fetch('/api/courses/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // 401 means session expired or lost, redirect to login
+        if (response.status === 401) {
+          showToast(t.loginRequired, 'error');
+          router.push(`/${locale}/auth`);
+          return;
+        }
+        throw new Error(data.error || 'Failed to enroll');
+      }
+
+      // Dispatch enrollment event for XP award
+      const event = new CustomEvent('course-enrolled', {
+        detail: { courseId },
+      });
+      window.dispatchEvent(event);
 
       showToast(t.success, 'success');
       router.refresh();
     } catch (error) {
       console.error('Enrollment error:', error);
-      showToast(t.error, 'error');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      showToast(message, 'error');
     } finally {
       setIsEnrolling(false);
     }

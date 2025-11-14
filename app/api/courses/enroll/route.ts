@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getServerAuthUser } from '@/lib/auth/auth-config';
-import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createClient } from '@/lib/db/supabase-server';
 
 const EnrollSchema = z.object({
   courseId: z.string().uuid(),
@@ -10,21 +9,25 @@ const EnrollSchema = z.object({
 /**
  * POST /api/courses/enroll
  * Enrolls authenticated user in a course
+ * Uses Supabase SSR client for proper session handling
  */
 export async function POST(req: NextRequest) {
   try {
-    const user = await getServerAuthUser();
-    if (!user) {
+    const supabase = await createClient();
+    
+    // Get authenticated user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.warn('[Enroll API] Auth failed:', authError?.message);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
     const { courseId } = EnrollSchema.parse(body);
 
-    const db = getSupabaseServerClient();
-
     // Check if already enrolled
-    const { data: existing } = await db
+    const { data: existing } = await supabase
       .from('user_courses')
       .select('id')
       .eq('user_id', user.id)
@@ -35,12 +38,12 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { error: 'Already enrolled in this course' },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
     // Create enrollment
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('user_courses')
       .insert({
         user_id: user.id,
@@ -53,14 +56,26 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Enrollment error:', error);
+      console.error('[Enroll API] Database error:', error);
       return NextResponse.json(
         { error: 'Failed to enroll in course' },
         { status: 500 }
       );
     }
 
-    // Award XP for enrollment (will be handled by client-side tracker)
+    // Award XP for enrollment
+    try {
+      await supabase.rpc('award_xp', {
+        p_user_id: user.id,
+        p_xp_amount: 50,
+        p_action_type: 'course_enroll',
+        p_reference_id: courseId
+      });
+    } catch (xpError) {
+      console.warn('[Enroll API] XP award failed (non-critical):', xpError);
+      // Don't fail enrollment if XP award fails
+    }
+
     return NextResponse.json({
       success: true,
       enrollment: data,
@@ -74,7 +89,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.error('Enroll API error:', error);
+    console.error('[Enroll API] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -88,8 +103,12 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const user = await getServerAuthUser();
-    if (!user) {
+    const supabase = await createClient();
+    
+    // Get authenticated user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -103,9 +122,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const db = getSupabaseServerClient();
-
-    const { error } = await db
+    const { error } = await supabase
       .from('user_courses')
       .delete()
       .eq('user_id', user.id)
@@ -113,7 +130,7 @@ export async function DELETE(req: NextRequest) {
       .eq('relationship_type', 'enrolled');
 
     if (error) {
-      console.error('Unenroll error:', error);
+      console.error('[Unenroll API] Database error:', error);
       return NextResponse.json(
         { error: 'Failed to unenroll from course' },
         { status: 500 }
@@ -125,7 +142,7 @@ export async function DELETE(req: NextRequest) {
       message: 'Successfully unenrolled from course',
     });
   } catch (error) {
-    console.error('Unenroll API error:', error);
+    console.error('[Unenroll API] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
