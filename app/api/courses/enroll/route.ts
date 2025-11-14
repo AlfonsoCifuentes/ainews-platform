@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/db/supabase-server';
+import { requireAuth } from '@/lib/api/auth-helpers';
 
 const EnrollSchema = z.object({
   courseId: z.string().uuid(),
@@ -13,18 +14,14 @@ const EnrollSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    // Get authenticated user from session
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.warn('[Enroll API] Auth failed:', authError?.message);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Check authentication first
+    const { user, response: authResponse } = await requireAuth(req);
+    if (authResponse) return authResponse;
 
     const body = await req.json();
     const { courseId } = EnrollSchema.parse(body);
+
+    const supabase = await createClient();
 
     // Check if already enrolled
     const { data: existing } = await supabase

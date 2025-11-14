@@ -4,8 +4,7 @@
  */
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient as createSSRClient } from '@/lib/db/supabase-server';
 
 export type AuthProvider = 'google' | 'github' | 'email';
 
@@ -19,31 +18,38 @@ export interface AuthUser {
 }
 
 /**
- * Get authenticated user (server component)
+ * Get authenticated user (server component or API route)
+ * Works in both server components and API routes
  */
 export async function getServerAuthUser(): Promise<AuthUser | null> {
-  const supabase = createServerComponentClient({ cookies });
-  
-  const { data: { session }, error } = await supabase.auth.getSession();
-  
-  if (error || !session) {
+  try {
+    // Use SSR client which works in both server components and API routes
+    const supabase = await createSSRClient();
+    
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      return null;
+    }
+    
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    return {
+      id: user.id,
+      email: user.email!,
+      name: profile?.display_name || user.user_metadata?.full_name || user.user_metadata?.name,
+      avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture,
+      locale: profile?.preferred_locale || 'en',
+      created_at: user.created_at
+    };
+  } catch (error) {
+    console.error('[getServerAuthUser] Error:', error);
     return null;
   }
-  
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
-  
-  return {
-    id: session.user.id,
-    email: session.user.email!,
-    name: profile?.display_name || session.user.user_metadata?.full_name,
-    avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url,
-    locale: profile?.preferred_locale || 'en',
-    created_at: session.user.created_at
-  };
 }
 
 /**
