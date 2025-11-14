@@ -1,14 +1,12 @@
 /**
- * Complete Course Generation Endpoint - PRODUCTION VERSION
- * Generates full, followable courses with modules, quizzes, and content
+ * Course Generation Endpoint - VERCEL OPTIMIZED
+ * Simple, fast, and reliable course generation
  * 
  * POST /api/generate-course-simple
  * Body: { topic, difficulty, duration, locale }
  * 
- * This endpoint is the PRIMARY course generation endpoint
- * It generates courses with substantive content suitable for self-paced learning
- * 
- * CRITICAL: Simplified to avoid timeout errors on Vercel serverless
+ * This endpoint generates courses directly without complex logic
+ * that could cause timeouts on Vercel serverless.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,8 +14,8 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 
-// CRITICAL: Must be very high for Vercel serverless
-export const maxDuration = 59;
+// Vercel serverless has strict timeout limits (60s max)
+export const maxDuration = 50;
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
@@ -27,10 +25,7 @@ const schema = z.object({
   locale: z.enum(['en', 'es']).default('en')
 });
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
+// Types
 interface Quiz {
   question: string;
   options: string[];
@@ -55,164 +50,71 @@ interface CourseData {
   modules: Module[];
 }
 
-// ============================================================================
-// PROMPTS
-// ============================================================================
-
-const COURSE_PROMPT_EN = (topic: string, difficulty: string, duration: string): string => {
+// Generate simplified prompt based on locale
+const generatePrompt = (topic: string, difficulty: string, duration: string, locale: 'en' | 'es'): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
-  const contentWordCount = duration === 'short' ? 400 : duration === 'medium' ? 600 : 800;
+  const wordCount = duration === 'short' ? 300 : duration === 'medium' ? 500 : 700;
   
-  return `Generate a comprehensive, complete course on "${topic}" for ${difficulty} level learners.
-This course will be self-taught and needs to be fully autonomous - NO additional instruction needed.
+  if (locale === 'es') {
+    return `Genera un curso BREVE y COMPLETO sobre "${topic}" para nivel ${difficulty}.
 
-Requirements:
-- Create exactly ${moduleCount} modules that progressively build knowledge
-- Each module must have:
-  * Clear, descriptive title
-  * Module description (what students will learn)
-  * Detailed content (${contentWordCount}+ words, use markdown formatting)
-  * 3-5 key takeaways (bullet points)
-  * Estimated time: ${duration === 'short' ? '15-20' : duration === 'medium' ? '20-30' : '30-45'} minutes
-  * 2-3 quiz questions (multiple choice with 4 options each)
-  * Practical resources (links, tools, code examples relevant to the topic)
-
-Content Guidelines:
-- Be CONCRETE and PRACTICAL, not theoretical
-- Include code examples, real-world scenarios, case studies
-- Explain WHY concepts matter, not just WHAT they are
-- Use simple language but maintain technical accuracy
-- Add actionable next steps in each module
-
-Return ONLY valid, complete JSON (no markdown wrapper, no explanation):
+Estructura JSON EXACTA (válida, sin markdown):
 {
-  "title": "Complete Course Title",
-  "description": "Comprehensive course description (2-3 sentences)",
-  "objectives": [
-    "Clear learning objective 1",
-    "Clear learning objective 2",
-    "Clear learning objective 3"
-  ],
+  "title": "Título del curso",
+  "description": "Descripción breve (máximo 50 palabras)",
+  "objectives": ["Objetivo 1", "Objetivo 2"],
   "modules": [
     {
-      "title": "Module Title",
-      "description": "What you'll learn in this module (1-2 sentences)",
-      "content": "DETAILED CONTENT with explanations, examples, code if relevant. Use markdown formatting. Must be ${contentWordCount}+ words. Include practical examples and scenarios.",
-      "keyTakeaways": [
-        "Key point 1",
-        "Key point 2",
-        "Key point 3"
-      ],
+      "title": "Módulo 1",
+      "description": "Descripción breve",
+      "content": "Contenido sustancial de ${wordCount}+ palabras. Sé práctico y concreto.",
+      "keyTakeaways": ["Punto 1", "Punto 2"],
       "estimatedMinutes": 20,
-      "quiz": [
-        {
-          "question": "Clear, specific quiz question?",
-          "options": ["Wrong option", "Wrong option", "Correct option", "Wrong option"],
-          "correctAnswer": 2,
-          "explanation": "Why this is correct and what learners should have understood"
-        }
-      ],
-      "resources": [
-        "Resource 1 with URL or tool name",
-        "Resource 2 with practical application"
-      ]
+      "quiz": [{"question": "Pregunta?", "options": ["A", "B", "C correcta", "D"], "correctAnswer": 2, "explanation": "Explicación breve"}],
+      "resources": ["Recurso 1", "Recurso 2"]
     }
   ]
 }
 
-CRITICAL: 
-- JSON must be valid and complete
-- No markdown backticks or wrappers
-- All modules must be substantive (not placeholder text)
-- Quiz questions must have exactly 4 options
-- Content must be suitable for self-paced, autonomous learning`;
-};
-
-const COURSE_PROMPT_ES = (topic: string, difficulty: string, duration: string): string => {
-  const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
-  const contentWordCount = duration === 'short' ? 400 : duration === 'medium' ? 600 : 800;
+Genera EXACTAMENTE ${moduleCount} módulos. Solo JSON válido, sin explicación.`;
+  }
   
-  return `Genera un curso completo y comprensivo sobre "${topic}" para estudiantes de nivel ${difficulty}.
-Este curso será autónomo - NO se requiere instrucción adicional.
+  return `Generate a SHORT and COMPLETE course on "${topic}" for ${difficulty} level.
 
-Requisitos:
-- Crea exactamente ${moduleCount} módulos que construyan conocimiento progresivamente
-- Cada módulo debe tener:
-  * Título claro y descriptivo
-  * Descripción del módulo (qué aprenderán los estudiantes)
-  * Contenido detallado (${contentWordCount}+ palabras, usa formato markdown)
-  * 3-5 puntos clave (en viñetas)
-  * Tiempo estimado: ${duration === 'short' ? '15-20' : duration === 'medium' ? '20-30' : '30-45'} minutos
-  * 2-3 preguntas de quiz (opción múltiple con 4 opciones cada una)
-  * Recursos prácticos (enlaces, herramientas, ejemplos de código relevantes)
-
-Directrices de Contenido:
-- Sé CONCRETO y PRÁCTICO, no solo teórico
-- Incluye ejemplos de código, escenarios reales, casos de estudio
-- Explica POR QUÉ importan los conceptos, no solo QUÉ son
-- Usa lenguaje simple pero mantén precisión técnica
-- Agrega pasos accionables en cada módulo
-
-Retorna SOLO JSON válido y completo (sin markdown, sin explicación):
+Return EXACT JSON structure (valid, no markdown):
 {
-  "title": "Título del Curso Completo",
-  "description": "Descripción comprensiva del curso (2-3 oraciones)",
-  "objectives": [
-    "Objetivo de aprendizaje claro 1",
-    "Objetivo de aprendizaje claro 2",
-    "Objetivo de aprendizaje claro 3"
-  ],
+  "title": "Course title",
+  "description": "Brief description (max 50 words)",
+  "objectives": ["Objective 1", "Objective 2"],
   "modules": [
     {
-      "title": "Título del Módulo",
-      "description": "Qué aprenderás en este módulo (1-2 oraciones)",
-      "content": "CONTENIDO DETALLADO con explicaciones, ejemplos, código si es relevante. Usa formato markdown. Debe tener ${contentWordCount}+ palabras. Incluye ejemplos prácticos y escenarios.",
-      "keyTakeaways": [
-        "Punto clave 1",
-        "Punto clave 2",
-        "Punto clave 3"
-      ],
+      "title": "Module 1",
+      "description": "Brief description",
+      "content": "Substantive content of ${wordCount}+ words. Be practical and concrete.",
+      "keyTakeaways": ["Point 1", "Point 2"],
       "estimatedMinutes": 20,
-      "quiz": [
-        {
-          "question": "¿Pregunta clara y específica del quiz?",
-          "options": ["Opción incorrecta", "Opción incorrecta", "Opción correcta", "Opción incorrecta"],
-          "correctAnswer": 2,
-          "explanation": "Por qué esto es correcto y qué deberían haber entendido los estudiantes"
-        }
-      ],
-      "resources": [
-        "Recurso 1 con URL o nombre de herramienta",
-        "Recurso 2 con aplicación práctica"
-      ]
+      "quiz": [{"question": "Question?", "options": ["A", "B", "C correct", "D"], "correctAnswer": 2, "explanation": "Brief explanation"}],
+      "resources": ["Resource 1", "Resource 2"]
     }
   ]
 }
 
-CRÍTICO:
-- El JSON debe ser válido y completo
-- Sin backticks de markdown o envoltorios
-- Todos los módulos deben ser sustanciales (no texto placeholder)
-- Las preguntas de quiz deben tener exactamente 4 opciones
-- El contenido debe ser adecuado para aprendizaje autónomo`;
+Generate EXACTLY ${moduleCount} modules. Only valid JSON, no explanation.`;
 };
 
-// ============================================================================
-// OPENAI GENERATION
-// ============================================================================
-
-async function generateWithOpenAI(prompt: string): Promise<CourseData> {
+// Call OpenAI with timeout handling
+async function callOpenAI(prompt: string): Promise<CourseData> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY not configured');
+    throw new Error('OPENAI_API_KEY not set');
   }
 
-  console.log('[OpenAI] Calling GPT-4o for course generation...');
+  console.log('[OpenAI] Requesting course generation...');
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000);
-
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -220,13 +122,13 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini', // Faster model for quick responses
         messages: [{ 
           role: 'user', 
           content: prompt 
         }],
-        temperature: 0.7,
-        max_tokens: 5000
+        temperature: 0.5,
+        max_tokens: 4000
       }),
       signal: controller.signal
     });
@@ -234,183 +136,129 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMsg = (errorData as { error?: { message?: string } }).error?.message || `HTTP ${response.status}`;
-      throw new Error(`OpenAI API error: ${errorMsg}`);
+      const error = await response.json() as { error?: { message?: string } };
+      const msg = error.error?.message || `HTTP ${response.status}`;
+      throw new Error(`OpenAI error: ${msg}`);
     }
 
-    const data = await response.json() as { choices: Array<{ message?: { content: string } }> };
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const content = data.choices?.[0]?.message?.content;
-    
+
     if (!content) {
-      throw new Error('No content returned from OpenAI');
+      throw new Error('No content from OpenAI');
     }
 
-    // Parse JSON response - try multiple approaches
-    let parsed: CourseData;
-    try {
-      // Try direct parsing first
-      parsed = JSON.parse(content);
-    } catch {
-      // Try removing markdown wrappers
-      const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    }
+    // Parse JSON - handle markdown wrappers
+    const jsonStr = content.includes('```json')
+      ? content.split('```json')[1].split('```')[0].trim()
+      : content.includes('```')
+      ? content.split('```')[1].split('```')[0].trim()
+      : content.trim();
 
-    console.log('[OpenAI] ✅ Successfully parsed course structure');
-    console.log(`[OpenAI] Course title: "${parsed.title}"`);
-    console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
+    const parsed = JSON.parse(jsonStr) as CourseData;
+    console.log('[OpenAI] ✅ Course generated:', parsed.title);
     return parsed;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error('[OpenAI] Generation failed:', msg);
+    clearTimeout(timeoutId);
+    if (error instanceof TypeError && error.message.includes('aborted')) {
+      throw new Error('Course generation timeout - OpenAI took too long');
+    }
     throw error;
   }
 }
 
-// ============================================================================
-// DATABASE OPERATIONS
-// ============================================================================
-
-async function saveCourseToDatabase(
-  courseData: CourseData,
+// Save to database
+async function saveCourseToDB(
+  course: CourseData,
   params: z.infer<typeof schema>,
   courseId: string
-): Promise<{ success: boolean; courseId: string; error?: string }> {
-  try {
-    const supabase = getSupabaseServerClient();
-    console.log(`[DB] Saving course "${courseData.title}" to database...`);
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseServerClient();
 
-    // Simple approach: save the generated content in both EN and ES
-    
-    const courseRecord = {
+  try {
+    console.log('[DB] Saving course to database...');
+
+    // Insert course
+    const { error: courseErr } = await supabase.from('courses').insert({
       id: courseId,
-      title_en: params.locale === 'en' ? courseData.title : courseData.title,
-      title_es: params.locale === 'es' ? courseData.title : courseData.title,
-      description_en: params.locale === 'en' ? courseData.description : courseData.description,
-      description_es: params.locale === 'es' ? courseData.description : courseData.description,
+      title_en: course.title,
+      title_es: course.title,
+      description_en: course.description,
+      description_es: course.description,
       difficulty: params.difficulty,
-      duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 240,
+      duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 210,
       topics: [params.topic],
       ai_generated: true,
-      status: 'published' as const,
+      status: 'published',
       enrollment_count: 0,
       rating_avg: 0,
       completion_rate: 0,
       view_count: 0,
       category: params.topic
-    };
+    });
 
-    const { error: courseError, data: courseData_resp } = await supabase
-      .from('courses')
-      .insert([courseRecord])
-      .select();
+    if (courseErr) throw courseErr;
+    console.log('[DB] Course saved');
 
-    if (courseError || !courseData_resp) {
-      console.error('[DB] ❌ Course insert error:', courseError?.message);
-      throw new Error(`Failed to insert course: ${courseError?.message}`);
+    // Insert modules
+    if (!course.modules?.length) {
+      return { success: true };
     }
 
-    console.log(`[DB] ✅ Course saved`);
-
-    // 2. Insert modules
-    if (!courseData.modules?.length) {
-      return { success: true, courseId };
-    }
-
-    const modulesToInsert = courseData.modules.map((module, index) => ({
+    const modules = course.modules.map((m, i) => ({
       course_id: courseId,
-      order_index: index,
-      title_en: params.locale === 'en' ? module.title : module.title,
-      title_es: params.locale === 'es' ? module.title : module.title,
-      content_en: params.locale === 'en' ? module.content : module.content,
-      content_es: params.locale === 'es' ? module.content : module.content,
+      order_index: i,
+      title_en: m.title,
+      title_es: m.title,
+      content_en: m.content,
+      content_es: m.content,
       type: 'text' as const,
-      estimated_time: module.estimatedMinutes,
+      estimated_time: m.estimatedMinutes,
       resources: {
-        takeaways: module.keyTakeaways,
-        quiz: module.quiz,
-        links: module.resources
+        takeaways: m.keyTakeaways,
+        quiz: m.quiz,
+        links: m.resources
       }
     }));
 
-    console.log(`[DB] Inserting ${modulesToInsert.length} modules...`);
+    const { error: modulesErr } = await supabase.from('course_modules').insert(modules);
+    if (modulesErr) throw modulesErr;
 
-    const { error: modulesError, data: modulesData } = await supabase
-      .from('course_modules')
-      .insert(modulesToInsert)
-      .select();
-
-    if (modulesError || !modulesData) {
-      console.error('[DB] ⚠️ Modules insert error:', modulesError?.message);
-      throw new Error(`Failed to insert modules: ${modulesError?.message}`);
-    }
-
-    console.log(`[DB] ✅ Inserted ${modulesToInsert.length} modules`);
-
-    return {
-      success: true,
-      courseId
-    };
-
+    console.log('[DB] ✅ All saved');
+    return { success: true };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[DB] Unexpected error:', msg);
-    return {
-      success: false,
-      courseId,
-      error: msg
-    };
+    console.error('[DB] Error:', msg);
+    return { success: false, error: msg };
   }
 }
 
-// ============================================================================
-// API HANDLER
-// ============================================================================
-
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
-  
-  try {
-    console.log('\n' + '='.repeat(80));
-    console.log('[API] POST /api/generate-course-simple');
-    console.log('='.repeat(80));
 
-    // 1. Parse & validate input
+  try {
     const body = await req.json();
     const params = schema.parse(body);
-    
-    console.log(`[API] Parameters:`, {
-      topic: params.topic,
-      difficulty: params.difficulty,
-      duration: params.duration,
-      locale: params.locale
-    });
 
-    // 2. Generate prompt
-    const prompt = params.locale === 'es'
-      ? COURSE_PROMPT_ES(params.topic, params.difficulty, params.duration)
-      : COURSE_PROMPT_EN(params.topic, params.difficulty, params.duration);
+    console.log(`[API] Generating course: ${params.topic} (${params.difficulty}, ${params.duration})`);
 
-    // 3. Generate with OpenAI
-    console.log('[API] 📝 Generating course with OpenAI...');
-    const courseData = await generateWithOpenAI(prompt);
+    // Generate prompt and call OpenAI
+    const prompt = generatePrompt(params.topic, params.difficulty, params.duration, params.locale);
+    const courseData = await callOpenAI(prompt);
 
-    // 4. Create course ID
+    // Save to database
     const courseId = crypto.randomUUID();
-
-    // 5. Save to database
-    console.log('[API] 💾 Saving to database...');
-    const dbResult = await saveCourseToDatabase(courseData, params, courseId);
+    const dbResult = await saveCourseToDB(courseData, params, courseId);
 
     if (!dbResult.success) {
-      console.error('[API] Database save failed:', dbResult.error);
-      throw new Error(dbResult.error || 'Database save failed');
+      return NextResponse.json({
+        success: false,
+        error: `Database error: ${dbResult.error}`
+      }, { status: 500 });
     }
 
-    // 6. Return response
-    const duration = Date.now() - startTime;
-    console.log(`[API] ✅ Success! Generated in ${duration}ms`);
+    const elapsed = Date.now() - startTime;
+    console.log(`[API] ✅ Complete in ${elapsed}ms`);
 
     return NextResponse.json({
       success: true,
@@ -418,58 +266,34 @@ export async function POST(req: NextRequest) {
         course_id: courseId,
         title: courseData.title,
         description: courseData.description,
-        objectives: courseData.objectives,
         modules_count: courseData.modules?.length || 0,
-        estimated_total_minutes: courseData.modules
-          ? courseData.modules.reduce((sum, m) => sum + m.estimatedMinutes, 0)
-          : 0,
         content: courseData
       }
-    }, { status: 200 });
-
+    });
   } catch (error) {
-    const duration = Date.now() - startTime;
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[API] ❌ Error (${duration}ms):`, errorMsg);
+    const elapsed = Date.now() - startTime;
+    const msg = error instanceof Error ? error.message : String(error);
 
-    // Handle specific error types
+    console.error(`[API] Error (${elapsed}ms):`, msg);
+
     if (error instanceof z.ZodError) {
       return NextResponse.json({
         success: false,
-        error: 'Invalid input parameters',
-        details: error.errors
+        error: 'Invalid parameters'
       }, { status: 400 });
     }
 
-    if (error instanceof SyntaxError || errorMsg.includes('JSON')) {
+    // Distinguish timeout vs other errors
+    if (msg.includes('timeout') || msg.includes('aborted')) {
       return NextResponse.json({
         success: false,
-        error: 'Failed to parse AI response - invalid JSON structure',
-        details: errorMsg
-      }, { status: 500 });
+        error: 'Generation took too long - please try again'
+      }, { status: 504 });
     }
 
-    if (errorMsg.includes('OPENAI_API_KEY')) {
-      return NextResponse.json({
-        success: false,
-        error: 'OpenAI API not configured',
-        details: 'Server configuration error'
-      }, { status: 500 });
-    }
-
-    if (errorMsg.includes('OpenAI API error')) {
-      return NextResponse.json({
-        success: false,
-        error: 'OpenAI API returned an error',
-        details: errorMsg
-      }, { status: 503 });
-    }
-
-    // Generic error
     return NextResponse.json({
       success: false,
-      error: 'Course generation failed',
-      details: errorMsg
+      error: msg
     }, { status: 500 });
   }
 }
