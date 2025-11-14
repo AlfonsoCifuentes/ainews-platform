@@ -6,33 +6,50 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(_req: NextRequest) {
   const providers = {
+    ollama: {
+      configured: !!process.env.OLLAMA_BASE_URL || (process.env.VERCEL !== '1' && !!process.env.OLLAMA_API_KEY),
+      keyPrefix: process.env.OLLAMA_API_KEY ? process.env.OLLAMA_API_KEY.substring(0, 10) + '...' : 'LOCAL',
+      note: 'Local/Remote model'
+    },
+    openai: {
+      configured: !!process.env.OPENAI_API_KEY,
+      keyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'GPT-4o - Premium model'
+    },
     groq: {
       configured: !!process.env.GROQ_API_KEY,
-      keyPrefix: process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Free tier: 30 req/min'
     },
     openrouter: {
       configured: !!process.env.OPENROUTER_API_KEY,
-      keyPrefix: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Multiple free models'
     },
     anthropic: {
       configured: !!process.env.ANTHROPIC_API_KEY,
-      keyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Claude models'
     },
     gemini: {
       configured: !!process.env.GEMINI_API_KEY,
-      keyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Free tier: 60 req/min'
     },
     deepseek: {
       configured: !!process.env.DEEPSEEK_API_KEY,
-      keyPrefix: process.env.DEEPSEEK_API_KEY ? process.env.DEEPSEEK_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.DEEPSEEK_API_KEY ? process.env.DEEPSEEK_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Chinese provider'
     },
     mistral: {
       configured: !!process.env.MISTRAL_API_KEY,
-      keyPrefix: process.env.MISTRAL_API_KEY ? process.env.MISTRAL_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.MISTRAL_API_KEY ? process.env.MISTRAL_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'European provider'
     },
     huggingface: {
       configured: !!process.env.HUGGINGFACE_API_KEY,
-      keyPrefix: process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY.substring(0, 10) + '...' : 'NOT SET'
+      keyPrefix: process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY.substring(0, 10) + '...' : 'NOT SET',
+      note: 'Inference API'
     }
   };
 
