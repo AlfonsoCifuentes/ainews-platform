@@ -5,8 +5,10 @@
  * POST /api/ai/generate-course
  * Body: { topic, difficulty, duration, locale }
  * 
- * This is identical to /api/courses/generate but on a different path
+ * This endpoint is identical to /api/courses/generate but on a different path.
+ * By distributing requests across multiple endpoints, we can avoid hitting
+ * Vercel's per-endpoint rate limits.
  */
 
-// Re-export everything from the original endpoint
+// Re-export the POST handler from the courses endpoint
 export { POST } from '@/app/api/courses/generate/route';
