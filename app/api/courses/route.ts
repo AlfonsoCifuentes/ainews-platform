@@ -6,6 +6,8 @@ export async function GET(req: NextRequest) {
     const db = getSupabaseServerClient();
     const { searchParams } = req.nextUrl;
     
+    console.log('[Courses API] GET request received');
+    
     // Parse query parameters
     const category = searchParams.get('category');
     const difficulty = searchParams.get('difficulty');
@@ -14,6 +16,8 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get('sort') || 'newest'; // newest, popular, rating
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
+    
+    console.log('[Courses API] Query params:', { category, difficulty, search, locale, sort, limit, offset });
     
     // Build query
     let query = db
@@ -78,16 +82,24 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error('[Courses API] Error fetching courses:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch courses' },
+        { success: false, error: 'Failed to fetch courses', details: error },
         { status: 500 }
       );
     }
     
+    console.log('[Courses API] Fetched courses:', { count: courses?.length || 0 });
+    
     // Get total count for pagination
-    const { count: totalCount } = await db
+    const { count: totalCount, error: countError } = await db
       .from('courses')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'published');
+    
+    if (countError) {
+      console.error('[Courses API] Error counting courses:', countError);
+    }
+    
+    console.log('[Courses API] Total courses:', totalCount);
     
     return NextResponse.json({
       success: true,
