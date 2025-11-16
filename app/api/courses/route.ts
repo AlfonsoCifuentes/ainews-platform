@@ -5,7 +5,13 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
     
+    // Log the EXACT request URL for debugging
+    console.log('[Courses API] =============================================');
     console.log('[Courses API] GET request received');
+    console.log('[Courses API] Full URL:', req.url);
+    console.log('[Courses API] URL without query:', req.nextUrl.pathname);
+    console.log('[Courses API] Search params:', searchParams.toString());
+    console.log('[Courses API] =============================================');
     
     // Create Supabase client with proper error handling
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
