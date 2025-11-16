@@ -1,12 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(req: NextRequest) {
   try {
-    const db = getSupabaseServerClient();
     const { searchParams } = req.nextUrl;
     
     console.log('[Courses API] GET request received');
+    
+    // Create Supabase client with proper error handling
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl) {
+      console.error('[Courses API] NEXT_PUBLIC_SUPABASE_URL is missing');
+      return NextResponse.json(
+        { success: false, error: 'Database configuration error' },
+        { status: 500 }
+      );
+    }
+    
+    // If we have service role key, use it; otherwise use anon key
+    const apiKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!apiKey) {
+      console.error('[Courses API] Neither SUPABASE_SERVICE_ROLE_KEY nor NEXT_PUBLIC_SUPABASE_ANON_KEY is available');
+      return NextResponse.json(
+        { success: false, error: 'Authentication configuration error' },
+        { status: 500 }
+      );
+    }
+    
+    const db = createClient(supabaseUrl, apiKey, {
+      auth: { persistSession: false }
+    });
     
     // Parse query parameters
     const category = searchParams.get('category');

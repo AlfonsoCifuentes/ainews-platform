@@ -29,13 +29,21 @@ function createServerClient(): SupabaseClient {
     process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceRoleKey) {
+  // If service role key is missing, try with anon key as fallback
+  const apiKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !apiKey) {
     throw new Error(
-      'Supabase server environment variables are missing. Please check SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.',
+      'Supabase server environment variables are missing. Please check SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY).',
     );
   }
 
-  return createClient(url, serviceRoleKey, {
+  // Log which key we're using (for debugging)
+  if (!serviceRoleKey) {
+    console.warn('[Supabase] Using anon key instead of service role key. This may have permission limitations.');
+  }
+
+  return createClient(url, apiKey, {
     auth: {
       persistSession: false,
     },
