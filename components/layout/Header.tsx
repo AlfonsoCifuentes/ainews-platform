@@ -8,6 +8,7 @@ import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
+import { AuthModalProvider } from '@/components/auth/AuthModalProvider';
 import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -314,6 +315,9 @@ export function Header() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Auth Modal Provider - Renders modal and listens for auth requests */}
+      <AuthModalProvider locale={locale} />
     </header>
   );
 }
