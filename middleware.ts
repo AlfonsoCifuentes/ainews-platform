@@ -51,6 +51,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(en|es)/:path*', '/api/:path*'],
+  // Match only internationalized pathnames (exclude API routes)
+  matcher: ['/', '/(en|es)/:path*'],
 };
