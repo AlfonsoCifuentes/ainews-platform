@@ -1,44 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 
 export async function GET(req: NextRequest) {
   try {
+    const db = getSupabaseServerClient();
     const { searchParams } = req.nextUrl;
-    
-    // Log the EXACT request URL for debugging
-    console.log('[Courses API] =============================================');
-    console.log('[Courses API] GET request received');
-    console.log('[Courses API] Full URL:', req.url);
-    console.log('[Courses API] URL without query:', req.nextUrl.pathname);
-    console.log('[Courses API] Search params:', searchParams.toString());
-    console.log('[Courses API] =============================================');
-    
-    // Create Supabase client with proper error handling
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl) {
-      console.error('[Courses API] NEXT_PUBLIC_SUPABASE_URL is missing');
-      return NextResponse.json(
-        { success: false, error: 'Database configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    // If we have service role key, use it; otherwise use anon key
-    const apiKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    if (!apiKey) {
-      console.error('[Courses API] Neither SUPABASE_SERVICE_ROLE_KEY nor NEXT_PUBLIC_SUPABASE_ANON_KEY is available');
-      return NextResponse.json(
-        { success: false, error: 'Authentication configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    const db = createClient(supabaseUrl, apiKey, {
-      auth: { persistSession: false }
-    });
     
     // Parse query parameters
     const category = searchParams.get('category');
@@ -48,8 +14,6 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get('sort') || 'newest'; // newest, popular, rating
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
-    
-    console.log('[Courses API] Query params:', { category, difficulty, search, locale, sort, limit, offset });
     
     // Build query
     let query = db
@@ -114,24 +78,16 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error('[Courses API] Error fetching courses:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch courses', details: error },
+        { success: false, error: 'Failed to fetch courses' },
         { status: 500 }
       );
     }
     
-    console.log('[Courses API] Fetched courses:', { count: courses?.length || 0 });
-    
     // Get total count for pagination
-    const { count: totalCount, error: countError } = await db
+    const { count: totalCount } = await db
       .from('courses')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'published');
-    
-    if (countError) {
-      console.error('[Courses API] Error counting courses:', countError);
-    }
-    
-    console.log('[Courses API] Total courses:', totalCount);
     
     return NextResponse.json({
       success: true,
@@ -156,3 +112,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
