@@ -10,9 +10,10 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: 'signin' | 'signup';
   locale: 'en' | 'es';
+  courseId?: string;
 }
 
-export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, courseId }: AuthModalProps) {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,16 +23,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale }: A
   const [pendingCourseId, setPendingCourseId] = useState<string | undefined>();
   const router = useRouter();
 
-  // Listen for login requests from course enroll button
+  // Update pending course ID based on prop changes
   useEffect(() => {
-    const handleLoginRequest = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      setPendingCourseId(customEvent.detail?.courseId);
-    };
-
-    window.addEventListener('request-login', handleLoginRequest);
-    return () => window.removeEventListener('request-login', handleLoginRequest);
-  }, []);
+    if (isOpen && courseId) {
+      setPendingCourseId(courseId);
+    } else if (!isOpen) {
+      setPendingCourseId(undefined);
+    }
+  }, [isOpen, courseId]);
 
   const translations = {
     en: {

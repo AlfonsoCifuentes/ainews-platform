@@ -14,17 +14,20 @@ interface AuthModalProviderProps {
 export function AuthModalProvider({ locale }: AuthModalProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [initialMode, setInitialMode] = useState<'signin' | 'signup'>('signin');
+  const [courseId, setCourseId] = useState<string | undefined>();
 
   useEffect(() => {
     const handleLoginRequest = (event: Event) => {
       const customEvent = event as CustomEvent;
       console.log('[AuthModalProvider] Login request received:', customEvent.detail);
+      setCourseId(customEvent.detail?.courseId);
       setInitialMode('signin');
       setIsOpen(true);
     };
 
     const handleSignupRequest = (_event: Event) => {
       console.log('[AuthModalProvider] Signup request received');
+      setCourseId(undefined);
       setInitialMode('signup');
       setIsOpen(true);
     };
@@ -38,12 +41,18 @@ export function AuthModalProvider({ locale }: AuthModalProviderProps) {
     };
   }, []);
 
+  const handleClose = () => {
+    setIsOpen(false);
+    setCourseId(undefined);
+  };
+
   return (
     <AuthModal
       isOpen={isOpen}
-      onClose={() => setIsOpen(false)}
+      onClose={handleClose}
       initialMode={initialMode}
       locale={locale}
+      courseId={courseId}
     />
   );
 }
