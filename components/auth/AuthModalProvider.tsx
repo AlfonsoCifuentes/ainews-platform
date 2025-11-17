@@ -17,6 +17,7 @@ export function AuthModalProvider({ locale }: AuthModalProviderProps) {
   const [courseId, setCourseId] = useState<string | undefined>();
 
   useEffect(() => {
+    console.log('[AuthModalProvider] mounted');
     const handleLoginRequest = (event: Event) => {
       const customEvent = event as CustomEvent;
       console.log('[AuthModalProvider] Login request received:', customEvent.detail);
@@ -42,9 +43,14 @@ export function AuthModalProvider({ locale }: AuthModalProviderProps) {
   }, []);
 
   const handleClose = () => {
+    console.log('[AuthModalProvider] handleClose called');
     setIsOpen(false);
     setCourseId(undefined);
   };
+
+  useEffect(() => {
+    console.log('[AuthModalProvider] isOpen changed:', isOpen, 'courseId:', courseId);
+  }, [isOpen, courseId]);
 
   return (
     <AuthModal

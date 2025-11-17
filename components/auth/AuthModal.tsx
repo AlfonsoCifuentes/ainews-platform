@@ -25,7 +25,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
 
   // Update pending course ID based on prop changes
   useEffect(() => {
+    console.log('[AuthModal] useEffect isOpen, courseId ->', { isOpen, courseId });
     if (isOpen && courseId) {
+      console.log('[AuthModal] Setting pendingCourseId from prop:', courseId);
       setPendingCourseId(courseId);
     } else if (!isOpen) {
       setPendingCourseId(undefined);
@@ -163,6 +165,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
     }
   };
 
+  // Debug render
+  console.log('[AuthModal] render -> isOpen:', isOpen, 'pendingCourseId:', pendingCourseId);
   if (!isOpen) return null;
 
   return (

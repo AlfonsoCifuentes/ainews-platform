@@ -67,6 +67,7 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
       const event = new CustomEvent('request-login', {
         detail: { courseId, locale },
       });
+      console.log('[CourseEnrollButton] dispatching request-login for courseId:', courseId);
       window.dispatchEvent(event);
       showToast(t.loginRequired, 'warning');
       return;
