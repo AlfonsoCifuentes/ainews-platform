@@ -48,6 +48,23 @@ export function Header() {
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
+  // Debug: show cookie names and whether they look base64-encoded
+  useEffect(() => {
+    try {
+      if (typeof document !== 'undefined') {
+        const cookies = document.cookie.split(';').map(c => c.trim()).filter(Boolean);
+        const list = cookies.map(c => {
+          const [name, ...rest] = c.split('=');
+          const value = rest.join('=').replace(/^\"|\"$/g, '');
+          return { name, prefix: value.slice(0, 12), isBase64: value.startsWith('base64-') };
+        });
+        console.log('[Header] document.cookie overview:', list);
+      }
+    } catch (err) {
+      // don't break UI
+    }
+  }, []);
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
       <div className="container mx-auto px-4">

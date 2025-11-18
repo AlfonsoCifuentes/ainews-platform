@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
+          // Explicitly set cookie encoding to match middleware and client
+          cookieEncoding: 'base64url',
           cookies: {
             getAll() {
               return cookieStore.getAll();
@@ -48,6 +50,18 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('[Auth Callback] Session established:', { userId: data?.user?.id });
+
+      // Debug: log cookies present after exchange to ensure correct encoding
+      try {
+        const cookieEntries = cookieStore.getAll();
+        cookieEntries.forEach(c => {
+          const preview = c.value?.slice(0, 24) ?? '';
+          const isBase64 = typeof c.value === 'string' && c.value.startsWith('base64-');
+          console.log(`[Auth Callback] Cookie ${c.name} set preview: ${preview}${preview.length < (c.value?.length ?? 0) ? '...' : ''}, base64?: ${isBase64}`);
+        });
+      } catch (err) {
+        console.warn('[Auth Callback] Error enumerating cookies for debug:', err);
+      }
       
       // Create response with proper redirect
       const response = NextResponse.redirect(new URL(next, requestUrl.origin));
