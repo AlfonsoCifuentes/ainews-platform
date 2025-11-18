@@ -28,9 +28,11 @@ export async function middleware(request: NextRequest) {
       // Debug log
       const valuePreview = value?.slice(0, 24) ?? '';
       const isBase64Prefixed = typeof value === 'string' && /^base64(?:url)?-/.test(value);
-      console.log(
-        `[Middleware] Cookie ${name}: ${valuePreview}${valuePreview.length < (value?.length ?? 0) ? '...' : ''}${isBase64Prefixed ? ' [BASE64-PREFIXED!]' : ''}`
-      );
+      if (isBase64Prefixed || name.toLowerCase().includes('auth') || name.toLowerCase().includes('supabase')) {
+        console.log(
+          `[Middleware] Cookie ${name}: ${valuePreview}${valuePreview.length < (value?.length ?? 0) ? '...' : ''}${isBase64Prefixed ? ' [BASE64-PREFIXED!]' : ''}`
+        );
+      }
       
       // If cookie starts with base64- or base64url-, try to clean it
       if (isBase64Prefixed) {
@@ -90,10 +92,15 @@ export async function middleware(request: NextRequest) {
 
     // Refresh the session to ensure it's valid
     try {
-      await supabase.auth.getUser();
-      console.info('[Middleware] Session refresh successful');
+      const authResult = await supabase.auth.getUser();
+      if (authResult.data?.user) {
+        console.info(`[Middleware] Session refreshed for user ${authResult.data.user.id}`);
+      } else {
+        console.info('[Middleware] No active session');
+      }
     } catch (sessionErr) {
-      console.warn('[Middleware] Session refresh failed:', sessionErr instanceof Error ? sessionErr.message : 'Unknown error');
+      const errMsg = sessionErr instanceof Error ? sessionErr.message : String(sessionErr);
+      console.warn('[Middleware] Session refresh failed:', errMsg);
       // Don't fail the request; user may be unauthenticated which is OK
     }
   } catch (error) {

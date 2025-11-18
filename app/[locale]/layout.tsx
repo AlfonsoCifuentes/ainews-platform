@@ -104,7 +104,10 @@ export default async function LocaleLayout({
             __html: `
 (function() {
   try {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    
+    // CRITICAL: Normalize all Supabase-related storage synchronously
+    // This must run BEFORE any Supabase library code loads
     
     function decodeBase64Url(s) {
       try {
@@ -117,7 +120,7 @@ export default async function LocaleLayout({
     }
     
     function normalizeValue(rawValue) {
-      if (!rawValue) return null;
+      if (!rawValue || typeof rawValue !== 'string') return null;
       
       // Check if value starts with base64- or base64url-
       if (/^base64(?:url)?-/.test(rawValue)) {
@@ -136,78 +139,111 @@ export default async function LocaleLayout({
       return null;
     }
     
-    // Clean localStorage and sessionStorage
-    [localStorage, sessionStorage].forEach(storage => {
+    // Stage 1: Clean localStorage and sessionStorage FIRST (before Supabase reads from them)
+    const storagesToClean = [];
+    try { storagesToClean.push(['localStorage', window.localStorage]); } catch (e) {}
+    try { storagesToClean.push(['sessionStorage', window.sessionStorage]); } catch (e) {}
+    
+    storagesToClean.forEach(([storageName, storage]) => {
+      if (!storage) return;
       try {
         const keysToProcess = [];
+        // Collect all keys first to avoid mutation during iteration
         for (let i = 0; i < storage.length; i++) {
           const key = storage.key(i);
-          if (key && (key.includes('supabase') || key.includes('auth') || key.startsWith('sb:'))) {
+          if (key && (key.includes('supabase') || key.includes('auth') || key.startsWith('sb'))) {
             keysToProcess.push(key);
           }
         }
         
         keysToProcess.forEach(key => {
           try {
-            const value = storage.getItem(key);
+            let value = storage.getItem(key);
             if (!value) return;
             
             // Try to normalize base64 values
             const normalized = normalizeValue(value);
             if (normalized && normalized !== value) {
               storage.setItem(key, normalized);
-              console.log('[CookieNorm] Fixed ' + key);
+              console.log('[CookieNorm] Fixed ' + storageName + '.' + key);
+              return;
             }
             
-            // Clean up clearly invalid values
+            // If the value contains 'base64' but couldn't be decoded, remove it
             if (typeof value === 'string' && value.includes('base64') && !value.startsWith('{') && !value.startsWith('[')) {
               storage.removeItem(key);
-              console.log('[CookieNorm] Removed invalid ' + key);
+              console.log('[CookieNorm] Removed invalid ' + storageName + '.' + key);
+              return;
+            }
+            
+            // Try to validate as JSON - if it's malformed and contains base64, remove it
+            try {
+              const decoded = decodeURIComponent(value);
+              JSON.parse(decoded);
+            } catch {
+              if (value.includes('base64')) {
+                storage.removeItem(key);
+                console.log('[CookieNorm] Removed malformed ' + storageName + '.' + key);
+              }
             }
           } catch (e) {
-            console.warn('[CookieNorm] Error with ' + key + ':', e.message);
+            console.warn('[CookieNorm] Error processing ' + storageName + '.' + key + ':', e.message);
           }
         });
       } catch (e) {
-        console.warn('[CookieNorm] Storage cleanup error:', e.message);
+        console.warn('[CookieNorm] ' + storageName + ' cleanup error:', e.message);
       }
     });
     
-    // Clean cookies
-    const cookies = document.cookie.split(';');
-    const cookiesToSet = [];
-    
-    cookies.forEach(cookie => {
-      if (!cookie.trim()) return;
-      
-      const [rawName, ...valueParts] = cookie.split('=');
-      const name = rawName.trim();
-      const value = valueParts.join('=').trim();
-      
-      if (!name) return;
-      
-      // Check if this is a Supabase-related cookie
-      const isSupabase = name.toLowerCase().includes('auth') || 
-                         name.toLowerCase().includes('supabase') ||
-                         name.toLowerCase().startsWith('sb');
-      
-      if (!isSupabase) return;
-      
-      const normalized = normalizeValue(decodeURIComponent(value));
-      if (normalized && normalized !== decodeURIComponent(value)) {
-        cookiesToSet.push({ name, value: encodeURIComponent(normalized) });
+    // Stage 2: Clean cookies
+    try {
+      const cookieString = document.cookie;
+      if (cookieString) {
+        const cookies = cookieString.split(';');
+        const cookiesToFix = [];
+        
+        cookies.forEach(cookie => {
+          if (!cookie.trim()) return;
+          
+          const [rawName, ...valueParts] = cookie.split('=');
+          const name = rawName.trim();
+          const value = decodeURIComponent(valueParts.join('=').trim() || '');
+          
+          if (!name) return;
+          
+          // Check if this is a Supabase-related cookie
+          const isSupabase = name.toLowerCase().includes('auth') || 
+                             name.toLowerCase().includes('supabase') ||
+                             name.toLowerCase().startsWith('sb');
+          
+          if (!isSupabase) return;
+          
+          const normalized = normalizeValue(value);
+          if (normalized && normalized !== value) {
+            cookiesToFix.push({ name, value: encodeURIComponent(normalized) });
+          }
+        });
+        
+        // Apply cookie fixes
+        cookiesToFix.forEach(({ name, value }) => {
+          try {
+            document.cookie = name + '=' + value + '; path=/; max-age=31536000; ' + 
+                             (location.protocol === 'https:' ? 'Secure; ' : '') + 
+                             'SameSite=Lax';
+            console.log('[CookieNorm] Fixed cookie: ' + name);
+          } catch (e) {
+            console.warn('[CookieNorm] Failed to set cookie ' + name + ':', e.message);
+          }
+        });
       }
-    });
+    } catch (e) {
+      console.warn('[CookieNorm] Cookie processing error:', e.message);
+    }
     
-    cookiesToSet.forEach(({ name, value }) => {
-      document.cookie = name + '=' + value + '; path=/; ' + 
-                       (location.protocol === 'https:' ? 'Secure; ' : '') + 
-                       'SameSite=Lax';
-      console.log('[CookieNorm] Fixed cookie: ' + name);
-    });
+    console.log('[CookieNorm] Normalization complete');
     
   } catch (err) {
-    console.error('[CookieNorm] Script error:', err);
+    console.error('[CookieNorm] Fatal error:', err);
   }
 })();
             `,

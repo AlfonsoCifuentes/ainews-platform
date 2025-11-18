@@ -173,6 +173,7 @@ export function CourseModulesList({
                       <div className="pl-12">
                         <Link
                           href={`/${locale}/courses/${courseId}/learn?module=${module.id}`}
+                          onClick={() => console.log('[CourseModulesList] Start module clicked', { moduleId: module.id, courseId })}
                           className={cn(
                             'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
                             isCompleted
