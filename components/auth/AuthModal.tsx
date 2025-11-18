@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
 import { useRouter } from 'next/navigation';
@@ -77,38 +78,43 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
     setError(null);
 
     try {
-      // Get the auth client BEFORE logging in to verify it works
-      const { getClientAuthClient } = await import('@/lib/auth/auth-client');
-      const supabaseClient = getClientAuthClient();
-
+      // 1. Perform the login/signup
       if (mode === 'signin') {
         await signInWithEmail(email, password);
       } else {
         await signUpWithEmail(email, password, { name, locale });
       }
       
-      // Wait for session to be set in cookies  
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // 2. Wait briefly for cookies to be set
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Verify user is now authenticated in the client
-      const { data: { user } } = await supabaseClient.auth.getUser();
+      // 3. Sync the session with the server to ensure cookies are valid
+      const syncResponse = await fetch('/api/auth/sync', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!syncResponse.ok) {
+        throw new Error('Failed to synchronize session');
+      }
+
+      const syncData = await syncResponse.json();
       
-      if (!user) {
+      if (!syncData.authenticated || !syncData.user) {
         throw new Error('Session not established after login');
       }
 
-      // Dispatch event to notify CourseEnrollButton about new user
+      // 4. Dispatch event to notify components about auth state change
       const event = new CustomEvent('auth-state-changed', {
-        detail: { userId: user.id, user }
+        detail: { userId: syncData.user.id, user: syncData.user }
       });
       window.dispatchEvent(event);
 
+      // 5. Refresh the router to update header and other auth-dependent components
+      // This DOES NOT redirect, just refreshes the current page
       router.refresh();
       
-      // Wait a bit more for refresh to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // If there's a pending course enrollment, attempt it
+      // 6. Handle pending course enrollment if any
       if (pendingCourseId) {
         await enrollCourse(pendingCourseId);
       } else {
@@ -169,13 +175,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
   console.log('[AuthModal] render -> isOpen:', isOpen, 'pendingCourseId:', pendingCourseId);
   if (!isOpen) return null;
 
-  return (
+  // Render in a portal to escape the header's stacking context
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
         onClick={onClose}
       >
         <motion.div
@@ -322,6 +329,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
