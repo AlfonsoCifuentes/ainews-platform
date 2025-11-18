@@ -64,7 +64,10 @@ export function CourseProgress({
           </div>
         ) : courseId ? (
           <Button asChild className="rounded-xl">
-            <Link href={`/${locale}/courses/${courseId}/learn`}>
+            <Link
+              href={`/${locale}/courses/${courseId}/learn`}
+              onClick={() => console.log('[CourseProgress] Start course clicked', { courseId, locale })}
+            >
               <PlayCircle className="w-4 h-4 mr-2" />
               {completedModules > 0 ? t.continuelearning : t.startCourse}
             </Link>
