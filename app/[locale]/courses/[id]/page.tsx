@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   PlayCircle
 } from 'lucide-react';
-import Image from 'next/image';
+// Use client-side lazy image for robust load & fallback handling
+import { CourseThumbnail } from '@/components/courses/CourseThumbnail';
 import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
 export default async function CourseDetailPage({
@@ -225,14 +226,13 @@ export default async function CourseDetailPage({
 
             {/* Right: Course Image */}
             <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
-              <Image
-                src={course.thumbnail_url || '/images/placeholder-ai-news.svg'}
-                alt={title}
-                width={800}
-                height={450}
-                className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
-                priority
-              />
+                <CourseThumbnail
+                  src={course.thumbnail_url}
+                  alt={title}
+                  width={800}
+                  height={450}
+                  className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               {enrollment && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <PlayCircle className="w-20 h-20 text-white" />
