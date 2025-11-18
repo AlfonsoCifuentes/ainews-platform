@@ -226,7 +226,7 @@ export default async function CourseDetailPage({
             {/* Right: Course Image */}
             <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
               <Image
-                src={course.thumbnail_url || '/images/course-placeholder.jpg'}
+                src={course.thumbnail_url || '/images/placeholder-ai-news.svg'}
                 alt={title}
                 width={800}
                 height={450}

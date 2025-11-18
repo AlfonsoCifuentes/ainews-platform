@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -61,7 +61,7 @@ export function Header() {
         console.log('[Header] document.cookie overview:', list);
       }
     } catch (err) {
-      // don't break UI
+      console.warn('[Header] cookie preview error', err);
     }
   }, []);
 

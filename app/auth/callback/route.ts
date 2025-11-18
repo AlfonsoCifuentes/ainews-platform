@@ -65,12 +65,12 @@ export async function GET(request: NextRequest) {
       
       // Create response with proper redirect
       const response = NextResponse.redirect(new URL(next, requestUrl.origin));
-      
-      // Set cookies on response (redundant but ensures they're sent)
-      cookieStore.getAll().forEach(cookie => {
-        response.cookies.set(cookie.name, cookie.value, { path: '/', sameSite: 'lax', secure: true });
-      });
-      
+
+      // NOTE: We previously set response cookies manually here, but that can lead
+      // to double-encoding or malformed values. The Supabase SSR client
+      // (createServerClient) already sets cookies via the provided `setAll`
+      // method, which ensures cookie chunking and encoding follow the expected
+      // format. Avoid setting cookies manually to prevent double-encoded values.
       return response;
     }
 

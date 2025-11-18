@@ -44,6 +44,7 @@ export function useUser() {
 
   useEffect(() => {
     let isMounted = true;
+    let clearedCookiesOnce = false;
 
     const syncUserProfile = async () => {
       if (!isMounted) {
@@ -52,7 +53,42 @@ export function useUser() {
 
       setIsLoading(true);
 
-      const { data, error } = await supabase.auth.getUser();
+      let supUserResult;
+      try {
+        supUserResult = await supabase.auth.getUser();
+      } catch (err) {
+        // Detect cookie parse errors caused by legacy or malformed cookies
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('[useUser] Supabase getUser error:', message);
+        if (!clearedCookiesOnce && message.includes('Failed to parse cookie string')) {
+          clearedCookiesOnce = true;
+          // Attempt to clear any Supabase-related cookies (avoid removing all cookies)
+          try {
+            if (typeof document !== 'undefined') {
+              const cookieNames = document.cookie.split(';').map(c => c.split('=')[0].trim()).filter(Boolean);
+              cookieNames.forEach(cn => {
+                const normalized = cn.toLowerCase();
+                if (normalized.startsWith('sb') || normalized.includes('supabase') || normalized.startsWith('sb-')) {
+                  document.cookie = `${cn}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+                }
+              });
+            }
+          } catch (clearError) {
+            console.warn('[useUser] Error clearing cookies for recovery:', clearError);
+          }
+
+          // Attempt again after clearing cookies
+          try {
+            supUserResult = await supabase.auth.getUser();
+          } catch (err2) {
+            console.warn('[useUser] getUser failed after clearing cookies:', err2);
+            supUserResult = null;
+          }
+        }
+      }
+
+      const data = supUserResult?.data;
+      const error = supUserResult?.error;
       const user = data?.user ?? null;
 
       if (error) {

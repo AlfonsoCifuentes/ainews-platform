@@ -6,6 +6,9 @@ import { z } from 'zod';
 const CreateCommentSchema = z.object({
   articleId: z.string().uuid().optional(),
   courseId: z.string().uuid().optional(),
+  // Legacy fields: contentId and contentType
+  contentId: z.string().optional(),
+  contentType: z.enum(['article', 'course']).optional(),
   parentCommentId: z.string().uuid().optional(),
   content: z.string().min(1).max(5000),
 });
@@ -26,7 +29,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { articleId, courseId, parentCommentId, content } = CreateCommentSchema.parse(body);
+    const parsed = CreateCommentSchema.parse(body);
+    let { articleId, courseId } = parsed;
+    const { parentCommentId, content } = parsed;
+
+    // Backwards compatibility: accept `contentId` + `contentType` from older clients
+    if (!articleId && !courseId && parsed.contentId && parsed.contentType) {
+      if (parsed.contentType === 'article') articleId = parsed.contentId;
+      if (parsed.contentType === 'course') courseId = parsed.contentId;
+    }
 
     // Must have either articleId or courseId
     if (!articleId && !courseId) {
@@ -93,8 +104,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const articleId = searchParams.get('articleId');
-    const courseId = searchParams.get('courseId');
+    const articleIdParam = searchParams.get('articleId');
+    const courseIdParam = searchParams.get('courseId');
+    const contentId = searchParams.get('contentId');
+    const contentType = searchParams.get('contentType');
+
+    // Support legacy contentId/contentType query params
+    const articleId = articleIdParam || (contentType === 'article' ? contentId : null);
+    const courseId = courseIdParam || (contentType === 'course' ? contentId : null);
 
     if (!articleId && !courseId) {
       return NextResponse.json(
