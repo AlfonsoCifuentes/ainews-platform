@@ -16,48 +16,89 @@ export async function middleware(request: NextRequest) {
   // First, handle i18n routing
   const response = intlMiddleware(request);
 
-    try {
-      // Logging cookie names and value prefixes for debugging session cookies
-      try {
-        const cookieList = request.cookies.getAll() || [];
-        cookieList.forEach(cookie => {
-          const preview = cookie?.value?.slice(0, 24) ?? '';
-          const isBase64 = typeof cookie?.value === 'string' && cookie.value.startsWith('base64-');
-          console.log(`[Middleware] Cookie: ${cookie.name}, preview: ${preview}${preview.length < (cookie.value?.length ?? 0) ? '...' : ''}, base64?: ${isBase64}`);
-        });
-      } catch (err) {
-        console.warn('[Middleware] Error enumerating cookies for debug:', err);
+  try {
+    // CRITICAL: Sanitize cookies BEFORE Supabase reads them
+    // This prevents JSON.parse errors from base64- prefixed values
+    const allCookies = request.cookies.getAll() || [];
+    const sanitizedCookies: Array<{ name: string; value: string }> = [];
+    
+    for (const cookie of allCookies) {
+      const { name, value } = cookie;
+      
+      // Debug log
+      const valuePreview = value?.slice(0, 24) ?? '';
+      const isBase64Prefixed = typeof value === 'string' && /^base64(?:url)?-/.test(value);
+      console.log(
+        `[Middleware] Cookie ${name}: ${valuePreview}${valuePreview.length < (value?.length ?? 0) ? '...' : ''}${isBase64Prefixed ? ' [BASE64-PREFIXED!]' : ''}`
+      );
+      
+      // If cookie starts with base64- or base64url-, try to clean it
+      if (isBase64Prefixed) {
+        try {
+          // Decode the base64 content
+          const encoded = value.replace(/^base64(?:url)?-/, '');
+          let decoded = encoded.replace(/-/g, '+').replace(/_/g, '/');
+          while (decoded.length % 4) decoded += '=';
+          
+          try {
+            const decoded_str = atob(decoded);
+            // Try to parse as JSON
+            try {
+              JSON.parse(decoded_str);
+              // It's valid JSON, use the decoded value
+              sanitizedCookies.push({ name, value: encodeURIComponent(decoded_str) });
+              console.info(`[Middleware] Recovered cookie ${name} from base64 encoding`);
+            } catch {
+              // Not JSON, store as plain decoded string
+              sanitizedCookies.push({ name, value: encodeURIComponent(decoded_str) });
+              console.info(`[Middleware] Recovered cookie ${name} (non-JSON)`);
+            }
+          } catch {
+            // Can't decode, expire this cookie
+            response.cookies.set(name, '', { path: '/', expires: new Date(0), sameSite: 'lax', secure: true });
+            console.warn(`[Middleware] Expired unparseable cookie: ${name}`);
+          }
+        } catch (err) {
+          console.warn(`[Middleware] Error processing cookie ${name}:`, err);
+          response.cookies.set(name, '', { path: '/', expires: new Date(0), sameSite: 'lax', secure: true });
+        }
+      } else {
+        // Normal cookie, keep as-is
+        sanitizedCookies.push({ name, value });
       }
-    // Refresh the Supabase session
+    }
+    
+    // Now pass the sanitized cookies to Supabase
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        // Force explicit cookie encoding to avoid mismatches
         cookieEncoding: 'base64url',
         cookies: {
           getAll() {
-            const cookies: Array<{ name: string; value: string }> = [];
-            request.cookies.getAll().forEach(cookie => {
-              cookies.push({ name: cookie.name, value: cookie.value });
-            });
-            return cookies;
+            // Return the sanitized cookies, not the request cookies
+            return sanitizedCookies;
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
     );
 
     // Refresh the session to ensure it's valid
-    await supabase.auth.getUser();
-    // Session is now refreshed in the response cookies
+    try {
+      await supabase.auth.getUser();
+      console.info('[Middleware] Session refresh successful');
+    } catch (sessionErr) {
+      console.warn('[Middleware] Session refresh failed:', sessionErr instanceof Error ? sessionErr.message : 'Unknown error');
+      // Don't fail the request; user may be unauthenticated which is OK
+    }
   } catch (error) {
-    console.error('[Middleware] Session refresh error:', error);
-    // Don't block requests even if session refresh fails
+    console.error('[Middleware] Error:', error instanceof Error ? error.message : String(error));
+    // Continue with response even if middleware processing fails
   }
 
   return response;

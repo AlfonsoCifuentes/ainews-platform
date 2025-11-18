@@ -13,7 +13,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // Ensure cookieEncoding is explicit and consistent
+      // Ensure cookieEncoding is explicit and consistent with client helpers
       cookieEncoding: 'base64url',
       cookies: {
         getAll() {

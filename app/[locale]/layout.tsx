@@ -96,6 +96,124 @@ export default async function LocaleLayout({
             crossOrigin="anonymous"
           />
         ) : null}
+        
+        {/* CRITICAL: Inline beforeInteractive cookie/storage normalizer to fix base64- prefixed values */}
+        {/* This MUST run before Supabase client library loads to prevent JSON.parse errors */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    if (typeof document === 'undefined') return;
+    
+    function decodeBase64Url(s) {
+      try {
+        s = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (s.length % 4) s += '=';
+        return atob(s);
+      } catch (err) {
+        return null;
+      }
+    }
+    
+    function normalizeValue(rawValue) {
+      if (!rawValue) return null;
+      
+      // Check if value starts with base64- or base64url-
+      if (/^base64(?:url)?-/.test(rawValue)) {
+        const encoded = rawValue.replace(/^base64(?:url)?-/, '');
+        const decoded = decodeBase64Url(encoded);
+        if (decoded) {
+          try {
+            JSON.parse(decoded);
+            return decoded;
+          } catch {
+            return decoded;
+          }
+        }
+        return null;
+      }
+      return null;
+    }
+    
+    // Clean localStorage and sessionStorage
+    [localStorage, sessionStorage].forEach(storage => {
+      try {
+        const keysToProcess = [];
+        for (let i = 0; i < storage.length; i++) {
+          const key = storage.key(i);
+          if (key && (key.includes('supabase') || key.includes('auth') || key.startsWith('sb:'))) {
+            keysToProcess.push(key);
+          }
+        }
+        
+        keysToProcess.forEach(key => {
+          try {
+            const value = storage.getItem(key);
+            if (!value) return;
+            
+            // Try to normalize base64 values
+            const normalized = normalizeValue(value);
+            if (normalized && normalized !== value) {
+              storage.setItem(key, normalized);
+              console.log('[CookieNorm] Fixed ' + key);
+            }
+            
+            // Clean up clearly invalid values
+            if (typeof value === 'string' && value.includes('base64') && !value.startsWith('{') && !value.startsWith('[')) {
+              storage.removeItem(key);
+              console.log('[CookieNorm] Removed invalid ' + key);
+            }
+          } catch (e) {
+            console.warn('[CookieNorm] Error with ' + key + ':', e.message);
+          }
+        });
+      } catch (e) {
+        console.warn('[CookieNorm] Storage cleanup error:', e.message);
+      }
+    });
+    
+    // Clean cookies
+    const cookies = document.cookie.split(';');
+    const cookiesToSet = [];
+    
+    cookies.forEach(cookie => {
+      if (!cookie.trim()) return;
+      
+      const [rawName, ...valueParts] = cookie.split('=');
+      const name = rawName.trim();
+      const value = valueParts.join('=').trim();
+      
+      if (!name) return;
+      
+      // Check if this is a Supabase-related cookie
+      const isSupabase = name.toLowerCase().includes('auth') || 
+                         name.toLowerCase().includes('supabase') ||
+                         name.toLowerCase().startsWith('sb');
+      
+      if (!isSupabase) return;
+      
+      const normalized = normalizeValue(decodeURIComponent(value));
+      if (normalized && normalized !== decodeURIComponent(value)) {
+        cookiesToSet.push({ name, value: encodeURIComponent(normalized) });
+      }
+    });
+    
+    cookiesToSet.forEach(({ name, value }) => {
+      document.cookie = name + '=' + value + '; path=/; ' + 
+                       (location.protocol === 'https:' ? 'Secure; ' : '') + 
+                       'SameSite=Lax';
+      console.log('[CookieNorm] Fixed cookie: ' + name);
+    });
+    
+  } catch (err) {
+    console.error('[CookieNorm] Script error:', err);
+  }
+})();
+            `,
+          }}
+        />
+
         <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
           <ToastProvider>
             <NextIntlClientProvider messages={messages} locale={locale}>

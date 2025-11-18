@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
-          // Explicitly set cookie encoding to match middleware and client
+          // Explicitly set cookie encoding to match middleware and client helpers
           cookieEncoding: 'base64url',
           cookies: {
             getAll() {
