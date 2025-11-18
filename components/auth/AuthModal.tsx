@@ -104,17 +104,23 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
         throw new Error('Session not established after login');
       }
 
-      // 4. Dispatch event to notify components about auth state change
+      // 4. Store user data in sessionStorage for immediate client-side access
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('ainews_auth_user', JSON.stringify(syncData.user));
+        console.log('[AuthModal] Stored user in sessionStorage:', syncData.user);
+      }
+
+      // 5. Dispatch event to notify components about auth state change
       const event = new CustomEvent('auth-state-changed', {
         detail: { userId: syncData.user.id, user: syncData.user }
       });
       window.dispatchEvent(event);
 
-      // 5. Refresh the router to update header and other auth-dependent components
+      // 6. Refresh the router to update header and other auth-dependent components
       // This DOES NOT redirect, just refreshes the current page
       router.refresh();
       
-      // 6. Handle pending course enrollment if any
+      // 7. Handle pending course enrollment if any
       if (pendingCourseId) {
         await enrollCourse(pendingCourseId);
       } else {

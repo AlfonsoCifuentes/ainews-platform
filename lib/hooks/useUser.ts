@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
 import type { UserProfile } from '@/lib/types/user';
@@ -41,6 +41,7 @@ export function useUser() {
   const [locale, setLocale] = useState<'en' | 'es'>('en');
   const [isLoading, setIsLoading] = useState(true);
   const supabase = useMemo(() => getClientAuthClient(), []);
+  const refetchRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,6 +54,21 @@ export function useUser() {
 
       setIsLoading(true);
 
+      // STEP 1: Try to get user from sessionStorage (set after login)
+      let storedUser = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = sessionStorage.getItem('ainews_auth_user');
+          if (stored) {
+            storedUser = JSON.parse(stored);
+            console.log('[useUser] Found user in sessionStorage:', storedUser);
+          }
+        } catch (e) {
+          console.warn('[useUser] Failed to parse sessionStorage user:', e);
+        }
+      }
+
+      // STEP 2: Get user from Supabase auth
       let supUserResult;
       try {
         supUserResult = await supabase.auth.getUser();
@@ -152,6 +168,9 @@ export function useUser() {
       setIsLoading(false);
     };
 
+    // Store refetch function in ref so it can be called from outside
+    refetchRef.current = syncUserProfile;
+
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
         void syncUserProfile();
@@ -161,6 +180,10 @@ export function useUser() {
         setProfile(null);
         setLocale('en');
         setIsLoading(false);
+        // Clear sessionStorage on logout
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('ainews_auth_user');
+        }
       }
     });
 
@@ -172,5 +195,13 @@ export function useUser() {
     };
   }, [supabase]);
 
-  return { profile, locale, isLoading };
+  // Return refetch function that calls the stored ref
+  const refetch = useCallback(async () => {
+    if (refetchRef.current) {
+      console.log('[useUser] Refetch called');
+      await refetchRef.current();
+    }
+  }, []);
+
+  return { profile, locale, isLoading, refetch };
 }
