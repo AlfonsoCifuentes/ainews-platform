@@ -85,7 +85,8 @@ export function useNotifications(unreadOnly = false): UseNotificationsResult {
     return () => {
       isMounted = false;
     };
-  }, [unreadOnly]); // Only depend on unreadOnly, not fetchNotifications
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unreadOnly]); // Only depend on unreadOnly, fetchNotifications is stable due to useCallback
 
   const markAsRead = useCallback(async (id: string) => {
     try {

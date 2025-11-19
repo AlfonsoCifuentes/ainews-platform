@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink, TrendingUp } from 'lucide-react';
+import { logger } from '@/lib/utils/logging';
 
 interface AIModel {
   rank: number;
@@ -70,17 +71,24 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
+      logger.info('AILeaderboard', 'Starting fetch leaderboard');
       setIsLoading(true);
       // First try to fetch from our API endpoint
       const response = await fetch('/api/ai-leaderboard');
+      logger.debug('AILeaderboard', 'API response received', { status: response.status, ok: response.ok });
+      
       if (!response.ok) throw new Error('Failed to fetch leaderboard');
       
       const data = await response.json();
+      logger.info('AILeaderboard', 'API data parsed successfully', { modelsCount: data.models?.length });
+      
       if (data.models && Array.isArray(data.models)) {
         setModels(data.models.slice(0, 3));
         setFullLeaderboard(data.models);
+        logger.info('AILeaderboard', 'Models state updated', { topModels: data.models.slice(0, 3).map((m: AIModel) => m.name) });
       }
     } catch (err) {
+      logger.error('AILeaderboard', 'Error fetching leaderboard', err);
       console.error('Error fetching leaderboard:', err);
       setError(texts.error);
       // Use fallback data
@@ -91,12 +99,14 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
       ];
       setModels(fallbackModels);
       setFullLeaderboard(fallbackModels);
+      logger.info('AILeaderboard', 'Using fallback models');
     } finally {
       setIsLoading(false);
     }
   }, [texts]);
 
   useEffect(() => {
+    logger.info('AILeaderboard', 'Component mounted, triggering fetchLeaderboard');
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
