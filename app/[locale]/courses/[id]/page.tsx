@@ -51,6 +51,20 @@ export default async function CourseDetailPage({
   }
 
   const course = normalizeCourseRecord(rawCourse);
+  
+  // Debug: log course modules
+  if (!course.course_modules || course.course_modules.length === 0) {
+    console.warn('[CourseDetail] Course has no modules', { 
+      courseId: id, 
+      rawModules: rawCourse.course_modules,
+      normalizedModules: course.course_modules 
+    });
+  } else {
+    console.log('[CourseDetail] Loaded modules:', { 
+      count: course.course_modules.length,
+      modules: course.course_modules.map(m => ({ id: m.id, title_en: m.title_en }))
+    });
+  }
 
   // Check enrollment status
   let enrollment = null;

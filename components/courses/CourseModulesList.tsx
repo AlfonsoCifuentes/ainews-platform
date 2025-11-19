@@ -63,6 +63,13 @@ export function CourseModulesList({
   const [expandedModule, setExpandedModule] = useState<string | null>(modules[0]?.id || null);
 
   const sortedModules = [...modules].sort((a, b) => a.order_index - b.order_index);
+  
+  console.log('[CourseModulesList] Props:', { 
+    modulesCount: modules.length,
+    courseId,
+    hasEnrollment: !!enrollment,
+    progressCount: userProgress?.length || 0 
+  });
 
   const getModuleIcon = (type: string) => {
     switch (type) {
@@ -84,6 +91,19 @@ export function CourseModulesList({
   const canAccessModule = (module: Module) => {
     return module.is_free || !!enrollment;
   };
+
+  if (sortedModules.length === 0) {
+    return (
+      <div className="p-8 rounded-lg bg-muted/50 border border-dashed text-center">
+        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+        <p className="text-muted-foreground">
+          {locale === 'en' 
+            ? 'No modules yet. Course content is being prepared.' 
+            : 'Sin módulos aún. El contenido del curso se está preparando.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
