@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -47,6 +47,20 @@ export function Header() {
   }, [pathname]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const handleLoginClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const event = new CustomEvent('request-login', {});
+    window.dispatchEvent(event);
+    closeMobileMenu();
+  }, []);
+
+  const handleSignupClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const event = new CustomEvent('request-signup', {});
+    window.dispatchEvent(event);
+    closeMobileMenu();
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
@@ -177,20 +191,20 @@ export function Header() {
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
                     <div className="glass rounded-xl border border-white/10 p-2 shadow-xl">
-                      <Link
-                        href={{ pathname: '/auth', query: { mode: 'signin' } }}
+                      <button
+                        onClick={handleLoginClick}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">🔑</span>
                         <span className="font-medium text-sm">{t('login')}</span>
-                      </Link>
-                      <Link
-                        href={{ pathname: '/auth', query: { mode: 'signup' } }}
+                      </button>
+                      <button
+                        onClick={handleSignupClick}
                         className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 w-full text-left"
                       >
                         <span className="text-xl">✨</span>
                         <span className="font-medium text-sm">{t('signup')}</span>
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -293,22 +307,20 @@ export function Header() {
                   <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {locale === 'en' ? 'Account' : 'Cuenta'}
                   </div>
-                  <Link
-                    href={{ pathname: '/auth', query: { mode: 'signin' } }}
-                    onClick={closeMobileMenu}
+                  <button
+                    onClick={handleLoginClick}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
                     <span className="text-xl">🔑</span>
                     <span>{t('login')}</span>
-                  </Link>
-                  <Link
-                    href={{ pathname: '/auth', query: { mode: 'signup' } }}
-                    onClick={closeMobileMenu}
+                  </button>
+                  <button
+                    onClick={handleSignupClick}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-muted-foreground hover:bg-white/5 hover:text-white w-full text-left"
                   >
                     <span className="text-xl">✨</span>
                     <span>{t('signup')}</span>
-                  </Link>
+                  </button>
                 </div>
               )}
             </nav>
