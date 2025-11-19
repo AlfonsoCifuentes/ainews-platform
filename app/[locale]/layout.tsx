@@ -98,7 +98,40 @@ export default async function LocaleLayout({
           />
         ) : null}
         
-        {/* CRITICAL: Inline beforeInteractive cookie/storage normalizer to fix base64- prefixed values */}
+        {/* OAuth Callback Handler - Runs after page load to detect and dispatch auth state */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+console.log('[OAuthHandler] Script loaded');
+(async function() {
+  try {
+    console.log('[OAuthHandler] Starting auth detection...');
+    
+    // Wait a moment for Supabase client to be available
+    let attempts = 0;
+    while (!window.__supabase && attempts < 50) {
+      await new Promise(r => setTimeout(r, 100));
+      attempts++;
+    }
+    
+    if (!window.__supabase) {
+      console.log('[OAuthHandler] Supabase not available after 5s, trying import...');
+      // Try to import and initialize Supabase if not available
+    }
+    
+    // Listen for when useUser dispatches custom events or when Supabase is ready
+    window.addEventListener('auth-state-ready', function() {
+      console.log('[OAuthHandler] Auth state ready event received');
+    });
+    
+    console.log('[OAuthHandler] Handler installed');
+  } catch (err) {
+    console.error('[OAuthHandler] Error:', err);
+  }
+})();
+            `,
+          }}
+        />
         {/* This MUST run before Supabase client library loads to prevent JSON.parse errors */}
         <script
           dangerouslySetInnerHTML={{

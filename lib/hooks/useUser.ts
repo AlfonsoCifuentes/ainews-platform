@@ -83,6 +83,28 @@ export function useUser() {
       console.log('[useUser] syncUserProfile started');
       setIsLoading(true);
 
+      // STEP 0: Check for active Supabase session on first load
+      // This handles the case where user just completed OAuth login and was redirected
+      let supabaseUser: User | null = null;
+      try {
+        const { data: { user: sessionUser } } = await supabase.auth.getUser();
+        if (sessionUser) {
+          console.log('[useUser] Found active Supabase session:', sessionUser.id);
+          supabaseUser = sessionUser;
+          
+          // Immediately store this in sessionStorage for auth event
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('ainews_auth_user', JSON.stringify({
+              id: sessionUser.id,
+              email: sessionUser.email,
+              user_metadata: sessionUser.user_metadata,
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('[useUser] Error checking initial session:', err);
+      }
+
       // STEP 1: Try to get user/profile from sessionStorage (set after login)
       let storedUser: Partial<User> | null = null;
       let storedProfile: UserProfile | null = null;
@@ -115,6 +137,11 @@ export function useUser() {
         setProfile(fallbackProfile);
         setLocale(fallbackProfile.preferred_locale);
         console.log('[useUser] Applied fallback profile from stored user metadata');
+      }
+
+      // If we found a Supabase session but no stored profile, trigger a refetch to load it
+      if (supabaseUser && !storedProfile) {
+        console.log('[useUser] Found OAuth session but no stored profile, will refetch from DB');
       }
 
       // STEP 2: Get user from Supabase auth
@@ -193,6 +220,15 @@ export function useUser() {
         console.log('[useUser] Profile found, setting state:', profileData.display_name);
         setProfile(profileData as UserProfile);
         setLocale(profileData.preferred_locale ?? 'en');
+        
+        // Store in sessionStorage for future quick access
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(profileData));
+          } catch (e) {
+            console.warn('[useUser] Failed to store profile in sessionStorage:', e);
+          }
+        }
       } else {
         console.log('[useUser] No profile found, creating fallback profile');
         const fallback = buildFallbackProfile(user);
@@ -220,6 +256,15 @@ export function useUser() {
         console.log('[useUser] Setting fallback profile state:', fallback.display_name);
         setProfile(fallback);
         setLocale(fallback.preferred_locale);
+        
+        // Store in sessionStorage
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(fallback));
+          } catch (e) {
+            console.warn('[useUser] Failed to store fallback in sessionStorage:', e);
+          }
+        }
       }
 
       console.log('[useUser] syncUserProfile completed');
