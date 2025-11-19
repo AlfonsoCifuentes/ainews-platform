@@ -19,15 +19,34 @@ const ProgressSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await getServerAuthUser();
+    
+    console.log('[API] [Progress POST] Request received', {
+      userId: user?.id,
+      authenticated: !!user
+    });
+
     if (!user) {
+      console.log('[API] [Progress POST] Unauthorized - no user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
+    console.log('[API] [Progress POST] Request body:', {
+      courseId: body.courseId,
+      moduleId: body.moduleId,
+      completed: body.completed
+    });
+
     const { courseId, moduleId, completed, score, timeSpent, notes } =
       ProgressSchema.parse(body);
 
     const db = getSupabaseServerClient();
+
+    console.log('[API] [Progress POST] Checking existing progress', {
+      userId: user.id,
+      courseId,
+      moduleId
+    });
 
     // Check if progress record exists
     const { data: existing } = await db
@@ -38,10 +57,16 @@ export async function POST(req: NextRequest) {
       .eq('module_id', moduleId)
       .single();
 
+    console.log('[API] [Progress POST] Existing record:', {
+      exists: !!existing,
+      existingId: existing?.id
+    });
+
     let data;
     let error;
 
     if (existing) {
+      console.log('[API] [Progress POST] Updating existing progress record');
       // Update existing progress
       ({ data, error } = await db
         .from('user_progress')
@@ -57,6 +82,7 @@ export async function POST(req: NextRequest) {
         .select()
         .single());
     } else {
+      console.log('[API] [Progress POST] Creating new progress record');
       // Create new progress record
       ({ data, error } = await db
         .from('user_progress')
@@ -75,7 +101,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (error) {
-      console.error('Progress update error:', error);
+      console.error('[API] [Progress POST] Update error:', error);
       return NextResponse.json(
         { error: 'Failed to update progress' },
         { status: 500 }
@@ -87,6 +113,14 @@ export async function POST(req: NextRequest) {
     // - Award XP for module completion
     // - Check for achievements
 
+    console.log('[API] [Progress POST] Success', {
+      userId: user.id,
+      courseId,
+      moduleId,
+      completed,
+      progressId: data?.id
+    });
+
     return NextResponse.json({
       success: true,
       progress: data,
@@ -94,13 +128,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('[API] [Progress POST] Validation error:', error.errors);
       return NextResponse.json(
         { error: 'Invalid request', details: error.errors },
         { status: 400 }
       );
     }
 
-    console.error('Progress API error:', error);
+    console.error('[API] [Progress POST] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

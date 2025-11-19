@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { NormalizedModule } from '@/lib/courses/normalize';
+import courseLogger from '@/lib/logging/course-logger';
+import { useEffect } from 'react';
 
 type Module = Pick<
   NormalizedModule,
@@ -30,6 +32,15 @@ export function ModuleNavigation({
   modules,
   userProgress,
 }: ModuleNavigationProps) {
+  useEffect(() => {
+    courseLogger.info('ModuleNavigation', 'Component mounted', {
+      currentModuleId: currentModule.id,
+      courseId,
+      totalModules: modules.length,
+      userProgressCount: userProgress.length
+    });
+  }, [currentModule.id, courseId, modules.length, userProgress.length]);
+
   const currentIndex = modules.findIndex((m) => m.id === currentModule.id);
   const prevModule = currentIndex > 0 ? modules[currentIndex - 1] : null;
   const nextModule = currentIndex < modules.length - 1 ? modules[currentIndex + 1] : null;
@@ -38,6 +49,29 @@ export function ModuleNavigation({
   const isNextLocked = nextModule && !nextModule.is_free && !userProgress.find(
     (p) => p.module_id === currentModule.id && p.completed
   );
+
+  courseLogger.info('ModuleNavigation', 'Navigation state', {
+    currentIndex,
+    hasPrev: !!prevModule,
+    hasNext: !!nextModule,
+    isNextLocked,
+    nextModuleId: nextModule?.id
+  });
+
+  const handleNextClick = () => {
+    courseLogger.info('ModuleNavigation', 'Next module clicked', {
+      nextModuleId: nextModule?.id,
+      courseId,
+      isLocked: isNextLocked
+    });
+  };
+
+  const handlePrevClick = () => {
+    courseLogger.info('ModuleNavigation', 'Previous module clicked', {
+      prevModuleId: prevModule?.id,
+      courseId
+    });
+  };
 
   const t = locale === 'en' ? {
     previous: 'Previous',
@@ -59,6 +93,7 @@ export function ModuleNavigation({
           asChild
           variant="outline"
           className="flex-1"
+          onClick={handlePrevClick}
         >
           <Link href={`/${locale}/courses/${courseId}/learn?module=${prevModule.id}`}>
             <ChevronLeft className="w-4 h-4 mr-2" />
@@ -70,6 +105,7 @@ export function ModuleNavigation({
           asChild
           variant="outline"
           className="flex-1"
+          onClick={handlePrevClick}
         >
           <Link href={`/${locale}/courses/${courseId}`}>
             <ChevronLeft className="w-4 h-4 mr-2" />
@@ -85,6 +121,7 @@ export function ModuleNavigation({
           disabled={!!isNextLocked}
           className="flex-1"
           title={isNextLocked ? t.completeToUnlock : undefined}
+          onClick={handleNextClick}
         >
           {isNextLocked ? (
             <span>

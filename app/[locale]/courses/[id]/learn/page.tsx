@@ -18,7 +18,15 @@ export default async function CourseLearnPage({
   const user = await getServerAuthUser();
   const db = getSupabaseServerClient();
 
+  console.log('[CourseLearnPage] Page loaded', {
+    userId: user?.id,
+    courseId: id,
+    moduleId,
+    locale
+  });
+
   if (!user) {
+    console.log('[CourseLearnPage] User not authenticated, redirecting to auth');
     redirect(`/${locale}/auth?redirect=/${locale}/courses/${id}/learn`);
   }
 
@@ -30,7 +38,15 @@ export default async function CourseLearnPage({
     .eq('user_id', user.id)
     .single();
 
+  console.log('[CourseLearnPage] Enrollment check', {
+    enrolled: !!enrollment,
+    enrollmentId: enrollment?.id,
+    userId: user.id,
+    courseId: id
+  });
+
   if (!enrollment) {
+    console.log('[CourseLearnPage] User not enrolled in course, redirecting to course page');
     redirect(`/${locale}/courses/${id}`);
   }
 
@@ -45,6 +61,7 @@ export default async function CourseLearnPage({
     .single();
 
   if (!rawCourse) {
+    console.log('[CourseLearnPage] Course not found', { courseId: id });
     notFound();
   }
 
