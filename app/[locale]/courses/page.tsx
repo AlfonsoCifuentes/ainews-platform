@@ -2,9 +2,8 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { CourseGeneratorWrapper } from '@/components/courses/CourseGeneratorWrapper';
 import { CoursesPageClient } from '@/components/courses/CoursesPageClient';
-import { CourseLibrary } from '@/components/courses/CourseLibrary';
+import { TopCoursesPreview } from '@/components/courses/TopCoursesPreview';
 import { Suspense } from 'react';
-import { CourseLibrarySkeleton } from '@/components/courses/CourseLibrarySkeleton';
 
 type CoursesPageProps = {
   params: Promise<{
@@ -27,7 +26,7 @@ function isLocale(value: string): value is Locale {
 
 export default async function CoursesPage({ params, searchParams }: CoursesPageProps) {
   const { locale } = await params;
-  const awaitedSearchParams = await searchParams;
+  await searchParams;
 
   if (!isLocale(locale)) {
     throw new Error('Invalid locale received for courses page.');
@@ -81,11 +80,10 @@ export default async function CoursesPage({ params, searchParams }: CoursesPageP
           }}
         />
 
-        {/* Course Library */}
-        <Suspense fallback={<CourseLibrarySkeleton />}>
-          <CourseLibrary 
+        {/* Top 3 Courses Preview */}
+        <Suspense fallback={<div className="py-12 text-center">Loading popular courses...</div>}>
+          <TopCoursesPreview 
             locale={locale}
-            searchParams={awaitedSearchParams}
           />
         </Suspense>
     </CoursesPageClient>

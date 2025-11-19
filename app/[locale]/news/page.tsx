@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { fetchLatestNews } from '@/lib/db/news';
 import { NewsGridClient } from '@/components/news/NewsGridClient';
+import { AILeaderboardPodium } from '@/components/trending/AILeaderboardPodium';
 import { generateLocalizedMetadata } from '@/lib/utils/seo';
 import { Metadata } from 'next';
 
@@ -82,6 +83,13 @@ export default async function NewsPage({ params }: NewsPageProps) {
               ? 'Real-time AI news from the cutting edge. Curated by intelligent agents, verified by experts.'
               : 'Noticias de IA en tiempo real desde la vanguardia. Curadas por agentes inteligentes, verificadas por expertos.'}
           </p>
+        </div>
+      </section>
+
+      {/* AI Leaderboard Podium */}
+      <section className="border-b border-border/50 bg-gradient-to-b from-background to-muted/30 px-4 py-12">
+        <div className="container mx-auto max-w-6xl">
+          <AILeaderboardPodium locale={locale} />
         </div>
       </section>
 

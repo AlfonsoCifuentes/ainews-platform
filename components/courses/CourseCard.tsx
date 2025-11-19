@@ -27,6 +27,7 @@ interface Course {
 interface CourseCardProps {
   course: Course;
   locale: string;
+  showPopularBadge?: boolean;
 }
 
 // XP rewards based on difficulty
@@ -70,7 +71,7 @@ const DIFFICULTY_LABELS = {
   advanced: { en: 'Advanced', es: 'Avanzado' }
 };
 
-export function CourseCard({ course, locale }: CourseCardProps) {
+export function CourseCard({ course, locale, showPopularBadge = false }: CourseCardProps) {
   const title = locale === 'es' ? course.title_es : course.title_en;
   const description = locale === 'es' ? course.description_es : course.description_en;
   const difficultyLabel = DIFFICULTY_LABELS[course.difficulty][locale as 'en' | 'es'];
@@ -161,10 +162,18 @@ export function CourseCard({ course, locale }: CourseCardProps) {
 
       {/* Content Section - Clickable */}
       <Link href={`/${locale}/courses/${course.id}`} className="block p-6 flex flex-col flex-grow relative z-[1]">
-        {/* Header */}
+      {/* Header */}
         <div className="flex items-start justify-between mb-4">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${styles.badge}`}>
-            {difficultyLabel}
+          <div className="flex gap-2 items-center">
+            <div className={`px-3 py-1 rounded-full text-xs font-medium border ${styles.badge}`}>
+              {difficultyLabel}
+            </div>
+            {showPopularBadge && (
+              <div className="px-2 py-1 rounded-full text-xs font-bold bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                Popular
+              </div>
+            )}
           </div>
           {course.rating_avg > 0 && (
             <div className="flex items-center gap-1 text-yellow-400">

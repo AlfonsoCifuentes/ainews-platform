@@ -14,9 +14,10 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Primary navigation items (always visible in navbar)
-const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'chat'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'chat'; href: string; transKey?: string }> = [
   { key: 'news', href: '/news' },
   { key: 'courses', href: '/courses' },
+  { key: 'coursesLibrary', href: '/courses-library' },
   { key: 'chat', href: '/chat' },
 ];
 
@@ -47,6 +48,12 @@ export function Header() {
   }, [pathname]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  // Map URL segment to nav key
+  const mapSegmentToKey = (segment: string): string => {
+    if (segment === 'courses-library') return 'coursesLibrary';
+    return segment;
+  };
 
   const handleLoginClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -91,7 +98,7 @@ export function Header() {
           {/* Desktop Navigation - Flex Grow */}
           <nav className="hidden lg:flex items-center gap-3 xl:gap-6 text-sm font-medium flex-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = activeSegment === item.key;
+              const isActive = mapSegmentToKey(activeSegment) === item.key;
               return (
                 <Link
                   key={item.key}
@@ -239,7 +246,7 @@ export function Header() {
           >
             <nav className="container mx-auto px-4 py-4 flex flex-col gap-2">
               {NAV_ITEMS.map((item) => {
-                const isActive = activeSegment === item.key;
+                const isActive = mapSegmentToKey(activeSegment) === item.key;
                 return (
                   <Link
                     key={item.key}
