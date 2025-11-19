@@ -14,8 +14,10 @@ import { loggers } from '@/lib/utils/logger';
  * OAuth and we need to update the client-side state (header, nav, etc).
  */
 export function OAuthCallbackHandler() {
+  loggers.oauth('OAuthCallbackHandler component rendered');
+  
   useEffect(() => {
-    loggers.oauth('Mounted, checking for OAuth session...');
+    loggers.oauth('OAuthCallbackHandler useEffect hook executed');
     
     const handleOAuthCallback = async () => {
       loggers.oauth('handleOAuthCallback started');
@@ -144,7 +146,15 @@ export function OAuthCallbackHandler() {
 
     // Run callback handler on mount
     loggers.oauth('Starting handleOAuthCallback execution');
-    void handleOAuthCallback();
+    try {
+      void handleOAuthCallback().then(() => {
+        loggers.success('oauth', 'handleOAuthCallback completed successfully');
+      }).catch((err) => {
+        loggers.error('oauth', 'handleOAuthCallback rejected', err as Error);
+      });
+    } catch (err) {
+      loggers.error('oauth', 'Error calling handleOAuthCallback', err as Error);
+    }
   }, []);
 
   return null;
