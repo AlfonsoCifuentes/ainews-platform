@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * OAuth Callback Handler
  * Handles OAuth redirects from Google, GitHub, etc.
- * Uses createServerClient for better cookie handling in Vercel
+ * Uses createServerClient with proper cookie handling
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
-          // Explicitly set cookie encoding to match middleware and client helpers
           cookieEncoding: 'base64url',
           cookies: {
             getAll() {

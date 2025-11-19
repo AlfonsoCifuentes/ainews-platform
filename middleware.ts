@@ -112,6 +112,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Match only internationalized pathnames (exclude API routes)
-  matcher: ['/', '/(en|es)/:path*'],
+  // Match only internationalized pathnames
+  // Exclude /auth/callback to prevent cookie corruption from middleware
+  matcher: [
+    '/',
+    '/(en|es)/:path*',
+    // Exclude auth callbacks - they must bypass middleware
+    { source: '/((?!auth/callback).*)', locale: false }
+  ],
 };
