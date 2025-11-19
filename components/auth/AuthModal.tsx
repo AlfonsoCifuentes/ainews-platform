@@ -4,6 +4,41 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
+import type { UserProfile } from '@/lib/types/user';
+
+function buildTemporaryProfile(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> | null }): UserProfile {
+  const metadata = user.user_metadata ?? {};
+  const now = new Date().toISOString();
+  const fullName =
+    (metadata?.name as string | undefined) ||
+    (metadata?.full_name as string | undefined) ||
+    (metadata?.user_name as string | undefined) ||
+    null;
+  const displayName = fullName || user.email?.split('@')[0] || 'User';
+  const avatarUrl =
+    (metadata?.avatar_url as string | undefined) ||
+    (metadata?.picture as string | undefined) ||
+    null;
+  const preferredLocale = (metadata?.locale as string | undefined)?.startsWith('es') ? 'es' : 'en';
+
+  return {
+    id: user.id,
+    display_name: displayName,
+    full_name: fullName,
+    avatar_url: avatarUrl,
+    bio: null,
+    preferred_locale: preferredLocale,
+    theme: 'dark',
+    total_xp: 0,
+    level: 1,
+    streak_days: 0,
+    last_activity_at: now,
+    email_notifications: true,
+    weekly_digest: true,
+    created_at: now,
+    updated_at: now,
+  };
+}
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -102,25 +137,53 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
         throw new Error('Session not established after login');
       }
 
-      // 4. Store user data in sessionStorage for immediate client-side access
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('ainews_auth_user', JSON.stringify(syncData.user));
-        console.log('[AuthModal] Stored user in sessionStorage:', syncData.user);
+      // 4. Build or fetch profile for immediate display
+      let syncedProfile: UserProfile | null = null;
+      
+      console.log('[AuthModal] Step 4: Attempting to fetch profile...');
+      try {
+        const profileResponse = await fetch('/api/user/profile', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (profileResponse.ok) {
+          const profileJson = await profileResponse.json();
+          if (profileJson?.data) {
+            syncedProfile = profileJson.data as UserProfile;
+            console.log('[AuthModal] Profile fetched from API:', syncedProfile.display_name);
+          }
+        } else {
+          console.warn('[AuthModal] Failed to fetch profile, status:', profileResponse.status);
+        }
+      } catch (profileError) {
+        console.error('[AuthModal] Error fetching profile from API:', profileError);
       }
 
-      // 5. Dispatch event to notify components about auth state change
+      // 5. If no profile from API, build a temporary one
+      if (!syncedProfile) {
+        syncedProfile = buildTemporaryProfile(syncData.user);
+        console.log('[AuthModal] Built temporary profile:', syncedProfile.display_name);
+      }
+
+      // 6. Store to sessionStorage before dispatching event
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('ainews_auth_user', JSON.stringify(syncData.user));
+        sessionStorage.setItem('ainews_auth_profile', JSON.stringify(syncedProfile));
+        console.log('[AuthModal] Stored to sessionStorage, about to dispatch event');
+      }
+
+      // 7. Dispatch event with populated profile - this triggers useUser to update immediately
       const event = new CustomEvent('auth-state-changed', {
-        detail: { userId: syncData.user.id, user: syncData.user }
+        detail: { userId: syncData.user.id, user: syncData.user, profile: syncedProfile }
       });
       window.dispatchEvent(event);
-      console.log('[AuthModal] Dispatched auth-state-changed event');
+      console.log('[AuthModal] Dispatched auth-state-changed event with profile:', syncedProfile.display_name);
 
-      // 6. Wait a longer time for Header to refetch profile via event listener
-      // This allows the profile to be fetched from the database and displayed
-      console.log('[AuthModal] Waiting for profile refetch to complete...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 8. Brief pause to let listeners process and re-render
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // 7. Handle pending course enrollment if any
+      // 9. Handle pending course enrollment if any
       if (pendingCourseId) {
         await enrollCourse(pendingCourseId);
       } else {

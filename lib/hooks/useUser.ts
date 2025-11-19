@@ -267,6 +267,8 @@ export function useUser() {
         return;
       }
 
+      console.log('[useUser] handleAuthEvent received:', { userId: detail.userId, hasProfile: !!detail.profile, hasUser: !!detail.user });
+
       if (detail.profile === null) {
         console.log('[useUser] Received auth event requesting profile reset');
         setProfile(null);
@@ -281,14 +283,17 @@ export function useUser() {
         return;
       }
 
+      // Build or use provided profile
       let nextProfile: UserProfile | null = detail.profile ?? null;
 
       if (!nextProfile && detail.user) {
         nextProfile = buildFallbackProfile(detail.user);
-        console.log('[useUser] Built fallback profile from auth event payload');
+        console.log('[useUser] Built fallback profile from auth event payload:', nextProfile.display_name);
       }
 
+      // Immediately set state from event payload (don't wait for refetch)
       if (nextProfile) {
+        console.log('[useUser] Setting profile immediately from event:', nextProfile.display_name);
         setProfile(nextProfile);
         setLocale(nextProfile.preferred_locale ?? 'en');
 
@@ -307,6 +312,8 @@ export function useUser() {
         }
       }
 
+      // Then sync with database in background (don't await)
+      console.log('[useUser] Triggering background refetch after immediate profile update');
       void refetch();
     };
 

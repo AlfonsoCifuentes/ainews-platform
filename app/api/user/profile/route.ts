@@ -23,11 +23,14 @@ export async function GET(_req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.log('[Profile GET] User not authenticated');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+    
+    console.log('[Profile GET] Fetching profile for user:', user.id);
     
     // Get profile
     const { data: profile, error: profileError } = await supabase
@@ -36,15 +39,66 @@ export async function GET(_req: NextRequest) {
       .eq('id', user.id)
       .single();
     
-    if (profileError) {
-      console.error('[Profile] Error fetching profile:', profileError);
+    if (profileError && profileError.code !== 'PGRST116') {
+      // PGRST116 = no rows found (which is OK, we'll create one)
+      console.error('[Profile GET] Error fetching profile:', profileError);
       return NextResponse.json(
         { error: 'Failed to fetch profile' },
         { status: 500 }
       );
     }
     
-    return NextResponse.json({ data: profile });
+    if (profile) {
+      console.log('[Profile GET] Profile found:', profile.display_name);
+      return NextResponse.json({ data: profile });
+    }
+
+    // No profile found, create one from user metadata
+    console.log('[Profile GET] No profile found, creating one from user metadata');
+    const metadata = user.user_metadata ?? {};
+    const now = new Date().toISOString();
+    
+    const newProfile = {
+      id: user.id,
+      email: user.email,
+      display_name: (metadata.name as string | undefined) || 
+                    (metadata.full_name as string | undefined) || 
+                    (metadata.user_name as string | undefined) || 
+                    user.email?.split('@')[0] || 
+                    'User',
+      full_name: (metadata.name as string | undefined) || 
+                 (metadata.full_name as string | undefined) || 
+                 null,
+      avatar_url: (metadata.avatar_url as string | undefined) || 
+                  (metadata.picture as string | undefined) || 
+                  null,
+      bio: null,
+      preferred_locale: (metadata.locale as string | undefined)?.startsWith('es') ? 'es' : 'en',
+      theme: 'dark',
+      total_xp: 0,
+      level: 1,
+      streak_days: 0,
+      last_activity_at: now,
+      email_notifications: true,
+      weekly_digest: true,
+      created_at: now,
+      updated_at: now,
+    };
+    
+    const { data: createdProfile, error: createError } = await supabase
+      .from('user_profiles')
+      .insert([newProfile])
+      .select('*')
+      .single();
+    
+    if (createError) {
+      console.error('[Profile GET] Error creating profile:', createError);
+      // Return the in-memory profile anyway
+      return NextResponse.json({ data: newProfile });
+    }
+
+    console.log('[Profile GET] Profile created successfully:', createdProfile?.display_name);
+    return NextResponse.json({ data: createdProfile || newProfile });
     
   } catch (error) {
     console.error('[Profile] Unexpected error:', error);
