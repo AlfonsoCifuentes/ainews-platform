@@ -3,7 +3,7 @@
  * Supabase Auth setup with email/password + OAuth providers
  */
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { createClient as createSSRClient } from '@/lib/db/supabase-server';
 
 export type AuthProvider = 'google' | 'github' | 'email';
@@ -54,9 +54,21 @@ export async function getServerAuthUser(): Promise<AuthUser | null> {
 
 /**
  * Get auth client (client component)
+ * CRITICAL: Must match server-side cookieEncoding configuration for OAuth tokens to be decoded correctly
  */
 export function getClientAuthClient() {
-  return createClientComponentClient();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error('Supabase environment variables are missing');
+  }
+
+  // CRITICAL FIX: Use createBrowserClient with explicit cookieEncoding to match server config
+  // Server sends base64url-encoded cookies, client must decode them the same way
+  return createBrowserClient(url, anonKey, {
+    cookieEncoding: 'base64url', // ← MATCHES SERVER CONFIG
+  });
 }
 
 /**

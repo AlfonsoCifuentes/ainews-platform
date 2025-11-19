@@ -5,37 +5,27 @@
 
 'use client';
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 
 export type AuthProvider = 'google' | 'github' | 'email';
 
 /**
  * Get auth client (client component)
+ * CRITICAL: Must match server-side cookieEncoding configuration for OAuth tokens to be decoded correctly
  */
 export function getClientAuthClient() {
-  const client = createClientComponentClient();
-  
-  // Debug: log all cookies available to the client
-  if (typeof document !== 'undefined') {
-    const cookieString = document.cookie;
-    const cookies = cookieString.split(';').map(c => c.trim());
-    const supabaseCookies = cookies.filter(c => 
-      c.toLowerCase().includes('sb-') || 
-      c.toLowerCase().includes('supabase') ||
-      c.toLowerCase().includes('auth-token')
-    );
-    
-    if (supabaseCookies.length > 0) {
-      console.log('[Auth Client] Found Supabase cookies:', supabaseCookies.length);
-      supabaseCookies.forEach(cookie => {
-        const [name] = cookie.split('=');
-        const value = cookie.split('=')[1]?.slice(0, 30) || '';
-        console.log(`[Auth Client] Cookie: ${name} = ${value}...`);
-      });
-    } else {
-      console.warn('[Auth Client] NO Supabase cookies found in document.cookie!');
-    }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error('Supabase environment variables are missing');
   }
+
+  // CRITICAL FIX: Use createBrowserClient with explicit cookieEncoding to match server config
+  // Server sends base64url-encoded cookies, client must decode them the same way
+  const client = createBrowserClient(url, anonKey, {
+    cookieEncoding: 'base64url', // ← MATCHES SERVER CONFIG
+  });
   
   return client;
 }
