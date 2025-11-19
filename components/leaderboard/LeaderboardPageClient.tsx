@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import Image from 'next/image';
 import { FadeSlideTransition } from '@/components/shared/PageTransition';
 import { useLeaderboard } from '@/lib/hooks/useLeaderboard';
+import { loggers } from '@/lib/utils/logger';
 
 interface LeaderboardPageClientProps {
   isAuthenticated: boolean;
@@ -20,6 +20,12 @@ export function LeaderboardPageClient({
 }: LeaderboardPageClientProps) {
   const [period, setPeriod] = useState<'all' | 'week' | 'month'>('all');
   const { users, currentUserRank, isLoading, error } = useLeaderboard(period, 100);
+
+  const handleSignInClick = () => {
+    loggers.user('Sign in button clicked on leaderboard');
+    const event = new CustomEvent('request-login', { detail: { source: 'leaderboard' } });
+    window.dispatchEvent(event);
+  };
 
   return (
     <FadeSlideTransition>
@@ -41,18 +47,19 @@ export function LeaderboardPageClient({
               className="mb-8 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-purple-600/10 p-6 text-center"
             >
               <p className="mb-4 text-lg font-semibold">{t.signInPrompt}</p>
-              <Link
-                href={`/${locale}/auth/signin`}
+              <button
+                onClick={handleSignInClick}
                 className="inline-block rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-lg transition-all hover:shadow-xl hover:shadow-primary/50"
               >
                 {t.signIn}
-              </Link>
+              </button>
             </motion.div>
           )}
 
           {/* Period Tabs */}
           <div className="mb-6 flex justify-center gap-3">
             {(['all', 'week', 'month'] as const).map((p) => (
+
               <motion.button
                 key={p}
                 whileHover={{ scale: 1.05 }}

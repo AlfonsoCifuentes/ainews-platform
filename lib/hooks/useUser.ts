@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
 import type { UserProfile } from '@/lib/types/user';
+import { loggers } from '@/lib/utils/logger';
 
 const FALLBACK_THEME: UserProfile['theme'] = 'dark';
 
@@ -56,17 +57,17 @@ export function useUser() {
   const refetchRef = useRef<(() => Promise<void>) | null>(null);
 
   const refetch = useCallback(async () => {
-    console.log('[useUser] Refetch called');
+    loggers.user('Refetch called');
     if (refetchRef.current) {
-      console.log('[useUser] Executing syncUserProfile...');
+      loggers.user('Executing syncUserProfile...');
       try {
         await refetchRef.current();
-        console.log('[useUser] Refetch completed successfully, profile state updated');
+        loggers.success('user', 'Refetch completed successfully');
       } catch (error) {
-        console.error('[useUser] Refetch failed:', error);
+        loggers.error('user', 'Refetch failed', error as Error);
       }
     } else {
-      console.warn('[useUser] Refetch called but refetchRef.current is null');
+      loggers.warn('user', 'Refetch called but refetchRef.current is null');
     }
   }, []);
 
@@ -76,11 +77,11 @@ export function useUser() {
 
     const syncUserProfile = async () => {
       if (!isMounted) {
-        console.log('[useUser] syncUserProfile called but component is unmounted');
+        loggers.user('syncUserProfile called but component is unmounted');
         return;
       }
 
-      console.log('[useUser] syncUserProfile started');
+      loggers.user('syncUserProfile started');
       setIsLoading(true);
 
       // STEP 0: Check for active Supabase session on first load
@@ -89,7 +90,7 @@ export function useUser() {
       try {
         const { data: { user: sessionUser } } = await supabase.auth.getUser();
         if (sessionUser) {
-          console.log('[useUser] Found active Supabase session:', sessionUser.id);
+          loggers.success('user', 'Found active Supabase session', { userId: sessionUser.id, email: sessionUser.email });
           supabaseUser = sessionUser;
           
           // Immediately store this in sessionStorage for auth event
@@ -99,10 +100,13 @@ export function useUser() {
               email: sessionUser.email,
               user_metadata: sessionUser.user_metadata,
             }));
+            loggers.user('Stored session user in sessionStorage');
           }
+        } else {
+          loggers.user('No active Supabase session found');
         }
       } catch (err) {
-        console.warn('[useUser] Error checking initial session:', err);
+        loggers.warn('user', 'Error checking initial session', err);
       }
 
       // STEP 1: Try to get user/profile from sessionStorage (set after login)
@@ -112,23 +116,23 @@ export function useUser() {
         try {
           const stored = sessionStorage.getItem('ainews_auth_user');
           if (stored) {
-            storedUser = JSON.parse(stored);
-            console.log('[useUser] Found user in sessionStorage:', storedUser);
+            storedUser = JSON.parse(stored) as Partial<User>;
+            loggers.user('Found user in sessionStorage', { userId: (storedUser as Record<string, unknown>).id });
           }
         } catch (e) {
-          console.warn('[useUser] Failed to parse sessionStorage user:', e);
+          loggers.warn('user', 'Failed to parse sessionStorage user', e as Error);
         }
 
         try {
           const storedProfileRaw = sessionStorage.getItem('ainews_auth_profile');
           if (storedProfileRaw) {
             storedProfile = JSON.parse(storedProfileRaw) as UserProfile;
-            console.log('[useUser] Hydrated profile from sessionStorage:', storedProfile.display_name);
+            loggers.success('user', 'Hydrated profile from sessionStorage', { displayName: storedProfile.display_name });
             setProfile(storedProfile);
             setLocale(storedProfile.preferred_locale ?? 'en');
           }
         } catch (profileError) {
-          console.warn('[useUser] Failed to parse sessionStorage profile:', profileError);
+          loggers.warn('user', 'Failed to parse sessionStorage profile', profileError);
         }
       }
 
@@ -136,25 +140,26 @@ export function useUser() {
         const fallbackProfile = buildFallbackProfile(storedUser as User);
         setProfile(fallbackProfile);
         setLocale(fallbackProfile.preferred_locale);
-        console.log('[useUser] Applied fallback profile from stored user metadata');
+        loggers.user('Applied fallback profile from stored user metadata', { displayName: fallbackProfile.display_name });
       }
 
       // If we found a Supabase session but no stored profile, trigger a refetch to load it
       if (supabaseUser && !storedProfile) {
-        console.log('[useUser] Found OAuth session but no stored profile, will refetch from DB');
+        loggers.user('Found OAuth session but no stored profile, will refetch from DB');
       }
 
       // STEP 2: Get user from Supabase auth
       let supUserResult;
       try {
         supUserResult = await supabase.auth.getUser();
-        console.log('[useUser] Got user from Supabase auth:', supUserResult.data?.user?.id);
+        loggers.user('Got user from Supabase auth', { userId: supUserResult.data?.user?.id });
       } catch (err) {
         // Detect cookie parse errors caused by legacy or malformed cookies
         const message = err instanceof Error ? err.message : String(err);
-        console.warn('[useUser] Supabase getUser error:', message);
+        loggers.warn('user', 'Supabase getUser error', { message });
         if (!clearedCookiesOnce && message.includes('Failed to parse cookie string')) {
           clearedCookiesOnce = true;
+          loggers.user('Attempting to clear malformed Supabase cookies');
           // Attempt to clear any Supabase-related cookies (avoid removing all cookies)
           try {
             if (typeof document !== 'undefined') {
@@ -165,16 +170,18 @@ export function useUser() {
                   document.cookie = `${cn}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
                 }
               });
+              loggers.user('Cleared Supabase cookies');
             }
           } catch (clearError) {
-            console.warn('[useUser] Error clearing cookies for recovery:', clearError);
+            loggers.warn('user', 'Error clearing cookies for recovery', clearError);
           }
 
           // Attempt again after clearing cookies
           try {
             supUserResult = await supabase.auth.getUser();
+            loggers.user('Retry getUser after clearing cookies succeeded');
           } catch (err2) {
-            console.warn('[useUser] getUser failed after clearing cookies:', err2);
+            loggers.warn('user', 'getUser failed after clearing cookies', err2);
             supUserResult = null;
           }
         }
@@ -185,7 +192,7 @@ export function useUser() {
       const user = data?.user ?? null;
 
       if (error) {
-        console.error('[useUser] Failed to get user', error);
+        loggers.error('user', 'Failed to get user from Supabase', error);
         setProfile(null);
         setLocale('en');
         setIsLoading(false);
@@ -193,14 +200,14 @@ export function useUser() {
       }
 
       if (!user) {
-        console.log('[useUser] No user found, clearing profile');
+        loggers.user('No user found, clearing profile');
         setProfile(null);
         setLocale('en');
         setIsLoading(false);
         return;
       }
 
-      console.log('[useUser] Fetching profile for user:', user.id);
+      loggers.user('Fetching profile for user', { userId: user.id, email: user.email });
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -208,16 +215,16 @@ export function useUser() {
         .maybeSingle();
 
       if (!isMounted) {
-        console.log('[useUser] Component unmounted during profile fetch');
+        loggers.user('Component unmounted during profile fetch');
         return;
       }
 
       if (profileError) {
-        console.error('[useUser] Failed to load profile', profileError);
+        loggers.error('user', 'Failed to load profile from database', profileError);
       }
 
       if (profileData) {
-        console.log('[useUser] Profile found, setting state:', profileData.display_name);
+        loggers.success('user', 'Profile found from database', { displayName: profileData.display_name, locale: profileData.preferred_locale });
         setProfile(profileData as UserProfile);
         setLocale(profileData.preferred_locale ?? 'en');
         
@@ -225,12 +232,13 @@ export function useUser() {
         if (typeof window !== 'undefined') {
           try {
             sessionStorage.setItem('ainews_auth_profile', JSON.stringify(profileData));
+            loggers.user('Stored profile in sessionStorage');
           } catch (e) {
-            console.warn('[useUser] Failed to store profile in sessionStorage:', e);
+            loggers.warn('user', 'Failed to store profile in sessionStorage', e);
           }
         }
       } else {
-        console.log('[useUser] No profile found, creating fallback profile');
+        loggers.user('No profile found in database, creating fallback profile');
         const fallback = buildFallbackProfile(user);
 
         try {
@@ -244,16 +252,17 @@ export function useUser() {
               },
               { onConflict: 'id' },
             );
-          console.log('[useUser] Fallback profile created in database');
+          loggers.success('user', 'Fallback profile created in database', { displayName: fallback.display_name });
         } catch (upsertError) {
-          console.error('[useUser] Failed to upsert fallback profile', upsertError);
+          loggers.error('user', 'Failed to upsert fallback profile', upsertError);
         }
 
         if (!isMounted) {
+          loggers.user('Component unmounted, skipping state update');
           return;
         }
 
-        console.log('[useUser] Setting fallback profile state:', fallback.display_name);
+        loggers.user('Setting fallback profile state', { displayName: fallback.display_name });
         setProfile(fallback);
         setLocale(fallback.preferred_locale);
         
@@ -261,13 +270,14 @@ export function useUser() {
         if (typeof window !== 'undefined') {
           try {
             sessionStorage.setItem('ainews_auth_profile', JSON.stringify(fallback));
+            loggers.user('Stored fallback profile in sessionStorage');
           } catch (e) {
-            console.warn('[useUser] Failed to store fallback in sessionStorage:', e);
+            loggers.warn('user', 'Failed to store fallback in sessionStorage', e);
           }
         }
       }
 
-      console.log('[useUser] syncUserProfile completed');
+      loggers.success('user', 'syncUserProfile completed');
       setIsLoading(false);
     };
 
@@ -275,11 +285,14 @@ export function useUser() {
     refetchRef.current = syncUserProfile;
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      loggers.user('Auth state changed', { event });
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        loggers.user('Triggering profile sync due to auth event', { event });
         void syncUserProfile();
       }
 
       if (event === 'SIGNED_OUT') {
+        loggers.user('User signed out, clearing profile');
         setProfile(null);
         setLocale('en');
         setIsLoading(false);
@@ -287,6 +300,7 @@ export function useUser() {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('ainews_auth_user');
           sessionStorage.removeItem('ainews_auth_profile');
+          loggers.user('Cleared sessionStorage on SIGNED_OUT');
         }
       }
     });
@@ -309,20 +323,22 @@ export function useUser() {
       const detail = customEvent.detail;
 
       if (!detail) {
+        loggers.warn('auth', 'auth-state-changed event received with no detail');
         return;
       }
 
-      console.log('[useUser] handleAuthEvent received:', { userId: detail.userId, hasProfile: !!detail.profile, hasUser: !!detail.user });
+      loggers.user('Custom auth-state-changed event received', { userId: detail.userId, hasProfile: !!detail.profile, hasUser: !!detail.user });
 
       if (detail.profile === null) {
-        console.log('[useUser] Received auth event requesting profile reset');
+        loggers.user('Received auth event requesting profile reset');
         setProfile(null);
         setLocale('en');
         try {
           sessionStorage.removeItem('ainews_auth_user');
           sessionStorage.removeItem('ainews_auth_profile');
+          loggers.user('Cleared sessionStorage on profile reset');
         } catch (storageError) {
-          console.warn('[useUser] Failed clearing sessionStorage on auth reset:', storageError);
+          loggers.warn('user', 'Failed clearing sessionStorage on auth reset', storageError);
         }
         void refetch();
         return;
@@ -333,32 +349,34 @@ export function useUser() {
 
       if (!nextProfile && detail.user) {
         nextProfile = buildFallbackProfile(detail.user);
-        console.log('[useUser] Built fallback profile from auth event payload:', nextProfile.display_name);
+        loggers.user('Built fallback profile from auth event', { displayName: nextProfile.display_name });
       }
 
       // Immediately set state from event payload (don't wait for refetch)
       if (nextProfile) {
-        console.log('[useUser] Setting profile immediately from event:', nextProfile.display_name);
+        loggers.success('user', 'Setting profile immediately from auth event', { displayName: nextProfile.display_name, locale: nextProfile.preferred_locale });
         setProfile(nextProfile);
         setLocale(nextProfile.preferred_locale ?? 'en');
 
         try {
           sessionStorage.setItem('ainews_auth_profile', JSON.stringify(nextProfile));
+          loggers.user('Stored profile in sessionStorage from auth event');
         } catch (storageError) {
-          console.warn('[useUser] Failed persisting sessionStorage profile:', storageError);
+          loggers.warn('user', 'Failed persisting sessionStorage profile', storageError);
         }
       }
 
       if (detail.user) {
         try {
           sessionStorage.setItem('ainews_auth_user', JSON.stringify(detail.user));
+          loggers.user('Stored user in sessionStorage from auth event');
         } catch (storageError) {
-          console.warn('[useUser] Failed persisting sessionStorage user:', storageError);
+          loggers.warn('user', 'Failed persisting sessionStorage user', storageError);
         }
       }
 
       // Then sync with database in background (don't await)
-      console.log('[useUser] Triggering background refetch after immediate profile update');
+      loggers.user('Triggering background profile sync after auth event');
       void refetch();
     };
 

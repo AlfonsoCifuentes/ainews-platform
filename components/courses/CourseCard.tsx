@@ -274,36 +274,36 @@ export function CourseCard({ course, locale }: CourseCardProps) {
             window.location.href = `/${locale}/courses/${course.id}`;
           }}
           disabled={isChecking}
-          className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 
-                       flex items-center justify-center gap-2
+          className={`w-full py-3 px-4 rounded-xl font-bold text-base transition-all duration-300 
+                       flex items-center justify-center gap-2 shadow-lg
                        ${isCompleted
-                         ? 'bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/50'
+                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border border-green-400'
                          : isEnrolled 
-                         ? 'bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50' 
-                         : 'bg-primary hover:bg-primary/90 text-white border border-primary'
+                         ? 'bg-gradient-to-r from-primary to-cyan-400 hover:from-primary/90 hover:to-cyan-500 text-white border border-cyan-400' 
+                         : 'bg-gradient-to-r from-primary to-cyan-400 hover:from-primary/90 hover:to-cyan-500 text-white border border-cyan-400 shadow-primary/50'
                        }
-                       disabled:opacity-50 disabled:cursor-not-allowed`}
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
         >
           {isChecking ? (
             <>
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              <span>{locale === 'es' ? 'Cargando...' : 'Loading...'}</span>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm">{locale === 'es' ? 'Cargando...' : 'Loading...'}</span>
             </>
           ) : (
             <>
               {isCompleted ? (
                 <>
-                  <CheckCircle className="w-5 h-5" />
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
                   <span>{buttonText}</span>
                 </>
               ) : isEnrolled ? (
                 <>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5 flex-shrink-0" />
                   <span>{buttonText}</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-5 h-5" />
+                  <Play className="w-5 h-5 flex-shrink-0" />
                   <span>{buttonText}</span>
                 </>
               )}
