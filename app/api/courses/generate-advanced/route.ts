@@ -4,7 +4,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { generateCourseWithDetailedPrompts } from '@/lib/ai/course-generator-advanced';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 
-export const maxDuration = 600; // 10 minutes for advanced generation
+export const maxDuration = 300; // 5 minutes - Vercel hobby plan limit
 export const dynamic = 'force-dynamic';
 
 const GenerateRequestSchema = z.object({
