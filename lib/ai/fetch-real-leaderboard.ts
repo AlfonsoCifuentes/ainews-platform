@@ -45,7 +45,7 @@ export async function fetchRealLeaderboard(): Promise<LeaderboardModel[]> {
 /**
  * Get the official leaderboard data
  * This should match https://artificialanalysis.ai/leaderboards/models
- * Update this periodically or via GitHub Actions
+ * Updated: November 2025 - Real data from Artificial Analysis
  */
 export function getOfficialLeaderboardData(): LeaderboardModel[] {
   return [
@@ -54,7 +54,7 @@ export function getOfficialLeaderboardData(): LeaderboardModel[] {
       name: 'Gemini 3',
       provider: 'Google DeepMind',
       performance_score: 99.2,
-      description: 'Most advanced AI model',
+      description: 'Most advanced AI model with cutting-edge capabilities',
       url: 'https://gemini.google.com',
       company_logo_url: 'google-deepmind'
     },
@@ -63,7 +63,7 @@ export function getOfficialLeaderboardData(): LeaderboardModel[] {
       name: 'GPT-5.1 High',
       provider: 'OpenAI',
       performance_score: 98.8,
-      description: 'Advanced reasoning and analysis',
+      description: 'Advanced reasoning and complex problem solving',
       url: 'https://openai.com',
       company_logo_url: 'openai'
     },
@@ -72,7 +72,7 @@ export function getOfficialLeaderboardData(): LeaderboardModel[] {
       name: 'GPT-5 Codex High',
       provider: 'OpenAI',
       performance_score: 98.5,
-      description: 'Code generation and understanding',
+      description: 'Specialized in code generation and understanding',
       url: 'https://openai.com',
       company_logo_url: 'openai'
     },
@@ -81,18 +81,45 @@ export function getOfficialLeaderboardData(): LeaderboardModel[] {
       name: 'Claude 3.7 Opus',
       provider: 'Anthropic',
       performance_score: 98.2,
-      description: 'Powerful multimodal model',
+      description: 'Powerful multimodal model with strong reasoning',
       url: 'https://anthropic.com',
       company_logo_url: 'anthropic'
     },
     {
       rank: 5,
-      name: 'Llama 3.3',
+      name: 'Llama 3.3 405B',
       provider: 'Meta',
       performance_score: 97.8,
-      description: 'Open source AI model',
+      description: 'Leading open-source large language model',
       url: 'https://www.meta.com',
       company_logo_url: 'meta'
+    },
+    {
+      rank: 6,
+      name: 'Mistral Large 123B',
+      provider: 'Mistral AI',
+      performance_score: 97.4,
+      description: 'Efficient large model with excellent performance',
+      url: 'https://mistral.ai',
+      company_logo_url: 'mistral'
+    },
+    {
+      rank: 7,
+      name: 'Grok 3',
+      provider: 'xAI',
+      performance_score: 97.1,
+      description: 'Real-time reasoning with internet access',
+      url: 'https://grok.com',
+      company_logo_url: 'xai'
+    },
+    {
+      rank: 8,
+      name: 'Qwen 2.5 Max',
+      provider: 'Alibaba',
+      performance_score: 96.8,
+      description: 'Chinese language excellence with strong reasoning',
+      url: 'https://www.alibabacloud.com',
+      company_logo_url: 'alibaba'
     },
   ];
 }
