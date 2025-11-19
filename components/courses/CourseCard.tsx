@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight } from 'lucide-react';
+import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
 
@@ -28,10 +28,39 @@ interface CourseCardProps {
   locale: string;
 }
 
-const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-500/20 text-green-300 border-green-500/30',
-  intermediate: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-  advanced: 'bg-red-500/20 text-red-300 border-red-500/30'
+// XP rewards based on difficulty
+const XP_REWARDS = {
+  beginner: 50,
+  intermediate: 100,
+  advanced: 200
+};
+
+// Gradient backgrounds and borders based on difficulty
+const DIFFICULTY_STYLES = {
+  beginner: {
+    badge: 'bg-green-500/20 text-green-300 border-green-500/30',
+    border: 'hover:border-green-500/50',
+    progress: 'bg-green-500/20',
+    progressFill: 'bg-green-500',
+    glow: 'hover:shadow-green-500/20',
+    gradient: 'from-green-500/10 to-transparent'
+  },
+  intermediate: {
+    badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+    border: 'hover:border-yellow-500/50',
+    progress: 'bg-yellow-500/20',
+    progressFill: 'bg-yellow-500',
+    glow: 'hover:shadow-yellow-500/20',
+    gradient: 'from-yellow-500/10 to-transparent'
+  },
+  advanced: {
+    badge: 'bg-red-500/20 text-red-300 border-red-500/30',
+    border: 'hover:border-red-500/50',
+    progress: 'bg-red-500/20',
+    progressFill: 'bg-red-500',
+    glow: 'hover:shadow-red-500/20',
+    gradient: 'from-red-500/10 to-transparent'
+  }
 };
 
 const DIFFICULTY_LABELS = {
@@ -46,7 +75,12 @@ export function CourseCard({ course, locale }: CourseCardProps) {
   const difficultyLabel = DIFFICULTY_LABELS[course.difficulty][locale as 'en' | 'es'];
   
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [isChecking, setIsChecking] = useState(true);
+
+  const xpReward = XP_REWARDS[course.difficulty];
+  const styles = DIFFICULTY_STYLES[course.difficulty];
 
   useEffect(() => {
     const checkEnrollment = async () => {
@@ -56,22 +90,31 @@ export function CourseCard({ course, locale }: CourseCardProps) {
         
         if (!user) {
           setIsEnrolled(false);
+          setIsCompleted(false);
           return;
         }
 
         // Check if user is enrolled in this course
         const { data: enrollment } = await supabase
           .from('user_courses')
-          .select('id')
+          .select('*')
           .eq('user_id', user.id)
           .eq('course_id', course.id)
           .eq('relationship_type', 'enrolled')
           .single();
 
-        setIsEnrolled(!!enrollment);
+        if (enrollment) {
+          setIsEnrolled(true);
+          setProgress(enrollment.progress_percentage || 0);
+          setIsCompleted(!!enrollment.completed_at);
+        } else {
+          setIsEnrolled(false);
+          setIsCompleted(false);
+        }
       } catch (error) {
         console.error('[CourseCard] Error checking enrollment:', error);
         setIsEnrolled(false);
+        setIsCompleted(false);
       } finally {
         setIsChecking(false);
       }
@@ -80,18 +123,25 @@ export function CourseCard({ course, locale }: CourseCardProps) {
     checkEnrollment();
   }, [course.id]);
 
-  const buttonText = isEnrolled 
+  const buttonText = isCompleted 
+    ? (locale === 'es' ? 'Completado' : 'Completed')
+    : isEnrolled 
     ? (locale === 'es' ? 'Continuar' : 'Continue')
     : (locale === 'es' ? 'Comenzar' : 'Start');
 
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
-      className="group relative h-full overflow-hidden rounded-2xl backdrop-blur-xl 
-                 bg-white/5 border border-white/10 hover:border-primary/50
-                 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20
-                 flex flex-col"
+      className={`group relative h-full overflow-hidden rounded-2xl backdrop-blur-xl 
+                   bg-white/5 border border-white/10 ${styles.border}
+                   transition-all duration-300 hover:shadow-2xl ${styles.glow}
+                   flex flex-col`}
     >
+      {/* Background gradient overlay */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} 
+                      opacity-0 group-hover:opacity-100 
+                      transition-opacity duration-300 pointer-events-none`} />
+
       {/* Share Button - Top Right */}
       <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <div onClick={(e) => e.preventDefault()}>
@@ -106,10 +156,10 @@ export function CourseCard({ course, locale }: CourseCardProps) {
       </div>
 
       {/* Content Section - Clickable */}
-      <Link href={`/${locale}/courses/${course.id}`} className="block p-6 flex flex-col flex-grow">
+      <Link href={`/${locale}/courses/${course.id}`} className="block p-6 flex flex-col flex-grow relative z-[1]">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${DIFFICULTY_COLORS[course.difficulty]}`}>
+          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${styles.badge}`}>
             {difficultyLabel}
           </div>
           {course.rating_avg > 0 && (
@@ -149,6 +199,41 @@ export function CourseCard({ course, locale }: CourseCardProps) {
           </div>
         )}
 
+        {/* Gamification Stats - XP Reward */}
+        <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-semibold text-amber-300">
+                +{xpReward} {locale === 'es' ? 'XP' : 'XP'}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {locale === 'es' ? 'Por completar' : 'To complete'}
+            </span>
+          </div>
+        </div>
+
+        {/* Progress Bar - Only show if enrolled and not completed */}
+        {isEnrolled && !isCompleted && (
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                {locale === 'es' ? 'Progreso' : 'Progress'}
+              </span>
+              <span className="font-semibold text-primary">{progress}%</span>
+            </div>
+            <div className={`w-full h-2 rounded-full ${styles.progress} overflow-hidden`}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className={`h-full ${styles.progressFill} rounded-full`}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Footer Stats */}
         <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t border-white/10">
           <div className="flex items-center gap-1">
@@ -175,10 +260,10 @@ export function CourseCard({ course, locale }: CourseCardProps) {
       </Link>
 
       {/* Button Section - Fixed at bottom, NOT affected by hover */}
-      <div className="p-6 pt-0 mt-auto">
+      <div className="p-6 pt-0 mt-auto relative z-[1]">
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={!isChecking ? { scale: 1.05 } : {}}
+          whileTap={!isChecking ? { scale: 0.95 } : {}}
           onClick={(e) => {
             e.preventDefault();
             // Navigate to course detail
@@ -187,7 +272,9 @@ export function CourseCard({ course, locale }: CourseCardProps) {
           disabled={isChecking}
           className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 
                        flex items-center justify-center gap-2
-                       ${isEnrolled 
+                       ${isCompleted
+                         ? 'bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/50'
+                         : isEnrolled 
                          ? 'bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50' 
                          : 'bg-primary hover:bg-primary/90 text-white border border-primary'
                        }
@@ -200,7 +287,12 @@ export function CourseCard({ course, locale }: CourseCardProps) {
             </>
           ) : (
             <>
-              {isEnrolled ? (
+              {isCompleted ? (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  <span>{buttonText}</span>
+                </>
+              ) : isEnrolled ? (
                 <>
                   <ArrowRight className="w-5 h-5" />
                   <span>{buttonText}</span>
@@ -216,13 +308,27 @@ export function CourseCard({ course, locale }: CourseCardProps) {
         </motion.button>
       </div>
 
-      {/* Enrolled Badge - Optional visual indicator */}
-      {isEnrolled && !isChecking && (
-        <div className="absolute top-4 left-4 z-10 bg-primary/20 border border-primary/50 text-primary 
-                        px-3 py-1 rounded-full text-xs font-medium">
-          {locale === 'es' ? 'Matriculado' : 'Enrolled'}
-        </div>
-      )}
+      {/* Status Badges - Top Left Corner */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        {isCompleted && !isChecking && (
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.4, type: 'spring', stiffness: 200 }}
+            className="bg-green-500/20 border border-green-500/50 text-green-300 
+                       px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"
+          >
+            <CheckCircle className="w-3 h-3" />
+            {locale === 'es' ? 'Completado' : 'Completed'}
+          </motion.div>
+        )}
+        {isEnrolled && !isCompleted && !isChecking && (
+          <div className="bg-primary/20 border border-primary/50 text-primary 
+                          px-3 py-1 rounded-full text-xs font-medium">
+            {locale === 'es' ? 'En Progreso' : 'In Progress'}
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
