@@ -7,8 +7,20 @@ import type { UserProfile } from '@/lib/types/user';
 
 const FALLBACK_THEME: UserProfile['theme'] = 'dark';
 
+type MinimalAuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
+type AuthStateChangeDetail = {
+  userId?: string;
+  user?: MinimalAuthUser;
+  profile?: UserProfile | null;
+};
+
 // Build a minimal profile when OAuth returns a user without a row in user_profiles.
-function buildFallbackProfile(user: User): UserProfile {
+function buildFallbackProfile(user: MinimalAuthUser): UserProfile {
   const now = new Date().toISOString();
   const metadata = user.user_metadata ?? {};
   // Google sends 'name', GitHub sends 'user_name' or 'full_name'
@@ -43,6 +55,21 @@ export function useUser() {
   const supabase = useMemo(() => getClientAuthClient(), []);
   const refetchRef = useRef<(() => Promise<void>) | null>(null);
 
+  const refetch = useCallback(async () => {
+    console.log('[useUser] Refetch called');
+    if (refetchRef.current) {
+      console.log('[useUser] Executing syncUserProfile...');
+      try {
+        await refetchRef.current();
+        console.log('[useUser] Refetch completed successfully, profile state updated');
+      } catch (error) {
+        console.error('[useUser] Refetch failed:', error);
+      }
+    } else {
+      console.warn('[useUser] Refetch called but refetchRef.current is null');
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     let clearedCookiesOnce = false;
@@ -56,8 +83,9 @@ export function useUser() {
       console.log('[useUser] syncUserProfile started');
       setIsLoading(true);
 
-      // STEP 1: Try to get user from sessionStorage (set after login)
-      let storedUser = null;
+      // STEP 1: Try to get user/profile from sessionStorage (set after login)
+      let storedUser: Partial<User> | null = null;
+      let storedProfile: UserProfile | null = null;
       if (typeof window !== 'undefined') {
         try {
           const stored = sessionStorage.getItem('ainews_auth_user');
@@ -68,6 +96,25 @@ export function useUser() {
         } catch (e) {
           console.warn('[useUser] Failed to parse sessionStorage user:', e);
         }
+
+        try {
+          const storedProfileRaw = sessionStorage.getItem('ainews_auth_profile');
+          if (storedProfileRaw) {
+            storedProfile = JSON.parse(storedProfileRaw) as UserProfile;
+            console.log('[useUser] Hydrated profile from sessionStorage:', storedProfile.display_name);
+            setProfile(storedProfile);
+            setLocale(storedProfile.preferred_locale ?? 'en');
+          }
+        } catch (profileError) {
+          console.warn('[useUser] Failed to parse sessionStorage profile:', profileError);
+        }
+      }
+
+      if (!storedProfile && storedUser) {
+        const fallbackProfile = buildFallbackProfile(storedUser as User);
+        setProfile(fallbackProfile);
+        setLocale(fallbackProfile.preferred_locale);
+        console.log('[useUser] Applied fallback profile from stored user metadata');
       }
 
       // STEP 2: Get user from Supabase auth
@@ -194,6 +241,7 @@ export function useUser() {
         // Clear sessionStorage on logout
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('ainews_auth_user');
+          sessionStorage.removeItem('ainews_auth_profile');
         }
       }
     });
@@ -206,21 +254,65 @@ export function useUser() {
     };
   }, [supabase]);
 
-  // Return refetch function that calls the stored ref
-  const refetch = useCallback(async () => {
-    console.log('[useUser] Refetch called');
-    if (refetchRef.current) {
-      console.log('[useUser] Executing syncUserProfile...');
-      try {
-        await refetchRef.current();
-        console.log('[useUser] Refetch completed successfully, profile state updated');
-      } catch (error) {
-        console.error('[useUser] Refetch failed:', error);
-      }
-    } else {
-      console.warn('[useUser] Refetch called but refetchRef.current is null');
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
     }
-  }, []);
+
+    const handleAuthEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<AuthStateChangeDetail>;
+      const detail = customEvent.detail;
+
+      if (!detail) {
+        return;
+      }
+
+      if (detail.profile === null) {
+        console.log('[useUser] Received auth event requesting profile reset');
+        setProfile(null);
+        setLocale('en');
+        try {
+          sessionStorage.removeItem('ainews_auth_user');
+          sessionStorage.removeItem('ainews_auth_profile');
+        } catch (storageError) {
+          console.warn('[useUser] Failed clearing sessionStorage on auth reset:', storageError);
+        }
+        void refetch();
+        return;
+      }
+
+      let nextProfile: UserProfile | null = detail.profile ?? null;
+
+      if (!nextProfile && detail.user) {
+        nextProfile = buildFallbackProfile(detail.user);
+        console.log('[useUser] Built fallback profile from auth event payload');
+      }
+
+      if (nextProfile) {
+        setProfile(nextProfile);
+        setLocale(nextProfile.preferred_locale ?? 'en');
+
+        try {
+          sessionStorage.setItem('ainews_auth_profile', JSON.stringify(nextProfile));
+        } catch (storageError) {
+          console.warn('[useUser] Failed persisting sessionStorage profile:', storageError);
+        }
+      }
+
+      if (detail.user) {
+        try {
+          sessionStorage.setItem('ainews_auth_user', JSON.stringify(detail.user));
+        } catch (storageError) {
+          console.warn('[useUser] Failed persisting sessionStorage user:', storageError);
+        }
+      }
+
+      void refetch();
+    };
+
+    window.addEventListener('auth-state-changed', handleAuthEvent as EventListener);
+    return () => window.removeEventListener('auth-state-changed', handleAuthEvent as EventListener);
+  }, [refetch]);
 
   return { profile, locale, isLoading, refetch };
 }

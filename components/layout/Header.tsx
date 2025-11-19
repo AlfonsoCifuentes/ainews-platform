@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -23,9 +23,8 @@ const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'chat'; href: string }> = [
 export function Header() {
   const t = useTranslations('common.nav');
   const pathname = usePathname();
-  const { profile, locale, refetch } = useUser();
+  const { profile, locale } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [, forceUpdate] = useState({});
 
   const activeSegment = useMemo(() => {
     if (!pathname) {
@@ -48,20 +47,6 @@ export function Header() {
   }, [pathname]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
-
-  // Listen for auth state changes (e.g., after login in modal)
-  useEffect(() => {
-    const handleAuthStateChange = async (_event: Event) => {
-      console.log('[Header] Auth state changed event received, refetching user profile');
-      await refetch?.();
-      // Force a re-render to ensure the new profile is displayed
-      forceUpdate({});
-      console.log('[Header] Force update triggered after refetch');
-    };
-
-    window.addEventListener('auth-state-changed', handleAuthStateChange);
-    return () => window.removeEventListener('auth-state-changed', handleAuthStateChange);
-  }, [refetch]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
