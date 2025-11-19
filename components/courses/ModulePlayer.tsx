@@ -19,7 +19,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { NormalizedModule } from '@/lib/courses/normalize';
-import courseLogger from '@/lib/logging/course-logger';
+import { loggers } from '@/lib/utils/logger';
 
 interface QuizQuestion {
   question: string;
@@ -93,7 +93,7 @@ export function ModulePlayer({
 
   // Log component mount
   useEffect(() => {
-    courseLogger.info('ModulePlayer', 'Component mounted', {
+    loggers.success('ModulePlayer', 'Component mounted', {
       moduleId: module.id,
       enrollmentId,
       currentProgress: currentProgress?.completed ? 'Completed' : 'Not completed',
@@ -102,7 +102,7 @@ export function ModulePlayer({
   }, [module.id, enrollmentId, currentProgress?.completed, module.content_type]);
 
   const handleComplete = async () => {
-    courseLogger.info('ModulePlayer', 'handleComplete called', {
+    loggers.course('handleComplete called', {
       moduleId: module.id,
       enrollmentId,
       alreadyCompleted: currentProgress?.completed
@@ -112,16 +112,16 @@ export function ModulePlayer({
 
     try {
       const supabase = getSupabaseClient();
-      courseLogger.info('ModulePlayer', 'Supabase client obtained', {});
+      loggers.course('Supabase client obtained', {});
 
       if (currentProgress?.completed) {
-        courseLogger.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
+        loggers.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
         showToast(t.success, 'success');
         setIsCompleting(false);
         return;
       }
 
-      courseLogger.info('ModulePlayer', 'Updating course_progress table', {
+      loggers.course('Updating course_progress table', {
         enrollmentId,
         moduleId: module.id,
         timestamp: new Date().toISOString()
@@ -138,14 +138,14 @@ export function ModulePlayer({
         });
 
       if (progressError) {
-        courseLogger.error('ModulePlayer', 'course_progress update failed', {
+        loggers.error('ModulePlayer', 'course_progress update failed', {
           message: progressError?.message || String(progressError),
           code: (progressError as unknown as Record<string, unknown>)?.code
         });
         throw progressError;
       }
 
-      courseLogger.success('ModulePlayer', 'course_progress updated', {
+      loggers.success('ModulePlayer', 'course_progress updated', {
         data: progressData,
         enrollmentId,
         moduleId: module.id
@@ -153,12 +153,12 @@ export function ModulePlayer({
 
       // Award XP
       const { data: authData } = await supabase.auth.getUser();
-      courseLogger.info('ModulePlayer', 'Got user from auth', {
+      loggers.course('Got user from auth', {
         userId: authData?.user?.id ? 'Present' : 'Missing'
       });
 
       if (authData?.user?.id) {
-        courseLogger.info('ModulePlayer', 'Awarding XP to user', {
+        loggers.course('Awarding XP to user', {
           userId: authData.user.id,
           amount: 100
         });
@@ -170,19 +170,19 @@ export function ModulePlayer({
         });
 
         if (xpError) {
-          courseLogger.warn('ModulePlayer', 'XP award failed (non-blocking)', {
+          loggers.warn('ModulePlayer', 'XP award failed (non-blocking)', {
             message: xpError?.message || String(xpError),
             code: (xpError as unknown as Record<string, unknown>)?.code
           });
         } else {
-          courseLogger.success('ModulePlayer', 'XP awarded successfully', {
+          loggers.success('ModulePlayer', 'XP awarded successfully', {
             xpData,
             userId: authData.user.id
           });
         }
         
         // Trigger course complete event for badge checking
-        courseLogger.info('ModulePlayer', 'Dispatching course-complete event', {
+        loggers.event('Dispatching course-complete event', {
           moduleId: module.id,
           enrollmentId
         });
@@ -192,17 +192,17 @@ export function ModulePlayer({
         }));
       }
 
-      courseLogger.success('ModulePlayer', 'Module completion successful', {
+      loggers.success('ModulePlayer', 'Module completion successful', {
         moduleId: module.id,
         enrollmentId
       });
 
       showToast(t.success, 'success');
       
-      courseLogger.info('ModulePlayer', 'Calling router.refresh()', {});
+      loggers.course('Calling router.refresh()', {});
       router.refresh();
     } catch (error) {
-      courseLogger.error('ModulePlayer', 'handleComplete error', {
+      loggers.error('ModulePlayer', 'handleComplete error', {
         error: error instanceof Error ? {
           message: error.message,
           stack: error.stack

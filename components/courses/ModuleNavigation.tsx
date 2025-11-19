@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { NormalizedModule } from '@/lib/courses/normalize';
-import courseLogger from '@/lib/logging/course-logger';
+import { loggers } from '@/lib/utils/logger';
 import { useEffect } from 'react';
 
 type Module = Pick<
@@ -33,7 +33,7 @@ export function ModuleNavigation({
   userProgress,
 }: ModuleNavigationProps) {
   useEffect(() => {
-    courseLogger.info('ModuleNavigation', 'Component mounted', {
+    loggers.course('ModuleNavigation mounted', {
       currentModuleId: currentModule.id,
       courseId,
       totalModules: modules.length,
@@ -50,7 +50,7 @@ export function ModuleNavigation({
     (p) => p.module_id === currentModule.id && p.completed
   );
 
-  courseLogger.info('ModuleNavigation', 'Navigation state', {
+  loggers.course('Navigation state updated', {
     currentIndex,
     hasPrev: !!prevModule,
     hasNext: !!nextModule,
@@ -59,7 +59,7 @@ export function ModuleNavigation({
   });
 
   const handleNextClick = () => {
-    courseLogger.info('ModuleNavigation', 'Next module clicked', {
+    loggers.course('Next module clicked', {
       nextModuleId: nextModule?.id,
       courseId,
       isLocked: isNextLocked
@@ -67,7 +67,7 @@ export function ModuleNavigation({
   };
 
   const handlePrevClick = () => {
-    courseLogger.info('ModuleNavigation', 'Previous module clicked', {
+    loggers.course('Previous module clicked', {
       prevModuleId: prevModule?.id,
       courseId
     });
