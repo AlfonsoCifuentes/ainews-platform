@@ -124,7 +124,7 @@ export default async function CourseDetailPage({
     prerequisites: 'Prerequisites',
     whatYouWillLearn: 'What You Will Learn',
     courseIncludes: 'This Course Includes',
-    videoLessons: 'Video Lessons',
+    courseContent: 'Comprehensive Course Content',
     quizzes: 'Quizzes & Assessments',
     certificate: 'Certificate of Completion',
     lifetime: 'Lifetime Access',
@@ -145,7 +145,7 @@ export default async function CourseDetailPage({
     prerequisites: 'Requisitos Previos',
     whatYouWillLearn: 'Lo Que Aprenderás',
     courseIncludes: 'Este Curso Incluye',
-    videoLessons: 'Lecciones en Video',
+    courseContent: 'Contenido Completo del Curso',
     quizzes: 'Cuestionarios y Evaluaciones',
     certificate: 'Certificado de Finalización',
     lifetime: 'Acceso de Por Vida',
@@ -316,8 +316,8 @@ export default async function CourseDetailPage({
               <h3 className="text-lg font-bold mb-4">{t.courseIncludes}</h3>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3">
-                  <PlayCircle className="w-5 h-5 text-primary" />
-                  <span className="text-sm">{t.videoLessons}</span>
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <span className="text-sm">{t.courseContent}</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <BarChart3 className="w-5 h-5 text-primary" />
