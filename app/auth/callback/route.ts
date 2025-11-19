@@ -65,6 +65,12 @@ export async function GET(request: NextRequest) {
       
       // Create response with proper redirect
       const response = NextResponse.redirect(new URL(next, requestUrl.origin));
+      
+      // Add flags for client-side auth detection
+      response.headers.set('X-Auth-Success', 'true');
+      if (data?.user?.id) {
+        response.headers.set('X-Auth-User-ID', data.user.id);
+      }
 
       // NOTE: We previously set response cookies manually here, but that can lead
       // to double-encoding or malformed values. The Supabase SSR client

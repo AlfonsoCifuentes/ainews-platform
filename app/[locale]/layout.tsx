@@ -18,6 +18,7 @@ import { GamificationListeners } from '@/components/gamification/GamificationLis
 import { XPNotificationManager } from '@/components/gamification/XPFloatingNotification';
 import { BadgeNotificationProvider } from '@/components/gamification/BadgeNotificationProvider';
 import { AutoBadgeChecker } from '@/components/gamification/AutoBadgeChecker';
+import { OAuthCallbackHandler } from '@/components/auth/OAuthCallbackHandler';
 import { PWAInstaller } from '@/components/pwa/PWAInstaller';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { routing } from '@/i18n/routing';
@@ -254,6 +255,7 @@ export default async function LocaleLayout({
           <ToastProvider>
             <NextIntlClientProvider messages={messages} locale={locale}>
               <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
+                <OAuthCallbackHandler />
                 <div className="relative flex min-h-screen flex-col">
                   {/* Matrix Rain Background */}
                   <MatrixRain />
