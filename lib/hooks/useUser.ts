@@ -197,9 +197,12 @@ export function useUser() {
 
   // Return refetch function that calls the stored ref
   const refetch = useCallback(async () => {
+    console.log('[useUser] Refetch called, executing syncUserProfile');
     if (refetchRef.current) {
-      console.log('[useUser] Refetch called');
       await refetchRef.current();
+      console.log('[useUser] Refetch completed, profile should be updated');
+    } else {
+      console.warn('[useUser] Refetch called but refetchRef.current is null');
     }
   }, []);
 
