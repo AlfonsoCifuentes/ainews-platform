@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { fetchRealLeaderboard, getOfficialLeaderboardData } from '@/lib/ai/fetch-real-leaderboard';
 
 export const revalidate = 3600; // Cache for 1 hour
 
@@ -7,39 +8,49 @@ export async function GET(_req: NextRequest) {
   try {
     const supabase = getSupabaseServerClient();
 
-    // Try to fetch from database
+    // Try to fetch from database first
     const { data: models, error } = await supabase
       .from('ai_leaderboard')
       .select('*')
       .order('rank', { ascending: true })
       .limit(50);
 
-    if (error) {
-      console.error('Error fetching from database:', error);
-      // Return fallback data
+    if (!error && models && models.length > 0) {
       return NextResponse.json({
-        models: [
-          { rank: 1, name: 'GPT-4o', provider: 'OpenAI', performance_score: 98.5, description: 'Most advanced reasoning' },
-          { rank: 2, name: 'Claude 3.5 Sonnet', provider: 'Anthropic', performance_score: 97.8, description: 'Excellent analysis' },
-          { rank: 3, name: 'Gemini 2.0', provider: 'Google DeepMind', performance_score: 97.2, description: 'Fast & capable' },
-          { rank: 4, name: 'Llama 3.3 70B', provider: 'Meta', performance_score: 96.5, description: 'Open-source leader' },
-          { rank: 5, name: 'Grok-3', provider: 'xAI', performance_score: 96.2, description: 'Real-time reasoning' },
-        ],
+        models,
         lastUpdated: new Date().toISOString(),
-        source: 'fallback'
+        source: 'database'
       });
     }
 
+    // If database is empty or error, try to fetch real data from official source
+    const realModels = await fetchRealLeaderboard();
+    
+    if (realModels && realModels.length > 0) {
+      return NextResponse.json({
+        models: realModels,
+        lastUpdated: new Date().toISOString(),
+        source: 'official'
+      });
+    }
+
+    // Fallback to official data if all else fails
+    const officialData = getOfficialLeaderboardData();
     return NextResponse.json({
-      models: models || [],
+      models: officialData,
       lastUpdated: new Date().toISOString(),
-      source: 'database'
+      source: 'fallback'
     });
   } catch (error) {
     console.error('API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch leaderboard' },
-      { status: 500 }
-    );
+    
+    // Even on error, return the official data
+    const officialData = getOfficialLeaderboardData();
+    return NextResponse.json({
+      models: officialData,
+      lastUpdated: new Date().toISOString(),
+      source: 'fallback-official',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

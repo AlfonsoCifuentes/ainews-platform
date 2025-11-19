@@ -21,16 +21,16 @@ interface AILeaderboardPodiumProps {
 
 // Direct SVG data URIs to avoid Next.js Image Optimizer
 const SVG_LOGOS: Record<string, string> = {
-  'OpenAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="%23fff" stroke="%23000" stroke-width="2"/%3E%3Ctext x="50" y="60" text-anchor="middle" font-size="40" font-weight="bold" fill="%23000"%3EAI%3C/text%3E%3C/svg%3E',
-  'Anthropic': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,10 90,90 10,90" fill="%23673AB7" stroke="%23fff" stroke-width="2"/%3E%3C/svg%3E',
-  'Google DeepMind': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="none" stroke="%234285F4" stroke-width="3"/%3E%3Cline x1="50" y1="20" x2="50" y2="80" stroke="%234285F4" stroke-width="2"/%3E%3Cline x1="20" y1="50" x2="80" y2="50" stroke="%234285F4" stroke-width="2"/%3E%3C/svg%3E',
-  'Google': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="none" stroke="%23EA4335" stroke-width="3"/%3E%3C/svg%3E',
-  'Meta': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" fill="none" stroke="%231877F2" stroke-width="3" rx="10"/%3E%3C/svg%3E',
-  'Mistral': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,10 80,90 20,90" fill="%23FF6B35" stroke="%23fff" stroke-width="2"/%3E%3C/svg%3E',
-  'Groq': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="25" y="25" width="50" height="50" fill="%23FF0000" stroke="%23fff" stroke-width="2" rx="5"/%3E%3C/svg%3E',
-  'xAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="50" font-weight="bold" fill="%23000"%3Ex%3C/text%3E%3C/svg%3E',
-  'Together': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="35" cy="50" r="15" fill="%239C27B0"/%3E%3Ccircle cx="50" cy="50" r="15" fill="%239C27B0"/%3E%3Ccircle cx="65" cy="50" r="15" fill="%239C27B0"/%3E%3C/svg%3E',
-  'default': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" fill="none" stroke="%23666" stroke-width="2"/%3E%3Ctext x="50" y="60" text-anchor="middle" font-size="20" fill="%23666"%3EAI%3C/text%3E%3C/svg%3E'
+  'OpenAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="%23fff" stroke="%23000" stroke-width="2"/%3E%3Ctext x="50" y="62" text-anchor="middle" font-size="45" font-weight="bold" fill="%23000"%3EO%3C/text%3E%3C/svg%3E',
+  'Anthropic': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,15 85,85 15,85" fill="%23673AB7" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="70" text-anchor="middle" font-size="30" font-weight="bold" fill="%23fff"%3EA%3C/text%3E%3C/svg%3E',
+  'Google DeepMind': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" rx="10" fill="%234285F4" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="35" font-weight="bold" fill="%23fff"%3EG%3C/text%3E%3C/svg%3E',
+  'Google': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="%234285F4" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="40" font-weight="bold" fill="%23fff"%3EG%3C/text%3E%3C/svg%3E',
+  'Meta': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="15" y="15" width="70" height="70" rx="12" fill="%231877F2" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="40" font-weight="bold" fill="%23fff"%3EM%3C/text%3E%3C/svg%3E',
+  'Mistral': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,10 90,90 10,90" fill="%23FF6B35" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="70" text-anchor="middle" font-size="30" font-weight="bold" fill="%23fff"%3EM%3C/text%3E%3C/svg%3E',
+  'Groq': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" rx="8" fill="%23FF0000" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="35" font-weight="bold" fill="%23fff"%3EG%3C/text%3E%3C/svg%3E',
+  'xAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="%23000" stroke="%23fff" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="45" font-weight="bold" fill="%23fff"%3Ex%3C/text%3E%3C/svg%3E',
+  'Together': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="35" cy="50" r="18" fill="%239C27B0"/%3E%3Ccircle cx="50" cy="50" r="18" fill="%239C27B0"/%3E%3Ccircle cx="65" cy="50" r="18" fill="%239C27B0"/%3E%3C/svg%3E',
+  'default': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" rx="8" fill="none" stroke="%23666" stroke-width="2"/%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="30" fill="%23666"%3EAI%3C/text%3E%3C/svg%3E'
 };
 
 export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
@@ -110,15 +110,6 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  const getPodiumPosition = (rank: number) => {
-    switch (rank) {
-      case 1: return { height: 'h-32', medal: '🥇', bgGradient: 'from-yellow-600 to-yellow-800' };
-      case 2: return { height: 'h-24', medal: '🥈', bgGradient: 'from-gray-400 to-gray-600' };
-      case 3: return { height: 'h-20', medal: '🥉', bgGradient: 'from-orange-600 to-orange-800' };
-      default: return { height: 'h-16', medal: '', bgGradient: 'from-slate-600 to-slate-800' };
-    }
-  };
-
   const getCompanyLogo = useCallback((provider: string): string => {
     return SVG_LOGOS[provider] || SVG_LOGOS.default;
   }, []);
@@ -158,60 +149,74 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
         <p className="text-muted-foreground">{texts.subtitle}</p>
       </div>
 
-      {/* Podium */}
-      <div className="mb-16">
-        <div className="flex justify-center items-end gap-4 h-64 mb-8">
+      {/* Podium - Improved layout to prevent overlapping */}
+      <div className="w-full max-w-4xl mx-auto mb-16">
+        {/* Responsive podium with better spacing */}
+        <div className="flex justify-center items-end gap-6 md:gap-8 h-80 mb-12">
           {/* Silver (2nd) */}
           {models[1] && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex flex-col items-center"
+              className="flex flex-col items-center flex-shrink-0"
             >
-              <div className="mb-4 text-center">
-                <p className="text-4xl mb-2">🥈</p>
-                <div className="relative w-16 h-16 mb-2">
+              {/* Card with medal and logo */}
+              <motion.div
+                className="bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl p-6 mb-4 border-2 border-slate-600 min-w-[140px] text-center shadow-lg"
+                whileHover={{ translateY: -4 }}
+              >
+                <p className="text-5xl mb-3">🥈</p>
+                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-xl">
                   <img
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
-                    className="object-contain w-full h-full"
+                    className="object-contain w-16 h-16"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-lg">{models[1].name}</h3>
-                <p className="text-sm text-muted-foreground">{models[1].provider}</p>
-              </div>
-              <div className={`w-20 bg-gradient-to-t ${getPodiumPosition(2).bgGradient} rounded-t-lg flex items-end justify-center ${getPodiumPosition(2).height}`}>
-                <p className="font-bold text-white text-lg mb-2">2</p>
+                <h3 className="font-bold text-lg text-white leading-tight">{models[1].name}</h3>
+                <p className="text-sm text-slate-300 mt-1">{models[1].provider}</p>
+                <p className="text-lg font-bold text-blue-400 mt-2">{models[1].performance_score}%</p>
+              </motion.div>
+              
+              {/* Podium bar */}
+              <div className="w-32 bg-gradient-to-t from-slate-600 to-slate-500 rounded-t-lg flex items-end justify-center h-40 border-2 border-slate-600 border-b-0">
+                <p className="font-bold text-white text-3xl mb-3">2</p>
               </div>
             </motion.div>
           )}
 
-          {/* Gold (1st) */}
+          {/* Gold (1st) - Center and tallest */}
           {models[0] && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex flex-col items-center"
+              className="flex flex-col items-center flex-shrink-0 z-10"
             >
-              <div className="mb-4 text-center">
-                <p className="text-5xl mb-2">🥇</p>
-                <div className="relative w-20 h-20 mb-2">
+              {/* Larger card with medal and logo */}
+              <motion.div
+                className="bg-gradient-to-b from-yellow-600 to-amber-700 rounded-2xl p-8 mb-4 border-4 border-yellow-500 min-w-[160px] text-center shadow-2xl"
+                whileHover={{ translateY: -6 }}
+              >
+                <p className="text-7xl mb-4">🥇</p>
+                <div className="relative w-28 h-28 mx-auto mb-4 flex items-center justify-center bg-white/20 rounded-xl">
                   <img
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
-                    className="object-contain w-full h-full"
+                    className="object-contain w-20 h-20"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-xl">{models[0].name}</h3>
-                <p className="text-sm text-muted-foreground">{models[0].provider}</p>
-                <p className="text-sm font-semibold text-primary mt-1">{models[0].performance_score}%</p>
-              </div>
-              <div className={`w-24 bg-gradient-to-t ${getPodiumPosition(1).bgGradient} rounded-t-lg flex items-end justify-center ${getPodiumPosition(1).height}`}>
-                <p className="font-bold text-white text-2xl mb-2">1</p>
+                <h3 className="font-bold text-2xl text-white leading-tight">{models[0].name}</h3>
+                <p className="text-sm text-yellow-100 mt-1">{models[0].provider}</p>
+                <p className="text-2xl font-bold text-white mt-3">{models[0].performance_score}%</p>
+              </motion.div>
+              
+              {/* Podium bar - Tallest */}
+              <div className="w-40 bg-gradient-to-t from-yellow-700 to-yellow-600 rounded-t-lg flex items-end justify-center h-56 border-4 border-yellow-600 border-b-0 shadow-lg">
+                <p className="font-bold text-white text-5xl mb-4">1</p>
               </div>
             </motion.div>
           )}
@@ -222,23 +227,30 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex flex-col items-center"
+              className="flex flex-col items-center flex-shrink-0"
             >
-              <div className="mb-4 text-center">
-                <p className="text-4xl mb-2">🥉</p>
-                <div className="relative w-16 h-16 mb-2">
+              {/* Card with medal and logo */}
+              <motion.div
+                className="bg-gradient-to-b from-orange-700 to-orange-800 rounded-2xl p-6 mb-4 border-2 border-orange-600 min-w-[140px] text-center shadow-lg"
+                whileHover={{ translateY: -4 }}
+              >
+                <p className="text-5xl mb-3">🥉</p>
+                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-xl">
                   <img
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
-                    className="object-contain w-full h-full"
+                    className="object-contain w-16 h-16"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-lg">{models[2].name}</h3>
-                <p className="text-sm text-muted-foreground">{models[2].provider}</p>
-              </div>
-              <div className={`w-20 bg-gradient-to-t ${getPodiumPosition(3).bgGradient} rounded-t-lg flex items-end justify-center ${getPodiumPosition(3).height}`}>
-                <p className="font-bold text-white text-lg mb-2">3</p>
+                <h3 className="font-bold text-lg text-white leading-tight">{models[2].name}</h3>
+                <p className="text-sm text-orange-200 mt-1">{models[2].provider}</p>
+                <p className="text-lg font-bold text-orange-300 mt-2">{models[2].performance_score}%</p>
+              </motion.div>
+              
+              {/* Podium bar */}
+              <div className="w-32 bg-gradient-to-t from-orange-700 to-orange-600 rounded-t-lg flex items-end justify-center h-32 border-2 border-orange-600 border-b-0">
+                <p className="font-bold text-white text-3xl mb-3">3</p>
               </div>
             </motion.div>
           )}
