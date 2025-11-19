@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createClient } from '@/lib/db/supabase-server';
 import { z } from 'zod';
 import { getDueFlashcards, recordReview, createFlashcardsFromContent, getFlashcardStats } from '@/lib/ai/srs';
 
@@ -20,7 +20,7 @@ const CreateSchema = z.object({
 // GET /api/flashcards - Get due flashcards
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = await createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 // POST /api/flashcards - Create flashcards or record review
 export async function POST(req: NextRequest) {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = await createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
