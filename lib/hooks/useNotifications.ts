@@ -37,22 +37,55 @@ export function useNotifications(unreadOnly = false): UseNotificationsResult {
       const params = new URLSearchParams();
       if (unreadOnly) params.append('unreadOnly', 'true');
 
-      const response = await fetch(`/api/notifications?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch notifications');
+      const response = await fetch(`/api/notifications?${params}`, {
+        method: 'GET',
+        credentials: 'include',
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+      
+      if (response.status === 401) {
+        // User not authenticated
+        setNotifications([]);
+        setUnreadCount(0);
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch notifications: ${response.status}`);
+      }
 
       const data = await response.json();
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timeout');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load notifications');
+      }
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
   }, [unreadOnly]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      if (isMounted) {
+        await fetchNotifications();
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [unreadOnly]); // Only depend on unreadOnly, not fetchNotifications
 
   const markAsRead = useCallback(async (id: string) => {
     try {

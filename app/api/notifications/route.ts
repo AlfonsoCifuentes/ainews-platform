@@ -10,11 +10,14 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getServerAuthUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { notifications: [], unreadCount: 0 },
+        { status: 200 } // Return 200 with empty data instead of 401 to avoid infinite loops
+      );
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // Cap at 100
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
     const db = getSupabaseServerClient();
@@ -34,9 +37,10 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error('Get notifications error:', error);
+      // Return empty notifications instead of error to avoid client-side loops
       return NextResponse.json(
-        { error: 'Failed to get notifications' },
-        { status: 500 }
+        { notifications: [], unreadCount: 0 },
+        { status: 200 }
       );
     }
 
@@ -45,7 +49,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       notifications: data || [],
       unreadCount,
-    });
+    }, { status: 200 });
   } catch (error) {
     console.error('Notifications API error:', error);
     return NextResponse.json(
@@ -63,7 +67,10 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = await getServerAuthUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false },
+        { status: 200 }
+      );
     }
 
     const { searchParams } = new URL(req.url);

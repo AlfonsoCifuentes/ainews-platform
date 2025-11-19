@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 
 interface AIModel {
@@ -160,12 +159,10 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               <div className="mb-4 text-center">
                 <p className="text-4xl mb-2">🥈</p>
                 <div className="relative w-16 h-16 mb-2">
-                  <Image
+                  <img
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
-                    width={64}
-                    height={64}
-                    className="object-contain"
+                    className="object-contain w-full h-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = '/logos/ai-default.svg';
@@ -192,12 +189,10 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               <div className="mb-4 text-center">
                 <p className="text-5xl mb-2">🥇</p>
                 <div className="relative w-20 h-20 mb-2">
-                  <Image
+                  <img
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
-                    width={80}
-                    height={80}
-                    className="object-contain"
+                    className="object-contain w-full h-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = '/logos/ai-default.svg';
@@ -225,12 +220,10 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               <div className="mb-4 text-center">
                 <p className="text-4xl mb-2">🥉</p>
                 <div className="relative w-16 h-16 mb-2">
-                  <Image
+                  <img
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
-                    width={64}
-                    height={64}
-                    className="object-contain"
+                    className="object-contain w-full h-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = '/logos/ai-default.svg';
