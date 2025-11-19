@@ -73,6 +73,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     try {
       logger.info('AILeaderboard', 'Starting fetch leaderboard');
       setIsLoading(true);
+      setError(null);
       // First try to fetch from our API endpoint
       const response = await fetch('/api/ai-leaderboard');
       logger.debug('AILeaderboard', 'API response received', { status: response.status, ok: response.ok });
@@ -90,7 +91,6 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     } catch (err) {
       logger.error('AILeaderboard', 'Error fetching leaderboard', err);
       console.error('Error fetching leaderboard:', err);
-      setError(texts.error);
       // Use fallback data
       const fallbackModels = [
         { rank: 1, name: 'GPT-4o', provider: 'OpenAI', performance_score: 98.5, description: 'Most advanced reasoning' },
@@ -103,7 +103,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [texts]);
+  }, []);
 
   useEffect(() => {
     logger.info('AILeaderboard', 'Component mounted, triggering fetchLeaderboard');
