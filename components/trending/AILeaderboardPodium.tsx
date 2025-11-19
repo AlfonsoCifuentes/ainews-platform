@@ -18,6 +18,20 @@ interface AILeaderboardPodiumProps {
   locale: 'en' | 'es';
 }
 
+// Direct SVG data URIs to avoid Next.js Image Optimizer
+const SVG_LOGOS: Record<string, string> = {
+  'OpenAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="%23fff" stroke="%23000" stroke-width="2"/%3E%3Ctext x="50" y="60" text-anchor="middle" font-size="40" font-weight="bold" fill="%23000"%3EAI%3C/text%3E%3C/svg%3E',
+  'Anthropic': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,10 90,90 10,90" fill="%23673AB7" stroke="%23fff" stroke-width="2"/%3E%3C/svg%3E',
+  'Google DeepMind': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="none" stroke="%234285F4" stroke-width="3"/%3E%3Cline x1="50" y1="20" x2="50" y2="80" stroke="%234285F4" stroke-width="2"/%3E%3Cline x1="20" y1="50" x2="80" y2="50" stroke="%234285F4" stroke-width="2"/%3E%3C/svg%3E',
+  'Google': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="none" stroke="%23EA4335" stroke-width="3"/%3E%3C/svg%3E',
+  'Meta': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" fill="none" stroke="%231877F2" stroke-width="3" rx="10"/%3E%3C/svg%3E',
+  'Mistral': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cpolygon points="50,10 80,90 20,90" fill="%23FF6B35" stroke="%23fff" stroke-width="2"/%3E%3C/svg%3E',
+  'Groq': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="25" y="25" width="50" height="50" fill="%23FF0000" stroke="%23fff" stroke-width="2" rx="5"/%3E%3C/svg%3E',
+  'xAI': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50" y="65" text-anchor="middle" font-size="50" font-weight="bold" fill="%23000"%3Ex%3C/text%3E%3C/svg%3E',
+  'Together': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="35" cy="50" r="15" fill="%239C27B0"/%3E%3Ccircle cx="50" cy="50" r="15" fill="%239C27B0"/%3E%3Ccircle cx="65" cy="50" r="15" fill="%239C27B0"/%3E%3C/svg%3E',
+  'default': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect x="20" y="20" width="60" height="60" fill="none" stroke="%23666" stroke-width="2"/%3E%3Ctext x="50" y="60" text-anchor="middle" font-size="20" fill="%23666"%3EAI%3C/text%3E%3C/svg%3E'
+};
+
 export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
   const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,20 +109,9 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     }
   };
 
-  const getCompanyLogo = (provider: string) => {
-    const logos: Record<string, string> = {
-      'OpenAI': '/logos/openai.svg',
-      'Anthropic': '/logos/anthropic.svg',
-      'Google': '/logos/google.svg',
-      'Google DeepMind': '/logos/google-deepmind.svg',
-      'Meta': '/logos/meta.svg',
-      'Mistral': '/logos/mistral.svg',
-      'Groq': '/logos/groq.svg',
-      'xAI': '/logos/xai.svg',
-      'Together': '/logos/together.svg',
-    };
-    return logos[provider] || '/logos/ai-default.svg';
-  };
+  const getCompanyLogo = useCallback((provider: string): string => {
+    return SVG_LOGOS[provider] || SVG_LOGOS.default;
+  }, []);
 
   if (isLoading) {
     return (
@@ -163,10 +166,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
                     className="object-contain w-full h-full"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/logos/ai-default.svg';
-                    }}
+                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-lg">{models[1].name}</h3>
@@ -193,10 +193,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
                     className="object-contain w-full h-full"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/logos/ai-default.svg';
-                    }}
+                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-xl">{models[0].name}</h3>
@@ -224,10 +221,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
                     className="object-contain w-full h-full"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/logos/ai-default.svg';
-                    }}
+                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-lg">{models[2].name}</h3>
