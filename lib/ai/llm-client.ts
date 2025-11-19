@@ -795,16 +795,16 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     }
   }
 
-  // Fallback to cloud providers (ordered by free tier availability)
+  // Fallback to cloud providers (ordered: Gemini → OpenAI → Groq → OpenRouter → Others)
   const providers: LLMProvider[] = [
-    'groq',      // PRIMARY CLOUD - Free tier generous (30 req/min)
-    'gemini',    // Google's Gemini - Free tier available
-    'openrouter', // Multi-provider - Free models available
-    'together',  // Meta models - Free tier
-    'mistral',   // European provider - May have free tier
-    'openai',    // OpenAI - Paid but reliable fallback (if quota available)
-    'deepseek',  // DeepSeek - Alternative
-    'anthropic'  // FALLBACK ONLY - Anthropic
+    'gemini',     // PRIMARY CLOUD - Best free tier, fast, excellent JSON
+    'openai',     // OpenAI - Premium quality (if quota available)
+    'groq',       // Groq - Fast, generous free tier (30 req/min)
+    'openrouter', // OpenRouter - Multi-provider - Free models available
+    'anthropic',  // Anthropic - Best for JSON (if quota available)
+    'together',   // Meta models - Free tier
+    'mistral',    // European provider - May have free tier
+    'deepseek'    // DeepSeek - Alternative
   ];
 
   for (const provider of providers) {
@@ -860,6 +860,14 @@ export function getAvailableProviders(): LLMProvider[] {
   }
 
   // Cloud providers ordered by: free tier generosity + reliability
+  // PRIMARY CLOUD PROVIDERS (in order):
+  
+  // Google Gemini 3: Best free tier, fast, excellent for JSON
+  if (process.env.GEMINI_API_KEY) {
+    available.push('gemini');
+    console.log(`[LLM] ✅ Gemini configured and available (PRIMARY CLOUD)`);
+  }
+  
   // OpenAI: GPT-4o and GPT-4 Turbo - premium models with excellent quality
   if (process.env.OPENAI_API_KEY) {
     available.push('openai');
@@ -878,16 +886,12 @@ export function getAvailableProviders(): LLMProvider[] {
     console.log(`[LLM] ✅ OpenRouter configured and available`);
   }
   
+  // SECONDARY CLOUD PROVIDERS:
+  
   // Anthropic: Best for JSON but lower free tier limits
   if (process.env.ANTHROPIC_API_KEY) {
     available.push('anthropic');
     console.log(`[LLM] ✅ Anthropic configured and available`);
-  }
-  
-  // Google Gemini: Good free tier
-  if (process.env.GEMINI_API_KEY) {
-    available.push('gemini');
-    console.log(`[LLM] ✅ Gemini configured and available`);
   }
   
   // DeepSeek: High quality but may hit limits faster
