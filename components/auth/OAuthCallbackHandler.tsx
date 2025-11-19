@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
+import { loggers } from '@/lib/utils/logger';
 
 /**
  * OAuthCallbackHandler
@@ -14,48 +15,53 @@ import { getClientAuthClient } from '@/lib/auth/auth-client';
  */
 export function OAuthCallbackHandler() {
   useEffect(() => {
-    console.log('[OAuthCallbackHandler] Mounted, checking for OAuth session...');
+    loggers.oauth('Mounted, checking for OAuth session...');
     
     const handleOAuthCallback = async () => {
+      loggers.oauth('handleOAuthCallback started');
       try {
         // Give the supabase client a moment to establish the session from cookies
+        loggers.oauth('Waiting 100ms for Supabase session cookie...');
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const supabase = getClientAuthClient();
-        console.log('[OAuthCallbackHandler] Supabase client initialized');
+        loggers.success('oauth', 'Supabase client initialized');
         
         // Check if we have an active user session
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        console.log('[OAuthCallbackHandler] getUser result:', { 
+        loggers.user('getUser result', { 
           userId: user?.id, 
           hasError: !!authError,
           errorMessage: authError?.message
         });
         
         if (authError) {
-          console.log('[OAuthCallbackHandler] No active session:', authError.message);
+          loggers.warn('oauth', 'No active session', { message: authError.message });
           return;
         }
 
         if (!user) {
-          console.log('[OAuthCallbackHandler] No user in session');
+          loggers.user('No user in session');
           return;
         }
 
-        console.log('[OAuthCallbackHandler] User session detected:', user.id);
+        loggers.success('user', 'User session detected', { userId: user.id, email: user.email });
 
         // Try to fetch the user's profile from the API
         try {
+          loggers.oauth('Fetching profile from API...');
           const profileResponse = await fetch('/api/user/profile', {
             method: 'GET',
             credentials: 'include',
           });
 
+          loggers.user('Profile API response', { status: profileResponse.status, ok: profileResponse.ok });
+
           if (profileResponse.ok) {
             const profileJson = await profileResponse.json();
             if (profileJson?.data) {
-              console.log('[OAuthCallbackHandler] Profile loaded:', profileJson.data.display_name);
+              loggers.success('user', 'Profile loaded from API', { displayName: profileJson.data.display_name });
               
               // Dispatch auth-state-changed event with full profile
               const event = new CustomEvent('auth-state-changed', {
@@ -70,17 +76,18 @@ export function OAuthCallbackHandler() {
                 }
               });
               window.dispatchEvent(event);
-              console.log('[OAuthCallbackHandler] Dispatched auth-state-changed event with profile');
+              loggers.success('event', 'Dispatched auth-state-changed event with API profile');
               return;
             }
           } else {
-            console.warn('[OAuthCallbackHandler] Profile fetch failed:', profileResponse.status);
+            loggers.warn('oauth', 'Profile fetch failed', { status: profileResponse.status });
           }
         } catch (profileError) {
-          console.warn('[OAuthCallbackHandler] Error fetching profile:', profileError);
+          loggers.warn('oauth', 'Error fetching profile', profileError as Error);
         }
 
         // If we couldn't get the profile from API, build a fallback from metadata
+        loggers.user('Building fallback profile from OAuth metadata');
         const metadata = user.user_metadata ?? {};
         const displayName =
           (metadata.name as string | undefined) ||
@@ -113,7 +120,7 @@ export function OAuthCallbackHandler() {
           updated_at: new Date().toISOString(),
         };
 
-        console.log('[OAuthCallbackHandler] Using fallback profile:', fallbackProfile.display_name);
+        loggers.success('user', 'Using fallback profile', { displayName: fallbackProfile.display_name, avatarUrl: !!fallbackProfile.avatar_url });
 
         // Dispatch with fallback profile
         const event = new CustomEvent('auth-state-changed', {
@@ -128,14 +135,15 @@ export function OAuthCallbackHandler() {
           }
         });
         window.dispatchEvent(event);
-        console.log('[OAuthCallbackHandler] Dispatched auth-state-changed event with fallback profile');
+        loggers.success('event', 'Dispatched auth-state-changed event with fallback profile');
         
       } catch (error) {
-        console.error('[OAuthCallbackHandler] Unexpected error:', error);
+        loggers.error('oauth', 'Unexpected error in OAuth handler', error as Error);
       }
     };
 
     // Run callback handler on mount
+    loggers.oauth('Starting handleOAuthCallback execution');
     void handleOAuthCallback();
   }, []);
 
