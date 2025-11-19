@@ -13,7 +13,31 @@ export type AuthProvider = 'google' | 'github' | 'email';
  * Get auth client (client component)
  */
 export function getClientAuthClient() {
-  return createClientComponentClient();
+  const client = createClientComponentClient();
+  
+  // Debug: log all cookies available to the client
+  if (typeof document !== 'undefined') {
+    const cookieString = document.cookie;
+    const cookies = cookieString.split(';').map(c => c.trim());
+    const supabaseCookies = cookies.filter(c => 
+      c.toLowerCase().includes('sb-') || 
+      c.toLowerCase().includes('supabase') ||
+      c.toLowerCase().includes('auth-token')
+    );
+    
+    if (supabaseCookies.length > 0) {
+      console.log('[Auth Client] Found Supabase cookies:', supabaseCookies.length);
+      supabaseCookies.forEach(cookie => {
+        const [name] = cookie.split('=');
+        const value = cookie.split('=')[1]?.slice(0, 30) || '';
+        console.log(`[Auth Client] Cookie: ${name} = ${value}...`);
+      });
+    } else {
+      console.warn('[Auth Client] NO Supabase cookies found in document.cookie!');
+    }
+  }
+  
+  return client;
 }
 
 /**

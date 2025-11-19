@@ -82,6 +82,22 @@ export function useUser() {
       }
 
       loggers.user('syncUserProfile started');
+      
+      // CRITICAL DEBUG: Check what cookies the browser has
+      if (typeof document !== 'undefined') {
+        const allCookies = document.cookie.split(';').map(c => c.trim());
+        const sbCookies = allCookies.filter(c => 
+          c.toLowerCase().includes('sb-') || 
+          c.toLowerCase().includes('supabase') ||
+          c.toLowerCase().includes('auth')
+        );
+        loggers.user('Cookies available to client', {
+          totalCookies: allCookies.length,
+          supabaseCookies: sbCookies.length,
+          details: sbCookies.map(c => c.split('=')[0])
+        });
+      }
+      
       setIsLoading(true);
 
       // STEP 0: Check for active Supabase session on first load
