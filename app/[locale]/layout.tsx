@@ -103,6 +103,7 @@ export default async function LocaleLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+console.log('[CookieNorm] Starting normalization...');
 (function() {
   try {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
@@ -176,17 +177,6 @@ export default async function LocaleLayout({
               console.log('[CookieNorm] Removed invalid ' + storageName + '.' + key);
               return;
             }
-            
-            // Try to validate as JSON - if it's malformed and contains base64, remove it
-            try {
-              const decoded = decodeURIComponent(value);
-              JSON.parse(decoded);
-            } catch {
-              if (value.includes('base64')) {
-                storage.removeItem(key);
-                console.log('[CookieNorm] Removed malformed ' + storageName + '.' + key);
-              }
-            }
           } catch (e) {
             console.warn('[CookieNorm] Error processing ' + storageName + '.' + key + ':', e.message);
           }
@@ -195,51 +185,6 @@ export default async function LocaleLayout({
         console.warn('[CookieNorm] ' + storageName + ' cleanup error:', e.message);
       }
     });
-    
-    // Stage 2: Clean cookies
-    try {
-      const cookieString = document.cookie;
-      if (cookieString) {
-        const cookies = cookieString.split(';');
-        const cookiesToFix = [];
-        
-        cookies.forEach(cookie => {
-          if (!cookie.trim()) return;
-          
-          const [rawName, ...valueParts] = cookie.split('=');
-          const name = rawName.trim();
-          const value = decodeURIComponent(valueParts.join('=').trim() || '');
-          
-          if (!name) return;
-          
-          // Check if this is a Supabase-related cookie
-          const isSupabase = name.toLowerCase().includes('auth') || 
-                             name.toLowerCase().includes('supabase') ||
-                             name.toLowerCase().startsWith('sb');
-          
-          if (!isSupabase) return;
-          
-          const normalized = normalizeValue(value);
-          if (normalized && normalized !== value) {
-            cookiesToFix.push({ name, value: encodeURIComponent(normalized) });
-          }
-        });
-        
-        // Apply cookie fixes
-        cookiesToFix.forEach(({ name, value }) => {
-          try {
-            document.cookie = name + '=' + value + '; path=/; max-age=31536000; ' + 
-                             (location.protocol === 'https:' ? 'Secure; ' : '') + 
-                             'SameSite=Lax';
-            console.log('[CookieNorm] Fixed cookie: ' + name);
-          } catch (e) {
-            console.warn('[CookieNorm] Failed to set cookie ' + name + ':', e.message);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn('[CookieNorm] Cookie processing error:', e.message);
-    }
     
     console.log('[CookieNorm] Normalization complete');
     

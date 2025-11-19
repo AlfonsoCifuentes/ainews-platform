@@ -14,15 +14,24 @@ import { getClientAuthClient } from '@/lib/auth/auth-client';
  */
 export function OAuthCallbackHandler() {
   useEffect(() => {
+    console.log('[OAuthCallbackHandler] Mounted, checking for OAuth session...');
+    
     const handleOAuthCallback = async () => {
-      // Give the supabase client a moment to establish the session from cookies
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const supabase = getClientAuthClient();
-      
       try {
+        // Give the supabase client a moment to establish the session from cookies
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const supabase = getClientAuthClient();
+        console.log('[OAuthCallbackHandler] Supabase client initialized');
+        
         // Check if we have an active user session
         const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        console.log('[OAuthCallbackHandler] getUser result:', { 
+          userId: user?.id, 
+          hasError: !!authError,
+          errorMessage: authError?.message
+        });
         
         if (authError) {
           console.log('[OAuthCallbackHandler] No active session:', authError.message);
