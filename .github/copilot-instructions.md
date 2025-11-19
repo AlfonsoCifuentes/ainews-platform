@@ -57,6 +57,85 @@ git push origin master
 
 ---
 
+## 🔍 CRITICAL ANALYSIS FRAMEWORK
+
+**For EVERY problem diagnosis, bug investigation, and solution design, apply this rigorous evaluation framework:**
+
+### Root Cause Analysis - Ask These Questions:
+
+1. **Direct Problem Address**
+   - Does the analysis directly address the reported problem?
+   - Have I confirmed the symptom vs. the root cause?
+   - Am I treating symptoms or fixing the underlying issue?
+
+2. **Exhaustive Factor Assessment**
+   - Were ALL possible causes considered, or are there unassessed factors?
+   - Have I eliminated each hypothesis with evidence, not assumption?
+   - Could multiple problems be occurring simultaneously?
+   - What environmental factors might be contributing? (browser, version, timing, caching, etc.)
+
+3. **Solution Simplicity & Directness**
+   - Is this the simplest and most direct solution?
+   - Am I over-engineering when a small change would suffice?
+   - What is the absolute minimum required to fix this?
+   - Could I achieve 80% of the result with 20% of the effort?
+
+4. **Feasibility & Resources**
+   - Is this feasible in terms of resources and costs?
+   - Does it maintain the $0 infrastructure cost principle?
+   - Are there technical constraints I'm overlooking?
+   - Can this be implemented without breaking existing functionality?
+
+5. **Impact & Sustainability**
+   - Will the solution have the expected impact?
+   - Is it sustainable long-term or a temporary patch?
+   - Does it prevent the problem from recurring?
+   - Could this solution introduce new problems?
+
+6. **Optimization & Refinement**
+   - Are there ways to simplify or improve the solution?
+   - Have I eliminated unnecessary complexity?
+   - Is the code maintainable and understandable?
+   - Could a future developer understand why this solution exists?
+
+### Essential vs. Nice-to-Have:
+
+- **Essential Requirements** - What MUST the solution do to solve the problem?
+- **Plus Features** - What would be nice but isn't critical?
+- **Technical Debt** - Are we creating future problems to solve immediate ones?
+
+### Debugging Protocol:
+
+**Minimal Reproducible Example (MRE):**
+- Can I reproduce the problem consistently?
+- What is the MINIMAL set of steps to trigger it?
+- What environment/browser/conditions are required?
+- Can I isolate it to a single component or file?
+
+**Edge Cases:**
+- What boundary conditions exist?
+- How does this behave under extreme inputs?
+- Are there race conditions or timing issues?
+- What about concurrent operations?
+
+### Validation & Testing:
+
+**Testing Strategy:**
+- What testing approach would validate this solution?
+- How can I verify the fix without side effects?
+- What regression tests are needed?
+- How should this be monitored in production?
+
+### Clarity & Communication:
+
+**Ambiguity Resolution:**
+- If I identify ambiguities in the problem statement, suggest clarifying questions
+- Offer improvement alternatives
+- Document assumptions made in the analysis
+- Explain trade-offs of chosen solution vs. alternatives
+
+---
+
 ## Project Overview
 
 This is a **bilingual AI-powered news and learning platform** focused on Artificial Intelligence content. The platform combines automated news curation, AI-generated courses, and self-improving autonomous agents.
