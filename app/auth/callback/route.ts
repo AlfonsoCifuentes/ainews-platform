@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
               try {
                 cookiesToSet.forEach(({ name, value, options }) => {
                   cookieStore.set(name, value, options);
+                  console.log('[Auth Callback] Cookie set:', { name, size: value?.length || 0 });
                 });
               } catch (error) {
                 console.error('[Auth Callback] Error setting cookies:', error);
@@ -49,15 +50,19 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/en/auth?error=session_error', requestUrl.origin));
       }
       
-      console.log('[Auth Callback] Session established:', { userId: data?.user?.id });
+      console.log('[Auth Callback] Session established:', { 
+        userId: data?.user?.id, 
+        email: data?.user?.email,
+        hasSession: !!data.session
+      });
 
       // Debug: log cookies present after exchange to ensure correct encoding
       try {
         const cookieEntries = cookieStore.getAll();
+        console.log('[Auth Callback] Cookies after exchange:', { count: cookieEntries.length });
         cookieEntries.forEach(c => {
-          const preview = c.value?.slice(0, 24) ?? '';
           const isBase64 = typeof c.value === 'string' && c.value.startsWith('base64-');
-          console.log(`[Auth Callback] Cookie ${c.name} set preview: ${preview}${preview.length < (c.value?.length ?? 0) ? '...' : ''}, base64?: ${isBase64}`);
+          console.log(`[Auth Callback] Cookie ${c.name}: size=${c.value?.length || 0}, isBase64=${isBase64}`);
         });
       } catch (err) {
         console.warn('[Auth Callback] Error enumerating cookies for debug:', err);
@@ -72,11 +77,7 @@ export async function GET(request: NextRequest) {
         response.headers.set('X-Auth-User-ID', data.user.id);
       }
 
-      // NOTE: We previously set response cookies manually here, but that can lead
-      // to double-encoding or malformed values. The Supabase SSR client
-      // (createServerClient) already sets cookies via the provided `setAll`
-      // method, which ensures cookie chunking and encoding follow the expected
-      // format. Avoid setting cookies manually to prevent double-encoded values.
+      console.log('[Auth Callback] Redirecting to:', next);
       return response;
     }
 
