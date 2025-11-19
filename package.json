@@ -47,7 +47,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:lighthouse": "node scripts/lighthouse-audit.js",
-    "test:phase5": "tsx scripts/test-phase5-features.ts"
+    "test:phase5": "tsx scripts/test-phase5-features.ts",
+    "ai:update-leaderboard": "tsx scripts/scrape-artificial-analysis.ts"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.79",
