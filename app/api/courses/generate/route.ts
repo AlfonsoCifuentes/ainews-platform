@@ -304,49 +304,165 @@ Rules:
 
       console.log(`${logPrefix} 📝 Module ${i + 1}/${outline.modules.length}: "${moduleOutline.title}"...`);
 
-      const modulePrompt = `Create comprehensive content for module ${i + 1} of an AI course.
+      const modulePrompt = `You are a world-renowned textbook author and subject matter expert with 25+ years of professional experience in "${params.topic}". You are writing a comprehensive chapter for a graduate-level university textbook and professional certification program.
 
-Course Context:
-- Topic: ${params.topic}
-- Difficulty: ${params.difficulty}
-- Language: ${languageName}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MODULE SPECIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Module Details:
-- Title: ${moduleOutline.title}
-- Description: ${moduleOutline.description}
-- Topics: ${moduleOutline.topics.join(', ')}
-- Estimated Duration: ${moduleOutline.estimated_minutes} minutes
+Module ${i + 1}: "${moduleOutline.title}"
+Language: ${languageName}
+Difficulty Level: ${params.difficulty} (for university/professional audience)
+Estimated Duration: ${moduleOutline.estimated_minutes} minutes of engaged reading
 
-Content Structure Requirements:
-1. Introduction (set context for this module)
-2. Key Concepts & Definitions (comprehensive list with explanations)
-3. Deep Dive Lesson (in-depth explanations with:
-   - Real-world examples and case studies
-   - Code samples or technical diagrams where relevant
-   - Step-by-step procedures or processes
-   - Common pitfalls and how to avoid them)
-4. Practical Applications (3+ real-world scenarios)
-5. Advanced Topics (extending knowledge for motivated learners)
-6. Interactive Quiz (5-7 multiple choice questions with detailed explanations)
-7. Summary & Key Takeaways
-8. Further Learning Resources
+Core Topics to Cover:
+${moduleOutline.topics.map((t, idx) => `  ${idx + 1}. ${t}`).join('\n')}
+
+Module Description & Learning Goals:
+${moduleOutline.description}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUALITY STANDARDS - PREMIUM TEXTBOOK CHAPTER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WORD COUNT & DEPTH:
+✓ Minimum 3000+ words (not 2500). Anything less is superficial.
+✓ Section allocations:
+  - Introduction & Context: 300-400 words
+  - Foundational Concepts: 600-800 words
+  - Core Theory & Principles: 800-1000 words
+  - Advanced Deep Dive: 800-1000 words
+  - Real-World Applications & Case Studies: 500-700 words
+  - Practical Implementation Guide: 400-500 words
+  - Edge Cases, Limitations & Advanced Considerations: 300-400 words
+  - Summary & Knowledge Integration: 300-400 words
+
+RIGOR & SUBSTANCE:
+✓ Write at university/graduate level - this is a professional textbook
+✓ Use precise terminology; define specialized terms on first mention
+✓ Build arguments logically: foundation → application → advanced
+✓ Include quantifiable data, benchmarks, or performance metrics
+✓ Reference specific frameworks, standards, or methodologies by name
+✓ Discuss trade-offs, limitations, and when NOT to use certain approaches
+✓ Address common misconceptions and professional pitfalls
+
+RICHNESS - Diverse Content Types:
+✓ Conceptual explanations (the "why")
+✓ Technical procedures and step-by-step processes (the "how")
+✓ 4-6 detailed, specific real-world case studies (not generic examples)
+  - Include company names, specific metrics, actual outcomes
+  - Explain what worked and why
+  - Discuss lessons learned and transfer to new contexts
+✓ Code examples, algorithms, or technical implementations
+✓ Mathematical formulations, equations, or technical diagrams (in markdown)
+✓ Industry best practices and professional standards
+✓ Historical evolution and current trends
+✓ Advanced techniques for practitioners going deeper
+
+STRUCTURE & CLARITY:
+✓ Use markdown hierarchy effectively (# ## ### for logical sections)
+✓ Each major section should have 3-5 subsections
+✓ Break dense text with bullet points, tables, and examples
+✓ Use code fences for technical content
+✓ Include visual descriptions or ASCII diagrams where helpful
+✓ Every section must be substantive (150+ words minimum)
+✓ Build complexity progressively
+
+PROFESSIONAL TONE & VOICE:
+✓ Write as a mentor and subject matter expert, not as an AI assistant
+✓ Use "we" when discussing industry practice and established approaches
+✓ Address reader directly: "You should understand...", "You'll notice..."
+✓ Share practical insights from professional experience
+✓ Use rhetorical questions to promote critical thinking
+✓ Balance technical depth with clarity for intelligent readers
+
+RESOURCES - Quality Over Quantity:
+✓ Include 6-8 carefully curated learning resources
+✓ Resources must be:
+  - Recent and authoritative (published within last 7 years)
+  - Directly relevant to this specific module content
+  - From respected sources: academic papers, industry leaders, official docs
+  - Diverse types: research articles, video tutorials, official documentation, books
+  - With realistic, specific URLs (not placeholders)
+✓ Each resource should extend understanding, not repeat content
+
+QUALITY CHECKLIST - NO LAZY CONTENT:
+✗ NO [example], [more content], or [details] placeholders
+✗ NO content filler or padding to reach word count
+✗ NO repetition of same concept across sections
+✗ NO oversimplification of complex topics
+✗ NO skipping the hard parts or controversial aspects
+✗ NO generic "AI-like" writing
+✓ Every paragraph adds distinct, irreplaceable value
+✓ Examples are specific, detailed, and enlightening
+✓ Explanations are thorough, not superficial
+✓ Trade-offs and limitations are honestly addressed
+✓ Advanced practitioners would find genuine value
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUIRED SECTIONS (In This Order)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. **Introduction & Context** (300-400 words)
+   - Set the stage for why this module matters
+   - Connect to previous knowledge and real-world relevance
+   - Preview the journey through this chapter
+
+2. **Foundational Concepts & Terminology** (600-800 words)
+   - Define core terms with precision
+   - Explain conceptual foundations
+   - Establish shared vocabulary for remainder of chapter
+
+3. **Core Theory & Principles** (800-1000 words)
+   - Deep explanation of main concepts
+   - Underlying logic and reasoning
+   - How different elements relate
+   - References to established frameworks or standards
+
+4. **Advanced Deep Dive** (800-1000 words)
+   - Extended exploration of complex aspects
+   - Advanced techniques and methodologies
+   - State-of-the-art developments
+   - Emerging research or best practices
+
+5. **Real-World Applications & Case Studies** (500-700 words)
+   - 4-6 specific, detailed case studies with real outcomes
+   - Include company names, metrics, timelines
+   - Explain why it worked or what was learned
+   - How to apply lessons to different contexts
+
+6. **Practical Implementation Guide** (400-500 words)
+   - Step-by-step procedures or workflows
+   - Tools, frameworks, or methodologies to use
+   - Code examples or technical implementations
+   - Common pitfalls and mitigation strategies
+
+7. **Edge Cases, Limitations & Advanced Considerations** (300-400 words)
+   - When NOT to use this approach
+   - Boundary conditions and exceptions
+   - Limitations and trade-offs
+   - Advanced nuances professionals should know
+
+8. **Summary & Knowledge Integration** (300-400 words)
+   - Synthesize key takeaways
+   - How this module fits into the larger course
+   - What to practice and how to deepen learning
+   - Preview of next module connection
+
+9. **Knowledge Check Quiz** (5-7 questions)
+   - Multiple choice format
+   - Include detailed explanations for each answer
+   - Test both conceptual understanding and application
 
 Return JSON matching this schema:
 {
-  "content": string (minimum 2500 words, rich markdown),
+  "content": string (complete 3000+ word markdown lesson with all sections),
   "resources": [
-    { "title": string, "url": string, "type": "article"|"video"|"paper"|"documentation" }
+    { "title": string, "url": string, "type": "article"|"video"|"paper"|"documentation"|"book" }
   ]
 }
 
-Critical Requirements:
-- Content MUST be at least 2500 words
-- Include ALL sections listed above
-- Use real examples, not generic placeholders
-- Make it deeply educational with practical value
-- Include code examples or equations where appropriate
-- Resources must be reputable, recent, and match the module topics
-- Format as professional educational content, not tutorial-style`;
+Remember: You are writing for intelligent, motivated learners pursuing professional mastery. Every word should count. Every example should illuminate. Write like the veteran expert you are.`;
 
       console.log(`${logPrefix}    Generating content (this may take 10-30 seconds)...`);
       const { result: moduleContent } = await classifyWithProviderFallback(

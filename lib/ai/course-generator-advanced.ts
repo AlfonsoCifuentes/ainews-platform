@@ -51,42 +51,62 @@ export async function generateModulePrompts(
   }>,
   languageName: string
 ): Promise<ModulePrompt[]> {
-  const promptGeneratorPrompt = `You are an expert instructional designer creating a comprehensive course on "${courseTopic}".
+  const promptGeneratorPrompt = `You are a world-renowned expert curriculum designer and veteran educator with 30+ years of experience designing university-level courses and professional certifications. You understand how to structure educational content for maximum student engagement, retention, and practical application.
 
-Course Description: ${courseDescription}
-Difficulty Level: ${difficulty}
-Language: ${languageName}
-Total Modules: ${modules.length}
+Your task: Create EXCEPTIONALLY DETAILED and SPECIFIC content generation prompts for each module of a comprehensive course.
 
-For each of the ${modules.length} modules below, create a HIGHLY DETAILED and SPECIFIC prompt that will be used by an AI content generator to produce 2500+ word educational content.
+COURSE CONTEXT:
+- Topic: "${courseTopic}"
+- Description: ${courseDescription}
+- Student Level: ${difficulty} (${difficulty === 'beginner' ? 'students new to topic' : difficulty === 'intermediate' ? 'students with foundational knowledge' : 'advanced professionals seeking mastery'})
+- Language: ${languageName}
+- Total Modules: ${modules.length}
 
-MODULES:
+MODULE SPECIFICATIONS:
 ${modules
   .map(
     (m, i) => `
-Module ${i + 1}: ${m.title}
+[MODULE ${i + 1}]
+Title: "${m.title}"
 Description: ${m.description}
-Topics: ${m.topics.join(', ')}
+Core Topics: ${m.topics.join(', ')}
 Target Duration: ${m.estimated_minutes} minutes
+Sequence: Part ${i + 1} of ${modules.length} course progression
 `
   )
   .join('\n')}
 
-For EACH module, you MUST generate:
-1. A DETAILED prompt (minimum 500 words) that gives the content generator:
-   - Exact structure and sections to include
-   - Specific examples, case studies, or real-world applications
-   - Technical depth appropriate for ${difficulty} level
-   - Exact tone and style (educational but engaging)
-   - Learning outcomes to achieve
-   
-2. 3-5 specific LEARNING OBJECTIVES that content should cover
+FOR EACH MODULE, CREATE A COMPREHENSIVE PROMPT that includes:
 
-3. 4+ KEY SECTIONS the content should include
+1. PEDAGOGICAL FRAMEWORK (500+ words):
+   - How this module fits into the overall course progression
+   - What students should already know (prerequisites)
+   - What mastery looks like after completing this module
+   - Common misconceptions to address and correct
+   - How this topic connects to real-world applications
+   - Cognitive complexity progression (simple → complex)
 
-Return JSON with these prompts indexed by module.
+2. STRUCTURAL BLUEPRINT:
+   - Exact sections to include (with purpose for each)
+   - Approximate word count allocation per section
+   - Where to include code examples, diagrams, equations, case studies
+   - How to scaffold learning from foundation to advanced application
 
-Important: Each prompt should be so specific that ANY AI model could use it to generate high-quality, substantive content WITHOUT additional guidance.`;
+3. CONTENT DEPTH SPECIFICATIONS:
+   - 3-5 measurable LEARNING OUTCOMES using Bloom's taxonomy
+   - 5-7 KEY CONCEPTS with interdependencies
+   - 3+ REAL-WORLD APPLICATIONS or case studies (specific industries, companies, or scenarios)
+   - Common PITFALLS and MISTAKES students make
+   - ADVANCED EXTENSIONS for overachievers
+
+4. INSTRUCTIONAL TONE:
+   - Act as a veteran professional mentor, not a textbook
+   - Balance rigor with accessibility
+   - Include personal insights from industry experience
+   - Anticipate student questions and answer them directly
+   - Use metaphors and analogies to bridge complex concepts
+
+IMPORTANT: Each prompt must be so detailed and specific that a world-class content generator can produce a textbook-quality chapter with minimal additional context.`;
 
   const { result: modulePrompts } = await classifyWithAllProviders(
     promptGeneratorPrompt,
@@ -106,31 +126,95 @@ export async function generateModuleContentFromPrompt(
   languageName: string
 ): Promise<ModuleContent> {
   // The pre-generated prompt is already highly detailed
-  // Just ask for the structured content
+  // Wrap it with maximum LLM optimization instructions
   const contentGenerationPrompt = `${prompt.detailed_prompt}
 
-LANGUAGE: ${languageName}
-MINIMUM WORD COUNT: 2500+ words
-FORMAT: Valid markdown
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONTENT GENERATION INSTRUCTIONS - PREMIUM TEXTBOOK QUALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+You are an award-winning textbook author and subject matter expert with decades of teaching experience. You are writing a chapter for a comprehensive professional textbook. Every sentence should be purposeful, every example should be illuminating.
+
+LANGUAGE: ${languageName}
 COURSE CONTEXT:
 ${courseContext}
 
-CRITICAL REQUIREMENTS:
-1. Content MUST be at least 2500 words
-2. Include ALL sections listed in the prompt
-3. Use real examples and case studies
-4. Make it educational and engaging
-5. Include code examples or equations where appropriate
-6. End with a summary of key takeaways
+EXPECTATIONS FOR THIS CONTENT:
+
+✓ LENGTH: Minimum 3000+ words (not 2500). Be comprehensive and thorough.
+  - Intro: 300-400 words
+  - Core concepts: 800-1000 words
+  - Deep dive with examples: 1200-1500 words
+  - Practical applications: 400-500 words
+  - Summary: 200-300 words
+
+✓ RIGOR: This should read like a university-level textbook or professional certification course, not a blog post.
+  - Use precise terminology consistently
+  - Define specialized terms on first mention
+  - Cite principles, frameworks, or methodologies by name
+  - Include quantitative data, statistics, or benchmarks where relevant
+  - Build arguments logically from foundation to advanced
+
+✓ RICHNESS: Include diverse content types:
+  - Conceptual explanations (the "why")
+  - Practical procedures (the "how")
+  - Real-world examples (3-5 specific, detailed case studies)
+  - Code snippets or technical implementations
+  - Diagrams or visual descriptions in markdown
+  - Equations or mathematical formulations
+  - Industry insights and professional context
+  - Common mistakes and how to avoid them
+
+✓ DEPTH: Address each topic comprehensively:
+  - Not just definitions but deep understanding
+  - Historical context if relevant
+  - Evolution of the field/practice
+  - Current best practices and emerging trends
+  - Limitations, edge cases, and exceptions
+  - How to apply theory in practice
+  - Advanced techniques for those going deeper
+
+✓ STRUCTURE:
+  - Use clear markdown hierarchy (# ## ### for sections)
+  - Include subheadings that reveal the content structure
+  - Break long sections with bullet points and examples
+  - Use tables, code blocks, and formatting for clarity
+  - Each section should be substantive (100+ words minimum)
+
+✓ QUALITY RESOURCES:
+  - Include 5-7 carefully selected educational resources
+  - Resources should be:
+    * Recent and authoritative (last 5-7 years ideally)
+    * Directly relevant to this specific module
+    * Mix of types: articles, videos, papers, documentation
+    * From respected sources (academic, industry leaders, professional organizations)
+    * Links should be realistic and specific (not placeholder URLs)
+
+✓ TONE:
+  - Write as a mentor, not an AI
+  - Share insights from professional experience
+  - Use "we" when discussing industry practice
+  - Address the reader directly: "You should understand..."
+  - Include rhetorical questions to engage critical thinking
+  - Balance technical depth with clarity
+
+✓ NO LAZY CONTENT:
+  - ✗ Don't use [example] or [more content] placeholders
+  - ✗ Don't repeat the same concept multiple times
+  - ✗ Don't add filler to reach word count
+  - ✗ Don't oversimplify complex topics
+  - ✗ Don't skip the hard parts
+  - ✓ Every paragraph should add distinct value
+  - ✓ Examples should be specific and detailed
+  - ✓ Explanations should be thorough, not superficial
 
 Return JSON matching this schema:
 {
-  "content": string (the full markdown lesson),
+  "content": string (comprehensive 3000+ word markdown lesson),
   "resources": [
     { "title": string, "url": string, "type": "article"|"video"|"paper"|"documentation" }
   ],
-  "key_takeaways": [string, string, string, ...]
+  "key_takeaways": [string, string, string, string, string]
 }`;
 
   const { result: moduleContent } = await classifyWithAllProviders(
