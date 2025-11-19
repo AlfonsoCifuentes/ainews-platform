@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
+import { ConfettiExplosion } from '@/components/effects/ConfettiExplosion';
 
 interface Course {
   id: string;
@@ -137,6 +138,9 @@ export function CourseCard({ course, locale }: CourseCardProps) {
                    transition-all duration-300 hover:shadow-2xl ${styles.glow}
                    flex flex-col`}
     >
+      {/* Confetti Effect */}
+      {isCompleted && !isChecking && <ConfettiExplosion trigger={isCompleted} />}
+
       {/* Background gradient overlay */}
       <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} 
                       opacity-0 group-hover:opacity-100 
@@ -312,14 +316,79 @@ export function CourseCard({ course, locale }: CourseCardProps) {
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         {isCompleted && !isChecking && (
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.4, type: 'spring', stiffness: 200 }}
-            className="bg-green-500/20 border border-green-500/50 text-green-300 
-                       px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"
+            initial={{ scale: 0, rotate: -180, y: -20 }}
+            animate={{ scale: 1, rotate: 0, y: 0 }}
+            transition={{ 
+              duration: 0.6, 
+              type: 'spring', 
+              stiffness: 200,
+              damping: 15,
+              delay: 0.2
+            }}
+            className="relative bg-gradient-to-r from-green-500/30 to-emerald-500/30 
+                       border border-green-500/60 text-green-200 
+                       px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2
+                       shadow-lg shadow-green-500/40"
           >
-            <CheckCircle className="w-3 h-3" />
-            {locale === 'es' ? 'Completado' : 'Completed'}
+            {/* Animated background glow */}
+            <motion.div
+              animate={{ 
+                boxShadow: [
+                  '0 0 10px 0px rgba(34, 197, 94, 0.3)',
+                  '0 0 20px 4px rgba(34, 197, 94, 0.6)',
+                  '0 0 10px 0px rgba(34, 197, 94, 0.3)',
+                ]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute inset-0 rounded-full pointer-events-none"
+            />
+
+            {/* Crown with laurel */}
+            <motion.span
+              animate={{ rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              className="relative z-10 text-lg"
+            >
+              👑
+            </motion.span>
+
+            {/* Laurel wreath decoration */}
+            <motion.span
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="relative z-10"
+            >
+              🏆
+            </motion.span>
+
+            {/* Text */}
+            <span className="relative z-10">
+              {locale === 'es' ? 'Completado' : 'Completed'}
+            </span>
+
+            {/* Particle effects around badge */}
+            {[...Array(4)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-green-400 rounded-full"
+                animate={{
+                  x: [0, Math.cos((i / 4) * Math.PI * 2) * 20],
+                  y: [0, Math.sin((i / 4) * Math.PI * 2) * 20],
+                  opacity: [1, 0],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                }}
+                style={{
+                  left: '50%',
+                  top: '50%',
+                  marginLeft: '-2px',
+                  marginTop: '-2px',
+                }}
+              />
+            ))}
           </motion.div>
         )}
         {isEnrolled && !isCompleted && !isChecking && (
