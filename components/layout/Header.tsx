@@ -25,6 +25,7 @@ export function Header() {
   const pathname = usePathname();
   const { profile, locale, refetch } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [, forceUpdate] = useState({});
 
   const activeSegment = useMemo(() => {
     if (!pathname) {
@@ -53,6 +54,9 @@ export function Header() {
     const handleAuthStateChange = async (_event: Event) => {
       console.log('[Header] Auth state changed event received, refetching user profile');
       await refetch?.();
+      // Force a re-render to ensure the new profile is displayed
+      forceUpdate({});
+      console.log('[Header] Force update triggered after refetch');
     };
 
     window.addEventListener('auth-state-changed', handleAuthStateChange);

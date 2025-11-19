@@ -115,11 +115,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
       window.dispatchEvent(event);
       console.log('[AuthModal] Dispatched auth-state-changed event');
 
-      // 6. Wait for Header to refetch profile, then force a page reload to ensure UI updates
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Force a soft reload to ensure all components reflect the new auth state
-      window.location.reload();
+      // 6. Wait a longer time for Header to refetch profile via event listener
+      // This allows the profile to be fetched from the database and displayed
+      console.log('[AuthModal] Waiting for profile refetch to complete...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // 7. Handle pending course enrollment if any
       if (pendingCourseId) {

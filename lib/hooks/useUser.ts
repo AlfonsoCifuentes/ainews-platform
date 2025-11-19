@@ -49,9 +49,11 @@ export function useUser() {
 
     const syncUserProfile = async () => {
       if (!isMounted) {
+        console.log('[useUser] syncUserProfile called but component is unmounted');
         return;
       }
 
+      console.log('[useUser] syncUserProfile started');
       setIsLoading(true);
 
       // STEP 1: Try to get user from sessionStorage (set after login)
@@ -72,6 +74,7 @@ export function useUser() {
       let supUserResult;
       try {
         supUserResult = await supabase.auth.getUser();
+        console.log('[useUser] Got user from Supabase auth:', supUserResult.data?.user?.id);
       } catch (err) {
         // Detect cookie parse errors caused by legacy or malformed cookies
         const message = err instanceof Error ? err.message : String(err);
@@ -116,12 +119,14 @@ export function useUser() {
       }
 
       if (!user) {
+        console.log('[useUser] No user found, clearing profile');
         setProfile(null);
         setLocale('en');
         setIsLoading(false);
         return;
       }
 
+      console.log('[useUser] Fetching profile for user:', user.id);
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -129,6 +134,7 @@ export function useUser() {
         .maybeSingle();
 
       if (!isMounted) {
+        console.log('[useUser] Component unmounted during profile fetch');
         return;
       }
 
@@ -137,9 +143,11 @@ export function useUser() {
       }
 
       if (profileData) {
+        console.log('[useUser] Profile found, setting state:', profileData.display_name);
         setProfile(profileData as UserProfile);
         setLocale(profileData.preferred_locale ?? 'en');
       } else {
+        console.log('[useUser] No profile found, creating fallback profile');
         const fallback = buildFallbackProfile(user);
 
         try {
@@ -153,6 +161,7 @@ export function useUser() {
               },
               { onConflict: 'id' },
             );
+          console.log('[useUser] Fallback profile created in database');
         } catch (upsertError) {
           console.error('[useUser] Failed to upsert fallback profile', upsertError);
         }
@@ -161,10 +170,12 @@ export function useUser() {
           return;
         }
 
+        console.log('[useUser] Setting fallback profile state:', fallback.display_name);
         setProfile(fallback);
         setLocale(fallback.preferred_locale);
       }
 
+      console.log('[useUser] syncUserProfile completed');
       setIsLoading(false);
     };
 
@@ -197,10 +208,15 @@ export function useUser() {
 
   // Return refetch function that calls the stored ref
   const refetch = useCallback(async () => {
-    console.log('[useUser] Refetch called, executing syncUserProfile');
+    console.log('[useUser] Refetch called');
     if (refetchRef.current) {
-      await refetchRef.current();
-      console.log('[useUser] Refetch completed, profile should be updated');
+      console.log('[useUser] Executing syncUserProfile...');
+      try {
+        await refetchRef.current();
+        console.log('[useUser] Refetch completed successfully, profile state updated');
+      } catch (error) {
+        console.error('[useUser] Refetch failed:', error);
+      }
     } else {
       console.warn('[useUser] Refetch called but refetchRef.current is null');
     }
