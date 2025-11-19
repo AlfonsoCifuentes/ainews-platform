@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signInWithEmail, signUpWithEmail, signInWithOAuth } from '@/lib/auth/auth-client';
-import { useRouter } from 'next/navigation';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,7 +21,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCourseId, setPendingCourseId] = useState<string | undefined>();
-  const router = useRouter();
 
   // Update pending course ID based on prop changes
   useEffect(() => {
@@ -116,9 +114,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
       });
       window.dispatchEvent(event);
 
-      // 6. Refresh the router to update header and other auth-dependent components
-      // This DOES NOT redirect, just refreshes the current page
-      router.refresh();
+      // 6. Wait a moment for Header to refetch profile via event listener
+      // This allows the profile to display without any navigation
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // 7. Handle pending course enrollment if any
       if (pendingCourseId) {
