@@ -42,8 +42,8 @@ const CourseOutlineSchema = z.object({
 const ModuleContentSchema = z.object({
   content: z
     .string()
-    .min(400)
-    .describe('Markdown lesson with key concepts, deep dive, quiz, and resources sections'),
+    .min(2500)
+    .describe('Comprehensive markdown lesson (2500+ words minimum) with key concepts, deep dive examples, practical applications, quiz, and resources sections'),
   resources: z
     .array(
       z.object({
@@ -52,6 +52,7 @@ const ModuleContentSchema = z.object({
         type: z.enum(['article', 'video', 'paper', 'documentation'])
       })
     )
+    .min(3)
     .default([])
 });
 
@@ -63,7 +64,7 @@ const CourseTranslationSchema = z.object({
       z.object({
         title: z.string().min(6),
         description: z.string().min(20),
-        content: z.string().min(400)
+        content: z.string().min(1200)
       })
     )
     .min(2)
@@ -303,33 +304,49 @@ Rules:
 
       console.log(`${logPrefix} 📝 Module ${i + 1}/${outline.modules.length}: "${moduleOutline.title}"...`);
 
-      const modulePrompt = `Create the full content for module ${i + 1} of an AI course.
-- Course topic: ${params.topic}
-- Module title: ${moduleOutline.title}
-- Module description: ${moduleOutline.description}
-- Topics: ${moduleOutline.topics.join(', ')}
+      const modulePrompt = `Create comprehensive content for module ${i + 1} of an AI course.
+
+Course Context:
+- Topic: ${params.topic}
 - Difficulty: ${params.difficulty}
 - Language: ${languageName}
 
-Structure the markdown with sections for:
-1. Key Concepts (bullet list)
-2. Deep Dive Lesson (rich explanations, examples, equations/code if needed)
-3. Real-World Applications
-4. Interactive Quiz (3-5 multiple choice questions with answers and explanations)
-5. Further Resources (reference the JSON resources array)
+Module Details:
+- Title: ${moduleOutline.title}
+- Description: ${moduleOutline.description}
+- Topics: ${moduleOutline.topics.join(', ')}
+- Estimated Duration: ${moduleOutline.estimated_minutes} minutes
+
+Content Structure Requirements:
+1. Introduction (set context for this module)
+2. Key Concepts & Definitions (comprehensive list with explanations)
+3. Deep Dive Lesson (in-depth explanations with:
+   - Real-world examples and case studies
+   - Code samples or technical diagrams where relevant
+   - Step-by-step procedures or processes
+   - Common pitfalls and how to avoid them)
+4. Practical Applications (3+ real-world scenarios)
+5. Advanced Topics (extending knowledge for motivated learners)
+6. Interactive Quiz (5-7 multiple choice questions with detailed explanations)
+7. Summary & Key Takeaways
+8. Further Learning Resources
 
 Return JSON matching this schema:
 {
-  "content": string,
+  "content": string (minimum 2500 words, rich markdown),
   "resources": [
     { "title": string, "url": string, "type": "article"|"video"|"paper"|"documentation" }
   ]
 }
 
-Requirements:
-- Content length >= 800 words.
-- Quiz must live inside the markdown with clear answers.
-- Resources should be reputable, recent, and match the module topics.`;
+Critical Requirements:
+- Content MUST be at least 2500 words
+- Include ALL sections listed above
+- Use real examples, not generic placeholders
+- Make it deeply educational with practical value
+- Include code examples or equations where appropriate
+- Resources must be reputable, recent, and match the module topics
+- Format as professional educational content, not tutorial-style`;
 
       console.log(`${logPrefix}    Generating content (this may take 10-30 seconds)...`);
       const { result: moduleContent } = await classifyWithProviderFallback(

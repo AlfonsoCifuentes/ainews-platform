@@ -55,28 +55,31 @@ interface CourseData {
 
 const COURSE_PROMPT_EN = (topic: string, difficulty: string, duration: string): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
-  const contentWordCount = duration === 'short' ? 400 : duration === 'medium' ? 600 : 800;
+  const contentWordCount = duration === 'short' ? 1200 : duration === 'medium' ? 1500 : 2000;
   
-  return `Generate a comprehensive, complete course on "${topic}" for ${difficulty} level learners.
+  return `Generate a comprehensive, complete, and SUBSTANTIVE course on "${topic}" for ${difficulty} level learners.
 This course will be self-taught and needs to be fully autonomous - NO additional instruction needed.
+CRITICAL: This is the ONLY resource students will have. Content must be detailed and comprehensive, NOT abbreviated or stubbed.
 
 Requirements:
 - Create exactly ${moduleCount} modules that progressively build knowledge
 - Each module must have:
   * Clear, descriptive title
   * Module description (what students will learn)
-  * Detailed content (${contentWordCount}+ words, use markdown formatting)
-  * 3-5 key takeaways (bullet points)
-  * Estimated time: ${duration === 'short' ? '15-20' : duration === 'medium' ? '20-30' : '30-45'} minutes
-  * 2-3 quiz questions (multiple choice with 4 options each)
-  * Practical resources (links, tools, code examples relevant to the topic)
+  * DETAILED content (${contentWordCount}+ words, use markdown formatting with headers, examples, code)
+  * 4-6 key takeaways (concrete and actionable)
+  * Estimated time: ${duration === 'short' ? '25-30' : duration === 'medium' ? '35-45' : '50-60'} minutes
+  * 3-4 quiz questions (multiple choice, 4 options each, with complete explanations)
+  * Practical resources (5-7 links, tools, code samples)
 
 Content Guidelines:
-- Be CONCRETE and PRACTICAL, not theoretical
-- Include code examples, real-world scenarios, case studies
-- Explain WHY concepts matter, not just WHAT they are
-- Use simple language but maintain technical accuracy
+- Be CONCRETE and PRACTICAL with real examples
+- Include code snippets, diagrams, case studies
+- Explain WHY and WHERE to use each concept
+- Use clear language, maintain technical accuracy
 - Add actionable next steps in each module
+- DO NOT generate short, placeholder or stub content
+- Ensure each module is self-contained and educational
 
 Return ONLY valid, complete JSON (no markdown wrapper, no explanation):
 {
@@ -91,24 +94,26 @@ Return ONLY valid, complete JSON (no markdown wrapper, no explanation):
     {
       "title": "Module Title",
       "description": "What you'll learn in this module (1-2 sentences)",
-      "content": "DETAILED CONTENT with explanations, examples, code if relevant. Use markdown formatting. Must be ${contentWordCount}+ words. Include practical examples and scenarios.",
+      "content": "DETAILED CONTENT (${contentWordCount}+ words) with explanations, practical examples, code if relevant. Use markdown with headers and lists. Include real-world scenarios and best practices.",
       "keyTakeaways": [
-        "Key point 1",
-        "Key point 2",
-        "Key point 3"
+        "Key point 1 - actionable",
+        "Key point 2 - specific",
+        "Key point 3 - applicable",
+        "Key point 4 - practical"
       ],
-      "estimatedMinutes": 20,
+      "estimatedMinutes": ${duration === 'short' ? 25 : duration === 'medium' ? 35 : 50},
       "quiz": [
         {
           "question": "Clear, specific quiz question?",
           "options": ["Wrong option", "Wrong option", "Correct option", "Wrong option"],
           "correctAnswer": 2,
-          "explanation": "Why this is correct and what learners should have understood"
+          "explanation": "Complete explanation - why this is correct and what learners should understand"
         }
       ],
       "resources": [
         "Resource 1 with URL or tool name",
-        "Resource 2 with practical application"
+        "Resource 2 with practical application",
+        "Resource 3 relevant to module topic"
       ]
     }
   ]
@@ -117,35 +122,39 @@ Return ONLY valid, complete JSON (no markdown wrapper, no explanation):
 CRITICAL: 
 - JSON must be valid and complete
 - No markdown backticks or wrappers
-- All modules must be substantive (not placeholder text)
+- All modules MUST be substantive (NOT placeholders)
 - Quiz questions must have exactly 4 options
-- Content must be suitable for self-paced, autonomous learning`;
+- Content MUST be suitable for self-paced, autonomous learning
+- NEVER generate abbreviated or stub content`;
 };
 
 const COURSE_PROMPT_ES = (topic: string, difficulty: string, duration: string): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
-  const contentWordCount = duration === 'short' ? 400 : duration === 'medium' ? 600 : 800;
+  const contentWordCount = duration === 'short' ? 1200 : duration === 'medium' ? 1500 : 2000;
   
-  return `Genera un curso completo y comprensivo sobre "${topic}" para estudiantes de nivel ${difficulty}.
-Este curso será autónomo - NO se requiere instrucción adicional.
+  return `Genera un curso COMPLETO, COMPRENSIVO y SUSTANCIAL sobre "${topic}" para estudiantes de nivel ${difficulty}.
+Este curso será AUTÓNOMO - NO se requiere instrucción adicional.
+CRÍTICO: Este es el ÚNICO recurso que tendrán los estudiantes. El contenido debe ser detallado y completo, NO abreviado o stub.
 
 Requisitos:
 - Crea exactamente ${moduleCount} módulos que construyan conocimiento progresivamente
 - Cada módulo debe tener:
   * Título claro y descriptivo
   * Descripción del módulo (qué aprenderán los estudiantes)
-  * Contenido detallado (${contentWordCount}+ palabras, usa formato markdown)
-  * 3-5 puntos clave (en viñetas)
-  * Tiempo estimado: ${duration === 'short' ? '15-20' : duration === 'medium' ? '20-30' : '30-45'} minutos
-  * 2-3 preguntas de quiz (opción múltiple con 4 opciones cada una)
-  * Recursos prácticos (enlaces, herramientas, ejemplos de código relevantes)
+  * Contenido DETALLADO (${contentWordCount}+ palabras, formato markdown con headers, ejemplos, código)
+  * 4-6 puntos clave (concretos y accionables)
+  * Tiempo estimado: ${duration === 'short' ? '25-30' : duration === 'medium' ? '35-45' : '50-60'} minutos
+  * 3-4 preguntas de quiz (opción múltiple con 4 opciones, explicaciones completas)
+  * Recursos prácticos (5-7 enlaces, herramientas, ejemplos de código)
 
 Directrices de Contenido:
-- Sé CONCRETO y PRÁCTICO, no solo teórico
-- Incluye ejemplos de código, escenarios reales, casos de estudio
-- Explica POR QUÉ importan los conceptos, no solo QUÉ son
-- Usa lenguaje simple pero mantén precisión técnica
+- Sé CONCRETO y PRÁCTICO con ejemplos reales
+- Incluye fragmentos de código, diagramas, casos de estudio
+- Explica POR QUÉ y DÓNDE usar cada concepto
+- Usa lenguaje claro, mantén precisión técnica
 - Agrega pasos accionables en cada módulo
+- NO generes contenido corto, de relleno o stub
+- Asegúrate que cada módulo sea autónomo y educativo
 
 Retorna SOLO JSON válido y completo (sin markdown, sin explicación):
 {
@@ -160,35 +169,38 @@ Retorna SOLO JSON válido y completo (sin markdown, sin explicación):
     {
       "title": "Título del Módulo",
       "description": "Qué aprenderás en este módulo (1-2 oraciones)",
-      "content": "CONTENIDO DETALLADO con explicaciones, ejemplos, código si es relevante. Usa formato markdown. Debe tener ${contentWordCount}+ palabras. Incluye ejemplos prácticos y escenarios.",
+      "content": "CONTENIDO DETALLADO (${contentWordCount}+ palabras) con explicaciones, ejemplos prácticos, código si es relevante. Usa markdown con headers y listas. Incluye escenarios reales y mejores prácticas.",
       "keyTakeaways": [
-        "Punto clave 1",
-        "Punto clave 2",
-        "Punto clave 3"
+        "Punto clave 1 - accionable",
+        "Punto clave 2 - específico",
+        "Punto clave 3 - aplicable",
+        "Punto clave 4 - práctico"
       ],
-      "estimatedMinutes": 20,
+      "estimatedMinutes": ${duration === 'short' ? 25 : duration === 'medium' ? 35 : 50},
       "quiz": [
         {
           "question": "¿Pregunta clara y específica del quiz?",
           "options": ["Opción incorrecta", "Opción incorrecta", "Opción correcta", "Opción incorrecta"],
           "correctAnswer": 2,
-          "explanation": "Por qué esto es correcto y qué deberían haber entendido los estudiantes"
+          "explanation": "Explicación completa - por qué es correcta y qué deben entender los estudiantes"
         }
       ],
       "resources": [
         "Recurso 1 con URL o nombre de herramienta",
-        "Recurso 2 con aplicación práctica"
+        "Recurso 2 con aplicación práctica",
+        "Recurso 3 relevante para el módulo"
       ]
     }
   ]
 }
 
 CRÍTICO:
-- El JSON debe ser válido y completo
-- Sin backticks de markdown o envoltorios
-- Todos los módulos deben ser sustanciales (no texto placeholder)
-- Las preguntas de quiz deben tener exactamente 4 opciones
-- El contenido debe ser adecuado para aprendizaje autónomo`;
+- JSON debe ser válido y completo
+- Sin markdown o envoltorios
+- TODOS los módulos DEBEN ser sustanciales (NO placeholders)
+- Preguntas de quiz con exactamente 4 opciones
+- El contenido DEBE ser apropiado para aprendizaje autónomo
+- NUNCA generes contenido abreviado o stub`;
 };
 
 // ============================================================================
