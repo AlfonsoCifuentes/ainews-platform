@@ -6,6 +6,7 @@ import { Search, Filter, ChevronDown } from 'lucide-react';
 import { CourseCard } from './CourseCard';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
+import { useLogger } from '@/lib/utils/logging';
 
 interface Course {
   id: string;
@@ -57,6 +58,7 @@ const CATEGORIES_ES = [
 ];
 
 export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientProps) {
+  const logger = useLogger('CoursesLibraryPageClient');
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,24 +114,56 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
 
   const fetchCourses = useCallback(async () => {
     try {
+      logger.info('fetchCourses started', { locale });
       setIsLoading(true);
-      const response = await fetch(`/api/courses?locale=${locale}&limit=1000`);
+      
+      const url = `/api/courses?locale=${locale}&limit=1000`;
+      logger.info('Fetching from API', { url });
+      
+      const response = await fetch(url);
+      logger.info('API response received', { 
+        status: response.status, 
+        ok: response.ok,
+        statusText: response.statusText
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch courses');
+      
       const data = await response.json();
+      logger.info('API response parsed', { 
+        hasData: !!data,
+        hasSuccess: !!data.success,
+        coursesInResponse: data.courses?.length || 0,
+        dataKeys: Object.keys(data)
+      });
+      
       setCourses(data.courses || []);
+      logger.info('Courses state updated', { 
+        coursesCount: data.courses?.length || 0
+      });
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      logger.error('Error fetching courses', error);
       setCourses([]);
     } finally {
       setIsLoading(false);
+      logger.info('fetchCourses completed', { isLoading: false });
     }
-  }, [locale]);
+  }, [locale, logger]);
 
   useEffect(() => {
+    logger.info('CoursesLibraryPageClient mounted, calling fetchCourses');
     fetchCourses();
-  }, [fetchCourses]);
+  }, [fetchCourses, logger]);
 
   useEffect(() => {
+    logger.info('Filter/sort effect triggered', {
+      coursesCount: courses.length,
+      searchQuery,
+      selectedCategory,
+      selectedDifficulty,
+      sortBy
+    });
+    
     let filtered = [...courses];
 
     // Filter by search query
@@ -171,7 +205,12 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
     }
 
     setFilteredCourses(filtered);
-  }, [courses, searchQuery, selectedCategory, selectedDifficulty, sortBy, locale]);
+    logger.info('Filtering complete', {
+      originalCount: courses.length,
+      filteredCount: filtered.length,
+      filters: { searchQuery, selectedCategory, selectedDifficulty, sortBy }
+    });
+  }, [courses, searchQuery, selectedCategory, selectedDifficulty, sortBy, locale, logger]);
 
   return (
     <>

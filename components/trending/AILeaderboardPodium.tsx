@@ -149,10 +149,10 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
         <p className="text-muted-foreground">{texts.subtitle}</p>
       </div>
 
-      {/* Podium - Mobile-first responsive design */}
+      {/* Podium - Simplified with just position numbers */}
       <div className="w-full px-2 sm:px-4 mb-12">
         {/* Mobile: Stack vertically | Desktop: Horizontal podium */}
-        <div className="flex flex-col md:flex-row md:justify-center md:items-end md:gap-2 lg:gap-4 md:h-auto">
+        <div className="flex flex-col md:flex-row md:justify-center md:items-start md:gap-4 lg:gap-6">
           {/* Silver (2nd) - Hidden on mobile, shows on desktop */}
           {models[1] && (
             <motion.div
@@ -163,7 +163,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
             >
               {/* Card */}
               <motion.div
-                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl p-4 md:p-6 mb-3 md:mb-4 border-2 border-slate-600 text-center shadow-lg"
+                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl p-4 md:p-6 border-2 border-slate-600 text-center shadow-lg"
                 whileHover={{ translateY: -4 }}
               >
                 <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥈</p>
@@ -180,10 +180,8 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 <p className="text-base md:text-lg font-bold text-blue-400 mt-2">{models[1].performance_score}%</p>
               </motion.div>
               
-              {/* Podium bar - smaller on mobile */}
-              <div className="hidden md:flex w-24 lg:w-32 bg-gradient-to-t from-slate-600 to-slate-500 rounded-t-lg flex-col items-end justify-end h-32 lg:h-40 border-2 border-slate-600 border-b-0">
-                <p className="font-bold text-white text-2xl lg:text-3xl mb-2 lg:mb-3">2</p>
-              </div>
+              {/* Position number - simplified */}
+              <p className="font-bold text-white text-3xl mt-3 md:mt-4">2</p>
             </motion.div>
           )}
 
@@ -195,9 +193,14 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               transition={{ delay: 0.1 }}
               className="flex flex-col items-center w-full md:w-auto flex-shrink-0 md:z-10"
             >
+              {/* Crown - positioned behind top of card */}
+              <div className="relative w-40 h-12 md:w-48 md:h-14 flex items-center justify-center -mb-2 md:-mb-3 z-10">
+                <p className="text-5xl md:text-6xl filter drop-shadow-lg">👑</p>
+              </div>
+              
               {/* Larger card */}
               <motion.div
-                className="w-full md:w-40 lg:w-44 bg-gradient-to-b from-yellow-600 to-amber-700 rounded-2xl p-6 md:p-8 mb-3 md:mb-4 border-4 border-yellow-500 text-center shadow-2xl"
+                className="w-full md:w-40 lg:w-44 bg-gradient-to-b from-yellow-600 to-amber-700 rounded-2xl p-6 md:p-8 border-4 border-yellow-500 text-center shadow-2xl relative"
                 whileHover={{ translateY: -6 }}
               >
                 <p className="text-6xl md:text-7xl mb-3 md:mb-4">🥇</p>
@@ -214,10 +217,8 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 <p className="text-xl md:text-2xl font-bold text-white mt-2 md:mt-3">{models[0].performance_score}%</p>
               </motion.div>
               
-              {/* Podium bar - Tallest */}
-              <div className="w-full md:w-40 lg:w-48 bg-gradient-to-t from-yellow-700 to-yellow-600 rounded-t-lg flex items-end justify-center h-40 md:h-48 lg:h-56 border-4 border-yellow-600 border-b-0 shadow-lg">
-                <p className="font-bold text-white text-4xl md:text-5xl mb-3 md:mb-4">1</p>
-              </div>
+              {/* Position number - simplified */}
+              <p className="font-bold text-white text-4xl md:text-5xl mt-3 md:mt-4">1</p>
             </motion.div>
           )}
 
@@ -231,7 +232,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
             >
               {/* Card */}
               <motion.div
-                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-orange-700 to-orange-800 rounded-2xl p-4 md:p-6 mb-3 md:mb-4 border-2 border-orange-600 text-center shadow-lg"
+                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-orange-700 to-orange-800 rounded-2xl p-4 md:p-6 border-2 border-orange-600 text-center shadow-lg"
                 whileHover={{ translateY: -4 }}
               >
                 <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥉</p>
@@ -248,10 +249,8 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 <p className="text-base md:text-lg font-bold text-orange-300 mt-2">{models[2].performance_score}%</p>
               </motion.div>
               
-              {/* Podium bar */}
-              <div className="hidden md:flex w-24 lg:w-32 bg-gradient-to-t from-orange-700 to-orange-600 rounded-t-lg flex-col items-end justify-end h-28 lg:h-32 border-2 border-orange-700 border-b-0">
-                <p className="font-bold text-white text-2xl lg:text-3xl mb-2 lg:mb-3">3</p>
-              </div>
+              {/* Position number - simplified */}
+              <p className="font-bold text-white text-3xl mt-3 md:mt-4">3</p>
             </motion.div>
           )}
         </div>
