@@ -68,6 +68,22 @@ export async function POST(req: NextRequest) {
     const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
     const contentType = module.content_type || 'article';
 
+    // Do not re-generate if content already present and not a placeholder
+    const existingContent = locale === 'en' ? module.content_en : module.content_es;
+    const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
+    const isPlaceholder = (text?: string | null) => {
+      if (!text) return true;
+      const trimmed = text.trim();
+      if (!trimmed) return true;
+      if (trimmed.length < 60 && placeholderRegex.test(trimmed)) return true;
+      return false;
+    };
+
+    if (!isPlaceholder(existingContent)) {
+      loggers.course('Existing content found, skipping generation', { moduleId, locale });
+      return NextResponse.json({ success: true, message: 'Existing content present', data: { moduleId, content: existingContent } });
+    }
+
     // Generate content based on type
     let generatedContent = '';
     

@@ -193,7 +193,16 @@ export function CourseModulesList({
                       <div className="pl-12">
                         <Link
                           href={`/${locale}/courses/${courseId}/learn?module=${module.id}`}
-                          onClick={() => console.log('[CourseModulesList] Start module clicked', { moduleId: module.id, courseId })}
+                          onClick={() => {
+                            console.log('[CourseModulesList] Start module clicked', { moduleId: module.id, courseId });
+                            // Trigger auto-generation on click so content generation starts immediately
+                            // We don't await it to avoid blocking navigation; ModulePlayer will pick it up
+                            fetch('/api/courses/modules/generate-content', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ moduleId: module.id, courseId, locale })
+                            }).catch((err) => console.error('[CourseModulesList] generate-content failed', err));
+                          }}
                           className={cn(
                             'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
                             isCompleted

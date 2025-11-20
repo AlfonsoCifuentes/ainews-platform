@@ -111,9 +111,18 @@ export function ModulePlayer({
     });
   }, [module.id, enrollmentId, currentProgress?.completed, module.content_type, displayContent]);
 
-  // Auto-generate content if missing
+  // Auto-generate content if missing or if content is only a placeholder
   useEffect(() => {
-    const shouldGenerateContent = !displayContent || !displayContent.trim();
+    const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
+    const isPlaceholder = (text?: string | null) => {
+      if (!text) return true;
+      const trimmed = text.trim();
+      if (!trimmed) return true;
+      if (trimmed.length < 60 && placeholderRegex.test(trimmed)) return true;
+      return false;
+    };
+
+    const shouldGenerateContent = isPlaceholder(displayContent);
     
     if (!shouldGenerateContent || isGeneratingContent) {
       return;
