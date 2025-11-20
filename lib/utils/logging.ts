@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 /**
  * Client-side logging system for debugging production issues
  */
@@ -172,10 +174,12 @@ if (typeof window !== 'undefined') {
  * logger.info('message', { data });
  */
 export function useLogger(componentName: string) {
-  return {
+
+  // Memoize the returned logger functions so the object identity remains stable
+  return useMemo(() => ({
     debug: (message: string, data?: unknown): void => logger.debug(componentName, message, data),
     info: (message: string, data?: unknown): void => logger.info(componentName, message, data),
     warn: (message: string, data?: unknown): void => logger.warn(componentName, message, data),
     error: (message: string, error?: unknown): void => logger.error(componentName, message, error),
-  };
+  }), [componentName]);
 }
