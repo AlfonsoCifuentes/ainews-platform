@@ -116,15 +116,29 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
-    const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+    const duration = audioRef.current.duration;
+    // Ensure duration is finite before calculating progress
+    if (!isFinite(duration) || duration === 0) {
+      setProgress(0);
+      return;
+    }
+    const progress = (audioRef.current.currentTime / duration) * 100;
     setProgress(progress || 0);
   };
 
   const handleSeek = (value: number[]) => {
     if (!audioRef.current) return;
-    const time = (value[0] / 100) * audioRef.current.duration;
-    audioRef.current.currentTime = time;
-    setProgress(value[0]);
+    const duration = audioRef.current.duration;
+    // Ensure duration is finite before calculating time
+    if (!isFinite(duration) || duration === 0) {
+      return;
+    }
+    const time = (value[0] / 100) * duration;
+    // Validate time is finite before setting
+    if (isFinite(time)) {
+      audioRef.current.currentTime = time;
+      setProgress(value[0]);
+    }
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -285,7 +299,8 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
 }
 
 function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds)) return '0:00';
+  // Handle non-finite values (NaN, Infinity)
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
