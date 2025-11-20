@@ -31,42 +31,44 @@ interface CoursesLibraryPageClientProps {
   locale: 'en' | 'es';
 }
 
-const CATEGORIES = [
-  'All',
-  'Machine Learning',
-  'Deep Learning',
-  'Natural Language Processing',
-  'Computer Vision',
-  'Reinforcement Learning',
-  'Data Science',
-  'AI Ethics',
-  'Generative AI',
-  'Large Language Models',
-];
+const PAGE_SIZE = 24;
 
-const CATEGORIES_ES = [
-  'Todos',
-  'Aprendizaje Automático',
-  'Deep Learning',
-  'Procesamiento de Lenguaje Natural',
-  'Visión por Computadora',
-  'Aprendizaje por Refuerzo',
-  'Ciencia de Datos',
-  'Ética en IA',
-  'IA Generativa',
-  'Modelos de Lenguaje Grande',
-];
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: { en: 'All', es: 'Todos' } },
+  { value: 'Machine Learning', label: { en: 'Machine Learning', es: 'Aprendizaje Automático' } },
+  { value: 'Deep Learning', label: { en: 'Deep Learning', es: 'Deep Learning' } },
+  { value: 'Natural Language Processing', label: { en: 'Natural Language Processing', es: 'Procesamiento de Lenguaje Natural' } },
+  { value: 'Computer Vision', label: { en: 'Computer Vision', es: 'Visión por Computadora' } },
+  { value: 'Reinforcement Learning', label: { en: 'Reinforcement Learning', es: 'Aprendizaje por Refuerzo' } },
+  { value: 'Data Science', label: { en: 'Data Science', es: 'Ciencia de Datos' } },
+  { value: 'AI Ethics', label: { en: 'AI Ethics', es: 'Ética en IA' } },
+  { value: 'Generative AI', label: { en: 'Generative AI', es: 'IA Generativa' } },
+  { value: 'Large Language Models', label: { en: 'Large Language Models', es: 'Modelos de Lenguaje Grande' } },
+ ] as const;
+
+const DIFFICULTY_OPTIONS = [
+  { value: 'all', label: { en: 'All', es: 'Todos' } },
+  { value: 'beginner', label: { en: 'Beginner', es: 'Principiante' } },
+  { value: 'intermediate', label: { en: 'Intermediate', es: 'Intermedio' } },
+  { value: 'advanced', label: { en: 'Advanced', es: 'Avanzado' } },
+] as const;
+
+type DifficultyFilter = 'all' | 'beginner' | 'intermediate' | 'advanced';
 
 export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientProps) {
   const logger = useLogger('CoursesLibraryPageClient');
   const [courses, setCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyFilter>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalAvailable, setTotalAvailable] = useState(0);
 
   const t = {
     en: {
@@ -110,119 +112,89 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
   };
 
   const texts = t[locale];
-  const categories = locale === 'en' ? CATEGORIES : CATEGORIES_ES;
-
-  const fetchCourses = useCallback(async () => {
-    try {
-      logger.info('fetchCourses started', { locale });
-      setIsLoading(true);
-      
-      const url = `/api/courses?locale=${locale}&limit=1000`;
-      logger.info('Fetching from API', { url });
-      
-      const response = await fetch(url);
-      logger.info('API response received', { 
-        status: response.status, 
-        ok: response.ok,
-        statusText: response.statusText
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch courses');
-      
-      const data = await response.json();
-      logger.info('API response parsed', { 
-        hasData: !!data,
-        hasSuccess: !!data.success,
-        dataStructure: {
-          hasDataProperty: !!data.data,
-          hasCoursesProperty: !!data.courses,
-          dataDotDataLength: data.data?.length || 0,
-          dataCoursesLength: data.courses?.length || 0
-        },
-        dataKeys: Object.keys(data),
-        fullResponse: JSON.stringify(data).substring(0, 500)
-      });
-      
-      // Try both data.data and data.courses (API returns data.data)
-      const coursesArray = data.data || data.courses || [];
-      setCourses(coursesArray);
-      logger.info('Courses state updated', { 
-        coursesCount: coursesArray.length,
-        source: data.data ? 'data.data' : 'data.courses'
-      });
-    } catch (error) {
-      logger.error('Error fetching courses', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      setCourses([]);
-    } finally {
-      setIsLoading(false);
-      logger.info('fetchCourses completed', { isLoading: false });
-    }
-  }, [locale, logger]);
-
   useEffect(() => {
-    logger.info('CoursesLibraryPageClient mounted, calling fetchCourses');
-    fetchCourses();
-  }, [fetchCourses, logger]);
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
-  useEffect(() => {
-    logger.info('Filter/sort effect triggered', {
-      coursesCount: courses.length,
-      searchQuery,
+  const fetchCourses = useCallback(async ({ offset, reset }: { offset: number; reset: boolean }) => {
+    logger.info('fetchCourses invoked', {
+      offset,
+      reset,
+      locale,
       selectedCategory,
       selectedDifficulty,
-      sortBy
+      sortBy,
+      debouncedSearchLength: debouncedSearch.length,
     });
-    
-    let filtered = [...courses];
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      const titleField = locale === 'en' ? 'title_en' : 'title_es';
-      const descField = locale === 'en' ? 'description_en' : 'description_es';
-      filtered = filtered.filter(
-        course =>
-          course[titleField].toLowerCase().includes(query) ||
-          course[descField].toLowerCase().includes(query)
-      );
+    if (reset) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
     }
 
-    // Filter by category
-    if (selectedCategory !== 'All' && selectedCategory !== 'Todos') {
-      filtered = filtered.filter(course => course.category === selectedCategory);
-    }
+    try {
+      const params = new URLSearchParams({
+        locale,
+        limit: `${PAGE_SIZE}`,
+        offset: `${offset}`,
+        sort: sortBy,
+      });
 
-    // Filter by difficulty
-    if (selectedDifficulty !== 'All') {
-      filtered = filtered.filter(course => course.difficulty === selectedDifficulty);
-    }
+      if (selectedCategory !== 'all') {
+        params.set('category', selectedCategory);
+      }
 
-    // Sort
-    switch (sortBy) {
-      case 'popular':
-        filtered.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-        break;
-      case 'rating':
-        filtered.sort((a, b) => (b.rating_avg || 0) - (a.rating_avg || 0));
-        break;
-      case 'newest':
-      default:
-        filtered.sort((a, b) => {
-          if (!a.created_at || !b.created_at) return 0;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-    }
+      if (selectedDifficulty !== 'all') {
+        params.set('difficulty', selectedDifficulty);
+      }
 
-    setFilteredCourses(filtered);
-    logger.info('Filtering complete', {
-      originalCount: courses.length,
-      filteredCount: filtered.length,
-      filters: { searchQuery, selectedCategory, selectedDifficulty, sortBy }
-    });
-  }, [courses, searchQuery, selectedCategory, selectedDifficulty, sortBy, locale, logger]);
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+
+      const response = await fetch(`/api/courses?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch courses: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const coursesArray: Course[] = data.data || [];
+      setCourses((prev) => (reset ? coursesArray : [...prev, ...coursesArray]));
+      setTotalAvailable(data.pagination?.total ?? coursesArray.length);
+      setHasMore(Boolean(data.pagination?.hasMore));
+      setError(null);
+
+      logger.info('Courses loaded', {
+        batchSize: coursesArray.length,
+        totalAvailable: data.pagination?.total,
+        hasMore: data.pagination?.hasMore,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      setCourses((prev) => (reset ? [] : prev));
+      logger.error('fetchCourses failed', { message });
+    } finally {
+      if (reset) {
+        setIsLoading(false);
+      } else {
+        setIsLoadingMore(false);
+      }
+    }
+  }, [locale, selectedCategory, selectedDifficulty, sortBy, debouncedSearch, logger]);
+
+  useEffect(() => {
+    fetchCourses({ offset: 0, reset: true });
+  }, [fetchCourses]);
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore) return;
+    fetchCourses({ offset: courses.length, reset: false });
+  };
 
   return (
     <>
@@ -307,17 +279,17 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                 <div>
                   <label className="block text-sm font-semibold mb-2">{texts.category}</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                    {categories.map((cat) => (
+                    {CATEGORY_OPTIONS.map((cat) => (
                       <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
+                        key={cat.value}
+                        onClick={() => setSelectedCategory(cat.value)}
                         className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                          selectedCategory === cat
+                          selectedCategory === cat.value
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-background border border-border hover:border-primary'
                         }`}
                       >
-                        {cat}
+                        {cat.label[locale]}
                       </button>
                     ))}
                   </div>
@@ -327,17 +299,17 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                 <div>
                   <label className="block text-sm font-semibold mb-2">{texts.difficulty}</label>
                   <div className="flex gap-2">
-                    {['All', 'beginner', 'intermediate', 'advanced'].map((diff) => (
+                    {DIFFICULTY_OPTIONS.map((diff) => (
                       <button
-                        key={diff}
-                        onClick={() => setSelectedDifficulty(diff)}
+                        key={diff.value}
+                        onClick={() => setSelectedDifficulty(diff.value as DifficultyFilter)}
                         className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                          selectedDifficulty === diff
+                          selectedDifficulty === diff.value
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-background border border-border hover:border-primary'
                         }`}
                       >
-                        {diff === 'All' ? texts.all : diff === 'beginner' ? texts.beginner : diff === 'intermediate' ? texts.intermediate : texts.advanced}
+                        {diff.label[locale]}
                       </button>
                     ))}
                   </div>
@@ -353,16 +325,21 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             </div>
-          ) : filteredCourses.length > 0 ? (
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">{locale === 'en' ? 'Unable to load courses right now.' : 'No se pueden cargar los cursos en este momento.'}</p>
+              <p className="text-sm text-muted-foreground mt-2">{error}</p>
+            </div>
+          ) : courses.length > 0 ? (
             <div>
               <p className="text-sm text-muted-foreground mb-6">
                 {locale === 'en' 
-                  ? `Found ${filteredCourses.length} course${filteredCourses.length !== 1 ? 's' : ''}`
-                  : `Encontrados ${filteredCourses.length} curso${filteredCourses.length !== 1 ? 's' : ''}`
+                  ? `Showing ${courses.length} of ${totalAvailable} course${totalAvailable !== 1 ? 's' : ''}`
+                  : `Mostrando ${courses.length} de ${totalAvailable} curso${totalAvailable !== 1 ? 's' : ''}`
                 }
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCourses.map((course, idx) => (
+                {courses.map((course, idx) => (
                   <motion.div
                     key={course.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -376,6 +353,17 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                   </motion.div>
                 ))}
               </div>
+              {hasMore && (
+                <div className="text-center mt-10">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                    className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingMore ? (locale === 'en' ? 'Loading...' : 'Cargando...') : (locale === 'en' ? 'Load more courses' : 'Cargar más cursos')}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12">
