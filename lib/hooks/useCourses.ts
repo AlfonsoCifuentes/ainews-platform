@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLogger } from '@/lib/utils/logging';
 
 export interface Course {
@@ -50,12 +50,24 @@ export function useCourses(initialParams: FetchCoursesParams) {
     hasMore: false
   });
 
+  const abortRef = useRef<AbortController | null>(null);
+  const lastFetchKeyRef = useRef<string | null>(null);
+
   const fetchCourses = useCallback(async (params: FetchCoursesParams) => {
     setLoading(true);
     setError(null);
     logger.info('fetchCourses called', params);
 
     try {
+      const reqKey = JSON.stringify(params);
+      if (reqKey === lastFetchKeyRef.current) {
+        logger.debug('Skipping duplicate fetch in useCourses', { reqKey });
+        return;
+      }
+      lastFetchKeyRef.current = reqKey;
+
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
       const searchParams = new URLSearchParams({
         locale: params.locale,
         limit: String(params.limit || 20),
@@ -78,7 +90,7 @@ export function useCourses(initialParams: FetchCoursesParams) {
       const url = `/api/courses?${searchParams}`;
       logger.debug('Fetching from URL', { url });
       
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: abortRef.current.signal });
       
       logger.info('API response received', {
         status: response.status,
@@ -112,6 +124,10 @@ export function useCourses(initialParams: FetchCoursesParams) {
       setCourses(data.data || []);
       setPagination(data.pagination);
     } catch (err) {
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === 'AbortError') {
+        logger.warn('Fetch aborted in useCourses', params);
+        return;
+      }
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       logger.error('Fetch error', err);
       setError(errorMsg);
@@ -120,6 +136,14 @@ export function useCourses(initialParams: FetchCoursesParams) {
       setLoading(false);
     }
   }, [logger]);
+
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+    };
+  }, []);
 
   const loadMore = useCallback(() => {
     if (!pagination.hasMore || loading) return;

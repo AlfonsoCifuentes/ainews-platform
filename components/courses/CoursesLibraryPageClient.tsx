@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, ChevronDown } from 'lucide-react';
 import { CourseCard } from './CourseCard';
@@ -119,6 +119,9 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
+  const abortRef = useRef<AbortController | null>(null);
+  const lastFetchKeyRef = useRef<string | null>(null);
+
   const fetchCourses = useCallback(async ({ offset, reset }: { offset: number; reset: boolean }) => {
     logger.info('fetchCourses invoked', {
       offset,
@@ -137,6 +140,19 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
     }
 
     try {
+      // If we're already requested the exact same params recently, avoid making a second request
+      const reqKey = JSON.stringify({ locale, selectedCategory, selectedDifficulty, sortBy, debouncedSearch, limit: PAGE_SIZE, offset });
+      if (reqKey === lastFetchKeyRef.current) {
+        logger.debug('Skipping duplicate fetch', { reqKey });
+        return;
+      }
+      lastFetchKeyRef.current = reqKey;
+
+      // Abort previous request if any
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      abortRef.current = new AbortController();
       const params = new URLSearchParams({
         locale,
         limit: `${PAGE_SIZE}`,
@@ -156,7 +172,7 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
         params.set('search', debouncedSearch);
       }
 
-      const response = await fetch(`/api/courses?${params.toString()}`);
+      const response = await fetch(`/api/courses?${params.toString()}`, { signal: abortRef.current.signal });
       if (!response.ok) {
         throw new Error(`Failed to fetch courses: ${response.status}`);
       }
@@ -174,6 +190,10 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
         hasMore: data.pagination?.hasMore,
       });
     } catch (err) {
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === 'AbortError') {
+        logger.warn('Fetch aborted', { offset, locale });
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
       setCourses((prev) => (reset ? [] : prev));
@@ -186,6 +206,14 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
       }
     }
   }, [locale, selectedCategory, selectedDifficulty, sortBy, debouncedSearch, logger]);
+
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchCourses({ offset: 0, reset: true });
