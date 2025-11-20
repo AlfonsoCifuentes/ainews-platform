@@ -178,6 +178,42 @@ export function ModulePlayer({
     generateContent();
   }, [module.id, module.content_type, courseId, displayContent, isGeneratingContent, locale, router, showToast, t]);
 
+  // Poll server for content when placeholder/generation is in progress
+  useEffect(() => {
+    let interval: number | undefined;
+    const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
+    const isPlaceholder = (text?: string | null) => {
+      if (!text) return true;
+      const trimmed = text.trim();
+      if (!trimmed) return true;
+      if (trimmed.length < 60 && placeholderRegex.test(trimmed)) return true;
+      return false;
+    };
+
+    // If we have no content or content is placeholder, poll server occasionally
+    if (isPlaceholder(displayContent) && !isGeneratingContent) {
+      let attempts = 0;
+      interval = window.setInterval(async () => {
+        attempts++;
+        // Every 2s poll for up to 30s
+        if (attempts > 15) {
+          if (interval) window.clearInterval(interval);
+          return;
+        }
+        try {
+          // A simple router.refresh() will re-fetch the server data and update the page
+          router.refresh();
+        } catch {
+          // Ignore
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (interval) window.clearInterval(interval);
+    };
+  }, [displayContent, isGeneratingContent, router]);
+
 
   const handleComplete = async () => {
     loggers.course('handleComplete called', {
