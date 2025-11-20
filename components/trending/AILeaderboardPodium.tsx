@@ -153,7 +153,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
       {/* Podium - Simplified with just position numbers */}
       <div className="w-full px-2 sm:px-4 mb-12">
         {/* Mobile: Stack vertically | Desktop: Horizontal podium */}
-        <div className="flex flex-col md:flex-row md:justify-center md:items-start md:gap-4 lg:gap-6">
+        <div className="flex flex-col md:flex-row md:justify-center md:items-end md:gap-4 lg:gap-6">
           {/* Silver (2nd) - Hidden on mobile, shows on desktop */}
           {models[1] && (
             <motion.div
