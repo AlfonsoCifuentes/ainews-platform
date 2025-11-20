@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
-import { getClientAuthClient } from '@/lib/auth/auth-client';
 import { ConfettiExplosion } from '@/components/effects/ConfettiExplosion';
 
 interface Course {
@@ -76,53 +75,19 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
   const description = locale === 'es' ? course.description_es : course.description_en;
   const difficultyLabel = DIFFICULTY_LABELS[course.difficulty][locale as 'en' | 'es'];
   
-  const [isEnrolled, setIsEnrolled] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isEnrolled] = useState(false);
+  const [isCompleted] = useState(false);
+  const [progress] = useState(0);
+  const [isChecking, setIsChecking] = useState(false);
 
   const xpReward = XP_REWARDS[course.difficulty];
   const styles = DIFFICULTY_STYLES[course.difficulty];
 
   useEffect(() => {
-    const checkEnrollment = async () => {
-      try {
-        const supabase = getClientAuthClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          setIsEnrolled(false);
-          setIsCompleted(false);
-          return;
-        }
-
-        // Check if user is enrolled in this course
-        const { data: enrollment } = await supabase
-          .from('user_courses')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('course_id', course.id)
-          .eq('relationship_type', 'enrolled')
-          .single();
-
-        if (enrollment) {
-          setIsEnrolled(true);
-          setProgress(enrollment.progress_percentage || 0);
-          setIsCompleted(!!enrollment.completed_at);
-        } else {
-          setIsEnrolled(false);
-          setIsCompleted(false);
-        }
-      } catch (error) {
-        console.error('[CourseCard] Error checking enrollment:', error);
-        setIsEnrolled(false);
-        setIsCompleted(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkEnrollment();
+    // Note: Enrollment status should be fetched at the parent level 
+    // and passed as props to avoid N+1 queries that exhaust browser resources.
+    // For now, we'll show default state to prevent 406 errors.
+    setIsChecking(false);
   }, [course.id]);
 
   const buttonText = isCompleted 
