@@ -15,7 +15,7 @@ import {
   FileQuestion
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
+// Link removed; navigation handled via router.push in Start handler
 import type { NormalizedModule } from '@/lib/courses/normalize';
 
 type Module = Pick<
@@ -197,11 +197,10 @@ export function CourseModulesList({
 
                     {canAccess ? (
                       <div className="pl-12">
-                        <Link
-                          href={`/${locale}/courses/${courseId}/learn?module=${module.id}`}
+                        <button
                           onClick={async (e) => {
-                            e.preventDefault();
                             // Start progress
+                            e.preventDefault();
                             setStartingModule(module.id);
                             setStartProgress(4);
                             const interval = window.setInterval(() => {
@@ -244,6 +243,8 @@ export function CourseModulesList({
                               ? 'bg-secondary text-foreground hover:bg-secondary/80'
                               : 'bg-primary text-primary-foreground hover:bg-primary/90'
                           )}
+                          aria-busy={startingModule === module.id}
+                          disabled={startingModule === module.id}
                         >
                           {isCompleted ? (
                             <>
@@ -256,7 +257,7 @@ export function CourseModulesList({
                               {locale === 'en' ? 'Start' : 'Iniciar'}
                             </>
                           )}
-                        </Link>
+                        </button>
                         {startingModule === module.id && (
                           <div className="mt-3">
                             <div className="h-2 rounded-full bg-white/5 overflow-hidden">
