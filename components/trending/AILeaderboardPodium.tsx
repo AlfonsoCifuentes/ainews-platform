@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 import { logger } from '@/lib/utils/logging';
+import Image from 'next/image';
 
 interface AIModel {
   rank: number;
@@ -167,12 +168,13 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 whileHover={{ translateY: -4 }}
               >
                 <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥈</p>
-                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl">
-                  <img
+                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl overflow-hidden">
+                  <Image
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
+                    width={64}
+                    height={64}
                     className="object-contain w-12 h-12 md:w-16 md:h-16"
-                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-base md:text-lg text-white leading-tight">{models[1].name}</h3>
@@ -204,12 +206,13 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 whileHover={{ translateY: -6 }}
               >
                 <p className="text-6xl md:text-7xl mb-3 md:mb-4">🥇</p>
-                <div className="relative w-24 h-24 md:w-28 md:h-28 mx-auto mb-3 md:mb-4 flex items-center justify-center bg-white/20 rounded-xl">
-                  <img
+                <div className="relative w-24 h-24 md:w-28 md:h-28 mx-auto mb-3 md:mb-4 flex items-center justify-center bg-white/20 rounded-xl overflow-hidden">
+                  <Image
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
+                    width={80}
+                    height={80}
                     className="object-contain w-16 h-16 md:w-20 md:h-20"
-                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-xl md:text-2xl text-white leading-tight">{models[0].name}</h3>
@@ -236,12 +239,13 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                 whileHover={{ translateY: -4 }}
               >
                 <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥉</p>
-                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl">
-                  <img
+                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl overflow-hidden">
+                  <Image
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
+                    width={64}
+                    height={64}
                     className="object-contain w-12 h-12 md:w-16 md:h-16"
-                    loading="lazy"
                   />
                 </div>
                 <h3 className="font-bold text-base md:text-lg text-white leading-tight">{models[2].name}</h3>
@@ -270,12 +274,13 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white/10 rounded-lg">
-                    <img
+                  <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white/10 rounded-lg overflow-hidden">
+                    <Image
                       src={getCompanyLogo(models[idx].provider)}
                       alt={models[idx].provider}
+                      width={32}
+                      height={32}
                       className="object-contain w-8 h-8"
-                      loading="lazy"
                     />
                   </div>
                   <div className="min-w-0 flex-1">

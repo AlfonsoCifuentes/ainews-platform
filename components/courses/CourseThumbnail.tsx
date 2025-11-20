@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface Props {
   src?: string | null;
@@ -16,15 +17,13 @@ export function CourseThumbnail({ src, alt, width, height, className }: Props) {
   const srcToUse = !errored && src ? src : fallback;
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={srcToUse}
       alt={alt}
-      width={width}
-      height={height}
+      width={width || 400}
+      height={height || 225}
       className={className}
       onError={() => setErrored(true)}
-      loading="lazy"
     />
   );
 }
