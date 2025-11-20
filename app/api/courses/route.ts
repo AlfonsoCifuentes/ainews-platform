@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
     });
     
     // Build query
-    logger.info('Building database query', { baseStatus: 'published' });
+    logger.info('Building database query', { 
+      note: 'No status filter - showing all courses regardless of status',
+      reasoning: 'Courses may have different status values; filtering only would exclude them'
+    });
     let query = db
       .from('courses')
       .select(`
@@ -67,8 +70,7 @@ export async function GET(req: NextRequest) {
         status,
         created_at,
         published_at
-      `)
-      .eq('status', 'published');
+      `);
     
     // Apply filters
     logger.info('Applying filters', {
@@ -146,8 +148,7 @@ export async function GET(req: NextRequest) {
     logger.info('Fetching total count', { timestamp: new Date().toISOString() });
     const { count: totalCount } = await db
       .from('courses')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'published');
+      .select('*', { count: 'exact', head: true });
     
     logger.info('Total count retrieved', {
       totalCount,
