@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLogger } from '@/lib/utils/logging';
 
 export interface Course {
   id: string;
@@ -38,6 +39,7 @@ interface PaginationInfo {
 }
 
 export function useCourses(initialParams: FetchCoursesParams) {
+  const logger = useLogger('useCourses');
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +53,7 @@ export function useCourses(initialParams: FetchCoursesParams) {
   const fetchCourses = useCallback(async (params: FetchCoursesParams) => {
     setLoading(true);
     setError(null);
+    logger.info('fetchCourses called', params);
 
     try {
       const searchParams = new URLSearchParams({
@@ -72,43 +75,69 @@ export function useCourses(initialParams: FetchCoursesParams) {
         searchParams.append('search', params.search);
       }
 
-      const response = await fetch(`/api/courses?${searchParams}`);
+      const url = `/api/courses?${searchParams}`;
+      logger.debug('Fetching from URL', { url });
+      
+      const response = await fetch(url);
+      
+      logger.info('API response received', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      
+      logger.info('API data parsed', {
+        success: data.success,
+        coursesCount: data.data?.length || 0,
+        totalCount: data.pagination?.total || 0,
+        hasError: !data.success,
+        errorMessage: data.error
+      });
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch courses');
       }
 
+      logger.debug('Setting courses state', {
+        courses: data.data,
+        pagination: data.pagination
+      });
+
       setCourses(data.data || []);
       setPagination(data.pagination);
     } catch (err) {
-      console.error('[useCourses] Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      logger.error('Fetch error', err);
+      setError(errorMsg);
       setCourses([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logger]);
 
   const loadMore = useCallback(() => {
     if (!pagination.hasMore || loading) return;
+    logger.info('loadMore called', { currentOffset: pagination.offset, limit: pagination.limit });
 
     fetchCourses({
       ...initialParams,
       offset: pagination.offset + pagination.limit
     });
-  }, [pagination, loading, initialParams, fetchCourses]);
+  }, [pagination, loading, initialParams, fetchCourses, logger]);
 
   const refresh = useCallback(() => {
+    logger.info('refresh called');
     fetchCourses({ ...initialParams, offset: 0 });
-  }, [initialParams, fetchCourses]);
+  }, [initialParams, fetchCourses, logger]);
 
   useEffect(() => {
+    logger.info('useEffect triggered, calling fetchCourses', { initialParams });
     fetchCourses(initialParams);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

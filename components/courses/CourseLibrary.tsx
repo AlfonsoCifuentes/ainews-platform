@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, BookOpen, Clock, TrendingUp, Star, AlertCircle, RefreshCw } from 'lucide-react';
 import { CourseCard } from './CourseCard';
 import { COURSE_CATEGORIES } from '@/lib/ai/course-categorizer';
 import { useCourses } from '@/lib/hooks/useCourses';
+import { useLogger } from '@/lib/utils/logging';
 
 interface CourseLibraryProps {
   locale: string;
@@ -26,10 +27,22 @@ const SORT_OPTIONS = [
 ];
 
 export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
+  const logger = useLogger('CourseLibrary');
   const [search, setSearch] = useState(searchParams.search?.toString() || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.category?.toString() || 'all');
   const [selectedDifficulty, setSelectedDifficulty] = useState(searchParams.difficulty?.toString() || 'all');
   const [selectedSort, setSelectedSort] = useState(searchParams.sort?.toString() || 'newest');
+
+  useEffect(() => {
+    logger.info('CourseLibrary mounted', {
+      locale,
+      initialSearch: search,
+      initialCategory: selectedCategory,
+      initialDifficulty: selectedDifficulty,
+      initialSort: selectedSort
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { courses, loading, error, pagination, refresh } = useCourses({
     locale,
@@ -41,9 +54,26 @@ export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
     offset: 0
   });
 
+  useEffect(() => {
+    logger.info('useCourses hook updated', {
+      coursesCount: courses.length,
+      loading,
+      error: error || null,
+      paginationTotal: pagination.total,
+      filters: {
+        category: selectedCategory,
+        difficulty: selectedDifficulty,
+        search,
+        sort: selectedSort
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses, loading, error, pagination, selectedCategory, selectedDifficulty, search, selectedSort]);
+
   const totalCount = pagination.total;
 
   const handleSearch = (value: string) => {
+    logger.debug('Search input changed', { value });
     setSearch(value);
   };
 
@@ -160,8 +190,14 @@ export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
             {locale === 'es' ? 'Error al cargar cursos' : 'Error loading courses'}
           </h3>
           <p className="text-muted-foreground mb-4">{error}</p>
+          <p className="text-xs text-gray-500 mb-4">
+            {locale === 'es' ? 'Verifica la consola del navegador para más detalles' : 'Check browser console for details'}
+          </p>
           <button
-            onClick={refresh}
+            onClick={() => {
+              logger.info('Refresh button clicked');
+              refresh();
+            }}
             className="px-6 py-3 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
@@ -184,6 +220,9 @@ export function CourseLibrary({ locale, searchParams }: CourseLibraryProps) {
             {locale === 'es' 
               ? 'Intenta ajustar tus filtros de búsqueda'
               : 'Try adjusting your search filters'}
+          </p>
+          <p className="text-xs text-gray-500 mt-4">
+            {locale === 'es' ? 'Verifica la consola del navegador para diagnóstico' : 'Check browser console for diagnostics'}
           </p>
         </div>
       ) : (

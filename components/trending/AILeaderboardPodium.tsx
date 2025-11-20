@@ -149,111 +149,145 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
         <p className="text-muted-foreground">{texts.subtitle}</p>
       </div>
 
-      {/* Podium - Improved layout to prevent overlapping */}
-      <div className="w-full max-w-4xl mx-auto mb-16">
-        {/* Responsive podium with better spacing */}
-        <div className="flex justify-center items-end gap-6 md:gap-8 h-80 mb-12">
-          {/* Silver (2nd) */}
+      {/* Podium - Mobile-first responsive design */}
+      <div className="w-full px-2 sm:px-4 mb-12">
+        {/* Mobile: Stack vertically | Desktop: Horizontal podium */}
+        <div className="flex flex-col md:flex-row md:justify-center md:items-end md:gap-2 lg:gap-4 md:h-auto">
+          {/* Silver (2nd) - Hidden on mobile, shows on desktop */}
           {models[1] && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex flex-col items-center flex-shrink-0"
+              className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto"
             >
-              {/* Card with medal and logo */}
+              {/* Card */}
               <motion.div
-                className="bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl p-6 mb-4 border-2 border-slate-600 min-w-[140px] text-center shadow-lg"
+                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl p-4 md:p-6 mb-3 md:mb-4 border-2 border-slate-600 text-center shadow-lg"
                 whileHover={{ translateY: -4 }}
               >
-                <p className="text-5xl mb-3">🥈</p>
-                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-xl">
+                <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥈</p>
+                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl">
                   <img
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
-                    className="object-contain w-16 h-16"
+                    className="object-contain w-12 h-12 md:w-16 md:h-16"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-lg text-white leading-tight">{models[1].name}</h3>
-                <p className="text-sm text-slate-300 mt-1">{models[1].provider}</p>
-                <p className="text-lg font-bold text-blue-400 mt-2">{models[1].performance_score}%</p>
+                <h3 className="font-bold text-base md:text-lg text-white leading-tight">{models[1].name}</h3>
+                <p className="text-xs md:text-sm text-slate-300 mt-1">{models[1].provider}</p>
+                <p className="text-base md:text-lg font-bold text-blue-400 mt-2">{models[1].performance_score}%</p>
               </motion.div>
               
-              {/* Podium bar */}
-              <div className="w-32 bg-gradient-to-t from-slate-600 to-slate-500 rounded-t-lg flex items-end justify-center h-40 border-2 border-slate-600 border-b-0">
-                <p className="font-bold text-white text-3xl mb-3">2</p>
+              {/* Podium bar - smaller on mobile */}
+              <div className="hidden md:flex w-24 lg:w-32 bg-gradient-to-t from-slate-600 to-slate-500 rounded-t-lg flex-col items-end justify-end h-32 lg:h-40 border-2 border-slate-600 border-b-0">
+                <p className="font-bold text-white text-2xl lg:text-3xl mb-2 lg:mb-3">2</p>
               </div>
             </motion.div>
           )}
 
-          {/* Gold (1st) - Center and tallest */}
+          {/* Gold (1st) - Full width mobile, centered desktop */}
           {models[0] && (
             <motion.div
               initial={{ opacity: 0, y: -30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex flex-col items-center flex-shrink-0 z-10"
+              className="flex flex-col items-center w-full md:w-auto flex-shrink-0 md:z-10"
             >
-              {/* Larger card with medal and logo */}
+              {/* Larger card */}
               <motion.div
-                className="bg-gradient-to-b from-yellow-600 to-amber-700 rounded-2xl p-8 mb-4 border-4 border-yellow-500 min-w-[160px] text-center shadow-2xl"
+                className="w-full md:w-40 lg:w-44 bg-gradient-to-b from-yellow-600 to-amber-700 rounded-2xl p-6 md:p-8 mb-3 md:mb-4 border-4 border-yellow-500 text-center shadow-2xl"
                 whileHover={{ translateY: -6 }}
               >
-                <p className="text-7xl mb-4">🥇</p>
-                <div className="relative w-28 h-28 mx-auto mb-4 flex items-center justify-center bg-white/20 rounded-xl">
+                <p className="text-6xl md:text-7xl mb-3 md:mb-4">🥇</p>
+                <div className="relative w-24 h-24 md:w-28 md:h-28 mx-auto mb-3 md:mb-4 flex items-center justify-center bg-white/20 rounded-xl">
                   <img
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
-                    className="object-contain w-20 h-20"
+                    className="object-contain w-16 h-16 md:w-20 md:h-20"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-2xl text-white leading-tight">{models[0].name}</h3>
-                <p className="text-sm text-yellow-100 mt-1">{models[0].provider}</p>
-                <p className="text-2xl font-bold text-white mt-3">{models[0].performance_score}%</p>
+                <h3 className="font-bold text-xl md:text-2xl text-white leading-tight">{models[0].name}</h3>
+                <p className="text-xs md:text-sm text-yellow-100 mt-1">{models[0].provider}</p>
+                <p className="text-xl md:text-2xl font-bold text-white mt-2 md:mt-3">{models[0].performance_score}%</p>
               </motion.div>
               
               {/* Podium bar - Tallest */}
-              <div className="w-40 bg-gradient-to-t from-yellow-700 to-yellow-600 rounded-t-lg flex items-end justify-center h-56 border-4 border-yellow-600 border-b-0 shadow-lg">
-                <p className="font-bold text-white text-5xl mb-4">1</p>
+              <div className="w-full md:w-40 lg:w-48 bg-gradient-to-t from-yellow-700 to-yellow-600 rounded-t-lg flex items-end justify-center h-40 md:h-48 lg:h-56 border-4 border-yellow-600 border-b-0 shadow-lg">
+                <p className="font-bold text-white text-4xl md:text-5xl mb-3 md:mb-4">1</p>
               </div>
             </motion.div>
           )}
 
-          {/* Bronze (3rd) */}
+          {/* Bronze (3rd) - Hidden on mobile, shows on desktop */}
           {models[2] && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex flex-col items-center flex-shrink-0"
+              className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto"
             >
-              {/* Card with medal and logo */}
+              {/* Card */}
               <motion.div
-                className="bg-gradient-to-b from-orange-700 to-orange-800 rounded-2xl p-6 mb-4 border-2 border-orange-600 min-w-[140px] text-center shadow-lg"
+                className="w-full md:w-32 lg:w-36 bg-gradient-to-b from-orange-700 to-orange-800 rounded-2xl p-4 md:p-6 mb-3 md:mb-4 border-2 border-orange-600 text-center shadow-lg"
                 whileHover={{ translateY: -4 }}
               >
-                <p className="text-5xl mb-3">🥉</p>
-                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-xl">
+                <p className="text-4xl md:text-5xl mb-2 md:mb-3">🥉</p>
+                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-2 md:mb-4 flex items-center justify-center bg-white/10 rounded-xl">
                   <img
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
-                    className="object-contain w-16 h-16"
+                    className="object-contain w-12 h-12 md:w-16 md:h-16"
                     loading="lazy"
                   />
                 </div>
-                <h3 className="font-bold text-lg text-white leading-tight">{models[2].name}</h3>
-                <p className="text-sm text-orange-200 mt-1">{models[2].provider}</p>
-                <p className="text-lg font-bold text-orange-300 mt-2">{models[2].performance_score}%</p>
+                <h3 className="font-bold text-base md:text-lg text-white leading-tight">{models[2].name}</h3>
+                <p className="text-xs md:text-sm text-orange-200 mt-1">{models[2].provider}</p>
+                <p className="text-base md:text-lg font-bold text-orange-300 mt-2">{models[2].performance_score}%</p>
               </motion.div>
               
               {/* Podium bar */}
-              <div className="w-32 bg-gradient-to-t from-orange-700 to-orange-600 rounded-t-lg flex items-end justify-center h-32 border-2 border-orange-600 border-b-0">
-                <p className="font-bold text-white text-3xl mb-3">3</p>
+              <div className="hidden md:flex w-24 lg:w-32 bg-gradient-to-t from-orange-700 to-orange-600 rounded-t-lg flex-col items-end justify-end h-28 lg:h-32 border-2 border-orange-700 border-b-0">
+                <p className="font-bold text-white text-2xl lg:text-3xl mb-2 lg:mb-3">3</p>
               </div>
             </motion.div>
           )}
+        </div>
+
+        {/* Mobile: Show all 3 as cards stacked */}
+        <div className="md:hidden space-y-3 mt-6">
+          {[0, 1, 2].map((idx) => models[idx] && (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="w-full bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700 flex items-center gap-4"
+            >
+              <div className="text-3xl">
+                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white/10 rounded-lg">
+                    <img
+                      src={getCompanyLogo(models[idx].provider)}
+                      alt={models[idx].provider}
+                      className="object-contain w-8 h-8"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-white truncate">{models[idx].name}</p>
+                    <p className="text-xs text-slate-400">{models[idx].provider}</p>
+                  </div>
+                </div>
+                <p className="text-lg font-bold text-yellow-400">#{idx + 1} - {models[idx].performance_score}%</p>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
 

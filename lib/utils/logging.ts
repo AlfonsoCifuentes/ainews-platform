@@ -165,3 +165,17 @@ if (typeof window !== 'undefined') {
     });
   });
 }
+
+/**
+ * React hook for using logger in components
+ * Usage: const logger = useLogger('ComponentName');
+ * logger.info('message', { data });
+ */
+export function useLogger(componentName: string) {
+  return {
+    debug: (message: string, data?: unknown): void => logger.debug(componentName, message, data),
+    info: (message: string, data?: unknown): void => logger.info(componentName, message, data),
+    warn: (message: string, data?: unknown): void => logger.warn(componentName, message, data),
+    error: (message: string, error?: unknown): void => logger.error(componentName, message, error),
+  };
+}
