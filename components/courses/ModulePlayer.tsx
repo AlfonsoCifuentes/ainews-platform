@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   PlayCircle, 
@@ -38,6 +38,7 @@ interface CurrentProgress {
 type Module = NormalizedModule & {
   video_url?: string | null;
   quiz_questions?: QuizQuestion[];
+  course_id?: string;
 };
 
 interface ModulePlayerProps {
@@ -51,6 +52,7 @@ interface ModulePlayerProps {
 export function ModulePlayer({
   locale,
   module,
+  courseId,
   enrollmentId,
   currentProgress,
 }: ModulePlayerProps) {
@@ -58,8 +60,10 @@ export function ModulePlayer({
   const { showToast } = useToast();
   const [isCompleting, setIsCompleting] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
 
-  const t = locale === 'en' ? {
+  const t = useMemo(() => locale === 'en' ? {
     markComplete: 'Mark as Complete',
     completed: 'Completed',
     completing: 'Saving...',
@@ -72,6 +76,8 @@ export function ModulePlayer({
     correct: 'Correct',
     incorrect: 'Incorrect',
     tryAgain: 'Try Again',
+    generatingContent: 'Generating module content...',
+    contentGenerated: 'Module content generated successfully!',
   } : {
     markComplete: 'Marcar como Completado',
     completed: 'Completado',
@@ -85,11 +91,14 @@ export function ModulePlayer({
     correct: 'Correcto',
     incorrect: 'Incorrecto',
     tryAgain: 'Intentar de Nuevo',
-  };
+    generatingContent: 'Generando contenido del módulo...',
+    contentGenerated: '¡Contenido del módulo generado exitosamente!',
+  }, [locale]);
 
   const title = locale === 'en' ? module.title_en : module.title_es;
   const description = locale === 'en' ? module.description_en : module.description_es;
   const content = locale === 'en' ? module.content_en : module.content_es;
+  const displayContent = generatedContent || content;
 
   // Log component mount
   useEffect(() => {
@@ -97,9 +106,69 @@ export function ModulePlayer({
       moduleId: module.id,
       enrollmentId,
       currentProgress: currentProgress?.completed ? 'Completed' : 'Not completed',
-      contentType: module.content_type
+      contentType: module.content_type,
+      hasContent: !!(displayContent?.trim())
     });
-  }, [module.id, enrollmentId, currentProgress?.completed, module.content_type]);
+  }, [module.id, enrollmentId, currentProgress?.completed, module.content_type, displayContent]);
+
+  // Auto-generate content if missing
+  useEffect(() => {
+    const shouldGenerateContent = !displayContent || !displayContent.trim();
+    
+    if (!shouldGenerateContent || isGeneratingContent) {
+      return;
+    }
+
+    const generateContent = async () => {
+      setIsGeneratingContent(true);
+      loggers.course('Auto-generating module content', {
+        moduleId: module.id,
+        locale,
+        contentType: module.content_type
+      });
+
+      try {
+        const response = await fetch('/api/courses/modules/generate-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            moduleId: module.id,
+            courseId: courseId,
+            locale
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success && data.data.content) {
+          loggers.success('ModulePlayer', 'Content generated from API', {
+            moduleId: module.id,
+            contentLength: data.data.content.length,
+            locale
+          });
+          setGeneratedContent(data.data.content);
+          showToast(t.contentGenerated, 'success');
+          // Refresh to get the updated module from database
+          router.refresh();
+        }
+      } catch (error) {
+        loggers.error('ModulePlayer', 'Content generation failed', {
+          error: error instanceof Error ? error.message : String(error),
+          moduleId: module.id
+        });
+        // Don't show error toast - just log it silently
+        // User will see the "coming soon" message if it fails
+      } finally {
+        setIsGeneratingContent(false);
+      }
+    };
+
+    generateContent();
+  }, [module.id, module.content_type, courseId, displayContent, isGeneratingContent, locale, router, showToast, t]);
+
 
   const handleComplete = async () => {
     loggers.course('handleComplete called', {
@@ -297,12 +366,21 @@ export function ModulePlayer({
         ) : (
           <div className="aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
             <div className="text-center text-muted-foreground">
-              <PlayCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">
-                {locale === 'en'
-                  ? 'Video content is being prepared. Please check back soon.'
-                  : 'El contenido de video se está preparando. Por favor, vuelve pronto.'}
-              </p>
+              {isGeneratingContent ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                  <p className="text-lg">{t.generatingContent}</p>
+                </div>
+              ) : (
+                <>
+                  <PlayCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg">
+                    {locale === 'en'
+                      ? 'Video content is being prepared. Please check back soon.'
+                      : 'El contenido de video se está preparando. Por favor, vuelve pronto.'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )
@@ -315,7 +393,14 @@ export function ModulePlayer({
           animate={{ opacity: 1, y: 0 }}
           className="prose prose-lg dark:prose-invert max-w-none p-8 rounded-2xl bg-card border"
         >
-          {content && content.trim() ? (
+          {isGeneratingContent ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="inline-flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                <p className="text-lg">{t.generatingContent}</p>
+              </div>
+            </div>
+          ) : displayContent && displayContent.trim() ? (
             <ReactMarkdown
               components={{
                 code(props) {
@@ -342,7 +427,7 @@ export function ModulePlayer({
                 },
               }}
             >
-              {content}
+              {displayContent}
             </ReactMarkdown>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
