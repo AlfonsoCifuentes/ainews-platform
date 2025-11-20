@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
     logger.info('Query executed', {
       coursesCount: courses?.length || 0,
       hasError: !!error,
+      allCourses: JSON.stringify(courses || []).substring(0, 1000),
       timestamp: new Date().toISOString()
     });
     

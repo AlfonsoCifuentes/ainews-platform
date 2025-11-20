@@ -133,16 +133,28 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
       logger.info('API response parsed', { 
         hasData: !!data,
         hasSuccess: !!data.success,
-        coursesInResponse: data.courses?.length || 0,
-        dataKeys: Object.keys(data)
+        dataStructure: {
+          hasDataProperty: !!data.data,
+          hasCoursesProperty: !!data.courses,
+          dataDotDataLength: data.data?.length || 0,
+          dataCoursesLength: data.courses?.length || 0
+        },
+        dataKeys: Object.keys(data),
+        fullResponse: JSON.stringify(data).substring(0, 500)
       });
       
-      setCourses(data.courses || []);
+      // Try both data.data and data.courses (API returns data.data)
+      const coursesArray = data.data || data.courses || [];
+      setCourses(coursesArray);
       logger.info('Courses state updated', { 
-        coursesCount: data.courses?.length || 0
+        coursesCount: coursesArray.length,
+        source: data.data ? 'data.data' : 'data.courses'
       });
     } catch (error) {
-      logger.error('Error fetching courses', error);
+      logger.error('Error fetching courses', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setCourses([]);
     } finally {
       setIsLoading(false);
