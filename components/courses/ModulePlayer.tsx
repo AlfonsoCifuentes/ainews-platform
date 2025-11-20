@@ -284,15 +284,28 @@ export function ModulePlayer({
       </div>
 
       {/* Video Player */}
-      {module.content_type === 'video' && module.video_url && (
-        <div className="aspect-video rounded-2xl overflow-hidden bg-black">
-          <iframe
-            src={module.video_url}
-            className="w-full h-full"
-            allowFullScreen
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          />
-        </div>
+      {module.content_type === 'video' && (
+        module.video_url ? (
+          <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+            <iframe
+              src={module.video_url}
+              className="w-full h-full"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            />
+          </div>
+        ) : (
+          <div className="aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <PlayCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg">
+                {locale === 'en'
+                  ? 'Video content is being prepared. Please check back soon.'
+                  : 'El contenido de video se está preparando. Por favor, vuelve pronto.'}
+              </p>
+            </div>
+          </div>
+        )
       )}
 
       {/* Article Content */}
@@ -302,39 +315,51 @@ export function ModulePlayer({
           animate={{ opacity: 1, y: 0 }}
           className="prose prose-lg dark:prose-invert max-w-none p-8 rounded-2xl bg-card border"
         >
-          <ReactMarkdown
-            components={{
-              code(props) {
-                const { inline, className, children, ...rest } = props as {
-                  inline?: boolean;
-                  className?: string;
-                  children?: React.ReactNode;
-                };
-                const match = /language-(\w+)/.exec(className || '');
-                return !inline && match ? (
-                  <SyntaxHighlighter
-                    style={vscDarkPlus}
-                    language={match[1]}
-                    PreTag="div"
-                    {...rest}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...rest}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          >
-            {content}
-          </ReactMarkdown>
+          {content && content.trim() ? (
+            <ReactMarkdown
+              components={{
+                code(props) {
+                  const { inline, className, children, ...rest } = props as {
+                    inline?: boolean;
+                    className?: string;
+                    children?: React.ReactNode;
+                  };
+                  const match = /language-(\w+)/.exec(className || '');
+                  return !inline && match ? (
+                    <SyntaxHighlighter
+                      style={vscDarkPlus}
+                      language={match[1]}
+                      PreTag="div"
+                      {...rest}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...rest}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg">
+                {locale === 'en'
+                  ? 'Module content is being prepared. Please check back soon.'
+                  : 'El contenido del módulo se está preparando. Por favor, vuelve pronto.'}
+              </p>
+            </div>
+          )}
         </motion.div>
       )}
 
       {/* Quiz */}
-      {module.content_type === 'quiz' && module.quiz_questions && (
+      {module.content_type === 'quiz' && (
+        module.quiz_questions && module.quiz_questions.length > 0 ? (
         <div className="space-y-6 p-8 rounded-2xl bg-card border">
           {module.quiz_questions.map((question, qIndex) => (
             <div key={qIndex} className="space-y-3">
@@ -367,6 +392,16 @@ export function ModulePlayer({
             {t.submitQuiz}
           </Button>
         </div>
+        ) : (
+          <div className="p-8 rounded-2xl bg-card border text-center text-muted-foreground">
+            <FileQuestion className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">
+              {locale === 'en'
+                ? 'Quiz questions are being prepared. Please check back soon.'
+                : 'Las preguntas del cuestionario se están preparando. Por favor, vuelve pronto.'}
+            </p>
+          </div>
+        )
       )}
 
       {/* Resources */}

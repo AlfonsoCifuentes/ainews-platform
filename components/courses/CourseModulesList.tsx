@@ -209,7 +209,7 @@ export function CourseModulesList({
                           ) : (
                             <>
                               <PlayCircle className="w-4 h-4" />
-                              {locale === 'en' ? 'Start' : 'Comenzar'}
+                              {locale === 'en' ? 'Start' : 'Iniciar'}
                             </>
                           )}
                         </Link>
