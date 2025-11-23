@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/shared/ToastProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, 
@@ -66,9 +65,6 @@ export function CourseModulesList({
 
   const sortedModules = [...modules].sort((a, b) => a.order_index - b.order_index);
   const router = useRouter();
-  const { showToast } = useToast();
-  const [startingModule, setStartingModule] = useState<string | null>(null);
-  const [startProgress, setStartProgress] = useState<number>(0);
   
   console.log('[CourseModulesList] Props:', { 
     modulesCount: modules.length,
@@ -199,43 +195,10 @@ export function CourseModulesList({
                       <div className="pl-12">
                         <button
                           onClick={async (e) => {
-                            // Start progress
                             e.preventDefault();
-                            setStartingModule(module.id);
-                            setStartProgress(4);
-                            const interval = window.setInterval(() => {
-                              setStartProgress((p) => Math.min(96, p + Math.random() * 10));
-                            }, 700);
-
-                            try {
-                              const response = await fetch('/api/courses/modules/generate-content', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ moduleId: module.id, courseId, locale })
-                              });
-
-                              const data = await response.json();
-                              if (response.ok) {
-                                setStartProgress(100);
-                                // small delay for UI
-                                await new Promise((r) => setTimeout(r, 300));
-                                router.push(`/${locale}/courses/${courseId}/learn?module=${module.id}`);
-                                return;
-                              }
-
-                              // Not OK we will still navigate but show warning
-                              console.error('[CourseModulesList] generate-content failed', data);
-                              showToast('Failed to generate module content. Proceeding to module.', 'error');
-                              router.push(`/${locale}/courses/${courseId}/learn?module=${module.id}`);
-                            } catch (err) {
-                              console.error('[CourseModulesList] generate-content error', err);
-                              showToast('Error generating module content. Proceeding to module.', 'error');
-                              router.push(`/${locale}/courses/${courseId}/learn?module=${module.id}`);
-                            } finally {
-                              window.clearInterval(interval);
-                              setStartingModule(null);
-                              setStartProgress(0);
-                            }
+                            
+                            // Navigate directly to the module - content generation happens in ModulePlayer
+                            router.push(`/${locale}/courses/${courseId}/learn?module=${module.id}`);
                           }}
                           className={cn(
                             'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
@@ -243,8 +206,6 @@ export function CourseModulesList({
                               ? 'bg-secondary text-foreground hover:bg-secondary/80'
                               : 'bg-primary text-primary-foreground hover:bg-primary/90'
                           )}
-                          aria-busy={startingModule === module.id}
-                          disabled={startingModule === module.id}
                         >
                           {isCompleted ? (
                             <>
@@ -258,14 +219,6 @@ export function CourseModulesList({
                             </>
                           )}
                         </button>
-                        {startingModule === module.id && (
-                          <div className="mt-3">
-                            <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                              <div className="h-full bg-primary transition-all" style={{ width: `${startProgress}%` }} />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2">{locale === 'en' ? 'Generating content...' : 'Generando contenido...'}</p>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="pl-12 text-sm text-muted-foreground flex items-center gap-2">
