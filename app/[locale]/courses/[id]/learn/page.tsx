@@ -30,22 +30,7 @@ export default async function CourseLearnPage({
     redirect(`/${locale}/auth?redirect=/${locale}/courses/${id}/learn`);
   }
 
-  // Check enrollment
-  let { data: enrollment } = await db
-    .from('course_enrollments')
-    .select('*')
-    .eq('course_id', id)
-    .eq('user_id', user.id)
-    .single();
-
-  console.log('[CourseLearnPage] Enrollment check', {
-    enrolled: !!enrollment,
-    enrollmentId: enrollment?.id,
-    userId: user.id,
-    courseId: id
-  });
-
-  // Fetch course with modules first to check if module is free
+  // Fetch course with modules
   const { data: rawCourse } = await db
     .from('courses')
     .select(`
@@ -72,15 +57,16 @@ export default async function CourseLearnPage({
     notFound();
   }
 
-  // If no enrollment and module is not free, require enrollment
-  if (!enrollment && !currentModule.is_free) {
-    console.log('[CourseLearnPage] User not enrolled and module not free, redirecting to course page');
-    redirect(`/${locale}/courses/${id}`);
-  }
+  // Check/create enrollment automatically for ALL modules (free access for everyone)
+  let { data: enrollment } = await db
+    .from('course_enrollments')
+    .select('*')
+    .eq('course_id', id)
+    .eq('user_id', user.id)
+    .single();
 
-  // If no enrollment but module is free, create a free enrollment
-  if (!enrollment && currentModule.is_free) {
-    console.log('[CourseLearnPage] Creating free enrollment for free module access');
+  if (!enrollment) {
+    console.log('[CourseLearnPage] Auto-enrolling user for free course access');
     const { data: newEnrollment } = await db
       .from('course_enrollments')
       .insert({
@@ -92,7 +78,7 @@ export default async function CourseLearnPage({
       .single();
     
     enrollment = newEnrollment;
-    console.log('[CourseLearnPage] Free enrollment created', { enrollmentId: enrollment?.id });
+    console.log('[CourseLearnPage] Auto-enrollment created', { enrollmentId: enrollment?.id });
   }
 
   // Get user progress (only if enrollment exists)
