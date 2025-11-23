@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isOEmbedUrl,
-  getOEmbedImagesFromContent,
+  extractOEmbedUrls,
   extractOEmbedImage,
   type OEmbedResponse
 } from '../../lib/services/oembed';
@@ -133,70 +133,70 @@ describe('oEmbed - Image Extraction from Response', () => {
 
 describe('oEmbed - Content Parsing', () => {
   
-  it('should extract oEmbed URLs from HTML content', async () => {
+  it('should extract oEmbed URLs from HTML content', () => {
     const content = `
-      <p>Check out this tweet:</p>
+      <p>Check this tweet:</p>
       <a href="https://twitter.com/user/status/123456789">Tweet</a>
       <p>And this video:</p>
       <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Video</a>
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toHaveLength(2);
     expect(urls).toContain('https://twitter.com/user/status/123456789');
     expect(urls).toContain('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   });
   
-  it('should extract oEmbed URLs from plain text', async () => {
+  it('should extract oEmbed URLs from plain text', () => {
     const content = `
       Check this out: https://vimeo.com/123456789
       Also see: https://www.flickr.com/photos/user/987654321
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toHaveLength(2);
     expect(urls).toContain('https://vimeo.com/123456789');
     expect(urls).toContain('https://www.flickr.com/photos/user/987654321');
   });
   
-  it('should deduplicate URLs', async () => {
+  it('should deduplicate URLs', () => {
     const content = `
       <a href="https://twitter.com/user/status/123">Tweet 1</a>
       <a href="https://twitter.com/user/status/123">Tweet 1 again</a>
       <a href="https://twitter.com/user/status/456">Tweet 2</a>
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toHaveLength(2);
   });
   
-  it('should return empty array for content without oEmbed URLs', async () => {
+  it('should return empty array for content without oEmbed URLs', () => {
     const content = `
       <p>Just some regular text</p>
       <a href="https://example.com">Regular link</a>
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toEqual([]);
   });
   
-  it('should handle empty content', async () => {
-    expect(await getOEmbedImagesFromContent('')).toEqual([]);
-    expect(await getOEmbedImagesFromContent('   ')).toEqual([]);
+  it('should handle empty content', () => {
+    expect(extractOEmbedUrls('')).toEqual([]);
+    expect(extractOEmbedUrls('   ')).toEqual([]);
   });
   
-  it('should handle malformed HTML gracefully', async () => {
+  it('should handle malformed HTML gracefully', () => {
     const content = `
       <p>Unclosed paragraph
       <a href="https://twitter.com/user/status/123">Tweet</a>
       <div>Unclosed div
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toHaveLength(1);
     expect(urls[0]).toBe('https://twitter.com/user/status/123');
@@ -223,7 +223,7 @@ describe('oEmbed - Provider Detection', () => {
 
 describe('oEmbed - Error Handling', () => {
   
-  it('should handle URL extraction errors gracefully', async () => {
+  it('should handle URL extraction errors gracefully', () => {
     // Content with script tags and potential XSS
     const maliciousContent = `
       <script>alert('xss')</script>
@@ -231,7 +231,7 @@ describe('oEmbed - Error Handling', () => {
       <a href="https://twitter.com/user/status/123">Good link</a>
     `;
     
-    const urls = await getOEmbedImagesFromContent(maliciousContent);
+    const urls = extractOEmbedUrls(maliciousContent);
     
     expect(urls).toHaveLength(1);
     expect(urls[0]).toBe('https://twitter.com/user/status/123');
@@ -256,7 +256,7 @@ describe('oEmbed - Integration Patterns', () => {
     });
   });
   
-  it('should extract multiple images from mixed content', async () => {
+  it('should extract multiple images from mixed content', () => {
     const content = `
       <article>
         <p>Check out these resources:</p>
@@ -269,7 +269,7 @@ describe('oEmbed - Integration Patterns', () => {
       </article>
     `;
     
-    const urls = await getOEmbedImagesFromContent(content);
+    const urls = extractOEmbedUrls(content);
     
     expect(urls).toHaveLength(3);
     expect(urls).toContain('https://twitter.com/user/status/111');
