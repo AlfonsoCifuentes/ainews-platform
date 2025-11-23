@@ -31,7 +31,7 @@ export default async function CourseLearnPage({
   }
 
   // Check enrollment
-  const { data: enrollment } = await db
+  let { data: enrollment } = await db
     .from('course_enrollments')
     .select('*')
     .eq('course_id', id)
@@ -45,12 +45,7 @@ export default async function CourseLearnPage({
     courseId: id
   });
 
-  if (!enrollment) {
-    console.log('[CourseLearnPage] User not enrolled in course, redirecting to course page');
-    redirect(`/${locale}/courses/${id}`);
-  }
-
-  // Fetch course with modules
+  // Fetch course with modules first to check if module is free
   const { data: rawCourse } = await db
     .from('courses')
     .select(`
@@ -66,10 +61,8 @@ export default async function CourseLearnPage({
   }
 
   const course = normalizeCourseRecord(rawCourse);
-
-  // Sort modules
   const sortedModules = course.course_modules;
-
+  
   // Get current module (first module if not specified)
   const currentModule = moduleId
     ? sortedModules.find((m) => m.id === moduleId)
@@ -79,13 +72,45 @@ export default async function CourseLearnPage({
     notFound();
   }
 
-  // Get user progress
-  const { data: progress } = await db
-    .from('course_progress')
-    .select('*')
-    .eq('enrollment_id', enrollment.id);
+  // If no enrollment and module is not free, require enrollment
+  if (!enrollment && !currentModule.is_free) {
+    console.log('[CourseLearnPage] User not enrolled and module not free, redirecting to course page');
+    redirect(`/${locale}/courses/${id}`);
+  }
 
-  const userProgress = progress || [];
+  // If no enrollment but module is free, create a free enrollment
+  if (!enrollment && currentModule.is_free) {
+    console.log('[CourseLearnPage] Creating free enrollment for free module access');
+    const { data: newEnrollment } = await db
+      .from('course_enrollments')
+      .insert({
+        user_id: user.id,
+        course_id: id,
+        enrolled_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    enrollment = newEnrollment;
+    console.log('[CourseLearnPage] Free enrollment created', { enrollmentId: enrollment?.id });
+  }
+
+  // Get user progress (only if enrollment exists)
+  let userProgress: Array<{
+    id: string;
+    enrollment_id: string;
+    module_id: string;
+    completed: boolean;
+    completed_at?: string;
+  }> = [];
+  if (enrollment) {
+    const { data: progress } = await db
+      .from('course_progress')
+      .select('*')
+      .eq('enrollment_id', enrollment.id);
+    
+    userProgress = progress || [];
+  }
 
   // Check if current module is locked
   const currentIndex = sortedModules.findIndex((m) => m.id === currentModule.id);
@@ -98,6 +123,12 @@ export default async function CourseLearnPage({
   }
 
   const currentProgress = userProgress.find((p) => p.module_id === currentModule.id);
+
+  // Ensure enrollment exists at this point
+  if (!enrollment) {
+    console.error('[CourseLearnPage] No enrollment after all checks - should not happen');
+    redirect(`/${locale}/courses/${id}`);
+  }
 
   return (
     <div className="min-h-screen bg-background">

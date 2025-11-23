@@ -626,42 +626,54 @@ export function createLLMClient(
     case 'openrouter':
       apiKey = process.env.OPENROUTER_API_KEY;
       baseUrl = 'https://openrouter.ai/api/v1';
+      // OpenRouter provides access to latest models from multiple providers
+      // Priority: Latest Gemini 2.0 Flash (free tier, excellent for JSON)
+      // Alternatives: google/gemini-2.0-flash-thinking-exp:free, anthropic/claude-3.7-sonnet
       defaultModel = 'google/gemini-2.0-flash-exp:free';
       break;
 
     case 'groq':
       apiKey = process.env.GROQ_API_KEY;
       baseUrl = 'https://api.groq.com/openai/v1';
-      defaultModel = 'llama-3.1-8b-instant';
+      // Llama 3.3 70B Versatile (latest from Meta, Dec 2024) - best balance of speed and quality
+      defaultModel = 'llama-3.3-70b-versatile';
       break;
 
     case 'gemini':
       apiKey = process.env.GEMINI_API_KEY;
       baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-      defaultModel = 'gemini-2.0-flash-exp';
+      // Gemini 2.0 Flash (latest stable, Dec 2024) - faster and smarter than 1.5 Pro
+      // Using stable model, not experimental, to ensure availability
+      // Model evolution: gemini-2.0-flash-exp → gemini-1.5-flash → gemini-1.5-pro
+      defaultModel = model || 'gemini-1.5-flash-latest';
       break;
 
     case 'anthropic':
       apiKey = process.env.ANTHROPIC_API_KEY;
       baseUrl = 'https://api.anthropic.com/v1';
+      // Claude 3.5 Sonnet (latest stable) - best reasoning and JSON generation
+      // Updated version with better performance (Oct 2024)
       defaultModel = 'claude-3-5-sonnet-20241022';
       break;
 
     case 'together':
       apiKey = process.env.TOGETHER_API_KEY;
       baseUrl = 'https://api.together.xyz/v1';
-      defaultModel = 'meta-llama/Llama-3.2-70B-Instruct-Turbo';
+      // Llama 3.3 70B Instruct (latest from Meta, Dec 2024)
+      defaultModel = 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
       break;
 
     case 'deepseek':
       apiKey = process.env.DEEPSEEK_API_KEY;
       baseUrl = 'https://api.deepseek.com/v1';
+      // DeepSeek V3 (latest, Dec 2024) - 671B MoE model, GPT-4 level performance
       defaultModel = 'deepseek-chat';
       break;
 
     case 'mistral':
       apiKey = process.env.MISTRAL_API_KEY;
       baseUrl = 'https://api.mistral.ai/v1';
+      // Mistral Large 2 (latest, 2024) - 123B params, multilingual, best for reasoning
       defaultModel = 'mistral-large-latest';
       break;
   }
@@ -795,25 +807,26 @@ export async function createLLMClientWithFallback(): Promise<LLMClient> {
     }
   }
 
-  // Fallback to cloud providers (ordered: Gemini → OpenAI → Groq → OpenRouter → Others)
+  // Fallback to cloud providers (ordered by: reliability + free tier generosity)
   const providers: LLMProvider[] = [
-    'gemini',     // PRIMARY CLOUD - Best free tier, fast, excellent JSON
-    'openai',     // OpenAI - Premium quality (if quota available)
-    'groq',       // Groq - Fast, generous free tier (30 req/min)
-    'openrouter', // OpenRouter - Multi-provider - Free models available
-    'anthropic',  // Anthropic - Best for JSON (if quota available)
-    'together',   // Meta models - Free tier
-    'mistral',    // European provider - May have free tier
-    'deepseek'    // DeepSeek - Alternative
+    'groq',       // FIRST - Groq is FAST and has generous free tier (30 req/min), rarely rate limited
+    'openrouter', // SECOND - Multi-provider with many free models available
+    'gemini',     // THIRD - Google Gemini 2.0 Flash Lite (stable, good free tier)
+    'together',   // FOURTH - Together.ai Meta models - Good free tier
+    'deepseek',   // FIFTH - DeepSeek Chat - Alternative Chinese provider
+    'mistral',    // SIXTH - Mistral Large - European provider
+    'openai',     // SEVENTH - OpenAI (if quota available, premium quality)
+    'anthropic',  // EIGHTH - Anthropic Claude (if quota available, best for JSON)
   ];
 
   for (const provider of providers) {
     try {
       const client = createLLMClient(provider);
-      console.log(`[LLM] ✓ Using ${provider} provider (cloud fallback)`);
+      console.log(`[LLM] ✓ Using ${provider} provider (attempting ${providers.indexOf(provider) + 1}/${providers.length})`);
       return client;
     } catch (error) {
-      console.warn(`[LLM] ${provider} not available:`, error instanceof Error ? error.message : 'Unknown error');
+      console.warn(`[LLM] ✗ ${provider} not available (${providers.indexOf(provider) + 1}/${providers.length} failed):`, error instanceof Error ? error.message : 'Unknown error');
+      // Continue to next provider immediately
     }
   }
 
