@@ -35,6 +35,8 @@ on:
 jobs:
   run-agents:
     runs-on: ubuntu-latest
+    env:
+      SITE_URL: https://ainews-platform.vercel.app
     
     steps:
       - name: Checkout code
@@ -57,7 +59,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+          curl -X POST "$SITE_URL/api/agents/run" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -d '{"agentType":"trend_detector"}'
@@ -70,7 +72,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+          curl -X POST "$SITE_URL/api/agents/run" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -d '{"agentType":"fact_checker"}'
@@ -83,7 +85,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+          curl -X POST "$SITE_URL/api/agents/run" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -d '{"agentType":"bias_auditor"}'
@@ -96,7 +98,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          curl -X POST ${{ secrets.NEXT_PUBLIC_SITE_URL }}/api/agents/run \
+          curl -X POST "$SITE_URL/api/agents/run" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -d '{"agentType":"multi_perspective"}'
