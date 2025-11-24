@@ -88,7 +88,7 @@ export default async function CourseLearnPage({
 
   if (!enrollment) {
     console.log('📝 Auto-enrolling user for free course access');
-    const { data: newEnrollment } = await db
+    const { data: newEnrollment, error: insertError } = await db
       .from('course_enrollments')
       .insert({
         user_id: user.id,
@@ -98,8 +98,22 @@ export default async function CourseLearnPage({
       .select()
       .single();
     
-    enrollment = newEnrollment;
-    console.log('✅ Auto-enrollment created:', { enrollmentId: enrollment?.id });
+    // If insert fails due to duplicate (409/conflict), fetch the existing enrollment
+    if (insertError && insertError.code === '23505') {
+      console.log('⚠️ Enrollment already exists (race condition), fetching existing one');
+      const { data: existingEnrollment } = await db
+        .from('course_enrollments')
+        .select('*')
+        .eq('course_id', id)
+        .eq('user_id', user.id)
+        .single();
+      enrollment = existingEnrollment;
+    } else if (insertError) {
+      console.error('❌ Failed to create enrollment:', insertError);
+    } else {
+      enrollment = newEnrollment;
+      console.log('✅ Auto-enrollment created:', { enrollmentId: enrollment?.id });
+    }
   } else {
     console.log('✅ Existing enrollment found:', { enrollmentId: enrollment.id });
   }

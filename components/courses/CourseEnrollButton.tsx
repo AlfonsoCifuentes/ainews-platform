@@ -96,6 +96,14 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
           window.dispatchEvent(event);
           return;
         }
+        
+        // 409 means already enrolled - just navigate to the course
+        if (response.status === 409) {
+          console.log('[CourseEnrollButton] Already enrolled, navigating to course');
+          router.push(`/${locale}/courses/${courseId}/learn`);
+          return;
+        }
+        
         throw new Error(data.error || 'Failed to enroll');
       }
 
