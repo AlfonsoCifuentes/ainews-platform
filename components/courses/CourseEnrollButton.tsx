@@ -106,8 +106,10 @@ export function CourseEnrollButton({ locale, courseId, userId }: CourseEnrollBut
       window.dispatchEvent(event);
 
       showToast(t.success, 'success');
-      // Refresh to update enrollment status
-      router.refresh();
+      
+      // Navigate directly to the course learning page instead of refreshing
+      console.log('[CourseEnrollButton] Enrollment successful, navigating to course');
+      router.push(`/${locale}/courses/${courseId}/learn`);
     } catch (error) {
       console.error('Enrollment error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
