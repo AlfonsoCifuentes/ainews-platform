@@ -100,8 +100,29 @@ export function ModulePlayer({
   const content = locale === 'en' ? module.content_en : module.content_es;
   const displayContent = generatedContent || content;
 
-  // Log component mount
+  // Log component mount with detailed diagnostics
   useEffect(() => {
+    console.group('🎬 [ModulePlayer] Component Mounted');
+    console.log('📦 Module Info:', {
+      id: module.id,
+      title_en: module.title_en,
+      title_es: module.title_es,
+      contentType: module.content_type,
+      order: module.order_index
+    });
+    console.log('👤 Enrollment ID:', enrollmentId);
+    console.log('📊 Progress Status:', {
+      completed: currentProgress?.completed || false,
+      completedAt: currentProgress?.completed_at || 'N/A',
+      progressId: currentProgress?.id || 'N/A'
+    });
+    console.log('📝 Content Status:', {
+      hasContent: !!(displayContent?.trim()),
+      contentLength: displayContent?.length || 0,
+      contentPreview: displayContent?.substring(0, 100) || 'NO CONTENT'
+    });
+    console.groupEnd();
+    
     loggers.success('ModulePlayer', 'Component mounted', {
       moduleId: module.id,
       enrollmentId,
@@ -129,6 +150,14 @@ export function ModulePlayer({
     }
 
     const generateContent = async () => {
+      console.group('🤖 [ModulePlayer] Auto-Generating Content');
+      console.log('📋 Request Details:', {
+        moduleId: module.id,
+        courseId: courseId,
+        locale,
+        contentType: module.content_type
+      });
+      
       setIsGeneratingContent(true);
       loggers.course('Auto-generating module content', {
         moduleId: module.id,
@@ -137,22 +166,37 @@ export function ModulePlayer({
       });
 
       try {
+        console.log('🌐 Calling API: /api/courses/modules/generate-content');
+        const requestBody = {
+          moduleId: module.id,
+          courseId: courseId,
+          locale
+        };
+        console.log('📤 Request Body:', requestBody);
+        
         const response = await fetch('/api/courses/modules/generate-content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            moduleId: module.id,
-            courseId: courseId,
-            locale
-          })
+          body: JSON.stringify(requestBody)
         });
 
+        console.log('📡 Response Status:', response.status, response.statusText);
+        
         if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+          const errorText = await response.text();
+          console.error('❌ API Error Response:', errorText);
+          throw new Error(`API error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('✅ API Response Data:', {
+          success: data.success,
+          hasContent: !!data.data?.content,
+          contentLength: data.data?.content?.length || 0
+        });
+        
         if (data.success && data.data.content) {
+          console.log('✨ Content generated successfully!');
           loggers.success('ModulePlayer', 'Content generated from API', {
             moduleId: module.id,
             contentLength: data.data.content.length,
@@ -160,17 +204,27 @@ export function ModulePlayer({
           });
           setGeneratedContent(data.data.content);
           showToast(t.contentGenerated, 'success');
-          // Don't refresh - just display the generated content in state
+          console.log('🎉 State updated with generated content');
+        } else {
+          console.warn('⚠️ API returned success but no content:', data);
         }
+        console.groupEnd();
       } catch (error) {
+        console.error('❌ Content Generation Error:', error);
+        console.error('📋 Error Details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : 'N/A',
+          moduleId: module.id
+        });
+        console.groupEnd();
+        
         loggers.error('ModulePlayer', 'Content generation failed', {
           error: error instanceof Error ? error.message : String(error),
           moduleId: module.id
         });
-        // Don't show error toast - just log it silently
-        // User will see the "coming soon" message if it fails
       } finally {
         setIsGeneratingContent(false);
+        console.log('🏁 Content generation process finished');
       }
     };
 
@@ -181,6 +235,14 @@ export function ModulePlayer({
 
 
   const handleComplete = async () => {
+    console.group('✅ [ModulePlayer] Handle Complete Started');
+    console.log('📋 Completion Request:', {
+      moduleId: module.id,
+      enrollmentId,
+      alreadyCompleted: currentProgress?.completed,
+      timestamp: new Date().toISOString()
+    });
+    
     loggers.course('handleComplete called', {
       moduleId: module.id,
       enrollmentId,
@@ -191,32 +253,40 @@ export function ModulePlayer({
 
     try {
       const supabase = getSupabaseClient();
+      console.log('🔌 Supabase client obtained');
       loggers.course('Supabase client obtained', {});
 
       if (currentProgress?.completed) {
+        console.warn('⚠️ Module already completed - skipping');
         loggers.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
         showToast(t.success, 'success');
         setIsCompleting(false);
+        console.groupEnd();
         return;
       }
 
+      console.log('💾 Updating course_progress table...');
       loggers.course('Updating course_progress table', {
         enrollmentId,
         moduleId: module.id,
         timestamp: new Date().toISOString()
       });
 
+      const progressPayload = {
+        enrollment_id: enrollmentId,
+        module_id: module.id,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      };
+      console.log('📤 Progress Payload:', progressPayload);
+
       // Create or update progress
       const { data: progressData, error: progressError } = await supabase
         .from('course_progress')
-        .upsert({
-          enrollment_id: enrollmentId,
-          module_id: module.id,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        });
+        .upsert(progressPayload);
 
       if (progressError) {
+        console.error('❌ course_progress update failed:', progressError);
         loggers.error('ModulePlayer', 'course_progress update failed', {
           message: progressError?.message || String(progressError),
           code: (progressError as unknown as Record<string, unknown>)?.code
@@ -224,6 +294,7 @@ export function ModulePlayer({
         throw progressError;
       }
 
+      console.log('✅ course_progress updated successfully:', progressData);
       loggers.success('ModulePlayer', 'course_progress updated', {
         data: progressData,
         enrollmentId,
@@ -231,12 +302,22 @@ export function ModulePlayer({
       });
 
       // Award XP
+      console.log('🎁 Awarding XP...');
       const { data: authData } = await supabase.auth.getUser();
+      console.log('👤 User Auth Data:', {
+        hasUser: !!authData?.user,
+        userId: authData?.user?.id || 'N/A'
+      });
       loggers.course('Got user from auth', {
         userId: authData?.user?.id ? 'Present' : 'Missing'
       });
 
       if (authData?.user?.id) {
+        console.log('📞 Calling award_xp RPC:', {
+          userId: authData.user.id,
+          amount: 100,
+          source: 'module_completion'
+        });
         loggers.course('Awarding XP to user', {
           userId: authData.user.id,
           amount: 100
@@ -249,11 +330,13 @@ export function ModulePlayer({
         });
 
         if (xpError) {
+          console.warn('⚠️ XP award failed (non-blocking):', xpError);
           loggers.warn('ModulePlayer', 'XP award failed (non-blocking)', {
             message: xpError?.message || String(xpError),
             code: (xpError as unknown as Record<string, unknown>)?.code
           });
         } else {
+          console.log('✅ XP awarded successfully:', xpData);
           loggers.success('ModulePlayer', 'XP awarded successfully', {
             xpData,
             userId: authData.user.id
@@ -261,6 +344,7 @@ export function ModulePlayer({
         }
         
         // Trigger course complete event for badge checking
+        console.log('🎊 Dispatching course-complete event');
         loggers.event('Dispatching course-complete event', {
           moduleId: module.id,
           enrollmentId
@@ -269,8 +353,10 @@ export function ModulePlayer({
         window.dispatchEvent(new CustomEvent('course-complete', {
           detail: { moduleId: module.id, enrollmentId }
         }));
+        console.log('✅ Event dispatched successfully');
       }
 
+      console.log('🎉 Module completion successful!');
       loggers.success('ModulePlayer', 'Module completion successful', {
         moduleId: module.id,
         enrollmentId
@@ -278,9 +364,22 @@ export function ModulePlayer({
 
       showToast(t.success, 'success');
       
-      loggers.course('Calling router.refresh()', {});
-      router.refresh();
+      // Don't call router.refresh() - it causes unwanted page reload
+      // The UI will update automatically via state management
+      console.log('ℹ️ No page refresh - UI updates via state');
+      loggers.course('Module completion flow finished - no refresh needed', {});
+      console.groupEnd();
     } catch (error) {
+      console.error('❌ handleComplete Error:', error);
+      console.error('📋 Error Context:', {
+        moduleId: module.id,
+        enrollmentId,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'N/A'
+      });
+      console.groupEnd();
+      
       loggers.error('ModulePlayer', 'handleComplete error', {
         error: error instanceof Error ? {
           message: error.message,
@@ -291,6 +390,7 @@ export function ModulePlayer({
       });
       showToast(t.error, 'error');
     } finally {
+      console.log('🏁 handleComplete finished - isCompleting set to false');
       setIsCompleting(false);
     }
   };

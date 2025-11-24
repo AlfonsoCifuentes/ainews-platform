@@ -18,19 +18,23 @@ export default async function CourseLearnPage({
   const user = await getServerAuthUser();
   const db = getSupabaseServerClient();
 
-  console.log('[CourseLearnPage] Page loaded', {
-    userId: user?.id,
+  console.group('📚 [CourseLearnPage] Page Loading');
+  console.log('📋 Request Details:', {
+    userId: user?.id || 'NOT AUTHENTICATED',
     courseId: id,
-    moduleId,
-    locale
+    moduleId: moduleId || 'DEFAULT (first module)',
+    locale,
+    timestamp: new Date().toISOString()
   });
 
   if (!user) {
-    console.log('[CourseLearnPage] User not authenticated, redirecting to auth');
+    console.log('🔒 User not authenticated, redirecting to auth');
+    console.groupEnd();
     redirect(`/${locale}/auth?redirect=/${locale}/courses/${id}/learn`);
   }
 
   // Fetch course with modules
+  console.log('🔍 Fetching course and modules from database...');
   const { data: rawCourse } = await db
     .from('courses')
     .select(`
@@ -41,9 +45,16 @@ export default async function CourseLearnPage({
     .single();
 
   if (!rawCourse) {
-    console.log('[CourseLearnPage] Course not found', { courseId: id });
+    console.error('❌ Course not found:', { courseId: id });
+    console.groupEnd();
     notFound();
   }
+
+  console.log('✅ Course fetched:', {
+    courseId: rawCourse.id,
+    title: rawCourse.title_en,
+    moduleCount: rawCourse.course_modules?.length || 0
+  });
 
   const course = normalizeCourseRecord(rawCourse);
   const sortedModules = course.course_modules;
@@ -53,11 +64,21 @@ export default async function CourseLearnPage({
     ? sortedModules.find((m) => m.id === moduleId)
     : sortedModules[0];
 
+  console.log('📖 Current module selected:', {
+    moduleId: currentModule?.id,
+    title: currentModule?.title_en,
+    order: currentModule?.order_index,
+    contentType: currentModule?.content_type
+  });
+
   if (!currentModule) {
+    console.error('❌ Module not found:', { moduleId, courseId: id });
+    console.groupEnd();
     notFound();
   }
 
   // Check/create enrollment automatically for ALL modules (free access for everyone)
+  console.log('🔍 Checking enrollment status...');
   let { data: enrollment } = await db
     .from('course_enrollments')
     .select('*')
@@ -66,7 +87,7 @@ export default async function CourseLearnPage({
     .single();
 
   if (!enrollment) {
-    console.log('[CourseLearnPage] Auto-enrolling user for free course access');
+    console.log('📝 Auto-enrolling user for free course access');
     const { data: newEnrollment } = await db
       .from('course_enrollments')
       .insert({
@@ -78,10 +99,13 @@ export default async function CourseLearnPage({
       .single();
     
     enrollment = newEnrollment;
-    console.log('[CourseLearnPage] Auto-enrollment created', { enrollmentId: enrollment?.id });
+    console.log('✅ Auto-enrollment created:', { enrollmentId: enrollment?.id });
+  } else {
+    console.log('✅ Existing enrollment found:', { enrollmentId: enrollment.id });
   }
 
   // Get user progress (only if enrollment exists)
+  console.log('📊 Fetching user progress...');
   let userProgress: Array<{
     id: string;
     enrollment_id: string;
@@ -96,6 +120,11 @@ export default async function CourseLearnPage({
       .eq('enrollment_id', enrollment.id);
     
     userProgress = progress || [];
+    console.log('✅ Progress fetched:', {
+      totalModules: sortedModules.length,
+      completedModules: userProgress.filter(p => p.completed).length,
+      progressRecords: userProgress.length
+    });
   }
 
   // Check if current module is locked
@@ -104,17 +133,38 @@ export default async function CourseLearnPage({
     (p) => p.module_id === sortedModules[currentIndex - 1].id && p.completed
   );
 
+  console.log('🔐 Module lock status:', {
+    currentIndex,
+    isLocked,
+    isFree: currentModule.is_free,
+    previousModuleCompleted: currentIndex > 0 ? !!userProgress.find(
+      (p) => p.module_id === sortedModules[currentIndex - 1].id && p.completed
+    ) : 'N/A (first module)'
+  });
+
   if (isLocked) {
+    console.log('⚠️ Module is locked, redirecting to first module');
+    console.groupEnd();
     redirect(`/${locale}/courses/${id}/learn?module=${sortedModules[0].id}`);
   }
 
   const currentProgress = userProgress.find((p) => p.module_id === currentModule.id);
 
+  console.log('✅ Current module progress:', {
+    hasProgress: !!currentProgress,
+    completed: currentProgress?.completed || false,
+    completedAt: currentProgress?.completed_at || 'N/A'
+  });
+
   // Ensure enrollment exists at this point
   if (!enrollment) {
-    console.error('[CourseLearnPage] No enrollment after all checks - should not happen');
+    console.error('❌ No enrollment after all checks - should not happen');
+    console.groupEnd();
     redirect(`/${locale}/courses/${id}`);
   }
+
+  console.log('🎉 Page load complete - rendering UI');
+  console.groupEnd();
 
   return (
     <div className="min-h-screen bg-background">

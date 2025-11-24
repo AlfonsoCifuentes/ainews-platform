@@ -150,7 +150,7 @@ async function auditAllModules(): Promise<ModuleAuditResult[]> {
     console.log(`\n📖 ${course.title_en}`);
     console.log(`   Modules: ${modules.length}`);
 
-    for (const courseModule of modules) {les) {
+    for (const courseModule of modules) {
       const contentLengthEn = courseModule.content_en?.length || 0;
       const contentLengthEs = courseModule.content_es?.length || 0;
       const hasPlaceholderEn = isPlaceholderContent(courseModule.content_en);
@@ -158,8 +158,8 @@ async function auditAllModules(): Promise<ModuleAuditResult[]> {
       const needsRegenerationEn = needsRegeneration(courseModule.content_en, courseModule.content_type);
       const needsRegenerationEs = needsRegeneration(courseModule.content_es, courseModule.content_type);
 
-      const statusEn = assessContentQuality(contentLengthEn, module.content_type, hasPlaceholderEn);
-      const statusEs = assessContentQuality(contentLengthEs, module.content_type, hasPlaceholderEs);
+      const statusEn = assessContentQuality(contentLengthEn, courseModule.content_type, hasPlaceholderEn);
+      const statusEs = assessContentQuality(contentLengthEs, courseModule.content_type, hasPlaceholderEs);
       const overallStatus = statusEn === 'critical' || statusEs === 'critical' ? 'critical' :
                            statusEn === 'needs_improvement' || statusEs === 'needs_improvement' ? 'needs_improvement' :
                            statusEn === 'good' || statusEs === 'good' ? 'good' : 'excellent';
@@ -654,7 +654,7 @@ async function main() {
   // Step 3: Regenerate content for each module
   for (let i = 0; i < modulesToRegenerate.length; i++) {
     const moduleToRegenerate = modulesToRegenerate[i];
-    console.log(`\n[${i + 1}/${modulesToRegenerate.length}] Processing: ${moduleToRegenerate.courseTitle}`);rseTitle}`);
+    console.log(`\n[${i + 1}/${modulesToRegenerate.length}] Processing: ${moduleToRegenerate.courseTitle}`);
     
     await regenerateModuleContent(
       moduleToRegenerate,
