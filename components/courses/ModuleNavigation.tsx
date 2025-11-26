@@ -96,9 +96,9 @@ export function ModuleNavigation({
           className="group w-full sm:w-auto min-w-[200px] h-14 text-base font-semibold border-2 hover:border-primary hover:bg-primary/10 transition-all"
           onClick={handlePrevClick}
         >
-          <Link href={`/${locale}/courses/${courseId}/learn?module=${prevModule.id}`}>
+          <Link href={`/${locale}/courses/${courseId}/learn?module=${prevModule.id}`} className="flex items-center justify-center">
             <ChevronLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-            <span className="flex-1 text-left">{t.previous}</span>
+            <span>{t.previous}</span>
           </Link>
         </Button>
       ) : (
@@ -109,9 +109,9 @@ export function ModuleNavigation({
           className="group w-full sm:w-auto min-w-[200px] h-14 text-base font-semibold border-2 hover:border-primary hover:bg-primary/10 transition-all"
           onClick={handlePrevClick}
         >
-          <Link href={`/${locale}/courses/${courseId}`}>
+          <Link href={`/${locale}/courses/${courseId}`} className="flex items-center justify-center">
             <ChevronLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-            <span className="flex-1 text-left">{t.backToCourse}</span>
+            <span>{t.backToCourse}</span>
           </Link>
         </Button>
       )}
@@ -128,12 +128,12 @@ export function ModuleNavigation({
         >
           {isNextLocked ? (
             <span className="flex items-center justify-center">
-              <span className="flex-1 text-right">{t.next}</span>
+              <span>{t.next}</span>
               <ChevronRight className="w-5 h-5 ml-2" />
             </span>
           ) : (
             <Link href={`/${locale}/courses/${courseId}/learn?module=${nextModule.id}`} className="flex items-center justify-center w-full">
-              <span className="flex-1 text-right">{t.next}</span>
+              <span>{t.next}</span>
               <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Link>
           )}
