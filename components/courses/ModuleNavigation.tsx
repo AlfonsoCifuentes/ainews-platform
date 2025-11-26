@@ -77,12 +77,12 @@ export function ModuleNavigation({
     previous: 'Previous',
     next: 'Next',
     completeToUnlock: 'Complete current module to unlock',
-    backToCourse: 'Back to Course',
+    backToCourse: 'Course',
   } : {
     previous: 'Anterior',
     next: 'Siguiente',
     completeToUnlock: 'Completa el módulo actual para desbloquear',
-    backToCourse: 'Volver al Curso',
+    backToCourse: 'Curso',
   };
 
   return (
