@@ -5,8 +5,9 @@ import { useTranslations } from 'next-intl';
 import { type INewsArticle } from '@/lib/types/news';
 import { type Locale } from '@/i18n';
 import { NewsGridClient } from './NewsGridClient';
-import { AILeaderboardPodium } from '@/components/trending/AILeaderboardPodium';
-import { NewsStatsAndFilters } from './NewsStatsAndFilters';
+import { NewsInsights } from './NewsInsights';
+import { NewsStats } from './NewsStats';
+import { CategoryFilters } from './CategoryFilters';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 interface NewsContentProps {
@@ -43,28 +44,26 @@ export function NewsContent({ initialArticles, locale }: NewsContentProps) {
         </div>
       </section>
 
-      {/* Stats & Leaderboard Section */}
+      {/* Stats & Insights Section */}
       <section className="border-b border-border/50 bg-gradient-to-b from-background to-muted/30 px-4 py-12">
         <div className="container mx-auto max-w-7xl">
-          {/* Desktop: Side by side | Mobile: Stacked */}
-          <div className="flex flex-col gap-8 lg:flex-row">
-            {/* Leaderboard Podium - 1/3 on desktop */}
-            <div className="w-full lg:w-1/3">
-              <ErrorBoundary componentName="AILeaderboardPodium">
-                <AILeaderboardPodium locale={locale} />
-              </ErrorBoundary>
-            </div>
-
-            {/* Stats & Filters - 2/3 on desktop */}
-            <div className="w-full lg:w-2/3">
-              <NewsStatsAndFilters 
-                locale={locale} 
-                onCategoryFilter={setActiveCategory}
-              />
-            </div>
+          {/* Stats - Full width */}
+          <div className="mb-8">
+            <NewsStats locale={locale} />
           </div>
+
+          {/* Three Insights Cards - Equal width */}
+          <ErrorBoundary componentName="NewsInsights">
+            <NewsInsights locale={locale} />
+          </ErrorBoundary>
         </div>
       </section>
+
+      {/* Category Filters - Full width strip */}
+      <CategoryFilters 
+        locale={locale} 
+        onCategoryFilter={setActiveCategory}
+      />
 
       <NewsGridClient 
         initialArticles={initialArticles} 
