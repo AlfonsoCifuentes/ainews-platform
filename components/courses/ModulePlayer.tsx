@@ -49,6 +49,52 @@ interface ModulePlayerProps {
   currentProgress?: CurrentProgress;
 }
 
+// Componente de botón de completar reutilizable
+export function CompleteModuleButton({
+  locale,
+  currentProgress,
+  isCompleting,
+  onClick,
+  className = '',
+}: {
+  locale: 'en' | 'es';
+  currentProgress?: CurrentProgress;
+  isCompleting: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  const t = locale === 'en' ? {
+    markComplete: 'Mark as Complete',
+    completed: 'Completed',
+    completing: 'Saving...',
+  } : {
+    markComplete: 'Marcar como Completado',
+    completed: 'Completado',
+    completing: 'Guardando...',
+  };
+
+  return (
+    <Button
+      onClick={onClick}
+      disabled={isCompleting || currentProgress?.completed}
+      variant={currentProgress?.completed ? 'outline' : 'default'}
+      className={className}
+      size="lg"
+    >
+      {currentProgress?.completed ? (
+        <>
+          <CheckCircle2 className="w-4 h-4 mr-2" />
+          {t.completed}
+        </>
+      ) : isCompleting ? (
+        t.completing
+      ) : (
+        t.markComplete
+      )}
+    </Button>
+  );
+}
+
 export function ModulePlayer({
   locale,
   module,
@@ -265,15 +311,22 @@ export function ModulePlayer({
         return;
       }
 
-      console.log('💾 Updating course_progress table...');
-      loggers.course('Updating course_progress table', {
+      console.log('💾 Updating user_progress table...');
+      loggers.course('Updating user_progress table', {
         enrollmentId,
         moduleId: module.id,
         timestamp: new Date().toISOString()
       });
 
+      // Get user ID first
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       const progressPayload = {
-        enrollment_id: enrollmentId,
+        user_id: authData.user.id,
+        course_id: courseId,
         module_id: module.id,
         completed: true,
         completed_at: new Date().toISOString(),
@@ -282,28 +335,27 @@ export function ModulePlayer({
 
       // Create or update progress
       const { data: progressData, error: progressError } = await supabase
-        .from('course_progress')
+        .from('user_progress')
         .upsert(progressPayload);
 
       if (progressError) {
-        console.error('❌ course_progress update failed:', progressError);
-        loggers.error('ModulePlayer', 'course_progress update failed', {
+        console.error('❌ user_progress update failed:', progressError);
+        loggers.error('ModulePlayer', 'user_progress update failed', {
           message: progressError?.message || String(progressError),
           code: (progressError as unknown as Record<string, unknown>)?.code
         });
         throw progressError;
       }
 
-      console.log('✅ course_progress updated successfully:', progressData);
-      loggers.success('ModulePlayer', 'course_progress updated', {
+      console.log('✅ user_progress updated successfully:', progressData);
+      loggers.success('ModulePlayer', 'user_progress updated', {
         data: progressData,
-        enrollmentId,
+        userId: authData.user.id,
         moduleId: module.id
       });
 
-      // Award XP
+      // Award XP (authData already obtained above)
       console.log('🎁 Awarding XP...');
-      const { data: authData } = await supabase.auth.getUser();
       console.log('👤 User Auth Data:', {
         hasUser: !!authData?.user,
         userId: authData?.user?.id || 'N/A'
@@ -443,23 +495,13 @@ export function ModulePlayer({
           <p className="text-lg text-muted-foreground">{description}</p>
         </div>
 
-        <Button
+        <CompleteModuleButton
+          locale={locale}
+          currentProgress={currentProgress}
+          isCompleting={isCompleting}
           onClick={handleComplete}
-          disabled={isCompleting || currentProgress?.completed}
-          variant={currentProgress?.completed ? 'outline' : 'default'}
           className="shrink-0"
-        >
-          {currentProgress?.completed ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {t.completed}
-            </>
-          ) : isCompleting ? (
-            t.completing
-          ) : (
-            t.markComplete
-          )}
-        </Button>
+        />
       </div>
 
       {/* Video Player */}
@@ -688,6 +730,17 @@ export function ModulePlayer({
           </ul>
         </div>
       )}
+
+      {/* Botón de completar al final del contenido */}
+      <div className="flex justify-center mt-8 pt-8 border-t-2 border-border">
+        <CompleteModuleButton
+          locale={locale}
+          currentProgress={currentProgress}
+          isCompleting={isCompleting}
+          onClick={handleComplete}
+          className="w-full sm:w-auto min-w-[250px]"
+        />
+      </div>
     </div>
   );
 }
