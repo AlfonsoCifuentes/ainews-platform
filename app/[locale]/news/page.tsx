@@ -3,6 +3,7 @@ import { routing } from '@/i18n/routing';
 import { fetchLatestNews } from '@/lib/db/news';
 import { NewsGridClient } from '@/components/news/NewsGridClient';
 import { AILeaderboardPodium } from '@/components/trending/AILeaderboardPodium';
+import { NewsStatsAndFilters } from '@/components/news/NewsStatsAndFilters';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { generateLocalizedMetadata } from '@/lib/utils/seo';
 import { Metadata } from 'next';
@@ -87,12 +88,23 @@ export default async function NewsPage({ params }: NewsPageProps) {
         </div>
       </section>
 
-      {/* AI Leaderboard Podium */}
+      {/* Stats & Leaderboard Section */}
       <section className="border-b border-border/50 bg-gradient-to-b from-background to-muted/30 px-4 py-12">
-        <div className="container mx-auto max-w-6xl">
-          <ErrorBoundary componentName="AILeaderboardPodium">
-            <AILeaderboardPodium locale={locale} />
-          </ErrorBoundary>
+        <div className="container mx-auto max-w-7xl">
+          {/* Desktop: Side by side | Mobile: Stacked */}
+          <div className="flex flex-col gap-8 lg:flex-row">
+            {/* Leaderboard Podium - 1/3 on desktop */}
+            <div className="w-full lg:w-1/3">
+              <ErrorBoundary componentName="AILeaderboardPodium">
+                <AILeaderboardPodium locale={locale} />
+              </ErrorBoundary>
+            </div>
+
+            {/* Stats & Filters - 2/3 on desktop */}
+            <div className="w-full lg:w-2/3">
+              <NewsStatsAndFilters locale={locale} />
+            </div>
+          </div>
         </div>
       </section>
 
