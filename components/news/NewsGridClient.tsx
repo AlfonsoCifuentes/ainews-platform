@@ -187,7 +187,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 <p className="mb-8 max-w-3xl text-xl leading-relaxed text-white/90">
                   {getLocalizedString(hero, 'summary', locale)}
                 </p>
-                <button className="inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-bold text-primary transition-all duration-300 hover:gap-5 hover:bg-primary hover:text-white">
+                <button className="inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-bold text-black transition-all duration-300 hover:gap-5 hover:bg-primary hover:text-white">
                   {tCommon('buttons.readMore')}
                   <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -271,7 +271,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 className={`group w-full cursor-pointer text-left ${colSpan} ${rowSpan}`}
               >
                 <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5">
-                  <div className={`relative overflow-hidden ${isLarge ? 'h-80' : 'h-48'}`}>
+                  <div className={`relative overflow-hidden ${isLarge ? 'h-[500px]' : 'h-48'}`}>
                     <Image
                       src={getImageWithFallback(
                         article.image_url,
