@@ -501,7 +501,7 @@ export function ModulePlayer({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="prose prose-lg dark:prose-invert max-w-none p-8 rounded-2xl bg-card border"
+          className="prose prose-xl dark:prose-invert max-w-none p-10 rounded-3xl bg-card border shadow-lg"
         >
           {isGeneratingContent ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -513,6 +513,66 @@ export function ModulePlayer({
           ) : displayContent && displayContent.trim() ? (
             <ReactMarkdown
               components={{
+                // Headings más prominentes con gradientes y bordes
+                h1: ({ ...props }) => (
+                  <h1 
+                    className="text-5xl font-extrabold mb-8 mt-12 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
+                    {...props} 
+                  />
+                ),
+                h2: ({ ...props }) => (
+                  <h2 
+                    className="text-4xl font-bold mb-6 mt-10 text-primary border-l-4 border-primary pl-4" 
+                    {...props} 
+                  />
+                ),
+                h3: ({ ...props }) => (
+                  <h3 
+                    className="text-3xl font-semibold mb-4 mt-8 text-foreground" 
+                    {...props} 
+                  />
+                ),
+                // Párrafos con más espacio y mejor legibilidad
+                p: ({ ...props }) => (
+                  <p 
+                    className="text-lg leading-relaxed mb-6 text-muted-foreground" 
+                    {...props} 
+                  />
+                ),
+                // Listas con más espacio entre items
+                ul: ({ ...props }) => (
+                  <ul 
+                    className="space-y-3 my-6 pl-6" 
+                    {...props} 
+                  />
+                ),
+                ol: ({ ...props }) => (
+                  <ol 
+                    className="space-y-3 my-6 pl-6" 
+                    {...props} 
+                  />
+                ),
+                li: ({ ...props }) => (
+                  <li 
+                    className="text-lg leading-relaxed" 
+                    {...props} 
+                  />
+                ),
+                // Blockquotes más destacados
+                blockquote: ({ ...props }) => (
+                  <blockquote 
+                    className="border-l-4 border-primary bg-primary/10 p-6 rounded-r-xl my-6 italic" 
+                    {...props} 
+                  />
+                ),
+                // Enlaces destacados
+                a: ({ ...props }) => (
+                  <a 
+                    className="text-primary font-semibold hover:underline hover:text-blue-400 transition-colors" 
+                    {...props} 
+                  />
+                ),
+                // Code blocks y inline code
                 code(props) {
                   const { inline, className, children, ...rest } = props as {
                     inline?: boolean;
@@ -521,16 +581,21 @@ export function ModulePlayer({
                   };
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={vscDarkPlus}
-                      language={match[1]}
-                      PreTag="div"
+                    <div className="my-6 rounded-xl overflow-hidden border border-border">
+                      <SyntaxHighlighter
+                        style={vscDarkPlus}
+                        language={match[1]}
+                        PreTag="div"
+                        {...rest}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    </div>
+                  ) : (
+                    <code 
+                      className="bg-primary/20 text-primary px-2 py-1 rounded text-base font-mono" 
                       {...rest}
                     >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code className={className} {...rest}>
                       {children}
                     </code>
                   );

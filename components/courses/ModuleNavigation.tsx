@@ -86,30 +86,32 @@ export function ModuleNavigation({
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 mt-12 pt-8 border-t">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6 mt-16 pt-10 border-t-2 border-border">
       {/* Previous Button */}
       {prevModule ? (
         <Button
           asChild
           variant="outline"
-          className="flex-1"
+          size="lg"
+          className="group w-full sm:w-auto min-w-[200px] h-14 text-base font-semibold border-2 hover:border-primary hover:bg-primary/10 transition-all"
           onClick={handlePrevClick}
         >
           <Link href={`/${locale}/courses/${courseId}/learn?module=${prevModule.id}`}>
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            {t.previous}
+            <ChevronLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+            <span className="flex-1 text-left">{t.previous}</span>
           </Link>
         </Button>
       ) : (
         <Button
           asChild
           variant="outline"
-          className="flex-1"
+          size="lg"
+          className="group w-full sm:w-auto min-w-[200px] h-14 text-base font-semibold border-2 hover:border-primary hover:bg-primary/10 transition-all"
           onClick={handlePrevClick}
         >
           <Link href={`/${locale}/courses/${courseId}`}>
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            {t.backToCourse}
+            <ChevronLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+            <span className="flex-1 text-left">{t.backToCourse}</span>
           </Link>
         </Button>
       )}
@@ -119,19 +121,20 @@ export function ModuleNavigation({
         <Button
           asChild={!isNextLocked}
           disabled={!!isNextLocked}
-          className="flex-1"
+          size="lg"
+          className="group w-full sm:w-auto min-w-[200px] h-14 text-base font-semibold border-2 border-primary bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           title={isNextLocked ? t.completeToUnlock : undefined}
           onClick={handleNextClick}
         >
           {isNextLocked ? (
-            <span>
-              {t.next}
-              <ChevronRight className="w-4 h-4 ml-2" />
+            <span className="flex items-center justify-center">
+              <span className="flex-1 text-right">{t.next}</span>
+              <ChevronRight className="w-5 h-5 ml-2" />
             </span>
           ) : (
-            <Link href={`/${locale}/courses/${courseId}/learn?module=${nextModule.id}`}>
-              {t.next}
-              <ChevronRight className="w-4 h-4 ml-2" />
+            <Link href={`/${locale}/courses/${courseId}/learn?module=${nextModule.id}`} className="flex items-center justify-center w-full">
+              <span className="flex-1 text-right">{t.next}</span>
+              <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Link>
           )}
         </Button>
