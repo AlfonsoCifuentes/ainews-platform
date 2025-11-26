@@ -271,7 +271,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 className={`group w-full cursor-pointer text-left ${colSpan} ${rowSpan}`}
               >
                 <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5">
-                  <div className={`relative overflow-hidden ${isLarge ? 'h-[500px]' : 'h-48'}`}>
+                  <div className={`relative overflow-hidden ${isLarge ? 'flex-[2] min-h-0' : 'h-48'}`}>
                     <Image
                       src={getImageWithFallback(
                         article.image_url,
@@ -305,7 +305,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                     </div>
                   </div>
 
-                  <div className="flex flex-1 flex-col p-5">
+                  <div className={`flex flex-col p-5 ${isLarge ? 'flex-[1]' : 'flex-1'}`}>
                     <h3 className={`mb-2 font-bold transition-colors group-hover:text-primary ${isLarge ? 'text-2xl' : 'text-lg'}`}>
                       {getLocalizedString(article, 'title', locale)}
                     </h3>
