@@ -72,8 +72,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center gap-4">
-          {/* Logo & Title - Left Aligned */}
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Logo & Title - Left Side */}
           <Link 
             href="/" 
             className="group flex items-center gap-2 font-semibold text-lg tracking-tight shrink-0"
@@ -95,8 +95,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation - Flex Grow */}
-          <nav className="hidden lg:flex items-center gap-3 xl:gap-6 text-sm font-medium flex-1">
+          {/* Desktop Navigation - Center */}
+          <nav className="hidden lg:flex items-center gap-3 xl:gap-6 text-sm font-medium">
             {NAV_ITEMS.map((item) => {
               const isActive = mapSegmentToKey(activeSegment) === item.key;
               return (
