@@ -3,6 +3,48 @@
  */
 
 /**
+ * Remove common UI patterns and noise from scraped content
+ * Cleans up button text, navigation elements, and other non-content text
+ */
+export function sanitizeScrapedContent(text: string): string {
+  if (!text) return '';
+  
+  // Common UI patterns to remove (case-insensitive)
+  const uiPatterns = [
+    /Save\s+Story\s*/gi,                    // "Save Story" buttons
+    /Save\s+this\s+story\s*/gi,            // "Save this story" 
+    /Share\s+this\s+article\s*/gi,         // "Share this article"
+    /Read\s+more\s*/gi,                     // "Read more" links
+    /Continue\s+reading\s*/gi,              // "Continue reading"
+    /Click\s+here\s*/gi,                    // "Click here"
+    /Subscribe\s+now\s*/gi,                 // "Subscribe now"
+    /Sign\s+up\s*/gi,                       // "Sign up"
+    /Log\s+in\s*/gi,                        // "Log in"
+    /Advertisement\s*/gi,                   // "Advertisement"
+    /Sponsored\s+content\s*/gi,             // "Sponsored content"
+    /\[.*?\]/g,                             // Bracketed annotations like [ad]
+    /©\s*\d{4}\s+.+$/gm,                   // Copyright notices
+    /Follow\s+us\s+on\s+.+$/gim,           // Social media prompts
+  ];
+  
+  let cleaned = text;
+  
+  // Apply all patterns
+  for (const pattern of uiPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  
+  // Remove excessive whitespace left by removals
+  cleaned = cleaned
+    .replace(/\n{3,}/g, '\n\n')             // Max 2 consecutive newlines
+    .replace(/[ \t]{2,}/g, ' ')             // Max 1 space
+    .replace(/^\s+/gm, '')                  // Trim line starts
+    .trim();
+  
+  return cleaned;
+}
+
+/**
  * Calculate reading time in minutes based on word count
  * Average reading speed: 200-250 words per minute
  */
@@ -23,8 +65,11 @@ export function calculateReadingTime(text: string): number {
 export function formatArticleContent(content: string): string {
   if (!content) return '';
   
+  // First, sanitize the content to remove UI patterns
+  const cleaned = sanitizeScrapedContent(content);
+  
   // Remove excessive whitespace and normalize line breaks
-  const formatted = content.trim()
+  const formatted = cleaned.trim()
     .replace(/\r\n/g, '\n')  // Normalize line endings
     .replace(/\n{3,}/g, '\n\n')  // Max 2 consecutive line breaks
     .replace(/[ \t]+/g, ' ');  // Normalize spaces

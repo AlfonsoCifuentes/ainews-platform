@@ -3,7 +3,7 @@ import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { calculateReadingTime, formatArticleContent, extractPlainText } from '@/lib/utils/content-formatter';
+import { calculateReadingTime, formatArticleContent, extractPlainText, sanitizeScrapedContent } from '@/lib/utils/content-formatter';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
@@ -96,7 +96,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   };
 
   const title = getLocalizedString(article, 'title', locale);
-  const summary = getLocalizedString(article, 'summary', locale);
+  const summary = sanitizeScrapedContent(getLocalizedString(article, 'summary', locale));
   const content = getLocalizedString(article, 'content', locale);
   
   // Calculate reading time from content
@@ -104,7 +104,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const plainText = extractPlainText(textForReadingTime);
   const readingTime = calculateReadingTime(plainText);
   
-  // Format content with proper paragraphs
+  // Format content with proper paragraphs (sanitization is done inside formatArticleContent)
   const formattedContent = content ? formatArticleContent(content) : null;
 
   return (
