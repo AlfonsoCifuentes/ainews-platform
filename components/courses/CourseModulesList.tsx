@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, 
@@ -14,7 +14,6 @@ import {
   FileQuestion
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// Link removed; navigation handled via router.push in Start handler
 import type { NormalizedModule } from '@/lib/courses/normalize';
 
 type Module = Pick<
@@ -64,7 +63,6 @@ export function CourseModulesList({
   const [expandedModule, setExpandedModule] = useState<string | null>(modules[0]?.id || null);
 
   const sortedModules = [...modules].sort((a, b) => a.order_index - b.order_index);
-  const router = useRouter();
   
   console.log('[CourseModulesList] Props:', { 
     modulesCount: modules.length,
@@ -193,13 +191,8 @@ export function CourseModulesList({
 
                     {canAccess ? (
                       <div className="pl-12">
-                        <button
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            
-                            // Navigate directly to the module - content generation happens in ModulePlayer
-                            router.push(`/${locale}/courses/${courseId}/learn?module=${module.id}`);
-                          }}
+                        <Link
+                          href={`/${locale}/courses/${courseId}/learn?module=${module.id}`}
                           className={cn(
                             'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
                             isCompleted
@@ -218,7 +211,7 @@ export function CourseModulesList({
                               {locale === 'en' ? 'Start' : 'Iniciar'}
                             </>
                           )}
-                        </button>
+                        </Link>
                       </div>
                     ) : (
                       <div className="pl-12 text-sm text-muted-foreground flex items-center gap-2">
