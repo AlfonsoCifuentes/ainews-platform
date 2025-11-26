@@ -75,6 +75,50 @@
       "signupLink": "Crear cuenta",
       "loginLink": "Iniciar sesión"
     },
+    "aiFeatures": {
+      "title": "Impulsado por IA Avanzada",
+      "subtitle": "Sistemas que se auto-mejoran trabajando 24/7 para ti",
+      "llm": {
+        "title": "Motor LLM",
+        "desc": "Generación de cursos, expansión de contenido, traducción bilingüe y clasificación de noticias"
+      },
+      "embeddings": {
+        "title": "Búsqueda Vectorial",
+        "desc": "Búsqueda semántica y RAG contextual para generación inteligente de cursos"
+      },
+      "curator": {
+        "title": "Curador de Noticias",
+        "desc": "Filtra RSS, puntúa relevancia, traduce y genera resúmenes"
+      },
+      "courseGen": {
+        "title": "Generador de Cursos",
+        "desc": "Estructura currículo, genera módulos, recursos y evaluaciones"
+      },
+      "learning": {
+        "title": "Agente de Aprendizaje",
+        "desc": "Analiza feedback y métricas para optimizar prompts continuamente"
+      },
+      "validation": {
+        "title": "Validación Inteligente",
+        "desc": "Validación estructurada de temas, dificultad y tipo de contenido"
+      },
+      "translation": {
+        "title": "Traducción Automática",
+        "desc": "Sincroniza EN/ES para títulos, descripciones y contenido completo"
+      },
+      "gamification": {
+        "title": "Gamificación IA",
+        "desc": "Cálculo adaptativo de XP y sugerencias de siguiente módulo"
+      },
+      "normalization": {
+        "title": "Limpieza de Texto",
+        "desc": "Post-procesamiento LLM para formato consistente"
+      },
+      "deduplication": {
+        "title": "Deduplicación",
+        "desc": "Comparación de embeddings para evitar contenido redundante"
+      }
+    },
     "features": {
       "title": "Impulsado por IA",
       "subtitle": "Una plataforma que aprende y mejora continuamente",

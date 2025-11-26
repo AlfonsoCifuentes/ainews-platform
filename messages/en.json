@@ -76,6 +76,50 @@
       "signupLink": "Create account",
       "loginLink": "Sign in"
     },
+    "aiFeatures": {
+      "title": "Powered by Advanced AI",
+      "subtitle": "Self-improving systems working 24/7 for you",
+      "llm": {
+        "title": "LLM Engine",
+        "desc": "Course generation, content expansion, bilingual translation & news classification"
+      },
+      "embeddings": {
+        "title": "Vector Search",
+        "desc": "Semantic search and contextual RAG for intelligent course generation"
+      },
+      "curator": {
+        "title": "News Curator",
+        "desc": "Filters RSS feeds, scores relevance, translates and generates summaries"
+      },
+      "courseGen": {
+        "title": "Course Generator",
+        "desc": "Structures curriculum, generates modules, resources and assessments"
+      },
+      "learning": {
+        "title": "Learning Agent",
+        "desc": "Analyzes feedback and metrics to continuously optimize prompts"
+      },
+      "validation": {
+        "title": "Smart Validation",
+        "desc": "Structured validation of topics, difficulty and content type"
+      },
+      "translation": {
+        "title": "Auto Translation",
+        "desc": "Synchronizes EN/ES for titles, descriptions and full content"
+      },
+      "gamification": {
+        "title": "AI Gamification",
+        "desc": "Adaptive XP calculation and next-module suggestions"
+      },
+      "normalization": {
+        "title": "Text Cleanup",
+        "desc": "LLM post-processing for consistent formatting"
+      },
+      "deduplication": {
+        "title": "Deduplication",
+        "desc": "Embedding comparison to avoid redundant content"
+      }
+    },
     "features": {
       "title": "Powered by AI",
       "subtitle": "A platform that learns and improves continuously",

@@ -252,6 +252,56 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* AI Features Section */}
+      <section className="relative py-20 px-6">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+              {t('aiFeatures.title')}
+            </h2>
+            <p className="text-white/60 text-lg">{t('aiFeatures.subtitle')}</p>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { key: 'llm', icon: '🤖', color: 'from-blue-500/10 to-cyan-500/10' },
+              { key: 'embeddings', icon: '🔍', color: 'from-purple-500/10 to-pink-500/10' },
+              { key: 'curator', icon: '📰', color: 'from-green-500/10 to-emerald-500/10' },
+              { key: 'courseGen', icon: '🎓', color: 'from-orange-500/10 to-yellow-500/10' },
+              { key: 'learning', icon: '🧠', color: 'from-violet-500/10 to-purple-500/10' },
+              { key: 'validation', icon: '✅', color: 'from-teal-500/10 to-cyan-500/10' },
+              { key: 'translation', icon: '🌐', color: 'from-blue-500/10 to-indigo-500/10' },
+              { key: 'gamification', icon: '🎮', color: 'from-pink-500/10 to-rose-500/10' },
+              { key: 'normalization', icon: '✨', color: 'from-amber-500/10 to-orange-500/10' },
+              { key: 'deduplication', icon: '🔗', color: 'from-slate-500/10 to-gray-500/10' }
+            ].map((item, i) => (
+              <motion.div
+                key={item.key}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className={`p-4 rounded-2xl border border-white/10 backdrop-blur-sm bg-gradient-to-br ${item.color} group cursor-default`}
+              >
+                <div className="text-3xl mb-2">{item.icon}</div>
+                <h3 className="text-sm font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
+                  {t(`aiFeatures.${item.key}.title`)}
+                </h3>
+                <p className="text-xs text-white/50 leading-tight">
+                  {t(`aiFeatures.${item.key}.desc`)}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <style jsx global>{`
         @keyframes gradient {
           0%, 100% { background-position: 0% 50%; }
