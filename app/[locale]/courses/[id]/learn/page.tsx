@@ -79,15 +79,23 @@ export default async function CourseLearnPage({
 
   // Check/create enrollment automatically for ALL modules (free access for everyone)
   console.log('🔍 Checking enrollment status...');
-  let { data: enrollment } = await db
+  const { data: existingEnrollment, error: fetchError } = await db
     .from('course_enrollments')
     .select('*')
     .eq('course_id', id)
     .eq('user_id', user.id)
     .single();
 
+  let enrollment = existingEnrollment;
+
+  console.log('📋 Initial enrollment check:', { 
+    found: !!enrollment, 
+    enrollmentId: enrollment?.id,
+    fetchError: fetchError?.message || 'none'
+  });
+
   if (!enrollment) {
-    console.log('📝 Auto-enrolling user for free course access');
+    console.log('📝 No enrollment found, attempting auto-enrollment...');
     const { data: newEnrollment, error: insertError } = await db
       .from('course_enrollments')
       .insert({
@@ -98,8 +106,15 @@ export default async function CourseLearnPage({
       .select()
       .single();
     
-    // If insert fails due to duplicate (409/conflict), fetch the existing enrollment
-    if (insertError && insertError.code === '23505') {
+    console.log('📋 Insert result:', { 
+      success: !!newEnrollment, 
+      enrollmentId: newEnrollment?.id,
+      error: insertError?.message || 'none',
+      errorCode: insertError?.code || 'none'
+    });
+    
+    // If insert fails due to duplicate (23505 = unique violation), fetch the existing enrollment
+    if (insertError && (insertError.code === '23505' || insertError.message?.includes('duplicate'))) {
       console.log('⚠️ Enrollment already exists (race condition), fetching existing one');
       const { data: existingEnrollment } = await db
         .from('course_enrollments')
@@ -108,8 +123,11 @@ export default async function CourseLearnPage({
         .eq('user_id', user.id)
         .single();
       enrollment = existingEnrollment;
+      console.log('📋 Fetched existing enrollment:', { enrollmentId: enrollment?.id });
     } else if (insertError) {
+      // Log error but DON'T fail - we'll create a temporary enrollment object
       console.error('❌ Failed to create enrollment:', insertError);
+      console.log('⚠️ Proceeding without persistent enrollment (guest mode)');
     } else {
       enrollment = newEnrollment;
       console.log('✅ Auto-enrollment created:', { enrollmentId: enrollment?.id });
@@ -170,11 +188,16 @@ export default async function CourseLearnPage({
     completedAt: currentProgress?.completed_at || 'N/A'
   });
 
-  // Ensure enrollment exists at this point
+  // If no enrollment after all attempts, create a temporary one for display purposes
+  // This allows viewing the course content even if DB write failed
   if (!enrollment) {
-    console.error('❌ No enrollment after all checks - should not happen');
-    console.groupEnd();
-    redirect(`/${locale}/courses/${id}`);
+    console.warn('⚠️ No enrollment after all checks - creating temporary enrollment for display');
+    enrollment = {
+      id: 'temp-' + Date.now(),
+      user_id: user.id,
+      course_id: id,
+      enrolled_at: new Date().toISOString()
+    };
   }
 
   console.log('🎉 Page load complete - rendering UI');
