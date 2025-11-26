@@ -175,6 +175,13 @@
       "cta": "Refresh feed",
       "noResultsCategory": "No articles in this category",
       "tryDifferentFilter": "Try selecting a different category or view all articles"
+    },
+    "globalActivity": {
+      "title": "Global AI Activity",
+      "articles": "Articles",
+      "regions": "Regions",
+      "papers": "Papers",
+      "topCompanies": "Top Active Companies"
     }
   },
   "courses": {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AILeaderboardPodium } from '@/components/trending/AILeaderboardPodium';
-import { HypeDetector } from './HypeDetector';
+import { GlobalAIActivity } from './GlobalAIActivity';
 import { DomainDistribution } from './DomainDistribution';
 import type { NewsAnalytics } from '@/lib/types/news-analytics';
 
@@ -58,14 +58,13 @@ export function NewsInsights({ locale }: NewsInsightsProps) {
         <AILeaderboardPodium locale={locale} />
       </div>
 
-      {/* Column 2: Hype Detector */}
+      {/* Column 2: Global AI Activity */}
       <div className="w-full">
-        <HypeDetector
-          hypeScore={insights.hype_score}
-          substanceScore={insights.substance_score}
-          hypeKeywords={insights.hype_keywords}
-          substanceKeywords={insights.substance_keywords}
-          locale={locale}
+        <GlobalAIActivity
+          articlesAnalyzed={insights.articles_analyzed}
+          topCompanies={insights.company_activity}
+          activeRegions={5}
+          researchPapers={insights.articles_analyzed ? Math.floor(insights.articles_analyzed * 0.3) : 0}
         />
       </div>
 

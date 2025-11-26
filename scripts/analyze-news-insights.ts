@@ -20,8 +20,6 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const openrouterKey = process.env.OPENROUTER_API_KEY;
-const groqKey = process.env.GROQ_API_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Missing Supabase credentials');
@@ -49,11 +47,18 @@ const SUBSTANCE_KEYWORDS = [
 // Domain classification keywords
 const DOMAIN_KEYWORDS = {
   cv: ['computer vision', 'image', 'video', 'visual', 'object detection', 'segmentation', 'recognition', 'opencv'],
-  nlp: ['language model', 'llm', 'gpt', 'nlp', 'text', 'chatbot', 'translation', 'summarization', 'transformer'],
+  nlp: ['language model', 'llm', 'gpt', 'chatbot', 'text', 'translation', 'summarization', 'transformer'],
   robotics: ['robot', 'robotics', 'autonomous', 'drone', 'manipulation', 'navigation', 'sensor'],
   ethics: ['ethics', 'bias', 'fairness', 'policy', 'regulation', 'safety', 'alignment', 'governance'],
   tools: ['framework', 'library', 'api', 'sdk', 'tool', 'platform', 'infrastructure', 'deployment']
 };
+
+// Companies to track
+const COMPANIES = [
+  'OpenAI', 'Google', 'DeepMind', 'Anthropic', 'Meta', 'Microsoft',
+  'Tesla', 'Apple', 'Amazon', 'NVIDIA', 'Hugging Face', 'Stability AI',
+  'Cohere', 'Mistral', 'xAI', 'Character.AI'
+];
 
 /**
  * Calculate hype score based on keyword frequency
@@ -110,6 +115,22 @@ function classifyDomain(text: string): keyof typeof DOMAIN_KEYWORDS | null {
 }
 
 /**
+ * Extract companies mentioned in text
+ */
+function extractCompanies(text: string): string[] {
+  const found: string[] = [];
+  const lowerText = text.toLowerCase();
+  
+  COMPANIES.forEach(company => {
+    if (lowerText.includes(company.toLowerCase())) {
+      found.push(company);
+    }
+  });
+  
+  return found;
+}
+
+/**
  * Main analysis function
  */
 async function analyzeNewsInsights() {
@@ -143,6 +164,7 @@ async function analyzeNewsInsights() {
       ethics: 0,
       tools: 0
     };
+    const companyCounts: Record<string, number> = {};
     
     // Analyze each article
     articles.forEach(article => {
@@ -162,6 +184,12 @@ async function analyzeNewsInsights() {
       if (domain) {
         domainCounts[domain]++;
       }
+      
+      // Company extraction
+      const companies = extractCompanies(text);
+      companies.forEach(company => {
+        companyCounts[company] = (companyCounts[company] || 0) + 1;
+      });
     });
     
     // Calculate averages and percentages
@@ -189,6 +217,16 @@ async function analyzeNewsInsights() {
       { topic: 'AI Safety', count: domainCounts.ethics, trend: 'up' as const, emoji: '🛡️' },
     ].sort((a, b) => b.count - a.count);
     
+    // Top companies by mentions
+    const company_activity = Object.entries(companyCounts)
+      .map(([company, count]) => ({
+        company,
+        count,
+        trend: 'stable' as const // TODO: Compare with previous period
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    
     // Prepare analytics record
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 86400000);
@@ -201,7 +239,7 @@ async function analyzeNewsInsights() {
       domain_distribution: domainDistribution,
       trending_topics,
       sentiment_by_category: {}, // TODO: Implement sentiment analysis
-      company_activity: [], // TODO: Implement company extraction
+      company_activity,
       analysis_period_start: oneDayAgo.toISOString(),
       analysis_period_end: now.toISOString(),
       articles_analyzed: articles.length,
