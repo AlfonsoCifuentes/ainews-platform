@@ -333,10 +333,12 @@ export function ModulePlayer({
       };
       console.log('📤 Progress Payload:', progressPayload);
 
-      // Create or update progress
+      // Create or update progress - use onConflict for the unique constraint
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
-        .upsert(progressPayload);
+        .upsert(progressPayload, {
+          onConflict: 'user_id,course_id,module_id'
+        });
 
       if (progressError) {
         console.error('❌ user_progress update failed:', progressError);
