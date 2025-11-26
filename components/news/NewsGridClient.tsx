@@ -24,9 +24,10 @@ const ArticleModal = dynamic(
 type NewsGridClientProps = {
   initialArticles: INewsArticle[];
   locale: Locale;
+  activeCategory?: string | null;
 };
 
-export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps) {
+export function NewsGridClient({ initialArticles, locale, activeCategory }: NewsGridClientProps) {
   const t = useTranslations('news');
   const tCommon = useTranslations('common');
   
@@ -38,6 +39,11 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Filter articles by category
+  const filteredArticles = activeCategory 
+    ? articles.filter(article => article.category === activeCategory)
+    : articles;
 
   const translateCategory = (category: string) => {
     // Map category to explicit translation keys
@@ -102,16 +108,20 @@ export function NewsGridClient({ initialArticles, locale }: NewsGridClientProps)
     };
   }, [hasMore, loading, loadMoreArticles]);
 
-  if (articles.length === 0) {
+  if (filteredArticles.length === 0) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-16 text-center">
-        <h1 className="mb-4 text-4xl font-bold md:text-5xl">{t('title')}</h1>
-        <p className="text-lg text-muted-foreground">{t('empty.subtitle')}</p>
+        <h1 className="mb-4 text-4xl font-bold md:text-5xl">
+          {activeCategory ? t('empty.noResultsCategory') : t('title')}
+        </h1>
+        <p className="text-lg text-muted-foreground">
+          {activeCategory ? t('empty.tryDifferentFilter') : t('empty.subtitle')}
+        </p>
       </div>
     );
   }
 
-  const [hero, ...restArticles] = articles;
+  const [hero, ...restArticles] = filteredArticles;
   const featured = restArticles.slice(0, 3);
   const grid = restArticles.slice(3);
 

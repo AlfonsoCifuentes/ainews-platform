@@ -13,6 +13,7 @@ interface Stats {
   totalSources: number;
   lastUpdated: string;
   avgQualityScore: number;
+  categoryCounts?: Record<string, number>;
 }
 
 export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFiltersProps) {
@@ -20,7 +21,8 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
     todayCount: 0,
     totalSources: 50,
     lastUpdated: '...',
-    avgQualityScore: 0
+    avgQualityScore: 0,
+    categoryCounts: {}
   });
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,28 +69,32 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
     // Fetch real stats
     const fetchStats = async () => {
       try {
-        await fetch('/api/news?limit=1');
+        const response = await fetch('/api/news/stats');
+        if (!response.ok) throw new Error('Failed to fetch stats');
         
-        // TODO: Calculate today's articles count from dedicated endpoint
+        const data = await response.json();
+        
         setStats({
-          todayCount: 12, // Placeholder - should come from API
-          totalSources: 50,
-          lastUpdated: new Date().toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-ES', { 
+          todayCount: data.todayCount,
+          totalSources: data.totalSources,
+          lastUpdated: new Date(data.lastUpdated).toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-ES', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }),
-          avgQualityScore: 87 // Placeholder - should come from API
+          avgQualityScore: data.avgQualityScore,
+          categoryCounts: data.categoryCounts
         });
       } catch (error) {
         console.error('Failed to fetch stats:', error);
+        // Keep placeholder data on error
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
-    // Refresh every minute
-    const interval = setInterval(fetchStats, 60000);
+    // Refresh every 2 minutes
+    const interval = setInterval(fetchStats, 120000);
     return () => clearInterval(interval);
   }, [locale]);
 
@@ -176,22 +182,30 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
           </motion.button>
 
           {/* Category buttons */}
-          {categories.map((category) => (
-            <motion.button
-              key={category.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleCategoryClick(category.id)}
-              className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all ${
-                activeCategory === category.id
-                  ? 'border-primary bg-primary/20 text-white'
-                  : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
-              }`}
-            >
-              <span className="mr-2">{category.icon}</span>
-              {category.label}
-            </motion.button>
-          ))}
+          {categories.map((category) => {
+            const count = stats.categoryCounts?.[category.id] || 0;
+            return (
+              <motion.button
+                key={category.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleCategoryClick(category.id)}
+                className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all ${
+                  activeCategory === category.id
+                    ? 'border-primary bg-primary/20 text-white'
+                    : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
+                }`}
+              >
+                <span className="mr-2">{category.icon}</span>
+                {category.label}
+                {count > 0 && (
+                  <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs">
+                    {count}
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 

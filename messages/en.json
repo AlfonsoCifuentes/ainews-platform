@@ -172,7 +172,9 @@
     "empty": {
       "title": "No articles yet",
       "subtitle": "We are curating the latest AI breakthroughs. Check back in a few minutes.",
-      "cta": "Refresh feed"
+      "cta": "Refresh feed",
+      "noResultsCategory": "No articles in this category",
+      "tryDifferentFilter": "Try selecting a different category or view all articles"
     }
   },
   "courses": {

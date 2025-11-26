@@ -170,8 +170,10 @@
     },
     "empty": {
       "title": "Aún no hay artículos",
-      "subtitle": "Estamos curando las últimas novedades de IA. Vuelve a revisar en unos minutos.",
-      "cta": "Actualizar feed"
+      "subtitle": "Estamos curando los últimos avances en IA. Vuelve en unos minutos.",
+      "cta": "Actualizar feed",
+      "noResultsCategory": "No hay artículos en esta categoría",
+      "tryDifferentFilter": "Prueba seleccionar una categoría diferente o ver todos los artículos"
     }
   },
   "courses": {
