@@ -324,21 +324,49 @@ export function ModulePlayer({
         throw new Error('User not authenticated');
       }
 
-      const progressPayload = {
-        user_id: authData.user.id,
-        course_id: courseId,
-        module_id: module.id,
-        completed: true,
-        completed_at: new Date().toISOString(),
-      };
-      console.log('📤 Progress Payload:', progressPayload);
+      const userId = authData.user.id;
+      const now = new Date().toISOString();
+      console.log('📤 Progress Update:', { userId, courseId, moduleId: module.id });
 
-      // Create or update progress - use onConflict for the unique constraint
-      const { data: progressData, error: progressError } = await supabase
+      // Check if progress record already exists
+      const { data: existingProgress } = await supabase
         .from('user_progress')
-        .upsert(progressPayload, {
-          onConflict: 'user_id,course_id,module_id'
-        });
+        .select('id')
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+        .eq('module_id', module.id)
+        .single();
+
+      let progressData, progressError;
+
+      if (existingProgress) {
+        // Update existing record
+        console.log('📝 Updating existing progress record:', existingProgress.id);
+        const result = await supabase
+          .from('user_progress')
+          .update({
+            completed: true,
+            completed_at: now,
+            updated_at: now,
+          })
+          .eq('id', existingProgress.id);
+        progressData = result.data;
+        progressError = result.error;
+      } else {
+        // Insert new record
+        console.log('➕ Creating new progress record');
+        const result = await supabase
+          .from('user_progress')
+          .insert({
+            user_id: userId,
+            course_id: courseId,
+            module_id: module.id,
+            completed: true,
+            completed_at: now,
+          });
+        progressData = result.data;
+        progressError = result.error;
+      }
 
       if (progressError) {
         console.error('❌ user_progress update failed:', progressError);
@@ -352,33 +380,30 @@ export function ModulePlayer({
       console.log('✅ user_progress updated successfully:', progressData);
       loggers.success('ModulePlayer', 'user_progress updated', {
         data: progressData,
-        userId: authData.user.id,
+        userId,
         moduleId: module.id
       });
 
-      // Award XP (authData already obtained above)
+      // Award XP (userId already obtained above)
       console.log('🎁 Awarding XP...');
-      console.log('👤 User Auth Data:', {
-        hasUser: !!authData?.user,
-        userId: authData?.user?.id || 'N/A'
-      });
+      console.log('👤 User ID:', userId);
       loggers.course('Got user from auth', {
-        userId: authData?.user?.id ? 'Present' : 'Missing'
+        userId: userId ? 'Present' : 'Missing'
       });
 
-      if (authData?.user?.id) {
+      if (userId) {
         console.log('📞 Calling award_xp RPC:', {
-          userId: authData.user.id,
+          userId,
           amount: 100,
           source: 'module_completion'
         });
         loggers.course('Awarding XP to user', {
-          userId: authData.user.id,
+          userId,
           amount: 100
         });
 
         const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
-          p_user_id: authData.user.id,
+          p_user_id: userId,
           p_amount: 100,
           p_source: 'module_completion',
         });
@@ -393,7 +418,7 @@ export function ModulePlayer({
           console.log('✅ XP awarded successfully:', xpData);
           loggers.success('ModulePlayer', 'XP awarded successfully', {
             xpData,
-            userId: authData.user.id
+            userId
           });
         }
         
@@ -490,11 +515,11 @@ export function ModulePlayer({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <Icon className="w-6 h-6 text-primary" />
-            <h1 className="text-3xl md:text-4xl font-bold">{title}</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <Icon className="w-5 h-5 text-primary" />
+            <h1 className="text-xl md:text-2xl font-bold">{title}</h1>
           </div>
-          <p className="text-lg text-muted-foreground">{description}</p>
+          <p className="text-sm md:text-base text-muted-foreground">{description}</p>
         </div>
 
         <CompleteModuleButton
@@ -545,7 +570,7 @@ export function ModulePlayer({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="prose prose-xl dark:prose-invert max-w-none p-10 rounded-3xl bg-card border shadow-lg"
+          className="prose prose-base dark:prose-invert max-w-none p-6 md:p-8 rounded-3xl bg-card border shadow-lg"
         >
           {isGeneratingContent ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -560,52 +585,52 @@ export function ModulePlayer({
                 // Headings más prominentes con gradientes y bordes
                 h1: ({ ...props }) => (
                   <h1 
-                    className="text-5xl font-extrabold mb-8 mt-12 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
+                    className="text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
                     {...props} 
                   />
                 ),
                 h2: ({ ...props }) => (
                   <h2 
-                    className="text-4xl font-bold mb-6 mt-10 text-primary border-l-4 border-primary pl-4" 
+                    className="text-xl md:text-2xl font-semibold mb-4 mt-8 text-primary border-l-4 border-primary pl-4" 
                     {...props} 
                   />
                 ),
                 h3: ({ ...props }) => (
                   <h3 
-                    className="text-3xl font-semibold mb-4 mt-8 text-foreground" 
+                    className="text-lg md:text-xl font-medium mb-3 mt-6 text-foreground" 
                     {...props} 
                   />
                 ),
                 // Párrafos con más espacio y mejor legibilidad
                 p: ({ ...props }) => (
                   <p 
-                    className="text-lg leading-relaxed mb-6 text-muted-foreground" 
+                    className="text-sm md:text-base leading-relaxed mb-4 text-muted-foreground" 
                     {...props} 
                   />
                 ),
                 // Listas con más espacio entre items
                 ul: ({ ...props }) => (
                   <ul 
-                    className="space-y-3 my-6 pl-6" 
+                    className="space-y-2 my-4 pl-5" 
                     {...props} 
                   />
                 ),
                 ol: ({ ...props }) => (
                   <ol 
-                    className="space-y-3 my-6 pl-6" 
+                    className="space-y-2 my-4 pl-5" 
                     {...props} 
                   />
                 ),
                 li: ({ ...props }) => (
                   <li 
-                    className="text-lg leading-relaxed" 
+                    className="text-sm md:text-base leading-relaxed" 
                     {...props} 
                   />
                 ),
                 // Blockquotes más destacados
                 blockquote: ({ ...props }) => (
                   <blockquote 
-                    className="border-l-4 border-primary bg-primary/10 p-6 rounded-r-xl my-6 italic" 
+                    className="border-l-4 border-primary bg-primary/10 p-4 rounded-r-xl my-4 italic text-sm md:text-base" 
                     {...props} 
                   />
                 ),
