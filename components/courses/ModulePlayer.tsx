@@ -12,7 +12,6 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getSupabaseClient } from '@/lib/db/supabase';
 import { useToast } from '@/components/shared/ToastProvider';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -284,192 +283,84 @@ export function ModulePlayer({
     console.group('✅ [ModulePlayer] Handle Complete Started');
     console.log('📋 Completion Request:', {
       moduleId: module.id,
-      enrollmentId,
+      courseId,
       alreadyCompleted: currentProgress?.completed,
       timestamp: new Date().toISOString()
     });
     
     loggers.course('handleComplete called', {
       moduleId: module.id,
-      enrollmentId,
+      courseId,
       alreadyCompleted: currentProgress?.completed
     });
+
+    if (currentProgress?.completed) {
+      console.warn('⚠️ Module already completed - skipping');
+      loggers.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
+      showToast(t.success, 'success');
+      console.groupEnd();
+      return;
+    }
 
     setIsCompleting(true);
 
     try {
-      const supabase = getSupabaseClient();
-      console.log('🔌 Supabase client obtained');
-      loggers.course('Supabase client obtained', {});
-
-      if (currentProgress?.completed) {
-        console.warn('⚠️ Module already completed - skipping');
-        loggers.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
-        showToast(t.success, 'success');
-        setIsCompleting(false);
-        console.groupEnd();
-        return;
-      }
-
-      console.log('💾 Updating user_progress table...');
-      loggers.course('Updating user_progress table', {
-        enrollmentId,
-        moduleId: module.id,
-        timestamp: new Date().toISOString()
-      });
-
-      // Get user ID first
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user?.id) {
-        throw new Error('User not authenticated');
-      }
-
-      const userId = authData.user.id;
-      const now = new Date().toISOString();
-      console.log('📤 Progress Update:', { userId, courseId, moduleId: module.id });
-
-      // Check if progress record already exists
-      const { data: existingProgress, error: selectError } = await supabase
-        .from('user_progress')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('course_id', courseId)
-        .eq('module_id', module.id)
-        .maybeSingle(); // Use maybeSingle to allow null when no record exists
-
-      if (selectError && selectError.code !== 'PGRST116') {
-        throw selectError;
-      }
-
-      let progressData, progressError;
-
-      if (existingProgress) {
-        // Update existing record
-        console.log('📝 Updating existing progress record:', existingProgress.id);
-        const result = await supabase
-          .from('user_progress')
-          .update({
-            completed: true,
-            completed_at: now,
-            updated_at: now,
-          })
-          .eq('id', existingProgress.id);
-        progressData = result.data;
-        progressError = result.error;
-      } else {
-        // Insert new record
-        console.log('➕ Creating new progress record');
-        const result = await supabase
-          .from('user_progress')
-          .insert({
-            user_id: userId,
-            course_id: courseId,
-            module_id: module.id,
-            completed: true,
-            completed_at: now,
-          });
-        progressData = result.data;
-        progressError = result.error;
-      }
-
-      if (progressError) {
-        console.error('❌ user_progress update failed:', progressError);
-        loggers.error('ModulePlayer', 'user_progress update failed', {
-          message: progressError?.message || String(progressError),
-          code: (progressError as unknown as Record<string, unknown>)?.code
-        });
-        throw progressError;
-      }
-
-      console.log('✅ user_progress updated successfully:', progressData);
-      loggers.success('ModulePlayer', 'user_progress updated', {
-        data: progressData,
-        userId,
-        moduleId: module.id
-      });
-
-      // Award XP (userId already obtained above)
-      console.log('🎁 Awarding XP...');
-      console.log('👤 User ID:', userId);
-      loggers.course('Got user from auth', {
-        userId: userId ? 'Present' : 'Missing'
-      });
-
-      if (userId) {
-        console.log('📞 Calling award_xp RPC:', {
-          userId,
-          amount: 100,
-          source: 'module_completion'
-        });
-        loggers.course('Awarding XP to user', {
-          userId,
-          amount: 100
-        });
-
-        const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
-          p_user_id: userId,
-          p_amount: 100,
-          p_source: 'module_completion',
-        });
-
-        if (xpError) {
-          console.warn('⚠️ XP award failed (non-blocking):', xpError);
-          loggers.warn('ModulePlayer', 'XP award failed (non-blocking)', {
-            message: xpError?.message || String(xpError),
-            code: (xpError as unknown as Record<string, unknown>)?.code
-          });
-        } else {
-          console.log('✅ XP awarded successfully:', xpData);
-          loggers.success('ModulePlayer', 'XP awarded successfully', {
-            xpData,
-            userId
-          });
-        }
-        
-        // Trigger course complete event for badge checking
-        console.log('🎊 Dispatching course-complete event');
-        loggers.event('Dispatching course-complete event', {
+      console.log('📤 Calling /api/courses/progress...');
+      
+      // Use the API endpoint instead of direct Supabase access
+      // This ensures proper authentication and bypasses RLS issues
+      const response = await fetch('/api/courses/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId,
           moduleId: module.id,
-          enrollmentId
-        });
+          completed: true,
+          timeSpent: 0
+        })
+      });
 
-        window.dispatchEvent(new CustomEvent('course-complete', {
-          detail: { moduleId: module.id, enrollmentId }
-        }));
-        console.log('✅ Event dispatched successfully');
+      const result = await response.json();
+      console.log('📥 API Response:', { status: response.status, result });
+
+      if (!response.ok) {
+        console.error('❌ API Error:', result);
+        throw new Error(result.error || 'Failed to save progress');
       }
+
+      console.log('✅ Progress saved successfully:', result);
+      loggers.success('ModulePlayer', 'Progress saved via API', {
+        moduleId: module.id,
+        courseId,
+        progressId: result.progress?.id
+      });
+
+      // Trigger course complete event for badge checking
+      console.log('🎊 Dispatching course-complete event');
+      window.dispatchEvent(new CustomEvent('course-complete', {
+        detail: { moduleId: module.id, courseId }
+      }));
 
       console.log('🎉 Module completion successful!');
-      loggers.success('ModulePlayer', 'Module completion successful', {
-        moduleId: module.id,
-        enrollmentId
-      });
-
       showToast(t.success, 'success');
       
-      // Don't call router.refresh() - it causes unwanted page reload
-      // The UI will update automatically via state management
-      console.log('ℹ️ No page refresh - UI updates via state');
-      loggers.course('Module completion flow finished - no refresh needed', {});
+      // Refresh the page to update UI with new progress
+      router.refresh();
       console.groupEnd();
     } catch (error) {
       console.error('❌ handleComplete Error:', error);
       console.error('📋 Error Context:', {
         moduleId: module.id,
-        enrollmentId,
+        courseId,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'N/A'
+        message: error instanceof Error ? error.message : String(error)
       });
       console.groupEnd();
       
       loggers.error('ModulePlayer', 'handleComplete error', {
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack
-        } : String(error),
+        error: error instanceof Error ? error.message : String(error),
         moduleId: module.id,
-        enrollmentId
+        courseId
       });
       showToast(t.error, 'error');
     } finally {
