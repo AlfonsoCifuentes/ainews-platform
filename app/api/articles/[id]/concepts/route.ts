@@ -80,12 +80,17 @@ ${
     
     let concepts: ExtractedConcept[] = [];
     try {
+      // Sanitize before JSON parsing
+      let sanitizedContent = response.content;
+      sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
       const jsonMatch =
-        response.content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
+        sanitizedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
           '',
-          response.content,
+          sanitizedContent,
         ];
-      const jsonStr = jsonMatch[1] || response.content;
+      const jsonStr = jsonMatch[1] || sanitizedContent;
       const parsed = JSON.parse(jsonStr);
       concepts = parsed.concepts || [];
     } catch (parseError) {

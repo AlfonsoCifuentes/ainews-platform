@@ -87,7 +87,12 @@ ${content.slice(0, 3000)}`;
     // Parse JSON response from LLM content
     let flashcards: Array<{ front: string; back: string }> = [];
     try {
-      const jsonMatch = llmResponse.content.match(/\[[\s\S]*\]/);
+      // Sanitize before JSON parsing
+      let sanitizedContent = llmResponse.content;
+      sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
+      const jsonMatch = sanitizedContent.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         flashcards = JSON.parse(jsonMatch[0]);
       }

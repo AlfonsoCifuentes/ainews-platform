@@ -318,12 +318,17 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
     clearTimeout(timeoutId);
     console.log('[LLM] ✅ Course generated successfully');
     
+    // Sanitize content: remove control characters that break JSON parsing
+    let sanitizedResponse = response.content;
+    sanitizedResponse = sanitizedResponse.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    sanitizedResponse = sanitizedResponse.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
     // Parse JSON response
-    const jsonStr = response.content.includes('```json')
-      ? response.content.split('```json')[1].split('```')[0].trim()
-      : response.content.includes('```')
-      ? response.content.split('```')[1].split('```')[0].trim()
-      : response.content.trim();
+    const jsonStr = sanitizedResponse.includes('```json')
+      ? sanitizedResponse.split('```json')[1].split('```')[0].trim()
+      : sanitizedResponse.includes('```')
+      ? sanitizedResponse.split('```')[1].split('```')[0].trim()
+      : sanitizedResponse.trim();
 
     const parsed = JSON.parse(jsonStr) as CourseData;
     return parsed;

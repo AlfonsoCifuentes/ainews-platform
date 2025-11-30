@@ -494,8 +494,13 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     throw new Error('No content returned from OpenAI');
   }
 
+  // Sanitize content before JSON parsing
+  let sanitizedContent = content;
+  sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
   // Parse JSON response
-  const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+  const cleaned = sanitizedContent.replace(/```json\n?|\n?```/g, '').trim();
   
   try {
     const parsed = JSON.parse(cleaned) as CourseData;

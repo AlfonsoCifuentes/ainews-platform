@@ -79,7 +79,11 @@ Return ONLY valid JSON matching this schema:
     });
 
     const data = await response.json();
-    return OutlineSchema.parse(JSON.parse(data.response));
+    // Sanitize before JSON parsing
+    let sanitizedResponse = data.response;
+    sanitizedResponse = sanitizedResponse.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    sanitizedResponse = sanitizedResponse.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return OutlineSchema.parse(JSON.parse(sanitizedResponse));
   } catch (error) {
     console.error('Error generating outline:', error);
     throw error;
