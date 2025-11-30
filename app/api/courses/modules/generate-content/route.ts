@@ -169,18 +169,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (!generatedContent) {
-      console.error('❌ Content generation failed - empty result');
+      console.error('\u274c Content generation failed - empty result');
       console.groupEnd();
       throw new Error('Failed to generate content');
     }
 
-    // Aggressive sanitization: remove ALL control characters that could break JSON
+    // Sanitization: remove control characters but PRESERVE content structure
     const sanitizedContent = generatedContent
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
       .trim();
 
-    console.log('💾 Saving generated content to database...');
+    console.log('\ud83d\udcbe Saving generated content to database...');
 
     // Update the module with generated content
     const contentField = locale === 'en' ? 'content_en' : 'content_es';

@@ -318,26 +318,25 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
     clearTimeout(timeoutId);
     console.log('[LLM] ✅ Course generated successfully');
     
-    // Aggressive sanitization: remove ALL control characters and problematic whitespace
+    // Sanitization: remove control characters but PRESERVE JSON structure
     const sanitizedResponse = response.content
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
-      .replace(/[\r\n\t]+/g, ' ')                        // Replace whitespace with single space
       .trim();
     
     // Extract JSON from markdown code blocks if present
-    const jsonStr = sanitizedResponse.includes('```json')
+    let jsonStr = sanitizedResponse.includes('```json')
       ? sanitizedResponse.split('```json')[1].split('```')[0].trim()
       : sanitizedResponse.includes('```')
       ? sanitizedResponse.split('```')[1].split('```')[0].trim()
       : sanitizedResponse.trim();
 
-    // Second pass: clean the JSON string itself
-    const cleanJson = jsonStr
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-
-    const parsed = JSON.parse(cleanJson) as CourseData;
+    // Before parsing, fix common JSON issues
+    // Fix unescaped newlines in strings: replace literal newlines with escaped ones
+    jsonStr = jsonStr.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
+    
+    // Parse JSON
+    const parsed = JSON.parse(jsonStr) as CourseData;
     return parsed;
   } catch (error) {
     clearTimeout(timeoutId);

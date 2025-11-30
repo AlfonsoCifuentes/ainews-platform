@@ -494,22 +494,20 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     throw new Error('No content returned from OpenAI');
   }
 
-  // Aggressive sanitization: remove ALL control characters
+  // Sanitization: remove control characters but PRESERVE JSON structure
   const sanitizedContent = content
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
     .trim();
 
   // Parse JSON response
-  const cleaned = sanitizedContent.replace(/```json\n?|\n?```/g, '').trim();
+  let cleaned = sanitizedContent.replace(/```json\n?|\n?```/g, '').trim();
+  
+  // Fix unescaped newlines in strings: replace literal newlines with spaces
+  cleaned = cleaned.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
   
   try {
-    // Second pass: clean the JSON string itself
-    const cleanJson = cleaned
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-    
-    const parsed = JSON.parse(cleanJson) as CourseData;
+    const parsed = JSON.parse(cleaned) as CourseData;
     console.log('[OpenAI] ✅ Successfully parsed course structure');
     console.log(`[OpenAI] Course title: "${parsed.title}"`);
     console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);

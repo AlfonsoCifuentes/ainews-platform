@@ -329,13 +329,17 @@ export function ModulePlayer({
       console.log('📤 Progress Update:', { userId, courseId, moduleId: module.id });
 
       // Check if progress record already exists
-      const { data: existingProgress } = await supabase
+      const { data: existingProgress, error: selectError } = await supabase
         .from('user_progress')
         .select('id')
         .eq('user_id', userId)
         .eq('course_id', courseId)
         .eq('module_id', module.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle to allow null when no record exists
+
+      if (selectError && selectError.code !== 'PGRST116') {
+        throw selectError;
+      }
 
       let progressData, progressError;
 

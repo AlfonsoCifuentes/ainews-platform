@@ -80,7 +80,7 @@ ${
     
     let concepts: ExtractedConcept[] = [];
     try {
-      // Aggressive sanitization: remove ALL control characters
+      // Sanitization: remove control characters but PRESERVE JSON structure
       const sanitizedContent = response.content
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
@@ -90,14 +90,12 @@ ${
           '',
           sanitizedContent,
         ];
-      const jsonStr = jsonMatch[1] || sanitizedContent;
+      let jsonStr = jsonMatch[1] || sanitizedContent;
       
-      // Second pass: clean before JSON.parse
-      const cleanJson = jsonStr
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+      // Fix unescaped newlines in strings
+      jsonStr = jsonStr.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
       
-      const parsed = JSON.parse(cleanJson);
+      const parsed = JSON.parse(jsonStr);
       concepts = parsed.concepts || [];
     } catch (parseError) {
       console.error('Failed to parse LLM response:', parseError);

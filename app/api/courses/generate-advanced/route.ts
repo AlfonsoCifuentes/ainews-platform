@@ -79,17 +79,15 @@ Return ONLY valid JSON matching this schema:
     });
 
     const data = await response.json();
-    // Aggressive sanitization: remove ALL control characters
+    // Sanitization: remove control characters but PRESERVE JSON structure
     const sanitizedResponse = data.response
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
     
-    // Second pass before parsing
-    const cleanJson = sanitizedResponse
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+    // Fix unescaped newlines in strings
+    const fixedJson = sanitizedResponse.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
     
-    return OutlineSchema.parse(JSON.parse(cleanJson));
+    return OutlineSchema.parse(JSON.parse(fixedJson));
   } catch (error) {
     console.error('Error generating outline:', error);
     throw error;
