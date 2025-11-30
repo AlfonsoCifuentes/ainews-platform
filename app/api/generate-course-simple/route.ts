@@ -472,11 +472,11 @@ async function saveCourseToDB(
       content_en: m.content,
       content_es: m.content,
       type: 'text' as const,
-      estimated_time: m.estimatedMinutes,
+      estimated_time: m.estimatedMinutes ?? 30, // Default to 30 minutes if not provided
       resources: {
-        takeaways: m.keyTakeaways,
-        quiz: m.quiz,
-        links: m.resources
+        takeaways: m.keyTakeaways ?? [],
+        quiz: m.quiz ?? [],
+        links: m.resources ?? []
       }
     }));
 
