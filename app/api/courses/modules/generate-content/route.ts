@@ -174,12 +174,11 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to generate content');
     }
 
-    // Sanitize content: ensure no control characters that could break JSON
-    let sanitizedContent = generatedContent;
-    // Remove any control characters except \n, \r, \t
-    sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    // Normalize line endings to \n
-    sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Aggressive sanitization: remove ALL control characters that could break JSON
+    const sanitizedContent = generatedContent
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
+      .trim();
 
     console.log('💾 Saving generated content to database...');
 

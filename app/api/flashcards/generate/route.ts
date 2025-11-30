@@ -87,14 +87,18 @@ ${content.slice(0, 3000)}`;
     // Parse JSON response from LLM content
     let flashcards: Array<{ front: string; back: string }> = [];
     try {
-      // Sanitize before JSON parsing
-      let sanitizedContent = llmResponse.content;
-      sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-      sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      // Aggressive sanitization: remove ALL control characters
+      const sanitizedContent = llmResponse.content
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
       
       const jsonMatch = sanitizedContent.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        flashcards = JSON.parse(jsonMatch[0]);
+        // Second pass: clean before JSON.parse
+        const cleanJson = jsonMatch[0]
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+        flashcards = JSON.parse(cleanJson);
       }
     } catch {
       return NextResponse.json(

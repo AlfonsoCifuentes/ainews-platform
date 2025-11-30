@@ -494,16 +494,22 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     throw new Error('No content returned from OpenAI');
   }
 
-  // Sanitize content before JSON parsing
-  let sanitizedContent = content;
-  sanitizedContent = sanitizedContent.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-  sanitizedContent = sanitizedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Aggressive sanitization: remove ALL control characters
+  const sanitizedContent = content
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
+    .trim();
 
   // Parse JSON response
   const cleaned = sanitizedContent.replace(/```json\n?|\n?```/g, '').trim();
   
   try {
-    const parsed = JSON.parse(cleaned) as CourseData;
+    // Second pass: clean the JSON string itself
+    const cleanJson = cleaned
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+    
+    const parsed = JSON.parse(cleanJson) as CourseData;
     console.log('[OpenAI] ✅ Successfully parsed course structure');
     console.log(`[OpenAI] Course title: "${parsed.title}"`);
     console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
