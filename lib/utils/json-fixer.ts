@@ -1,3 +1,5 @@
+import { jsonrepair } from 'jsonrepair';
+
 /**
  * Robust JSON fixing for LLM-generated content
  * Handles various formatting issues that LLMs introduce
@@ -11,10 +13,17 @@ export function sanitizeAndFixJSON(content: string): string {
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // ASCII control chars
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');     // Unicode control chars
 
+  // Normalize invisible whitespace/punctuation that frequently sneaks in between
+  // property names and colons (zero-width spaces, non-breaking spaces, fullwidth punctuation)
+  fixed = normalizeUnicodeFormatting(fixed);
+
   // Normalize problematic unicode line separators that can break parsers
   fixed = fixed.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   // Remove BOM if present
   fixed = fixed.replace(/\uFEFF/g, '');
+
+  // Convert malformed `{ "foo", "bar" }` blocks into arrays so the parser can recover
+  fixed = fixBraceWrappedStringLists(fixed);
 
   // Step 2: Extract JSON from markdown code blocks if present
   if (fixed.includes('```json')) {
@@ -41,6 +50,35 @@ export function sanitizeAndFixJSON(content: string): string {
   fixed = escapeUnescapedQuotes(fixed);
 
   return fixed;
+}
+
+const braceStringListRegex = /\{\s*"(?:(?:\\.|[^"\\])*)"(?!\s*:)(?:\s*,\s*"(?:(?:\\.|[^"\\])*)"(?!\s*:))*\s*\}/gs;
+
+function fixBraceWrappedStringLists(jsonStr: string): string {
+  return jsonStr.replace(braceStringListRegex, (match) => {
+    const inner = match.slice(1, -1);
+    return `[${inner.trim()}]`;
+  });
+}
+
+function normalizeUnicodeFormatting(jsonStr: string): string {
+  return jsonStr
+    .replace(/\u00A0/g, ' ')
+    .replace(/[\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[\u200B-\u200D\u2060]/g, '')
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+    .replace(/\uFF1A/g, ':')
+    .replace(/\uFF0C/g, ',')
+    .replace(/\uFF1B/g, ';')
+    .replace(/\uFF1F/g, '?')
+    .replace(/\uFF01/g, '!')
+    .replace(/\uFF08/g, '(')
+    .replace(/\uFF09/g, ')')
+    .replace(/\uFF3B/g, '[')
+    .replace(/\uFF3D/g, ']')
+    .replace(/\uFF5B/g, '{')
+    .replace(/\uFF5D/g, '}');
 }
 
 /**
@@ -295,7 +333,17 @@ export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T
         console.warn(`[JSON] Successfully parsed after trailing-commas-fix in ${context}`);
         return parsed;
       } catch {
-        console.warn('[JSON] Trailing-commas-fix parse failed.');
+        console.warn('[JSON] Trailing-commas-fix parse failed. Trying jsonrepair fallback...');
+      }
+
+      // 4) jsonrepair fallback (handles a wide range of structural mistakes)
+      try {
+        const repaired = jsonrepair(jsonStr);
+        const parsed = JSON.parse(repaired) as T;
+        console.warn('[JSON] Successfully parsed after jsonrepair fallback');
+        return parsed;
+      } catch (jsonrepairError) {
+        console.error('[JSON] jsonrepair fallback failed:', jsonrepairError);
       }
     } catch (fallbackError) {
       // If it still fails, log fallback details for debugging

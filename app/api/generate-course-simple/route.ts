@@ -322,6 +322,93 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
     // Use robust JSON fixing utility
     const fixed = sanitizeAndFixJSON(response.content);
     const parsed = parseJSON<CourseData>(fixed, 'course generation');
+    
+    // Log raw parsed structure for debugging
+    console.log('[LLM] Parsed course structure:', {
+      hasTitle: !!parsed.title,
+      hasDescription: !!parsed.description,
+      modulesCount: parsed.modules?.length,
+      firstModuleKeys: parsed.modules?.[0] ? Object.keys(parsed.modules[0]) : [],
+      firstModuleContentType: parsed.modules?.[0]?.content ? typeof parsed.modules[0].content : 'undefined'
+    });
+    
+    // Normalize modules: handle various LLM output formats
+    if (Array.isArray(parsed.modules)) {
+      for (const m of parsed.modules) {
+        // Case 1: content is an object (nested sections)
+        if (m.content && typeof m.content === 'object' && !Array.isArray(m.content)) {
+          const contentObj = m.content as Record<string, unknown>;
+          const sections: string[] = [];
+          for (const [sectionTitle, sectionContent] of Object.entries(contentObj)) {
+            if (typeof sectionContent === 'string') {
+              sections.push(`## ${sectionTitle}\n\n${sectionContent}`);
+            } else if (typeof sectionContent === 'object' && sectionContent !== null && !Array.isArray(sectionContent)) {
+              const subSections: string[] = [];
+              for (const [subTitle, subContent] of Object.entries(sectionContent as Record<string, unknown>)) {
+                if (typeof subContent === 'string') {
+                  subSections.push(`### ${subTitle}\n\n${subContent}`);
+                } else if (Array.isArray(subContent)) {
+                  subSections.push(`### ${subTitle}\n\n${(subContent as string[]).map(item => `- ${item}`).join('\n')}`);
+                }
+              }
+              sections.push(`## ${sectionTitle}\n\n${subSections.join('\n\n')}`);
+            } else if (Array.isArray(sectionContent)) {
+              sections.push(`## ${sectionTitle}\n\n${(sectionContent as string[]).map(item => `- ${item}`).join('\n')}`);
+            }
+          }
+          m.content = sections.length > 0 ? sections.join('\n\n') : JSON.stringify(contentObj);
+          console.log('[LLM] Converted object content to markdown for module:', m.title?.substring(0, 30));
+        }
+        // Case 2: content is an array (list of sections)
+        else if (Array.isArray(m.content)) {
+          m.content = (m.content as string[]).join('\n\n');
+          console.log('[LLM] Converted array content to string for module:', m.title?.substring(0, 30));
+        }
+        // Case 3: content is missing but description exists - use description as fallback
+        else if (!m.content && m.description) {
+          m.content = m.description;
+          console.log('[LLM] Using description as content fallback for module:', m.title?.substring(0, 30));
+        }
+        // Case 4: content is missing entirely - generate placeholder
+        else if (!m.content) {
+          m.content = `# ${m.title || 'Module'}\n\nContent for this module is being generated. Please check back later.`;
+          console.log('[LLM] Generated placeholder content for module:', m.title?.substring(0, 30));
+        }
+      }
+    }
+    
+    // Validate parsed data has required fields
+    if (!parsed.title || typeof parsed.title !== 'string') {
+      throw new Error('Invalid course data: missing or invalid title');
+    }
+    if (!parsed.description || typeof parsed.description !== 'string') {
+      throw new Error('Invalid course data: missing or invalid description');
+    }
+    if (!Array.isArray(parsed.modules) || parsed.modules.length === 0) {
+      throw new Error('Invalid course data: modules must be a non-empty array');
+    }
+    
+    // Validate each module (after normalization)
+    for (const [idx, m] of parsed.modules.entries()) {
+      if (!m.title || typeof m.title !== 'string') {
+        throw new Error(`Invalid module ${idx}: missing title`);
+      }
+      if (!m.content || typeof m.content !== 'string') {
+        console.error(`[LLM] Module ${idx} content issue:`, { 
+          contentType: typeof m.content, 
+          contentValue: m.content,
+          moduleKeys: Object.keys(m)
+        });
+        throw new Error(`Invalid module ${idx}: missing content (type: ${typeof m.content})`);
+      }
+    }
+    
+    console.log('[LLM] Course data validated:', {
+      title: parsed.title.substring(0, 50),
+      modules: parsed.modules.length,
+      objectivesCount: parsed.objectives?.length
+    });
+    
     return parsed;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -366,7 +453,10 @@ async function saveCourseToDB(
       category: params.topic
     });
 
-    if (courseErr) throw courseErr;
+    if (courseErr) {
+      console.error('[DB] Course insert error:', courseErr.message, courseErr.details, courseErr.hint);
+      throw courseErr;
+    }
     console.log('[DB] Course saved');
 
     // Insert modules
@@ -391,12 +481,24 @@ async function saveCourseToDB(
     }));
 
     const { error: modulesErr } = await supabase.from('course_modules').insert(modules);
-    if (modulesErr) throw modulesErr;
+    if (modulesErr) {
+      console.error('[DB] Modules insert error:', modulesErr.message, modulesErr.details, modulesErr.hint);
+      throw modulesErr;
+    }
 
     console.log('[DB] ✅ All saved');
     return { success: true };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+    // Extract a readable message from errors (Supabase errors have .message and .details)
+    let msg: string;
+    if (error instanceof Error) {
+      msg = error.message;
+    } else if (error && typeof error === 'object') {
+      const errObj = error as Record<string, unknown>;
+      msg = (errObj.message as string) || (errObj.details as string) || JSON.stringify(error);
+    } else {
+      msg = String(error);
+    }
     console.error('[DB] Error:', msg);
     return { success: false, error: msg };
   }
