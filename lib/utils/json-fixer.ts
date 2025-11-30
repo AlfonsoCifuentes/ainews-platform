@@ -11,6 +11,11 @@ export function sanitizeAndFixJSON(content: string): string {
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // ASCII control chars
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');     // Unicode control chars
 
+  // Normalize problematic unicode line separators that can break parsers
+  fixed = fixed.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  // Remove BOM if present
+  fixed = fixed.replace(/\uFEFF/g, '');
+
   // Step 2: Extract JSON from markdown code blocks if present
   if (fixed.includes('```json')) {
     fixed = fixed.split('```json')[1].split('```')[0].trim();
@@ -157,6 +162,70 @@ function escapeUnescapedQuotes(jsonStr: string): string {
 }
 
 /**
+ * Escape single backslashes that are not part of valid JSON escape sequences
+ * and that occur inside JSON strings.
+ * Strategy: walk char-by-char, when inside a string and encountering a backslash
+ * that is not escaped and the next char is not one of '"\/bfnrtu', escape it
+ * by turning it into two backslashes.
+ */
+function escapeUnescapedBackslashes(jsonStr: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  let i = 0;
+
+  while (i < jsonStr.length) {
+    const char = jsonStr[i];
+
+    if (char === '"' && !escaped) {
+      inString = !inString;
+      result += char;
+      i++;
+      continue;
+    }
+
+    if (char === '\\' && !escaped && inString) {
+      const nextChar = jsonStr[i + 1];
+      // Valid JSON escapes: \ " \/ \b \f \n \r \t \u
+      if (nextChar && /["\\/bfnrtu]/.test(nextChar)) {
+        // Already a valid escape, keep as-is
+        result += char;
+        escaped = true;
+        i++;
+        continue;
+      }
+
+      // Not a valid escape sequence - escape the backslash
+      result += '\\\\';
+      i++;
+      continue;
+    }
+
+    // Handle escape char when not in the invalid branch
+    if (char === '\\' && !escaped) {
+      escaped = true;
+      result += char;
+      i++;
+      continue;
+    }
+
+    result += char;
+    escaped = false;
+    i++;
+  }
+
+  return result;
+}
+
+/**
+ * Remove trailing commas before closing object/array braces (e.g., {"a": 1,})
+ * This helps with common LLM errors where an extra comma is added.
+ */
+function removeTrailingCommas(jsonStr: string): string {
+  return jsonStr.replace(/,\s*(?=[\]}])/g, '');
+}
+
+/**
  * Parse JSON with helpful error reporting
  */
 export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T {
@@ -180,17 +249,54 @@ export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T
       console.error('[JSON] Position in snippet:', pos - start);
     }
 
-    // Attempt automatic heuristic fix: escape unescaped quotes inside strings
+    // Before attempting fixes, provide an analysis to help debugging
+    try {
+      const diagnostics = analyzeJsonString(jsonStr);
+      console.error('[JSON] Diagnostics: ', diagnostics);
+    } catch (diagnosticError) {
+      console.warn('[JSON] Failed to compute diagnostics:', diagnosticError);
+    }
+
+    // Attempt automatic heuristic fixes in sequence. Each step will try to
+    // correct common LLM JSON mistakes and attempt parsing again.
     try {
       // Log basic diagnostics: count of unescaped double quotes (heuristic)
       const unescapedQuotesBefore = (jsonStr.match(/(^|[^\\])\"/g) || []).length;
       console.warn(`[JSON] Unescaped quote count before fix in ${context}:`, unescapedQuotesBefore);
-      const fixed = escapeUnescapedQuotes(jsonStr);
+      // 1) Escape unescaped quotes
+      let fixed = escapeUnescapedQuotes(jsonStr);
       const unescapedQuotesAfter = (fixed.match(/(^|[^\\])\"/g) || []).length;
-      console.warn(`[JSON] Unescaped quote count after fix in ${context}:`, unescapedQuotesAfter);
-      const parsed = JSON.parse(fixed) as T;
-      console.warn(`[JSON] Auto-fixed quoting issues in ${context} using heuristic escapeUnescapedQuotes()`);
-      return parsed;
+      console.warn(`[JSON] Unescaped quote count after quote-fix in ${context}:`, unescapedQuotesAfter);
+
+      // Try parse again
+      try {
+        const parsed = JSON.parse(fixed) as T;
+        console.warn(`[JSON] Auto-fixed quoting issues in ${context} using escapeUnescapedQuotes()`);
+        return parsed;
+      } catch {
+        console.warn('[JSON] Quote-fix parse failed, trying additional heuristics...');
+      }
+      // 2) Fix backslashes inside strings (e.g., single backslashes not part of valid escapes)
+      fixed = escapeUnescapedBackslashes(fixed);
+      console.warn(`[JSON] Retried parse with escapeUnescapedBackslashes()`);
+      try {
+        const parsed = JSON.parse(fixed) as T;
+        console.warn(`[JSON] Successfully parsed after backslash-fix in ${context}`);
+        return parsed;
+      } catch {
+        console.warn('[JSON] Backslash-fix parse failed, trying trailing commas fix...');
+      }
+
+      // 3) Remove trailing commas
+      fixed = removeTrailingCommas(fixed);
+      console.warn(`[JSON] Retried parse after removeTrailingCommas()`);
+      try {
+        const parsed = JSON.parse(fixed) as T;
+        console.warn(`[JSON] Successfully parsed after trailing-commas-fix in ${context}`);
+        return parsed;
+      } catch {
+        console.warn('[JSON] Trailing-commas-fix parse failed.');
+      }
     } catch (fallbackError) {
       // If it still fails, log fallback details for debugging
       const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -200,3 +306,57 @@ export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T
     throw new Error(`JSON Parse Error in ${context}: ${errorMsg}`);
   }
 }
+
+  /**
+   * Analyze JSON string and return diagnostics helpful to find issues.
+   */
+  function analyzeJsonString(jsonStr: string) {
+    let unescapedQuotes = 0;
+    let escapedQuotes = 0;
+    let backslashes = 0;
+    let openCurly = 0;
+    let closeCurly = 0;
+    let openSquare = 0;
+    let closeSquare = 0;
+    let controlCharCount = 0;
+    let i = 0;
+    let inString = false;
+    let escaped = false;
+
+    while (i < jsonStr.length) {
+      const ch = jsonStr[i];
+      const code = ch.codePointAt(0) || 0;
+      if (ch === '"' && !escaped) {
+        unescapedQuotes++;
+        inString = !inString;
+      }
+      if (ch === '"' && escaped) escapedQuotes++;
+      if (ch === '\\') backslashes++;
+      if (ch === '{') openCurly++;
+      if (ch === '}') closeCurly++;
+      if (ch === '[') openSquare++;
+      if (ch === ']') closeSquare++;
+      if (code < 32 || (code >= 127 && code <= 159)) controlCharCount++;
+
+      if (ch === '\\' && !escaped) {
+        escaped = true;
+        i++;
+        continue;
+      }
+      escaped = false;
+      i++;
+    }
+
+    return {
+      length: jsonStr.length,
+      unescapedQuotes,
+      escapedQuotes,
+      backslashes,
+      openCurly,
+      closeCurly,
+      openSquare,
+      closeSquare,
+      controlCharCount,
+      quotesBalanced: unescapedQuotes % 2 === 0,
+    };
+  }
