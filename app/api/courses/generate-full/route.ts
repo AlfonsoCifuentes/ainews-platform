@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 export const maxDuration = 120;
 export const dynamic = 'force-dynamic';
@@ -494,28 +495,13 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     throw new Error('No content returned from OpenAI');
   }
 
-  // Sanitization: remove control characters but PRESERVE JSON structure
-  const sanitizedContent = content
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
-    .trim();
-
-  // Parse JSON response
-  let cleaned = sanitizedContent.replace(/```json\n?|\n?```/g, '').trim();
-  
-  // Fix unescaped newlines in strings: replace literal newlines with spaces
-  cleaned = cleaned.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
-  
-  try {
-    const parsed = JSON.parse(cleaned) as CourseData;
-    console.log('[OpenAI] ✅ Successfully parsed course structure');
-    console.log(`[OpenAI] Course title: "${parsed.title}"`);
-    console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
-    return parsed;
-  } catch (error) {
-    console.error('[OpenAI] Failed to parse response:', cleaned.substring(0, 200));
-    throw new Error(`Failed to parse course JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  // Use robust JSON fixing utility
+  const fixed = sanitizeAndFixJSON(content);
+  const parsed = parseJSON<CourseData>(fixed, 'generate-full course');
+  console.log('[OpenAI] ✅ Successfully parsed course structure');
+  console.log(`[OpenAI] Course title: "${parsed.title}"`);
+  console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
+  return parsed;
 }
 
 // ============================================================================

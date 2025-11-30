@@ -14,6 +14,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 // Vercel serverless has strict timeout limits (60s max)
 export const maxDuration = 50;
@@ -318,25 +319,9 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
     clearTimeout(timeoutId);
     console.log('[LLM] ✅ Course generated successfully');
     
-    // Sanitization: remove control characters but PRESERVE JSON structure
-    const sanitizedResponse = response.content
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
-      .trim();
-    
-    // Extract JSON from markdown code blocks if present
-    let jsonStr = sanitizedResponse.includes('```json')
-      ? sanitizedResponse.split('```json')[1].split('```')[0].trim()
-      : sanitizedResponse.includes('```')
-      ? sanitizedResponse.split('```')[1].split('```')[0].trim()
-      : sanitizedResponse.trim();
-
-    // Before parsing, fix common JSON issues
-    // Fix unescaped newlines in strings: replace literal newlines with escaped ones
-    jsonStr = jsonStr.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
-    
-    // Parse JSON
-    const parsed = JSON.parse(jsonStr) as CourseData;
+    // Use robust JSON fixing utility
+    const fixed = sanitizeAndFixJSON(response.content);
+    const parsed = parseJSON<CourseData>(fixed, 'course generation');
     return parsed;
   } catch (error) {
     clearTimeout(timeoutId);

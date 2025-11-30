@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { generateCourseWithDetailedPrompts } from '@/lib/ai/course-generator-advanced';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 export const maxDuration = 300; // 5 minutes - Vercel hobby plan limit
 export const dynamic = 'force-dynamic';
@@ -79,15 +80,9 @@ Return ONLY valid JSON matching this schema:
     });
 
     const data = await response.json();
-    // Sanitization: remove control characters but PRESERVE JSON structure
-    const sanitizedResponse = data.response
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
-    
-    // Fix unescaped newlines in strings
-    const fixedJson = sanitizedResponse.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
-    
-    return OutlineSchema.parse(JSON.parse(fixedJson));
+    // Use robust JSON fixing utility
+    const fixed = sanitizeAndFixJSON(data.response);
+    return OutlineSchema.parse(parseJSON(fixed, 'generate-advanced outline'));
   } catch (error) {
     console.error('Error generating outline:', error);
     throw error;

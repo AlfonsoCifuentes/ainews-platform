@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/db/supabase-server';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 const GenerateSchema = z.object({
   contentId: z.string().uuid(),
@@ -87,16 +88,11 @@ ${content.slice(0, 3000)}`;
     // Parse JSON response from LLM content
     let flashcards: Array<{ front: string; back: string }> = [];
     try {
-      // Sanitization: remove control characters but PRESERVE JSON structure
-      const sanitizedContent = llmResponse.content
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
-      
-      const jsonMatch = sanitizedContent.match(/\[[\s\S]*\]/);
+      // Use robust JSON fixing utility
+      const fixed = sanitizeAndFixJSON(llmResponse.content);
+      const jsonMatch = fixed.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        // Fix unescaped newlines in strings
-        const fixedJson = jsonMatch[0].replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
-        flashcards = JSON.parse(fixedJson);
+        flashcards = parseJSON(jsonMatch[0], 'flashcards generation');
       }
     } catch {
       return NextResponse.json(

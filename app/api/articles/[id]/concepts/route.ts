@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 export async function GET(
   req: NextRequest,
@@ -80,22 +81,12 @@ ${
     
     let concepts: ExtractedConcept[] = [];
     try {
-      // Sanitization: remove control characters but PRESERVE JSON structure
-      const sanitizedContent = response.content
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove ASCII control chars
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');    // Remove Unicode control chars
+      // Use robust JSON fixing utility
+      const fixed = sanitizeAndFixJSON(response.content);
+      const jsonMatch = fixed.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || ['', fixed];
+      const jsonStr = jsonMatch[1] || fixed;
       
-      const jsonMatch =
-        sanitizedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
-          '',
-          sanitizedContent,
-        ];
-      let jsonStr = jsonMatch[1] || sanitizedContent;
-      
-      // Fix unescaped newlines in strings
-      jsonStr = jsonStr.replace(/(?<!\\)[\n\r]+(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' ');
-      
-      const parsed = JSON.parse(jsonStr);
+      const parsed = parseJSON<{ concepts: ExtractedConcept[] }>(jsonStr, 'concepts extraction');
       concepts = parsed.concepts || [];
     } catch (parseError) {
       console.error('Failed to parse LLM response:', parseError);
