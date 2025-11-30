@@ -280,12 +280,20 @@ export function ModulePlayer({
 
 
   const handleComplete = async () => {
-    console.group('✅ [ModulePlayer] Handle Complete Started');
-    console.log('📋 Completion Request:', {
+    const clientRequestId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log('\n' + '🟦'.repeat(40));
+    console.group(`✅ [ModulePlayer] [${clientRequestId}] Handle Complete Started`);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('📋 Request Context:', {
+      clientRequestId,
       moduleId: module.id,
+      moduleTitle: module.title_en?.substring(0, 30) || 'N/A',
       courseId,
-      alreadyCompleted: currentProgress?.completed,
-      timestamp: new Date().toISOString()
+      enrollmentId,
+      currentProgressId: currentProgress?.id || 'N/A',
+      alreadyCompleted: currentProgress?.completed || false,
+      locale
     });
     
     loggers.course('handleComplete called', {
@@ -295,7 +303,7 @@ export function ModulePlayer({
     });
 
     if (currentProgress?.completed) {
-      console.warn('⚠️ Module already completed - skipping');
+      console.warn('⚠️ Module already completed - skipping API call');
       loggers.warn('ModulePlayer', 'Module already completed', { moduleId: module.id });
       showToast(t.success, 'success');
       console.groupEnd();
@@ -303,68 +311,123 @@ export function ModulePlayer({
     }
 
     setIsCompleting(true);
+    console.log('🔄 isCompleting set to TRUE');
 
     try {
-      console.log('📤 Calling /api/courses/progress...');
+      // Step 1: Prepare request
+      const requestBody = {
+        courseId,
+        moduleId: module.id,
+        completed: true,
+        timeSpent: 0
+      };
       
-      // Use the API endpoint instead of direct Supabase access
-      // This ensures proper authentication and bypasses RLS issues
+      console.log('📤 Step 1: Preparing API request...');
+      console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('🌐 Endpoint: POST /api/courses/progress');
+      
+      // Step 2: Send request
+      console.log('📡 Step 2: Sending fetch request...');
+      const fetchStartTime = Date.now();
+      
       const response = await fetch('/api/courses/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courseId,
-          moduleId: module.id,
-          completed: true,
-          timeSpent: 0
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Client-Request-Id': clientRequestId
+        },
+        body: JSON.stringify(requestBody),
+        credentials: 'include' // Ensure cookies are sent
       });
 
-      const result = await response.json();
-      console.log('📥 API Response:', { status: response.status, result });
+      const fetchDuration = Date.now() - fetchStartTime;
+      console.log(`⏱️ Fetch completed in ${fetchDuration}ms`);
+      console.log('📥 Response status:', response.status, response.statusText);
+      console.log('📥 Response headers:', {
+        contentType: response.headers.get('content-type'),
+        setCookie: response.headers.get('set-cookie') ? 'present' : 'none'
+      });
 
-      if (!response.ok) {
-        console.error('❌ API Error:', result);
-        throw new Error(result.error || 'Failed to save progress');
+      // Step 3: Parse response
+      console.log('📄 Step 3: Parsing response body...');
+      const responseText = await response.text();
+      console.log('📄 Raw response text:', responseText.substring(0, 500));
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+        console.log('✅ JSON parsed successfully:', result);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('📄 Response was not valid JSON');
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
       }
 
-      console.log('✅ Progress saved successfully:', result);
+      // Step 4: Check response status
+      console.log('🔍 Step 4: Checking response status...');
+      if (!response.ok) {
+        console.error('❌ API returned error status:', response.status);
+        console.error('❌ Error details:', result);
+        console.error('❌ Debug info:', result.debug || 'N/A');
+        throw new Error(result.error || `API error: ${response.status}`);
+      }
+
+      // Step 5: Success!
+      console.log('✅ Step 5: Progress saved successfully!');
+      console.log('📊 Saved progress:', {
+        progressId: result.progress?.id,
+        completed: result.progress?.completed,
+        completedAt: result.progress?.completed_at,
+        serverRequestId: result.debug?.requestId
+      });
+      
       loggers.success('ModulePlayer', 'Progress saved via API', {
         moduleId: module.id,
         courseId,
         progressId: result.progress?.id
       });
 
-      // Trigger course complete event for badge checking
-      console.log('🎊 Dispatching course-complete event');
+      // Step 6: Dispatch event
+      console.log('🎊 Step 6: Dispatching course-complete event...');
       window.dispatchEvent(new CustomEvent('course-complete', {
-        detail: { moduleId: module.id, courseId }
+        detail: { moduleId: module.id, courseId, clientRequestId }
       }));
+      console.log('✅ Event dispatched');
 
-      console.log('🎉 Module completion successful!');
+      // Step 7: Show toast and refresh
+      console.log('🎉 Step 7: Showing success toast...');
       showToast(t.success, 'success');
       
-      // Refresh the page to update UI with new progress
+      console.log('🔄 Step 8: Refreshing page to update UI...');
       router.refresh();
+      
+      console.log('✅✅✅ MODULE COMPLETION FLOW SUCCESSFUL ✅✅✅');
       console.groupEnd();
     } catch (error) {
-      console.error('❌ handleComplete Error:', error);
-      console.error('📋 Error Context:', {
+      console.error('\n' + '❌'.repeat(40));
+      console.error(`❌ [${clientRequestId}] handleComplete FAILED`);
+      console.error('❌ Error Type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('❌ Error Message:', error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack) {
+        console.error('❌ Stack Trace:', error.stack);
+      }
+      console.error('❌ Context:', {
         moduleId: module.id,
         courseId,
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        message: error instanceof Error ? error.message : String(error)
+        enrollmentId,
+        clientRequestId
       });
       console.groupEnd();
       
       loggers.error('ModulePlayer', 'handleComplete error', {
         error: error instanceof Error ? error.message : String(error),
         moduleId: module.id,
-        courseId
+        courseId,
+        clientRequestId
       });
       showToast(t.error, 'error');
     } finally {
-      console.log('🏁 handleComplete finished - isCompleting set to false');
+      console.log(`🏁 [${clientRequestId}] handleComplete finished - isCompleting set to false`);
       setIsCompleting(false);
     }
   };
