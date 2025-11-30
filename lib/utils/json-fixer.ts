@@ -29,6 +29,12 @@ export function sanitizeAndFixJSON(content: string): string {
   // We need to be VERY careful here - only escape literal whitespace, not structural
   fixed = escapeUnescapedWhitespace(fixed);
 
+  // Step 5: Escape unescaped double-quotes inside string values.
+  // This is a heuristic (best-effort) - it attempts to escape double-quotes
+  // that appear inside a JSON string but are not properly escaped by the LLM.
+  // If JSON is still invalid, parseJSON will report the exact position.
+  fixed = escapeUnescapedQuotes(fixed);
+
   return fixed;
 }
 
@@ -78,6 +84,79 @@ function escapeUnescapedWhitespace(jsonStr: string): string {
 }
 
 /**
+ * Heuristically escape unescaped double-quotes inside JSON string values.
+ *
+ * Strategy:
+ * - Walk the string char-by-char and track whether we're in a JSON string
+ * - When inside a string and we find a `"` that isn't escaped, check the next
+ *   non-whitespace character: if it is not structural (`,`, `}`, `]`, `:`) we
+ *   assume the `"` was intended to be part of the string content and should be
+ *   escaped (i.e. convert `"` -> `\"`).
+ * - This is heuristic and may not be perfect, but covers most LLM JSON cases
+ *   where a writer forgot to escape quotes inside content strings.
+ */
+function escapeUnescapedQuotes(jsonStr: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  let i = 0;
+
+  while (i < jsonStr.length) {
+    const char = jsonStr[i];
+
+    // Track string state
+    if (char === '"' && !escaped) {
+      // We need to inspect if this quote should be treated as a normal delimiter
+      // or if it's likely an unescaped quote within the content.
+      if (!inString) {
+        // Starting a string
+        inString = true;
+        result += char;
+        i++;
+        continue;
+      }
+
+      // We're currently inside a string; determine if this is a true close
+      // The next non-whitespace char decides if it's legitimately closing the
+      // string (comma, colon, brace/bracket) or if it's followed by content,
+      // which suggests it should be escaped.
+      let j = i + 1;
+      while (j < jsonStr.length && /[\s\n\r\t]/.test(jsonStr[j])) j++;
+      const nextChar = j < jsonStr.length ? jsonStr[j] : undefined;
+
+      const structural = nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === ':' || nextChar === undefined;
+
+      if (!structural) {
+        // Likely an internal quote–escape it
+        result += '\\"';
+        i++;
+        continue;
+      }
+
+      // Otherwise treat normally as string close
+      inString = false;
+      result += char;
+      i++;
+      continue;
+    }
+
+    // Handle escapes and normal characters
+    if (char === '\\' && !escaped) {
+      escaped = true;
+      result += char;
+      i++;
+      continue;
+    }
+
+    result += char;
+    escaped = false;
+    i++;
+  }
+
+  return result;
+}
+
+/**
  * Parse JSON with helpful error reporting
  */
 export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T {
@@ -99,6 +178,23 @@ export function parseJSON<T = unknown>(jsonStr: string, context: string = ''): T
       console.error('[JSON] Characters around error:');
       console.error(JSON.stringify(context));
       console.error('[JSON] Position in snippet:', pos - start);
+    }
+
+    // Attempt automatic heuristic fix: escape unescaped quotes inside strings
+    try {
+      // Log basic diagnostics: count of unescaped double quotes (heuristic)
+      const unescapedQuotesBefore = (jsonStr.match(/(^|[^\\])\"/g) || []).length;
+      console.warn(`[JSON] Unescaped quote count before fix in ${context}:`, unescapedQuotesBefore);
+      const fixed = escapeUnescapedQuotes(jsonStr);
+      const unescapedQuotesAfter = (fixed.match(/(^|[^\\])\"/g) || []).length;
+      console.warn(`[JSON] Unescaped quote count after fix in ${context}:`, unescapedQuotesAfter);
+      const parsed = JSON.parse(fixed) as T;
+      console.warn(`[JSON] Auto-fixed quoting issues in ${context} using heuristic escapeUnescapedQuotes()`);
+      return parsed;
+    } catch (fallbackError) {
+      // If it still fails, log fallback details for debugging
+      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.error(`[JSON] Fallback parse error after quote-fix in ${context}:`, fallbackMsg);
     }
 
     throw new Error(`JSON Parse Error in ${context}: ${errorMsg}`);
