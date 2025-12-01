@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getServerAuthUser } from '@/lib/auth/auth-config';
-import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createClient as createSSRClient } from '@/lib/db/supabase-server';
 
 const ProgressSchema = z.object({
   courseId: z.string().uuid(),
@@ -23,22 +22,28 @@ export async function POST(req: NextRequest) {
   console.log(`[PROGRESS API] [${requestId}] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Step 1: Get authenticated user
-    console.log(`[PROGRESS API] [${requestId}] Step 1: Getting authenticated user...`);
-    const user = await getServerAuthUser();
+    // Step 1: Create SSR client (uses cookies for auth)
+    console.log(`[PROGRESS API] [${requestId}] Step 1: Creating SSR client...`);
+    const supabase = await createSSRClient();
+    console.log(`[PROGRESS API] [${requestId}] Step 1 Complete: SSR client created`);
     
-    console.log(`[PROGRESS API] [${requestId}] Step 1 Result:`, {
+    // Step 2: Get authenticated user
+    console.log(`[PROGRESS API] [${requestId}] Step 2: Getting authenticated user...`);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    console.log(`[PROGRESS API] [${requestId}] Step 2 Result:`, {
       hasUser: !!user,
       userId: user?.id || 'NULL',
-      userEmail: user?.email || 'NULL'
+      userEmail: user?.email || 'NULL',
+      authError: authError?.message || 'none'
     });
 
-    if (!user) {
+    if (authError || !user) {
       console.log(`[PROGRESS API] [${requestId}] ❌ UNAUTHORIZED - No user session found`);
       console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (401) ======\n`);
       return NextResponse.json({ 
         error: 'Unauthorized',
-        debug: { requestId, reason: 'No authenticated user session' }
+        debug: { requestId, reason: authError?.message || 'No authenticated user session' }
       }, { status: 401 });
     }
 
@@ -59,10 +64,10 @@ export async function POST(req: NextRequest) {
       timeSpent: timeSpent ?? 'undefined'
     });
 
-    // Step 4: Get Supabase client
-    console.log(`[PROGRESS API] [${requestId}] Step 4: Getting Supabase server client...`);
-    const db = getSupabaseServerClient();
-    console.log(`[PROGRESS API] [${requestId}] Step 4 Complete: Supabase client obtained`);
+    // Step 4: Use the same SSR client for database operations
+    console.log(`[PROGRESS API] [${requestId}] Step 4: Using SSR client for DB operations...`);
+    const db = supabase; // Use the same client that has the auth context
+    console.log(`[PROGRESS API] [${requestId}] Step 4 Complete: Using authenticated SSR client`);
 
     // Step 5: Check if module exists
     console.log(`[PROGRESS API] [${requestId}] Step 5: Verifying module exists...`);
@@ -231,8 +236,10 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const user = await getServerAuthUser();
-    if (!user) {
+    const supabase = await createSSRClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -246,9 +253,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const db = getSupabaseServerClient();
-
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('user_progress')
       .select('*')
       .eq('user_id', user.id)
