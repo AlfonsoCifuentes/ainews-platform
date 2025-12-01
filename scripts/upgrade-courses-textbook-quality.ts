@@ -118,11 +118,9 @@ interface Module {
   order_index: number;
   title_en: string;
   title_es: string;
-  description_en?: string;
-  description_es?: string;
   content_en: string;
   content_es: string;
-  content_type: string;
+  type?: string;
   estimated_time: number;
   resources?: Array<{ title: string; url: string; type: string }>;
 }
@@ -1157,6 +1155,7 @@ async function main() {
   // Parse CLI arguments
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
+  const autoConfirm = args.includes('--yes') || args.includes('-y');
   const downloadModel = args.includes('--download-model');
   const courseIdArg = args.find(a => a.startsWith('--course-id='));
   const specificCourseId = courseIdArg?.split('=')[1];
@@ -1231,11 +1230,9 @@ async function main() {
         order_index,
         title_en,
         title_es,
-        description_en,
-        description_es,
         content_en,
         content_es,
-        content_type,
+        type,
         estimated_time,
         resources
       )
@@ -1269,12 +1266,14 @@ async function main() {
   console.log(`\n   Total modules to process: ${totalModules}`);
   
   // Confirm
-  if (!dryRun) {
+  if (!dryRun && !autoConfirm) {
     const confirm = await askQuestion('\n⚠️  This will modify your database. Continue? (yes/no): ');
     if (confirm.toLowerCase() !== 'yes') {
       console.log('Aborted.');
       process.exit(0);
     }
+  } else if (!dryRun && autoConfirm) {
+    console.log('\n✅ Auto-confirmed with --yes flag');
   }
   
   // Process courses
