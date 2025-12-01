@@ -38,6 +38,12 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
+import {
+  analyzeModuleForImages,
+  generateModuleImages,
+  insertImagesIntoContent,
+  type ImageAnalysisResult
+} from '../lib/ai/image-insertion-ai';
 
 // Load environment
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
@@ -57,10 +63,10 @@ const CONFIG = {
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
   
   // Model Strategy: Different models for different tasks
-  // 🧠 DeepSeek R1 70B - Reasoning, planning, exercises
+  // 🧠 DeepSeek R1 70B - Reasoning, planning, exercises, IMAGE ANALYSIS
   // 📘 Qwen3 30B - Prose content, case studies, translations
   MODELS: {
-    reasoning: 'deepseek-r1:70b',   // Planning, exercises, validation
+    reasoning: 'deepseek-r1:70b',   // Planning, exercises, validation, image analysis
     prose: 'qwen3:30b',              // Content generation, case studies
     fallback: 'qwen2.5:14b'          // Lightweight fallback
   },
@@ -75,9 +81,11 @@ const CONFIG = {
   BATCH_SIZE: 1, // Process one module at a time (heavy processing)
   DELAY_BETWEEN_MODULES_MS: 2000,
   
-  // Image generation
+  // Image generation settings
   GENERATE_IMAGES: true,
-  IMAGES_PER_MODULE: 3, // Number of illustrations per module
+  MAX_IMAGES_PER_MODULE: 6,           // Max images per module
+  MIN_IMAGES_PER_MODULE: 3,           // Minimum images to generate
+  IMAGE_PRIORITIES: ['essential', 'recommended'], // Which priorities to generate
 };
 
 // ============================================================================
@@ -445,67 +453,85 @@ async function generateWithOllama(
 }
 
 // ============================================================================
-// IMAGE GENERATION (Nano Banana Pro)
+// AI-POWERED IMAGE GENERATION (DeepSeek Analysis + Nano Banana Pro)
 // ============================================================================
 
-async function generateEducationalImage(
-  prompt: string,
-  style: 'diagram' | 'infographic' | 'concept' = 'diagram'
-): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.log('   ⚠️  GEMINI_API_KEY not set, skipping image generation');
-    return null;
+/**
+ * Analyzes content with DeepSeek R1 to decide optimal image placement,
+ * generates images with Nano Banana Pro, and inserts them into content.
+ * 
+ * Flow:
+ * 1. DeepSeek R1 analyzes content structure and semantics
+ * 2. Identifies key concepts needing visual representation
+ * 3. Generates detailed prompts for each image
+ * 4. Nano Banana Pro creates the educational illustrations
+ * 5. Images are inserted at semantically appropriate positions
+ */
+async function generateAndInsertImages(
+  content: string,
+  moduleTitle: string,
+  locale: 'en' | 'es'
+): Promise<{ enhancedContent: string; imagesGenerated: number }> {
+  if (!CONFIG.GENERATE_IMAGES) {
+    return { enhancedContent: content, imagesGenerated: 0 };
   }
-  
-  const styleInstructions = {
-    diagram: 'Create a clean, educational diagram with clear labels, arrows showing relationships, and a dark theme background. Use visual metaphors like lightbulbs for ideas and gears for processes.',
-    infographic: 'Design a modern infographic with icons, data visualizations, and clear hierarchy. Use a dark theme with accent colors for key points.',
-    concept: 'Create a conceptual illustration showing abstract ideas in visual form. Include friendly mascot characters (curious cat or wise owl) to make it engaging.'
-  };
-  
-  const fullPrompt = `${styleInstructions[style]}
 
-${prompt}
-
-Style: Modern textbook illustration, professional quality, dark theme friendly, suitable for educational content.`;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) {
+    console.log('   ⚠️  GEMINI_API_KEY not set, skipping image generation');
+    return { enhancedContent: content, imagesGenerated: 0 };
+  }
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: fullPrompt }] }],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            imageConfig: { aspectRatio: '16:9' }
-          }
-        }),
-        signal: AbortSignal.timeout(60000)
-      }
+    // Step 1: DeepSeek analyzes content for optimal image placement
+    console.log('   🧠 DeepSeek analyzing content for image placement...');
+    const analysis = await analyzeModuleForImages(content, moduleTitle, locale);
+    
+    if (!analysis || analysis.insertionPoints.length === 0) {
+      console.log('   ℹ️  No image insertion points identified');
+      return { enhancedContent: content, imagesGenerated: 0 };
+    }
+
+    console.log(`   📍 Found ${analysis.insertionPoints.length} optimal insertion points`);
+    
+    // Log the analysis summary
+    if (analysis.overallStrategy) {
+      console.log(`   📝 Strategy: ${analysis.overallStrategy.substring(0, 100)}...`);
+    }
+
+    // Step 2: Generate images with Nano Banana Pro
+    console.log(`   🖼️  Generating ${Math.min(CONFIG.MAX_IMAGES_PER_MODULE, analysis.insertionPoints.length)} illustrations with Nano Banana Pro...`);
+    const images = await generateModuleImages(
+      analysis, 
+      locale, 
+      CONFIG.MAX_IMAGES_PER_MODULE
     );
-    
-    if (!response.ok) {
-      console.log(`   ⚠️  Image generation failed: ${response.status}`);
-      return null;
+
+    if (images.size === 0) {
+      console.log('   ⚠️  No images were generated');
+      return { enhancedContent: content, imagesGenerated: 0 };
     }
-    
-    const data = await response.json();
-    
-    // Extract base64 image from response
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData?.mimeType?.startsWith('image/')) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    
-    return null;
+
+    // Count successful images
+    const successfulImages = Array.from(images.values()).filter(r => r.success).length;
+    console.log(`   ✅ Generated ${successfulImages} illustrations`);
+
+    // Step 3: Insert images into content at optimal positions
+    console.log('   📐 Inserting images into content at optimal positions...');
+    const enhancedContent = insertImagesIntoContent(content, analysis, images, locale);
+
+    // Log image types generated
+    const imageTypes = analysis.insertionPoints
+      .filter(p => images.has(p.id) && images.get(p.id)?.success)
+      .map(p => p.imageType)
+      .join(', ');
+    console.log(`   🎨 Image types: ${imageTypes}`);
+
+    return { enhancedContent, imagesGenerated: successfulImages };
+
   } catch (error) {
-    console.log(`   ⚠️  Image generation error:`, error instanceof Error ? error.message : error);
-    return null;
+    console.log(`   ⚠️  Image generation pipeline error:`, error instanceof Error ? error.message : error);
+    return { enhancedContent: content, imagesGenerated: 0 };
   }
 }
 
@@ -931,8 +957,9 @@ async function upgradeModule(
   module: Module,
   _modelName: string, // Kept for backwards compatibility, but not used
   locale: 'en' | 'es'
-): Promise<{ content: string; images: string[] }> {
+): Promise<{ content: string; images: string[]; imagesGenerated: number }> {
   const prompt = buildTextbookPrompt(course, module, locale);
+  const moduleTitle = locale === 'es' ? module.title_es : module.title_en;
   
   const systemPrompt = `You are a world-class university professor and textbook author. You write comprehensive, engaging educational content that rivals the best academic publishers.
 
@@ -976,27 +1003,18 @@ The JSON must follow the exact schema provided in the prompt.`;
     }
   }
   
-  // Assemble markdown
-  const markdownContent = assembleMarkdownContent(parsedData, locale);
+  // Assemble markdown content (without images yet)
+  let markdownContent = assembleMarkdownContent(parsedData, locale);
   
-  // Generate images
-  const images: string[] = [];
-  if (CONFIG.GENERATE_IMAGES && parsedData.did_you_know) {
-    console.log(`   🖼️  Generating ${Math.min(CONFIG.IMAGES_PER_MODULE, parsedData.did_you_know.length)} illustrations...`);
-    
-    for (let i = 0; i < Math.min(CONFIG.IMAGES_PER_MODULE, parsedData.did_you_know.length); i++) {
-      const dyk = parsedData.did_you_know[i];
-      if (dyk.illustration_prompt) {
-        const image = await generateEducationalImage(dyk.illustration_prompt, 'diagram');
-        if (image) {
-          images.push(image);
-          console.log(`   ✅ Generated illustration ${i + 1}`);
-        }
-      }
-    }
-  }
+  // AI-POWERED IMAGE GENERATION & INSERTION
+  // DeepSeek analyzes content → decides image placement → Nano Banana Pro generates
+  const { enhancedContent, imagesGenerated } = await generateAndInsertImages(
+    markdownContent,
+    moduleTitle,
+    locale
+  );
   
-  return { content: markdownContent, images };
+  return { content: enhancedContent, images: [], imagesGenerated };
 }
 
 async function upgradeCourse(
@@ -1074,15 +1092,16 @@ async function upgradeCourse(
         console.log(`   ✅ Module upgraded successfully!`);
         console.log(`      EN: ${enResult.content.length} chars`);
         console.log(`      ES: ${esResult.content.length} chars`);
-        console.log(`      Images: ${enResult.images.length + esResult.images.length}`);
+        console.log(`      🖼️  Images: EN=${enResult.imagesGenerated}, ES=${esResult.imagesGenerated}`);
       } else {
         console.log(`   🔸 DRY RUN - Would update module with:`);
         console.log(`      EN: ${enResult.content.length} chars`);
         console.log(`      ES: ${esResult.content.length} chars`);
+        console.log(`      🖼️  Images: EN=${enResult.imagesGenerated}, ES=${esResult.imagesGenerated}`);
       }
       
       result.modulesUpgraded++;
-      result.imagesGenerated += enResult.images.length + esResult.images.length;
+      result.imagesGenerated += enResult.imagesGenerated + esResult.imagesGenerated;
       
     } catch (error) {
       console.error(`   ❌ Failed to upgrade module:`, error);
