@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient as createSSRClient } from '@/lib/db/supabase-server';
+import { createApiClient } from '@/lib/db/supabase-api';
 
 const ProgressSchema = z.object({
   courseId: z.string().uuid(),
@@ -22,10 +22,15 @@ export async function POST(req: NextRequest) {
   console.log(`[PROGRESS API] [${requestId}] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Step 1: Create SSR client (uses cookies for auth)
-    console.log(`[PROGRESS API] [${requestId}] Step 1: Creating SSR client...`);
-    const supabase = await createSSRClient();
-    console.log(`[PROGRESS API] [${requestId}] Step 1 Complete: SSR client created`);
+    // Step 1: Create API client from request cookies
+    console.log(`[PROGRESS API] [${requestId}] Step 1: Creating API client from request...`);
+    const supabase = createApiClient(req);
+    console.log(`[PROGRESS API] [${requestId}] Step 1 Complete: API client created`);
+    
+    // Log cookies for debugging
+    const cookieHeader = req.headers.get('cookie') || '';
+    const hasSbCookies = cookieHeader.includes('sb-');
+    console.log(`[PROGRESS API] [${requestId}] Cookies present: ${hasSbCookies ? 'YES (sb-* found)' : 'NO sb-* cookies'}`);
     
     // Step 2: Get authenticated user
     console.log(`[PROGRESS API] [${requestId}] Step 2: Getting authenticated user...`);
@@ -236,7 +241,7 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createSSRClient();
+    const supabase = createApiClient(req);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
