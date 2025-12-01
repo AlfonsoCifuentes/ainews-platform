@@ -138,6 +138,118 @@ git push origin master
 
 ---
 
+## 📖 COURSE MODULE REQUIREMENTS
+
+### Extensive Content Standard (TEXTBOOK-QUALITY)
+**CRITICAL**: Each course module MUST be as extensive as a university textbook chapter.
+
+#### Content Requirements (20x Standard):
+| Component | Minimum | Target |
+|-----------|---------|--------|
+| **Words per module** | 10,000 | 15,000+ |
+| **Major sections** | 8 | 10-12 |
+| **Case studies** | 2 | 3-4 |
+| **Exercises** | 10 | 15-20 |
+| **Did You Know boxes** | 5 | 8-10 |
+| **Code examples** | 5 | 10+ |
+| **Chapter exam questions** | 15 | 25-30 |
+
+#### Content Generation System:
+```typescript
+// Use the textbook generator for comprehensive content
+import { generateTextbookChapter, assembleChapterMarkdown } from '@/lib/ai/course-generator-textbook';
+
+const chapter = await generateTextbookChapter({
+  courseTopic: 'Machine Learning',
+  moduleTitle: 'Neural Networks',
+  moduleDescription: 'Deep dive into neural network architectures',
+  moduleTopics: ['Perceptrons', 'Backpropagation', 'CNNs', 'RNNs'],
+  difficulty: 'intermediate',
+  language: 'English',
+  locale: 'en',
+  targetWordCount: 15000
+});
+
+// Assemble into markdown
+const markdown = assembleChapterMarkdown(chapter);
+
+// Extract illustration prompts for Nano Banana Pro
+const illustrations = extractIllustrationPrompts(chapter);
+```
+
+#### Required Module Sections:
+1. **Introduction & Context** (300-400 words)
+2. **Foundational Concepts & Terminology** (600-800 words)
+3. **Core Theory & Principles** (800-1000 words)
+4. **Advanced Deep Dive** (800-1000 words)
+5. **Real-World Applications & Case Studies** (500-700 words)
+6. **Practical Implementation Guide** (400-500 words)
+7. **Edge Cases, Limitations & Advanced Considerations** (300-400 words)
+8. **Summary & Knowledge Integration** (300-400 words)
+9. **Practice Exercises** (multiple difficulty levels)
+10. **Chapter Exam** (comprehensive assessment)
+
+### Book-Style Module View
+**Component**: `<BookModuleView />` in `components/courses/BookModuleView.tsx`
+
+Features:
+- **Two-page spread** on wide screens (≥1200px)
+- **Single page** on mobile/tablet
+- **Fullscreen mode** with ESC to exit
+- **Keyboard navigation** (← → arrows, Page Up/Down)
+- **Table of Contents** sidebar
+- **Bookmarks** (persisted locally)
+- **In-page search** (Ctrl/Cmd+F)
+- **Font size adjustment** (12-24px)
+- **Dark/Light mode** toggle
+- **Sepia paper** background in light mode
+
+```tsx
+import { BookModuleView } from '@/components/courses/BookModuleView';
+
+<BookModuleView
+  content={moduleContent}
+  title={moduleTitle}
+  moduleNumber={3}
+  totalModules={10}
+  locale="en"
+  initialPage={1}
+  onComplete={() => handleModuleComplete()}
+  onNavigate={(dir) => navigateToModule(dir)}
+  onPageChange={(page) => saveReadingProgress(page)}
+/>
+```
+
+### Educational Illustrations (Nano Banana Pro):
+- Every module gets AI-generated illustrations via `generateEducationalImage()`
+- Styles: `didactic-diagram`, `curiosity-cat`, `lightbulb-idea`, `exercise-visual`
+- Generated on-demand and cached in localStorage
+- Component: `<ModuleIllustration moduleId={id} content={content} />`
+
+### Exercise Grading (Cascade LLM):
+- Uses cascade LLM grader (`app/api/courses/modules/grade/route.ts`)
+- **Provider order**: Ollama → Groq → Gemini → OpenRouter → Anthropic → OpenAI
+- Validates responses with Zod schema
+- Falls back to heuristic grading if all LLMs fail
+- Awards XP via `award_xp` RPC on correct answers
+
+### Gamification & XP System
+```typescript
+// XP values for different actions
+const XP_VALUES = {
+  MODULE_COMPLETION: 100,
+  EXERCISE_CORRECT: 25,
+  STREAK_BONUS: 50,
+  COURSE_COMPLETION: 500,
+  CASE_STUDY_ANALYSIS: 50,
+  EXAM_PASS: 200
+};
+
+// Test XP awards with: npx tsx scripts/test-award-xp.ts
+```
+
+---
+
 ## Project Overview
 
 This is a **bilingual AI-powered news and learning platform** focused on Artificial Intelligence content. The platform combines automated news curation, AI-generated courses, and self-improving autonomous agents.
@@ -173,10 +285,65 @@ This is a **bilingual AI-powered news and learning platform** focused on Artific
 - **Supabase pgvector** (embeddings + RAG)
 - **LangChain** or custom agent framework
 - **GitHub Actions** for scheduled AI tasks
+- **Google Gemini** - Image generation via Nano Banana Pro/Nano Banana
+- **Anthropic Claude** - Cascade fallback for complex tasks
+
+### AI Image Generation (Nano Banana Pro)
+AINews uses Google's Gemini models for educational illustration generation:
+
+- **Nano Banana Pro** = `gemini-3-pro-image-preview` - Advanced reasoning, 4K resolution, complex educational diagrams
+- **Nano Banana** = `gemini-2.5-flash-image` - Fast generation, efficient for high-volume illustrations
+
+**Implementation**: `lib/ai/gemini-image.ts`
+```typescript
+// Generate educational illustration
+const image = await generateEducationalImage({
+  content: moduleContent,
+  locale: 'en',
+  style: 'didactic-diagram' // or 'curiosity-cat', 'lightbulb-idea', 'exercise-visual'
+});
+```
+
+**API Endpoint**: `POST /api/courses/modules/generate-illustration`
+**Component**: `<ModuleIllustration moduleId={id} content={content} />`
 
 ---
 
 ## Critical Conventions
+
+### LLM Cascade Pattern
+All LLM calls MUST use the cascade fallback pattern with Zod validation:
+
+```typescript
+// Priority order for LLM providers:
+const LLM_CASCADE = [
+  'ollama',      // 1. Local (fastest, free)
+  'groq',        // 2. Groq (fast, free tier)
+  'gemini',      // 3. Google Gemini (free tier)
+  'openrouter',  // 4. OpenRouter (multiple models)
+  'anthropic',   // 5. Anthropic Claude
+  'openai'       // 6. OpenAI (last resort)
+];
+
+// ALWAYS use Zod for response validation
+const GradeResponseSchema = z.object({
+  score: z.number().min(0).max(100),
+  feedback: z.string(),
+  correct: z.boolean()
+});
+
+async function gradeWithCascade(answer: string) {
+  for (const provider of LLM_CASCADE) {
+    try {
+      const response = await callProvider(provider, prompt);
+      return GradeResponseSchema.parse(response);
+    } catch (e) {
+      console.warn(`[${provider}] failed, trying next...`);
+    }
+  }
+  return heuristicFallback(answer); // Always have a fallback
+}
+```
 
 ### File Structure
 ```
@@ -208,6 +375,32 @@ lib/
 - **Strict mode enabled** - all config options on
 - **Zod schemas** for all API inputs/outputs
 - **Type imports** with `import type` when possible
+
+### Zod Validation (Mandatory)
+ALL API endpoints and LLM responses MUST use Zod validation:
+
+```typescript
+// Request validation
+const RequestSchema = z.object({
+  moduleId: z.string().uuid(),
+  userAnswer: z.string().min(1),
+  exerciseType: z.enum(['fill-blank', 'multiple-choice', 'free-response'])
+});
+
+// LLM response validation with extractJSON helper
+function extractJSON<T>(text: string, schema: z.ZodSchema<T>): T | null {
+  const patterns = [/```json\s*([\s\S]*?)\s*```/, /```\s*([\s\S]*?)\s*```/, /(\{[\s\S]*\})/];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      try {
+        return schema.parse(JSON.parse(match[1]));
+      } catch { continue; }
+    }
+  }
+  return null;
+}
+```
 
 ---
 
@@ -571,6 +764,16 @@ test('should curate and display news in both languages', async ({ page }) => {
 - `components/layout/Header.tsx` - Navigation + language switcher
 - `lib/ai/news-curator.ts` - Main news AI agent
 - `lib/db/supabase.ts` - Database client singleton
+
+### AI Image Generation
+- `lib/ai/gemini-image.ts` - Nano Banana Pro client (Gemini image API)
+- `app/api/courses/modules/generate-illustration/route.ts` - Illustration endpoint
+- `components/courses/ModuleIllustration.tsx` - Educational illustration component
+
+### Course Grading System
+- `app/api/courses/modules/grade/route.ts` - Cascade LLM grader with Zod
+- `lib/gamification/xp-server.ts` - Server-side XP award functions
+- `scripts/test-award-xp.ts` - RPC permission validation script
 
 ### Automation
 - `.github/workflows/ai-curation.yml` - Scheduled news curation

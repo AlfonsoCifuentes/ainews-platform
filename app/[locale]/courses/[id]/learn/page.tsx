@@ -1,10 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
-import { ModulePlayer } from '@/components/courses/ModulePlayer';
-import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
-import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
 import { normalizeCourseRecord } from '@/lib/courses/normalize';
+import { CourseLearnExperience } from '@/components/courses/CourseLearnExperience';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -207,46 +205,20 @@ export default async function CourseLearnPage({
   console.groupEnd();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        {/* Sidebar */}
-        <ModuleSidebar
-          locale={locale}
-          courseId={id}
-          course={{
-            title_en: course.title_en,
-            title_es: course.title_es,
-            thumbnail_url: course.thumbnail_url ?? null,
-          }}
-          modules={sortedModules}
-          currentModuleId={currentModule.id}
-          userProgress={userProgress}
-        />
-
-        {/* Main Content */}
-        <div className="flex-1 lg:ml-80">
-          <div className="max-w-5xl mx-auto p-6">
-            {/* Module Player */}
-            <ModulePlayer
-              locale={locale}
-              module={currentModule}
-              courseId={id}
-              enrollmentId={enrollment.id}
-              currentProgress={currentProgress}
-            />
-
-            {/* Navigation */}
-            <ModuleNavigation
-              locale={locale}
-              courseId={id}
-              currentModule={currentModule}
-              modules={sortedModules}
-              userProgress={userProgress}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <CourseLearnExperience
+      locale={locale}
+      courseId={id}
+      course={{
+        title_en: course.title_en,
+        title_es: course.title_es,
+        thumbnail_url: course.thumbnail_url ?? null,
+      }}
+      modules={sortedModules}
+      currentModule={currentModule}
+      userProgress={userProgress}
+      enrollmentId={enrollment.id}
+      currentProgress={currentProgress}
+    />
   );
 }
 

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/shared/ToastProvider';
+import { useUser } from '@/lib/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -103,10 +104,11 @@ export function ModulePlayer({
 }: ModulePlayerProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { refetch: refetchUser } = useUser();
   const [isCompleting, setIsCompleting] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [exerciseAnswer, setExerciseAnswer] = useState('');
-  const [gradingResult, setGradingResult] = useState<{ score: number; feedback: string } | null>(null);
+  const [gradingResult, setGradingResult] = useState<{ score: number; feedback: string; debug?: { usedModel?: string; timing?: number; [key: string]: unknown } } | null>(null);
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -441,24 +443,34 @@ export function ModulePlayer({
         progressId: result.progress?.id
       });
 
-      // Step 6: Dispatch events
+      // Step 6: Dispatch event
       console.log('🎊 Step 6: Dispatching course-complete event...');
       window.dispatchEvent(new CustomEvent('course-complete', {
         detail: { moduleId: module.id, courseId, clientRequestId }
       }));
-      console.log('🎊 Dispatching xp-awarded event...');
-      // Dispatch XP award event with optional origin coordinates to allow animation
-      const btn = document.querySelector('.complete-module-button');
-      const rect = btn?.getBoundingClientRect();
-      window.dispatchEvent(new CustomEvent('xp-awarded', {
-        detail: {
-          amount: 100,
-          moduleId: module.id,
-          courseId,
-          from: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null,
+      console.log('🎊 Checking for awarded XP...');
+      // If server awarded XP, dispatch xp-awarded with that amount and origin coordinates for animation
+      try {
+        const xpAmount = Number((result as ApiResult)?.['awardedXP'] ?? 0);
+        if (xpAmount && xpAmount > 0) {
+          console.log('🎊 Dispatching xp-awarded event from server award', xpAmount);
+          const btn = document.querySelector('.complete-module-button');
+          const rect = btn?.getBoundingClientRect();
+          window.dispatchEvent(new CustomEvent('xp-awarded', {
+            detail: {
+              amount: xpAmount,
+              moduleId: module.id,
+              courseId,
+              from: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null,
+            }
+          }));
+          try { await refetchUser?.(); } catch (err) { console.warn('Failed refetchUser after xp-award', err); };
         }
-      }));
-      console.log('✅ Event dispatched');
+      } catch (e) {
+        console.warn('Failed to dispatch xp-awarded based on server response', e); 
+      }
+      // Only show xp-awarded event when the server confirmed awarding XP (server-side award)
+      console.log('✅ Event dispatching complete (server-side award only)');
 
       // Step 7: Show toast and refresh
       console.log('🎉 Step 7: Showing success toast...');
@@ -535,10 +547,11 @@ export function ModulePlayer({
         return;
       }
       const data = await res.json();
-      setGradingResult({ score: data.score ?? 0, feedback: data.feedback ?? '' });
+      setGradingResult({ score: data.score ?? 0, feedback: data.feedback ?? '', debug: data.debug ?? undefined });
       // Award XP if passed
       if (data.score >= 70) {
         window.dispatchEvent(new CustomEvent('xp-awarded', { detail: { amount: 25, moduleId: module.id } }));
+        try { await refetchUser?.(); } catch (err) { console.warn('Failed refetchUser after exercise award', err); }
         showToast('Great! Exercise passed +25 XP', 'success');
       } else {
         showToast('Keep trying! Review the module and try again', 'info');
@@ -830,6 +843,9 @@ export function ModulePlayer({
             <div className="text-sm">
               <div>Score: {gradingResult.score}%</div>
               <div className="text-xs text-muted-foreground">{gradingResult.feedback}</div>
+              {gradingResult.debug?.usedModel && (
+                <div className="text-xs text-muted-foreground mt-1">Graded by: {String(gradingResult.debug.usedModel)}</div>
+              )}
             </div>
           )}
         </div>

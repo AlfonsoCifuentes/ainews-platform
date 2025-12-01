@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createApiClient } from '@/lib/db/supabase-api';
+import { createClient as createServerClient } from '@/lib/db/supabase-server';
 
 const ProgressSchema = z.object({
   courseId: z.string().uuid(),
@@ -210,10 +211,39 @@ export async function POST(req: NextRequest) {
       completedAt: data?.completed_at
     });
 
-    // The database trigger will automatically:
-    // - Update course progress percentage
-    // - Award XP for module completion
-    // - Check for achievements
+    // The database trigger may attempt to award XP, but not all environments have the trigger.
+    // To guarantee immediate XP award, we call the award_xp RPC here if this was a transition from uncompleted->completed.
+    let awardedXP = 0;
+    let updatedProfile: { total_xp?: number; level?: number } | null = null;
+    try {
+      const serverSupabase = await createServerClient();
+      // Only award once: if progress is newly completed
+      const shouldAward = completed && (!existing || !existing.completed);
+      if (shouldAward) {
+        // award 100 XP for module completion to match product expectation
+        const xpAmount = 100;
+        console.log(`[PROGRESS API] [${requestId}] Awarding ${xpAmount} XP to user ${user.id}`);
+        const { error: awardError } = await serverSupabase.rpc('award_xp', {
+          p_user_id: user.id,
+          p_xp_amount: xpAmount,
+          p_action_type: 'module_completion',
+          p_reference_id: data?.id || null
+        });
+        if (!awardError) {
+          awardedXP = xpAmount;
+          const { data: profileData } = await serverSupabase
+            .from('user_profiles')
+            .select('total_xp, level')
+            .eq('id', user.id)
+            .single();
+          updatedProfile = profileData || null;
+        } else {
+          console.warn(`[PROGRESS API] [${requestId}] award_xp RPC returned error:`, awardError);
+        }
+      }
+    } catch (awardErr) {
+      console.warn(`[PROGRESS API] [${requestId}] Failed to award XP:`, awardErr);
+    }
 
     console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (200) ======\n`);
 
@@ -221,6 +251,8 @@ export async function POST(req: NextRequest) {
       success: true,
       progress: data,
       message: 'Progress updated successfully',
+      awardedXP,
+      profile: updatedProfile,
       debug: { requestId }
     });
   } catch (error) {

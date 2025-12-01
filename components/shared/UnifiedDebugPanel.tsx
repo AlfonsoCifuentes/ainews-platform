@@ -10,6 +10,7 @@ import {
 import {
   AlertTriangle,
   Bug,
+  Check,
   Copy,
   Download,
   Filter,
@@ -19,8 +20,14 @@ import {
   PinOff,
   RefreshCw,
   ScrollText,
+  Server,
   Trash2,
+  X,
 } from 'lucide-react';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 type CombinedLog = {
   id: string;
@@ -29,8 +36,23 @@ type CombinedLog = {
   component: string;
   message: string;
   data?: string | null;
-  source: 'client' | 'runtime';
+  source: 'client' | 'runtime' | 'server';
 };
+
+interface ServerDebugData {
+  route?: string;
+  status?: number;
+  statusText?: string;
+  trace?: string;
+  body?: unknown;
+  triggerType?: string;
+  headers?: Record<string, unknown> | null;
+  timestamp?: string;
+}
+
+// ============================================================================
+// Utils
+// ============================================================================
 
 const parseTimestamp = (value: string): number => {
   const parsed = Date.parse(value);
@@ -45,48 +67,58 @@ const LEVEL_TAGS: Record<string, string> = {
   success: 'bg-emerald-500/20 text-emerald-100 border border-emerald-500/40',
   network: 'bg-purple-500/20 text-purple-100 border border-purple-500/40',
   db: 'bg-cyan-500/20 text-cyan-100 border border-cyan-500/40',
+  server: 'bg-orange-500/20 text-orange-100 border border-orange-500/40',
 };
 
-const LEVEL_FILTERS = ['all', 'error', 'warn', 'info', 'debug', 'success', 'network', 'db'] as const;
+const LEVEL_FILTERS = ['all', 'error', 'warn', 'info', 'debug', 'success', 'network', 'db', 'server'] as const;
 
-export function LogDashboard() {
+// ============================================================================
+// Component
+// ============================================================================
+
+export function UnifiedDebugPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [clientLogs, setClientLogs] = useState<ClientLogEntry[]>([]);
   const [runtimeLogs, setRuntimeLogs] = useState<LogEntry[]>([]);
+  const [serverDebugData, setServerDebugData] = useState<ServerDebugData[]>([]);
   const [levelFilter, setLevelFilter] = useState<(typeof LEVEL_FILTERS)[number]>('all');
   const [moduleFilter, setModuleFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [pinLeft, setPinLeft] = useState(false);
+  const [copied, setCopied] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setClientLogs(getInlineLogs());
     setRuntimeLogs(logger.getLogs());
 
+    // Client log handler
     const handleClientLog = (event: Event) => {
       const payload = event as CustomEvent<ClientLogEntry>;
       setClientLogs((prev) => {
         const next = [...prev, payload.detail];
-        return next.slice(-350);
+        return next.slice(-500);
+      });
+    };
+
+    // Server debug handler
+    const handleServerDebug = (event: Event) => {
+      setIsOpen(true); // Auto-open on server errors
+      const payload = (event as CustomEvent).detail as ServerDebugData;
+      setServerDebugData((prev) => {
+        const next = [...prev, { ...payload, timestamp: new Date().toISOString() }];
+        return next.slice(-100);
       });
     };
 
     window.addEventListener('ainews-log', handleClientLog as EventListener);
+    window.addEventListener('server-debug', handleServerDebug as EventListener);
 
+    // Periodic refresh for runtime logs
     const interval = window.setInterval(() => {
       setRuntimeLogs(logger.getLogs());
     }, 1500);
-
-    const handleServerDebug = (event: Event) => {
-      // Open the dashboard when a server debug event is emitted
-      setIsOpen(true);
-      // also log a runtime entry about the server debug
-      const payload = (event as CustomEvent).detail;
-      logger.error('ServerDebug', 'Server debug occurred', payload);
-    };
-
-    window.addEventListener('server-debug', handleServerDebug as EventListener);
 
     return () => {
       window.removeEventListener('ainews-log', handleClientLog as EventListener);
@@ -95,6 +127,7 @@ export function LogDashboard() {
     };
   }, []);
 
+  // Combine all logs
   const combinedLogs = useMemo<CombinedLog[]>(() => {
     const client = clientLogs.map((entry) => ({
       id: `${entry.id}-client`,
@@ -116,17 +149,29 @@ export function LogDashboard() {
       source: 'runtime' as const,
     }));
 
-    return [...client, ...runtime].sort((a, b) =>
-      parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp)
-    );
-  }, [clientLogs, runtimeLogs]);
+    const server = serverDebugData.map((entry, idx) => ({
+      id: `server-${idx}-${entry.timestamp}`,
+      timestamp: entry.timestamp || new Date().toISOString(),
+      level: 'server',
+      component: entry.route || 'server',
+      message: `${entry.status || 'ERR'} ${entry.statusText || entry.triggerType || 'Server Event'}`,
+      data: JSON.stringify(entry, null, 2),
+      source: 'server' as const,
+    }));
 
+    return [...client, ...runtime, ...server].sort(
+      (a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp)
+    );
+  }, [clientLogs, runtimeLogs, serverDebugData]);
+
+  // Module options for filter
   const moduleOptions = useMemo(() => {
     const modules = new Set<string>(['all']);
     combinedLogs.forEach((log) => modules.add(log.component));
     return Array.from(modules);
   }, [combinedLogs]);
 
+  // Apply filters
   const filteredLogs = useMemo(() => {
     return combinedLogs.filter((log) => {
       if (levelFilter !== 'all' && log.level !== levelFilter) return false;
@@ -143,9 +188,13 @@ export function LogDashboard() {
     });
   }, [combinedLogs, levelFilter, moduleFilter, searchQuery]);
 
-  const errorCount = combinedLogs.filter((log) => log.level === 'error').length;
+  // Counts
+  const errorCount = combinedLogs.filter((log) => log.level === 'error' || log.level === 'server').length;
   const warnCount = combinedLogs.filter((log) => log.level === 'warn').length;
+  const networkCount = combinedLogs.filter((log) => log.level === 'network').length;
+  const dbCount = combinedLogs.filter((log) => log.level === 'db').length;
 
+  // Auto-scroll
   useEffect(() => {
     if (!isOpen || !autoScroll) return;
     const el = logContainerRef.current;
@@ -153,39 +202,58 @@ export function LogDashboard() {
     el.scrollTop = el.scrollHeight;
   }, [filteredLogs, isOpen, autoScroll]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(JSON.stringify(filteredLogs, null, 2)).catch(() => {
-      // ignore
-    });
+  // Copy all logs to clipboard
+  const handleCopy = async () => {
+    try {
+      const exportData = {
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        logs: filteredLogs,
+        serverDebug: serverDebugData,
+      };
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+      console.log('Logs:', filteredLogs);
+    }
   };
 
+  // Export as JSON file
   const handleExport = () => {
-    const text = JSON.stringify(combinedLogs, null, 2);
+    const exportData = {
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      logs: combinedLogs,
+      serverDebug: serverDebugData,
+    };
+    const text = JSON.stringify(exportData, null, 2);
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `ainews-logs-${Date.now()}.json`;
+    anchor.download = `ainews-debug-${Date.now()}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
+  // Clear all
   const handleClear = () => {
     logger.clearLogs();
     clearInlineLogs();
     setClientLogs([]);
     setRuntimeLogs([]);
+    setServerDebugData([]);
   };
 
   const positionClasses = pinLeft ? 'left-0 pl-4' : 'right-0 pr-4';
 
-  // Count network and db logs
-  const networkCount = combinedLogs.filter((log) => log.level === 'network').length;
-  const dbCount = combinedLogs.filter((log) => log.level === 'db').length;
-
   return (
     <div className={`fixed bottom-0 z-[80] pointer-events-none ${positionClasses}`}>
-      {/* Minimal bug icon button - only shows badge when there are errors/warnings */}
+      {/* Minimal bug icon button */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className={`pointer-events-auto relative mb-4 flex items-center justify-center rounded-full p-2.5 shadow-lg transition-all ${
@@ -197,7 +265,7 @@ export function LogDashboard() {
             ? 'bg-yellow-500 text-black'
             : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-white'
         }`}
-        title="Toggle debug overlay"
+        title="Toggle debug panel"
       >
         <Bug className="h-4 w-4" />
         {(errorCount > 0 || warnCount > 0) && (
@@ -207,16 +275,18 @@ export function LogDashboard() {
         )}
       </button>
 
+      {/* Panel */}
       {isOpen && (
         <div
-          className={`pointer-events-auto mb-6 max-h-[70vh] w-[420px] rounded-2xl border border-white/10 bg-slate-900/95 text-white shadow-2xl backdrop-blur-xl ${
+          className={`pointer-events-auto mb-6 max-h-[75vh] w-[460px] rounded-2xl border border-white/10 bg-slate-900/95 text-white shadow-2xl backdrop-blur-xl ${
             pinLeft ? 'ml-4' : 'mr-4'
           }`}
         >
+          {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-xs uppercase tracking-wide text-slate-300">
             <div className="flex items-center gap-2">
               <Bug className="h-4 w-4" />
-              AINews Diagnostics
+              AINews Debug Console
             </div>
             <div className="flex items-center gap-3 text-[10px] font-semibold">
               <div className="flex items-center gap-1 text-red-300" title="Errors">
@@ -225,11 +295,14 @@ export function LogDashboard() {
               <div className="flex items-center gap-1 text-yellow-200" title="Warnings">
                 <Filter className="h-3 w-3" /> {warnCount}
               </div>
-              <div className="flex items-center gap-1 text-purple-300" title="Network calls">
+              <div className="flex items-center gap-1 text-purple-300" title="Network">
                 <Globe className="h-3 w-3" /> {networkCount}
               </div>
-              <div className="flex items-center gap-1 text-cyan-300" title="DB calls">
+              <div className="flex items-center gap-1 text-cyan-300" title="Database">
                 <Database className="h-3 w-3" /> {dbCount}
+              </div>
+              <div className="flex items-center gap-1 text-orange-300" title="Server">
+                <Server className="h-3 w-3" /> {serverDebugData.length}
               </div>
               <button
                 className="rounded-full border border-white/10 p-1 transition hover:bg-white/10"
@@ -238,17 +311,25 @@ export function LogDashboard() {
               >
                 {pinLeft ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
               </button>
+              <button
+                className="rounded-full border border-white/10 p-1 transition hover:bg-white/10"
+                onClick={() => setIsOpen(false)}
+                title="Close panel"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
 
+          {/* Filters */}
           <div className="space-y-3 border-b border-white/5 px-4 py-3 text-xs">
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Nivel</label>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Level</label>
                 <select
                   className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-2 py-1.5 text-xs"
                   value={levelFilter}
-                  onChange={(event) => setLevelFilter(event.target.value as (typeof LEVEL_FILTERS)[number])}
+                  onChange={(e) => setLevelFilter(e.target.value as (typeof LEVEL_FILTERS)[number])}
                 >
                   {LEVEL_FILTERS.map((level) => (
                     <option key={level} value={level}>
@@ -258,11 +339,11 @@ export function LogDashboard() {
                 </select>
               </div>
               <div className="flex-1">
-                <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Módulo</label>
+                <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Module</label>
                 <select
                   className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-2 py-1.5 text-xs"
                   value={moduleFilter}
-                  onChange={(event) => setModuleFilter(event.target.value)}
+                  onChange={(e) => setModuleFilter(e.target.value)}
                 >
                   {moduleOptions.map((option) => (
                     <option key={option} value={option}>
@@ -273,19 +354,19 @@ export function LogDashboard() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Buscar</label>
+              <label className="mb-1 block text-[11px] uppercase tracking-wide text-slate-400">Search</label>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Trace ID, mensaje, módulo..."
+                  placeholder="Trace ID, message, module..."
                   className="flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-1.5 text-xs"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <button
                   className={`rounded-full border border-white/10 p-2 transition ${autoScroll ? 'bg-white/10' : 'bg-transparent'}`}
                   onClick={() => setAutoScroll((prev) => !prev)}
-                  title={autoScroll ? 'Desactivar auto-scroll' : 'Activar auto-scroll'}
+                  title={autoScroll ? 'Disable auto-scroll' : 'Enable auto-scroll'}
                 >
                   {autoScroll ? <ScrollText className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 </button>
@@ -293,10 +374,11 @@ export function LogDashboard() {
             </div>
           </div>
 
+          {/* Logs */}
           <div ref={logContainerRef} className="max-h-[45vh] overflow-y-auto px-4 py-3 text-xs">
             {filteredLogs.length === 0 ? (
               <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-slate-400">
-                No hay logs para los filtros seleccionados.
+                No logs for selected filters.
               </div>
             ) : (
               filteredLogs.map((log) => (
@@ -322,7 +404,7 @@ export function LogDashboard() {
                   {log.data && (
                     <details className="mt-2 rounded-lg bg-black/40 p-2 text-[11px] text-slate-200">
                       <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                        Detalles
+                        Details
                       </summary>
                       <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
                         {log.data}
@@ -334,27 +416,32 @@ export function LogDashboard() {
             )}
           </div>
 
+          {/* Footer */}
           <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-xs text-slate-400">
-            <span>{combinedLogs.length} eventos registrados</span>
+            <span>{combinedLogs.length} events logged</span>
             <div className="flex items-center gap-2">
               <button
-                className="rounded-full border border-white/10 p-2 transition hover:bg-white/10"
+                className={`rounded-full border p-2 transition ${
+                  copied 
+                    ? 'border-green-400/40 bg-green-500/10 text-green-300' 
+                    : 'border-white/10 hover:bg-white/10'
+                }`}
                 onClick={handleCopy}
-                title="Copiar logs filtrados"
+                title="Copy all logs to clipboard"
               >
-                <Copy className="h-3.5 w-3.5" />
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
               <button
                 className="rounded-full border border-white/10 p-2 transition hover:bg-white/10"
                 onClick={handleExport}
-                title="Exportar JSON"
+                title="Export as JSON"
               >
                 <Download className="h-3.5 w-3.5" />
               </button>
               <button
                 className="rounded-full border border-red-400/40 p-2 text-red-200 transition hover:bg-red-500/10"
                 onClick={handleClear}
-                title="Limpiar todo"
+                title="Clear all logs"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

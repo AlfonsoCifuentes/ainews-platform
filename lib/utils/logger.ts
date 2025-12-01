@@ -1,9 +1,10 @@
 /**
  * Browser Console Logger System
  * Comprehensive logging for debugging auth, user state, and app lifecycle
+ * Includes network interception, error capture, and deduplication
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success' | 'network' | 'db';
 
 export interface ClientLogEntry {
   id: string;
@@ -12,28 +13,60 @@ export interface ClientLogEntry {
   level: LogLevel;
   message: string;
   data?: string | null;
+  count?: number; // For deduplication
 }
 
 export type ClientLogEventDetail = ClientLogEntry & { raw?: unknown };
 
-const LOG_COLORS = {
+const LOG_COLORS: Record<LogLevel, string> = {
   debug: '#888888',
   info: '#0066CC',
   warn: '#FF9900',
   error: '#CC0000',
   success: '#00AA00',
+  network: '#9933FF',
+  db: '#00CCCC',
 };
 
-const LOG_PREFIXES = {
+const LOG_PREFIXES: Record<LogLevel, string> = {
   debug: '🔍',
   info: 'ℹ️',
   warn: '⚠️',
   error: '❌',
   success: '✅',
+  network: '🌐',
+  db: '🗄️',
 };
 
 const STORAGE_KEY = 'ainews_logs';
-const MAX_LOGS = 300;
+const MAX_LOGS = 500;
+const MAX_DUPLICATE_COUNT = 5; // Stop logging after 5 identical messages
+
+// Deduplication tracking
+const messageCountMap = new Map<string, number>();
+
+/**
+ * Generate a deduplication key for a log entry
+ */
+function getDedupeKey(module: string, level: LogLevel, message: string): string {
+  return `${module}:${level}:${message}`;
+}
+
+/**
+ * Check if we should log this message (deduplication)
+ * Returns the current count, or -1 if we should skip
+ */
+function shouldLog(module: string, level: LogLevel, message: string): number {
+  const key = getDedupeKey(module, level, message);
+  const currentCount = messageCountMap.get(key) || 0;
+  
+  if (currentCount >= MAX_DUPLICATE_COUNT) {
+    return -1; // Skip this log
+  }
+  
+  messageCountMap.set(key, currentCount + 1);
+  return currentCount + 1;
+}
 
 /**
  * Main logger instance
@@ -45,6 +78,12 @@ export function log(
   message: string,
   data?: Record<string, unknown> | Error | unknown
 ) {
+  // Check deduplication
+  const count = shouldLog(module, level, message);
+  if (count === -1) {
+    return; // Skip duplicate log
+  }
+
   const now = new Date();
   const readableTime = now.toLocaleTimeString('en-US', {
     hour12: false,
@@ -54,25 +93,29 @@ export function log(
     fractionalSecondDigits: 3,
   });
 
-  const prefix = LOG_PREFIXES[level];
-  const color = LOG_COLORS[level];
+  const prefix = LOG_PREFIXES[level] || '📝';
+  const color = LOG_COLORS[level] || '#888888';
   const moduleName = `[${module.toUpperCase()}]`;
+  const countSuffix = count > 1 ? ` (x${count})` : '';
 
   // Build log message
-  const logMessage = `${prefix} ${readableTime} ${moduleName} ${message}`;
+  const logMessage = `${prefix} ${readableTime} ${moduleName} ${message}${countSuffix}`;
 
-  // Console logging with styling
-  if (data !== undefined) {
-    console.log(
-      `%c${logMessage}`,
-      `color: ${color}; font-weight: bold;`,
-      data
-    );
-  } else {
-    console.log(
-      `%c${logMessage}`,
-      `color: ${color}; font-weight: bold;`
-    );
+  // Console logging with styling (suppress for network/db to reduce noise)
+  const suppressConsole = level === 'network' || level === 'db';
+  if (!suppressConsole) {
+    if (data !== undefined) {
+      console.log(
+        `%c${logMessage}`,
+        `color: ${color}; font-weight: bold;`,
+        data
+      );
+    } else {
+      console.log(
+        `%c${logMessage}`,
+        `color: ${color}; font-weight: bold;`
+      );
+    }
   }
 
   const entry: ClientLogEntry = {
@@ -82,8 +125,9 @@ export function log(
     timestamp: now.toISOString(),
     module,
     level,
-    message,
+    message: count > 1 ? `${message} (x${count})` : message,
     data: data !== undefined ? safeSerialize(data) : null,
+    count,
   };
 
   persistLog(entry);
@@ -154,7 +198,18 @@ export const loggers = {
     log(module, 'warn', message, data),
   success: (module: string, message: string, data?: Record<string, unknown> | Error | unknown) =>
     log(module, 'success', message, data),
+  network: (message: string, data?: Record<string, unknown> | Error | unknown) =>
+    log('network', 'network', message, data),
+  db: (message: string, data?: Record<string, unknown> | Error | unknown) =>
+    log('database', 'db', message, data),
 };
+
+/**
+ * Reset deduplication counters (useful for testing or after long periods)
+ */
+export function resetDeduplication() {
+  messageCountMap.clear();
+}
 
 /**
  * Get all logs from session
@@ -180,6 +235,7 @@ export function clearLogs() {
     return;
   }
   window.sessionStorage.removeItem(STORAGE_KEY);
+  messageCountMap.clear();
 }
 
 /**
@@ -206,6 +262,143 @@ export function getLogsForDebug() {
   };
 }
 
+// Track if we've already initialized interceptors
+let interceptorsInitialized = false;
+
+/**
+ * Initialize global interceptors for automatic logging
+ */
+function initializeInterceptors() {
+  if (typeof window === 'undefined' || interceptorsInitialized) {
+    return;
+  }
+  
+  interceptorsInitialized = true;
+  
+  // Store original functions
+  const originalFetch = window.fetch;
+  const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
+  
+  // Intercept fetch for network logging
+  window.fetch = async function(...args: Parameters<typeof fetch>) {
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+    const method = (args[1]?.method || 'GET').toUpperCase();
+    const startTime = performance.now();
+    
+    // Skip logging for certain URLs to reduce noise
+    const skipPatterns = [
+      '/api/health', 
+      '/_next/', 
+      '/favicon', 
+      '.js', 
+      '.css', 
+      '.woff', 
+      '.woff2',
+      '.png', 
+      '.jpg', 
+      '.jpeg',
+      '.svg',
+      '.ico',
+      'supabase.co/storage',
+      'googleapis.com/storage',
+    ];
+    const shouldSkip = skipPatterns.some(pattern => url.includes(pattern));
+    
+    try {
+      const response = await originalFetch.apply(window, args);
+      const duration = Math.round(performance.now() - startTime);
+      
+      if (!shouldSkip) {
+        const isError = response.status >= 400;
+        const level: LogLevel = isError ? 'error' : 'network';
+        const shortUrl = url.replace(window.location.origin, '');
+        
+        log('network', level, `${method} ${shortUrl} → ${response.status}`, {
+          status: response.status,
+          statusText: response.statusText,
+          duration: `${duration}ms`,
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      const duration = Math.round(performance.now() - startTime);
+      const shortUrl = url.replace(window.location.origin, '');
+      
+      if (!shouldSkip) {
+        log('network', 'error', `${method} ${shortUrl} → FAILED`, {
+          error: error instanceof Error ? error.message : String(error),
+          duration: `${duration}ms`,
+        });
+      }
+      
+      throw error;
+    }
+  };
+  
+  // Helper function to stringify safely
+  function tryStringify(value: unknown): string {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  
+  // Intercept console.error for automatic error capture
+  console.error = function(...args: unknown[]) {
+    originalConsoleError.apply(console, args);
+    
+    // Build message from args
+    const message = args.map(arg => 
+      typeof arg === 'string' ? arg : 
+      arg instanceof Error ? arg.message : 
+      tryStringify(arg)
+    ).join(' ').substring(0, 500);
+    
+    // Don't log our own errors or React internal errors to avoid noise
+    const skipPatterns = ['[AINLOG]', '[network]', 'Warning:', 'React does not recognize'];
+    if (!skipPatterns.some(p => message.includes(p))) {
+      log('console', 'error', message);
+    }
+  };
+  
+  // Intercept console.warn for automatic warning capture
+  console.warn = function(...args: unknown[]) {
+    originalConsoleWarn.apply(console, args);
+    
+    const message = args.map(arg => 
+      typeof arg === 'string' ? arg : 
+      arg instanceof Error ? arg.message : 
+      tryStringify(arg)
+    ).join(' ').substring(0, 500);
+    
+    // Skip React warnings and our own logs
+    const skipPatterns = ['[AINLOG]', '[network]', 'Warning: React', 'Warning: Each child', 'Warning: Failed prop'];
+    if (!skipPatterns.some(p => message.includes(p))) {
+      log('console', 'warn', message);
+    }
+  };
+  
+  // Global error handler
+  window.addEventListener('error', (event) => {
+    log('global', 'error', `Uncaught: ${event.message}`, {
+      filename: event.filename?.replace(window.location.origin, ''),
+      line: event.lineno,
+      col: event.colno,
+    });
+  });
+  
+  // Unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason instanceof Error 
+      ? event.reason.message 
+      : String(event.reason);
+    log('global', 'error', `Unhandled Promise: ${reason.substring(0, 300)}`);
+  });
+}
+
 // Make logger available globally for console debugging
 if (typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).AINLog = {
@@ -215,9 +408,9 @@ if (typeof window !== 'undefined') {
     clearLogs,
     exportLogs,
     getLogsForDebug,
+    resetDeduplication,
   };
-  console.log(
-    '%c🔍 AINLog API Available - Use window.AINLog.getLogs() to debug',
-    'color: #00AA00; font-weight: bold; font-size: 12px;'
-  );
+  
+  // Initialize interceptors for automatic capture
+  initializeInterceptors();
 }
