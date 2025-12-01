@@ -1,6 +1,15 @@
 /**
  * MODEL STRATEGY - Intelligent model selection for different tasks
  * 
+ * ⚠️ IMPORTANT: This file uses model definitions from model-versions.ts
+ * Always keep model-versions.ts up-to-date with the latest AI models.
+ * 
+ * 📅 LATEST MODELS (as of 2025):
+ * - OpenAI: GPT-5.1, GPT-5 Pro, o3, o4-mini
+ * - Anthropic: Claude Opus 4.5, Claude Sonnet 4.5, Claude Haiku 4.5
+ * - Google: Gemini 3 Pro, Gemini 2.5 Flash
+ * - Local: DeepSeek R1 70B, Qwen3 30B
+ * 
  * Based on model strengths:
  * 
  * 🧠 DeepSeek-R1 70B:
@@ -19,6 +28,15 @@
  * 
  * Fallback chain: Groq → Gemini → Anthropic → OpenAI
  */
+
+import { 
+  OPENAI_MODELS, 
+  GEMINI_MODELS, 
+  CLAUDE_MODELS, 
+  GROQ_MODELS, 
+  OLLAMA_MODELS,
+  OPENROUTER_MODELS 
+} from './model-versions';
 
 export type TaskType = 
   | 'outline_planning'      // Chapter outline, curriculum design
@@ -42,6 +60,7 @@ export interface ModelConfig {
 }
 
 // Model definitions with their characteristics
+// ⚠️ Using latest versions from model-versions.ts
 const MODELS = {
   // === OLLAMA LOCAL MODELS (PRIMARY) ===
   
@@ -49,7 +68,7 @@ const MODELS = {
   // Best for: Planning, exercises, validation, math, proofs
   deepseek_r1_70b: {
     provider: 'ollama' as const,
-    model: 'deepseek-r1:70b',
+    model: OLLAMA_MODELS.DEEPSEEK_R1_70B,
     description: 'DeepSeek R1 70B - Exceptional reasoning, step-by-step analysis, exercise design',
     maxTokens: 8000,
     temperature: 0.3, // Lower temp for precise reasoning
@@ -60,7 +79,7 @@ const MODELS = {
   // Best for: Textbook content, case studies, translations
   qwen3_30b: {
     provider: 'ollama' as const,
-    model: 'qwen3:30b',
+    model: OLLAMA_MODELS.QWEN3_30B,
     description: 'Qwen3 30B - Excellent prose quality, 100+ languages, fast generation',
     maxTokens: 8000,
     temperature: 0.7,
@@ -70,7 +89,7 @@ const MODELS = {
   // === OLLAMA FALLBACK MODELS ===
   qwen2_5_14b: {
     provider: 'ollama' as const,
-    model: 'qwen2.5:14b',
+    model: OLLAMA_MODELS.QWEN2_5_14B,
     description: 'Qwen2.5 14B - Faster fallback, good quality',
     maxTokens: 4000,
     temperature: 0.7,
@@ -78,77 +97,118 @@ const MODELS = {
   },
   llama3_1_8b: {
     provider: 'ollama' as const,
-    model: 'llama3.1:8b',
+    model: OLLAMA_MODELS.LLAMA3_1_8B,
     description: 'Llama 3.1 8B - Fast, lightweight fallback',
     maxTokens: 4000,
     temperature: 0.7,
     contextWindow: 131072
   },
 
-  // === CLOUD MODELS ===
+  // === CLOUD MODELS (LATEST VERSIONS 2025) ===
+  
   groq_llama70b: {
     provider: 'groq' as const,
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODELS.LLAMA_3_3_70B,
     description: 'Groq Llama 3.3 70B - Ultra fast cloud inference',
     maxTokens: 8000,
     temperature: 0.7,
     contextWindow: 131072
   },
+  
+  // Gemini 2.5 Flash - Best price-performance (Gemini 3 Pro reserved for premium)
   gemini_flash: {
     provider: 'gemini' as const,
-    model: 'gemini-1.5-flash',
-    description: 'Gemini 1.5 Flash - Fast, multimodal capable',
+    model: GEMINI_MODELS.GEMINI_2_5_FLASH,
+    description: 'Gemini 2.5 Flash - Best price-performance, fast multimodal',
     maxTokens: 8000,
     temperature: 0.7,
     contextWindow: 1000000
   },
+  
+  // Gemini 3 Pro - Most intelligent Gemini model
   gemini_pro: {
     provider: 'gemini' as const,
-    model: 'gemini-1.5-pro',
-    description: 'Gemini 1.5 Pro - High quality, long context',
+    model: GEMINI_MODELS.GEMINI_3_PRO,
+    description: 'Gemini 3 Pro - Most intelligent, multimodal understanding',
     maxTokens: 8000,
     temperature: 0.7,
     contextWindow: 2000000
   },
+  
+  // Claude Sonnet 4.5 - Best for complex agents and coding
   claude_sonnet: {
     provider: 'anthropic' as const,
-    model: 'claude-3-5-sonnet-20241022',
-    description: 'Claude 3.5 Sonnet - Excellent writing quality',
+    model: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    description: 'Claude Sonnet 4.5 - Best for agents, coding, complex tasks',
     maxTokens: 8000,
     temperature: 0.7,
     contextWindow: 200000
   },
-  gpt4o: {
+  
+  // Claude Haiku 4.5 - Fast near-frontier performance
+  claude_haiku: {
+    provider: 'anthropic' as const,
+    model: CLAUDE_MODELS.CLAUDE_HAIKU_4_5,
+    description: 'Claude Haiku 4.5 - Fastest near-frontier performance',
+    maxTokens: 8000,
+    temperature: 0.7,
+    contextWindow: 200000
+  },
+  
+  // GPT-5.1 - Best for coding and agentic tasks
+  gpt5: {
     provider: 'openai' as const,
-    model: 'gpt-4o',
-    description: 'GPT-4o - Strong all-around performer',
+    model: OPENAI_MODELS.GPT_5_1,
+    description: 'GPT-5.1 - Best for coding and agentic tasks',
+    maxTokens: 8000,
+    temperature: 0.7,
+    contextWindow: 128000
+  },
+  
+  // GPT-5 Nano - Fast and cheap
+  gpt5_nano: {
+    provider: 'openai' as const,
+    model: OPENAI_MODELS.GPT_5_NANO,
+    description: 'GPT-5 Nano - Fastest, cheapest OpenAI model',
     maxTokens: 4000,
     temperature: 0.7,
     contextWindow: 128000
   },
-  // OpenRouter model for free tier access
+  
+  // OpenRouter - Free tier access
   openrouter_llama70b: {
     provider: 'openrouter' as const,
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    model: OPENROUTER_MODELS.LLAMA_3_3_70B_FREE,
     description: 'OpenRouter Llama 3.3 70B - Free tier cloud inference',
     maxTokens: 8000,
     temperature: 0.7,
     contextWindow: 131072
+  },
+  
+  // Legacy aliases (for backward compatibility)
+  gpt4o: {
+    provider: 'openai' as const,
+    model: OPENAI_MODELS.GPT_5_1, // Upgraded from GPT-4o
+    description: 'GPT-5.1 - Strong all-around performer (upgraded from GPT-4o)',
+    maxTokens: 4000,
+    temperature: 0.7,
+    contextWindow: 128000
   }
 } satisfies Record<string, ModelConfig>;
 
 // Task-specific model preferences (ordered by priority)
 // DeepSeek R1 70B = Reasoning tasks (planning, exercises, validation)
 // Qwen3 30B = Prose tasks (content, case studies, translations)
+// ⚠️ Cloud fallbacks use LATEST versions (2025)
 const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
   // 🧠 DeepSeek excels at structured planning
   outline_planning: [
     'deepseek_r1_70b',    // Best for structured planning & curriculum design
     'qwen3_30b',          // Fallback with good reasoning
     'groq_llama70b',      // Cloud fallback
-    'gemini_pro',
-    'claude_sonnet',
-    'gpt4o'
+    'gemini_pro',         // Gemini 3 Pro
+    'claude_sonnet',      // Claude Sonnet 4.5
+    'gpt5'                // GPT-5.1
   ],
 
   // 🧠 DeepSeek excellent for exercises and problems
@@ -156,57 +216,57 @@ const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
     'deepseek_r1_70b',    // Best for rigorous problem generation
     'qwen3_30b',          // Good at math/code exercises
     'groq_llama70b',
-    'claude_sonnet',
-    'gpt4o'
+    'claude_sonnet',      // Claude Sonnet 4.5
+    'gpt5'                // GPT-5.1
   ],
 
   // 🧠 DeepSeek for validation and verification
   reasoning_validation: [
     'deepseek_r1_70b',    // Best at reasoning & validation
-    'claude_sonnet',      // Good at analysis
-    'gpt4o'
+    'claude_sonnet',      // Claude Sonnet 4.5 - good at analysis
+    'gpt5'                // GPT-5.1
   ],
 
   // 📘 Qwen3 for polished prose content
   content_generation: [
     'qwen3_30b',          // Best for long-form prose, clean output
     'qwen2_5_14b',        // Faster fallback
-    'claude_sonnet',      // Excellent writing
+    'claude_sonnet',      // Claude Sonnet 4.5 - excellent writing
     'groq_llama70b',
-    'gemini_pro',
-    'gpt4o'
+    'gemini_pro',         // Gemini 3 Pro
+    'gpt5'                // GPT-5.1
   ],
 
   // 📘 Qwen3 for narrative case studies
   case_study: [
     'qwen3_30b',          // Good narrative, clean prose
-    'claude_sonnet',      // Excellent storytelling
+    'claude_sonnet',      // Claude Sonnet 4.5 - excellent storytelling
     'groq_llama70b',
-    'gpt4o'
+    'gpt5'                // GPT-5.1
   ],
 
   // 🧠 DeepSeek for rigorous exam questions
   exam_generation: [
     'deepseek_r1_70b',    // Rigorous question design
     'qwen3_30b',          // Good for varied question types
-    'claude_sonnet',
-    'gpt4o'
+    'claude_sonnet',      // Claude Sonnet 4.5
+    'gpt5'                // GPT-5.1
   ],
 
   // 📘 Qwen3 excellent for multilingual (100+ languages)
   translation: [
     'qwen3_30b',          // 100+ languages, excellent Spanish
-    'gemini_pro',         // Good multilingual
-    'claude_sonnet',
-    'gpt4o'
+    'gemini_pro',         // Gemini 3 Pro - good multilingual
+    'claude_sonnet',      // Claude Sonnet 4.5
+    'gpt5'                // GPT-5.1
   ],
 
   // 🧠 DeepSeek for code logic, Qwen3 for code style
   code_generation: [
     'deepseek_r1_70b',    // Strong code logic
     'qwen3_30b',          // Clean code output
-    'claude_sonnet',
-    'gpt4o'
+    'claude_sonnet',      // Claude Sonnet 4.5 - best for coding
+    'gpt5'                // GPT-5.1 - best for coding
   ],
 
   // Fast models for quick classification
@@ -214,7 +274,9 @@ const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
     'qwen2_5_14b',        // Fast, accurate
     'llama3_1_8b',        // Very fast
     'groq_llama70b',      // Cloud fast
-    'gemini_flash'
+    'gemini_flash',       // Gemini 2.5 Flash
+    'claude_haiku',       // Claude Haiku 4.5
+    'gpt5_nano'           // GPT-5 Nano
   ],
 
   // General fallback chain
@@ -223,9 +285,9 @@ const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
     'deepseek_r1_70b',    // Secondary
     'qwen2_5_14b',        // Fast fallback
     'groq_llama70b',
-    'gemini_flash',
-    'claude_sonnet',
-    'gpt4o'
+    'gemini_flash',       // Gemini 2.5 Flash
+    'claude_sonnet',      // Claude Sonnet 4.5
+    'gpt5'                // GPT-5.1
   ]
 };
 

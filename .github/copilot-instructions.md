@@ -7,8 +7,53 @@
 1. **PROJECT_MASTER.md** - Complete architecture, roadmap, and implementation guide
 2. **DESIGN_SYSTEM.md** - Black & Blue color palette, component patterns, accessibility rules
 3. **RSS_SOURCES.md** - All RSS feeds, import configuration, monitoring guidelines
+4. **lib/ai/model-versions.ts** - **SINGLE SOURCE OF TRUTH** for all AI model versions
 
 These documents contain the definitive truth about the project. When in doubt, consult them first.
+
+---
+
+## 🤖 AI MODEL VERSION POLICY - CUTTING EDGE ALWAYS
+
+**⚠️ CRITICAL**: This project MUST always use the **LATEST** AI model versions available.
+
+### Mandatory Version Checking
+
+Before implementing ANY AI-related code:
+
+1. **VERIFY** the latest model versions by visiting official documentation:
+   - **OpenAI**: https://platform.openai.com/docs/models (https://openai.com/api/pricing/)
+   - **Google Gemini**: https://ai.google.dev/models/gemini
+   - **Anthropic Claude**: https://docs.anthropic.com/en/docs/about-claude/models
+   - **Groq**: https://console.groq.com/docs/models
+
+2. **UPDATE** `lib/ai/model-versions.ts` if newer versions are found
+
+3. **NEVER** use deprecated or outdated models:
+   - ❌ GPT-4, GPT-4-turbo, GPT-4o → Use GPT-5.1, GPT-5 Pro
+   - ❌ Claude 3, Claude 3.5 → Use Claude 4.5 (Opus/Sonnet/Haiku)
+   - ❌ Gemini 1.5 → Use Gemini 3 Pro, Gemini 2.5 Flash
+
+### Current Latest Models (2025)
+
+| Provider | Flagship | Balanced | Fast |
+|----------|----------|----------|------|
+| **OpenAI** | GPT-5 Pro | GPT-5.1 | GPT-5 Nano |
+| **Anthropic** | Claude Opus 4.5 | Claude Sonnet 4.5 | Claude Haiku 4.5 |
+| **Google** | Gemini 3 Pro | Gemini 2.5 Pro | Gemini 2.5 Flash |
+| **OpenAI Reasoning** | o3 | o4-mini | - |
+
+### Model Strategy Files
+
+- **`lib/ai/model-versions.ts`** - Central model version definitions
+- **`lib/ai/model-strategy.ts`** - Task-based model selection
+- **`lib/ai/gemini-image.ts`** - Image generation (Nano Banana Pro = Gemini 3 Pro Image)
+
+### Why This Matters
+
+> "Queremos estar a la ultima SIEMPRE, tecnología punta SIEMPRE. La información que tiene el LLM puede estar desactualizada, pero nuestro proyecto tiene que ofrecer siempre lo ultimo."
+
+This project is about AI news and education - we MUST use cutting-edge technology to maintain credibility.
 
 ---
 

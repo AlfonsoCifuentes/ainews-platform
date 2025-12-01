@@ -1,21 +1,27 @@
 /**
  * Gemini Image Generation Client
  * 
- * Supports:
- * - Nano Banana Pro (gemini-3-pro-image-preview): Advanced reasoning, 4K resolution, complex prompts
+ * ⚠️ USING LATEST GEMINI MODELS (2025):
+ * - Nano Banana Pro (gemini-3-pro-image-preview): Most intelligent, 4K resolution, complex prompts
  * - Nano Banana (gemini-2.5-flash-image): Fast, efficient, high-volume generation
+ * 
+ * 📅 LAST UPDATED: 2025-01-XX
  * 
  * @see https://ai.google.dev/gemini-api/docs/image-generation
  */
 
 import { z } from 'zod';
+import { GEMINI_MODELS } from './model-versions';
 
 // ============================================================================
 // Types & Schemas
 // ============================================================================
 
 export const ImageGenerationConfigSchema = z.object({
-  model: z.enum(['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']).default('gemini-3-pro-image-preview'),
+  model: z.enum([
+    'gemini-3-pro-image-preview',  // Nano Banana Pro - Most intelligent
+    'gemini-2.5-flash-image',      // Nano Banana - Fast
+  ]).default('gemini-3-pro-image-preview'),
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('16:9'),
   imageSize: z.enum(['1K', '2K', '4K']).optional(), // Only for gemini-3-pro-image-preview
   responseModalities: z.array(z.enum(['TEXT', 'IMAGE'])).default(['TEXT', 'IMAGE']),
@@ -173,7 +179,7 @@ ${contentSummary}
 Important: The image should be self-explanatory and enhance understanding of the topic. Use visual metaphors and friendly characters to make complex concepts accessible.`;
 
     return this.generateImage(prompt, {
-      model: 'gemini-3-pro-image-preview', // Use Nano Banana Pro for educational content
+      model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE, // Use Nano Banana Pro for educational content
       aspectRatio: '16:9',
       imageSize: '2K',
     });
@@ -191,7 +197,7 @@ Important: The image should be self-explanatory and enhance understanding of the
       : `Crea una ilustración estilo "¿Sabías que?" divertida y atractiva para este dato: "${fact}". Incluye un personaje de dibujos animados curioso (como un gato o búho) con expresión emocionada, efectos de bombilla o chispas para indicar descubrimiento, y representación visual del dato en sí. Estilo: Moderno, amigable con tema oscuro, educativo pero juguetón, similar a los recuadros de libros de texto premium.`;
 
     return this.generateImage(prompt, {
-      model: 'gemini-2.5-flash-image', // Use faster model for simple illustrations
+      model: GEMINI_MODELS.GEMINI_2_5_FLASH_IMAGE, // Use faster model for simple illustrations
       aspectRatio: '4:3',
     });
   }
@@ -208,7 +214,7 @@ Important: The image should be self-explanatory and enhance understanding of the
       : `Crea una ilustración para un ejercicio/cuestionario educativo: "${exerciseDescription}". Incluye un personaje pensativo (persona con mano en la barbilla, signos de interrogación flotando), un icono de lápiz o libreta, y pistas visuales sobre el tema del ejercicio. Estilo: Ilustración de libro de texto limpia y moderna, compatible con tema oscuro, alentadora y no intimidante.`;
 
     return this.generateImage(prompt, {
-      model: 'gemini-2.5-flash-image',
+      model: GEMINI_MODELS.GEMINI_2_5_FLASH_IMAGE, // Use faster model for exercise illustrations
       aspectRatio: '3:2',
     });
   }

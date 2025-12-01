@@ -77,6 +77,9 @@ const CONFIG = {
     'qwen3:30b',        // ~17GB - Prose generation
   ],
   
+  // Fallback model to download if nothing is available
+  FALLBACK_MODEL_TO_DOWNLOAD: 'qwen2.5:14b',
+  
   // Batch processing
   BATCH_SIZE: 1, // Process one module at a time (heavy processing)
   DELAY_BETWEEN_MODULES_MS: 2000,
@@ -86,6 +89,9 @@ const CONFIG = {
   MAX_IMAGES_PER_MODULE: 6,           // Max images per module
   MIN_IMAGES_PER_MODULE: 3,           // Minimum images to generate
   IMAGE_PRIORITIES: ['essential', 'recommended'], // Which priorities to generate
+  
+  // Logging
+  DEBUG: process.env.DEBUG === 'true',
 };
 
 // ============================================================================
@@ -193,23 +199,49 @@ const TextbookSectionSchema = z.object({
 // ============================================================================
 
 async function checkOllamaRunning(): Promise<boolean> {
+  const url = `${CONFIG.OLLAMA_BASE_URL}/api/version`;
+  console.log(`   📡 Checking Ollama at: ${url}`);
+  
   try {
-    const response = await fetch(`${CONFIG.OLLAMA_BASE_URL}/api/version`, {
+    const response = await fetch(url, {
       signal: AbortSignal.timeout(5000)
     });
-    return response.ok;
-  } catch {
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`   ✅ Ollama version: ${data.version || 'unknown'}`);
+      return true;
+    } else {
+      console.log(`   ❌ Ollama responded with status: ${response.status}`);
+      return false;
+    }
+  } catch (error) {
+    console.log(`   ❌ Failed to connect to Ollama: ${error instanceof Error ? error.message : error}`);
+    console.log(`   💡 Make sure Ollama is running: ollama serve`);
     return false;
   }
 }
 
 async function getOllamaModels(): Promise<OllamaModel[]> {
+  const url = `${CONFIG.OLLAMA_BASE_URL}/api/tags`;
+  console.log(`   📋 Fetching models from: ${url}`);
+  
   try {
-    const response = await fetch(`${CONFIG.OLLAMA_BASE_URL}/api/tags`);
-    if (!response.ok) return [];
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      console.log(`   ❌ Failed to get models: HTTP ${response.status}`);
+      return [];
+    }
+    
     const data = await response.json();
-    return data.models || [];
-  } catch {
+    const models = data.models || [];
+    console.log(`   ✅ Found ${models.length} installed models`);
+    return models;
+  } catch (error) {
+    console.log(`   ❌ Failed to fetch models: ${error instanceof Error ? error.message : error}`);
     return [];
   }
 }
@@ -410,12 +442,23 @@ async function generateWithOllama(
 ): Promise<string> {
   // Adjust temperature based on model
   const temperature = modelName.includes('deepseek') ? 0.3 : 0.7;
+  const url = `${CONFIG.OLLAMA_BASE_URL}/api/generate`;
+  
+  console.log(`   🔧 Ollama request config:`);
+  console.log(`      URL: ${url}`);
+  console.log(`      Model: ${modelName}`);
+  console.log(`      Temperature: ${temperature}`);
+  console.log(`      Prompt length: ${prompt.length} chars`);
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`   [Ollama] Generating with ${modelName} (attempt ${attempt}/${maxRetries})...`);
+      const startTime = Date.now();
       
-      const response = await fetch(`${CONFIG.OLLAMA_BASE_URL}/api/generate`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -430,20 +473,54 @@ async function generateWithOllama(
             num_ctx: 8192,      // Large context
           }
         }),
-        signal: AbortSignal.timeout(600000) // 10 minutes timeout
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`   ⏱️  Response received in ${elapsed}s`);
+      
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`HTTP ${response.status}: ${error}`);
+        const errorText = await response.text();
+        console.log(`   ❌ HTTP Error: ${response.status}`);
+        console.log(`   📄 Response: ${errorText.substring(0, 500)}`);
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
       }
       
       const data = await response.json();
-      return data.response || '';
+      const responseText = data.response || '';
+      
+      console.log(`   ✅ Generated ${responseText.length} chars`);
+      if (CONFIG.DEBUG) {
+        console.log(`   📝 Preview: ${responseText.substring(0, 200)}...`);
+      }
+      
+      return responseText;
+      
     } catch (error) {
-      console.error(`   ❌ Attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
-      if (attempt === maxRetries) throw error;
-      await sleep(5000); // Wait before retry
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`   ❌ Attempt ${attempt} failed: ${errorMessage}`);
+      
+      // Log more details for debugging
+      if (errorMessage.includes('ECONNREFUSED')) {
+        console.log(`   💡 Connection refused - Ollama may not be running`);
+        console.log(`   💡 Try: ollama serve`);
+      } else if (errorMessage.includes('abort')) {
+        console.log(`   💡 Request timed out after 10 minutes`);
+      } else if (errorMessage.includes('fetch failed')) {
+        console.log(`   💡 Network error - check if Ollama is accessible at ${CONFIG.OLLAMA_BASE_URL}`);
+        console.log(`   💡 If using WSL, try: OLLAMA_BASE_URL=http://host.docker.internal:11434`);
+      }
+      
+      if (attempt === maxRetries) {
+        console.log(`   ⛔ All ${maxRetries} retries exhausted`);
+        throw error;
+      }
+      
+      const waitTime = attempt * 5000; // Progressive backoff: 5s, 10s, 15s
+      console.log(`   ⏳ Waiting ${waitTime/1000}s before retry...`);
+      await sleep(waitTime);
     }
   }
   
