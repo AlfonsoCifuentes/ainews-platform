@@ -107,6 +107,23 @@ export function ModulePlayer({
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  interface DebugInfo {
+    clientRequestId: string;
+    requestBody: Record<string, unknown> | null;
+    fetchDuration: number;
+    responseStatus: number;
+    responseText: string;
+    parsed?: Record<string, unknown> | null;
+    serverDebug?: Record<string, unknown> | null;
+  }
+  interface ApiResult {
+    progress?: { id?: string; completed?: boolean; completed_at?: string };
+    debug?: { requestId?: string } | Record<string, unknown>;
+    error?: string;
+    [key: string]: unknown;
+  }
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
 
   const t = useMemo(() => locale === 'en' ? {
     markComplete: 'Mark as Complete',
@@ -175,7 +192,7 @@ export function ModulePlayer({
       contentType: module.content_type,
       hasContent: !!(displayContent?.trim())
     });
-  }, [module.id, enrollmentId, currentProgress?.completed, module.content_type, displayContent]);
+  }, [module.id, enrollmentId, currentProgress?.completed, currentProgress?.completed_at, currentProgress?.id, module.order_index, module.title_en, module.title_es, module.content_type, displayContent]);
 
   // Auto-generate content if missing or if content is only a placeholder
   useEffect(() => {
@@ -334,6 +351,7 @@ export function ModulePlayer({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-Client-Request-Id': clientRequestId
         },
         body: JSON.stringify(requestBody),
@@ -352,11 +370,27 @@ export function ModulePlayer({
       console.log('📄 Step 3: Parsing response body...');
       const responseText = await response.text();
       console.log('📄 Raw response text:', responseText.substring(0, 500));
-      
-      let result;
+      // Save debug info for rendering
       try {
-        result = JSON.parse(responseText);
+        setDebugInfo({
+          clientRequestId,
+          requestBody,
+          fetchDuration,
+          responseStatus: response.status,
+          responseText,
+          parsed: null,
+          serverDebug: null,
+        });
+      } catch (err) {
+        console.warn('[ModulePlayer] Failed to set debug info:', err);
+      }
+      
+          let result: ApiResult | undefined;
+      try {
+        result = JSON.parse(responseText) as ApiResult;
         console.log('✅ JSON parsed successfully:', result);
+        // Update debug info with parsed result
+        setDebugInfo((prev: DebugInfo | null) => ({ ...(prev || {} as DebugInfo), parsed: result as Record<string, unknown>, serverDebug: (result as Record<string, unknown>)['debug'] as Record<string, unknown> || null } as DebugInfo));
       } catch (parseError) {
         console.error('❌ JSON parse error:', parseError);
         console.error('📄 Response was not valid JSON');
@@ -368,17 +402,19 @@ export function ModulePlayer({
       if (!response.ok) {
         console.error('❌ API returned error status:', response.status);
         console.error('❌ Error details:', result);
-        console.error('❌ Debug info:', result.debug || 'N/A');
-        throw new Error(result.error || `API error: ${response.status}`);
+        console.error('❌ Debug info:', (result as Record<string, unknown>)?.['debug'] || 'N/A');
+        // Update debug info with server debug if available
+        setDebugInfo((prev: DebugInfo | null) => ({ ...(prev || {} as DebugInfo), parsed: (result as Record<string, unknown>) ?? null, serverDebug: ((result as Record<string, unknown>)?.['debug'] as Record<string, unknown>) || null } as DebugInfo));
+        throw new Error(((result as Record<string, unknown>)?.['error'] as string) || `API error: ${response.status}`);
       }
 
       // Step 5: Success!
       console.log('✅ Step 5: Progress saved successfully!');
       console.log('📊 Saved progress:', {
-        progressId: result.progress?.id,
-        completed: result.progress?.completed,
-        completedAt: result.progress?.completed_at,
-        serverRequestId: result.debug?.requestId
+        progressId: result?.progress?.id,
+        completed: result?.progress?.completed,
+        completedAt: result?.progress?.completed_at,
+        serverRequestId: result?.debug?.requestId
       });
       
       loggers.success('ModulePlayer', 'Progress saved via API', {
@@ -426,6 +462,7 @@ export function ModulePlayer({
         clientRequestId
       });
       showToast(t.error, 'error');
+      setDebugOpen(true);
     } finally {
       console.log(`🏁 [${clientRequestId}] handleComplete finished - isCompleting set to false`);
       setIsCompleting(false);
@@ -726,6 +763,66 @@ export function ModulePlayer({
           className="w-full sm:w-auto min-w-[250px]"
         />
       </div>
+      {/* Debug toggle button */}
+      <div className="fixed bottom-6 right-6 z-[9999]">
+        <button
+          onClick={() => setDebugOpen(!debugOpen)}
+          className="bg-primary text-primary-foreground p-2 rounded-full shadow-lg hover:ring-2 focus:outline-none"
+          title="Toggle debug overlay"
+        >
+          🐞
+        </button>
+      </div>
+
+      {/* Debug overlay panel */}
+      {debugOpen && (
+        <div className="fixed bottom-20 right-6 z-[9999] w-[520px] max-h-[72vh] overflow-auto bg-card border p-4 rounded-lg shadow-2xl text-xs">
+          <div className="flex items-center justify-between mb-2">
+            <strong>Progress API Debug</strong>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  try { navigator.clipboard.writeText(JSON.stringify(debugInfo || {}, null, 2)); } catch {};
+                }}
+                className="px-2 py-1 bg-secondary rounded"
+              >Copy</button>
+              <button
+                onClick={() => setDebugOpen(false)}
+                className="px-2 py-1 bg-secondary rounded"
+              >Close</button>
+            </div>
+          </div>
+          <div className="mb-3">
+            <div className="font-semibold">Last request</div>
+            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{JSON.stringify(debugInfo?.requestBody, null, 2)}</pre>
+          </div>
+          <div className="mb-3">
+            <div className="font-semibold">Response status</div>
+            <div className="mt-1">{debugInfo?.responseStatus ?? 'N/A'} ({debugInfo?.fetchDuration ?? 0}ms)</div>
+          </div>
+          <div className="mb-3">
+            <div className="font-semibold">Raw response</div>
+            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{debugInfo?.responseText ?? 'N/A'}</pre>
+          </div>
+          <div className="mb-3">
+            <div className="font-semibold">Server debug</div>
+            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{JSON.stringify(debugInfo?.serverDebug ?? debugInfo?.parsed?.debug ?? {}, null, 2)}</pre>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              variant="ghost"
+              onClick={() => handleComplete()}
+            >Retry</Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDebugInfo(null);
+                setDebugOpen(false);
+              }}
+            >Clear</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

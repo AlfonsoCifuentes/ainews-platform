@@ -21,16 +21,22 @@ export async function POST(req: NextRequest) {
   console.log(`[PROGRESS API] [${requestId}] ====== REQUEST START ======`);
   console.log(`[PROGRESS API] [${requestId}] Timestamp: ${new Date().toISOString()}`);
   
+  let sanitizedBodySummary: { courseId?: string; moduleId?: string; completed?: boolean } = {};
   try {
     // Step 1: Create API client from request cookies
     console.log(`[PROGRESS API] [${requestId}] Step 1: Creating API client from request...`);
     const supabase = createApiClient(req);
     console.log(`[PROGRESS API] [${requestId}] Step 1 Complete: API client created`);
     
-    // Log cookies for debugging
+    // Log cookies and header summary for debugging
     const cookieHeader = req.headers.get('cookie') || '';
-    const hasSbCookies = cookieHeader.includes('sb-');
-    console.log(`[PROGRESS API] [${requestId}] Cookies present: ${hasSbCookies ? 'YES (sb-* found)' : 'NO sb-* cookies'}`);
+    const headersSummary = {
+      'user-agent': req.headers.get('user-agent') || 'unknown',
+      'content-type': req.headers.get('content-type') || 'unknown',
+      hasCookieHeader: !!cookieHeader,
+      hasSbCookies: cookieHeader.includes('sb-'),
+    };
+    console.log(`[PROGRESS API] [${requestId}] Headers summary:`, headersSummary);
     
     // Step 2: Get authenticated user
     console.log(`[PROGRESS API] [${requestId}] Step 2: Getting authenticated user...`);
@@ -48,14 +54,21 @@ export async function POST(req: NextRequest) {
       console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (401) ======\n`);
       return NextResponse.json({ 
         error: 'Unauthorized',
-        debug: { requestId, reason: authError?.message || 'No authenticated user session' }
+        debug: { requestId, reason: authError?.message || 'No authenticated user session', headers: headersSummary }
       }, { status: 401 });
     }
 
     // Step 2: Parse request body
     console.log(`[PROGRESS API] [${requestId}] Step 2: Parsing request body...`);
     const body = await req.json();
+    // Sanitize body summary (only include allowed fields to avoid leaking user data)
+    sanitizedBodySummary = {
+      courseId: body?.courseId,
+      moduleId: body?.moduleId,
+      completed: body?.completed,
+    };
     console.log(`[PROGRESS API] [${requestId}] Step 2 Raw body:`, JSON.stringify(body, null, 2));
+    console.log(`[PROGRESS API] [${requestId}] Step 2 Body summary:`, sanitizedBodySummary);
 
     // Step 3: Validate with Zod
     console.log(`[PROGRESS API] [${requestId}] Step 3: Validating with Zod schema...`);
@@ -86,7 +99,7 @@ export async function POST(req: NextRequest) {
       console.log(`[PROGRESS API] [${requestId}] ❌ Module not found:`, moduleCheckError);
       return NextResponse.json({ 
         error: 'Module not found',
-        debug: { requestId, moduleId, error: moduleCheckError?.message }
+        debug: { requestId, moduleId, error: moduleCheckError?.message, sanitizedBodySummary }
       }, { status: 404 });
     }
     console.log(`[PROGRESS API] [${requestId}] Step 5 Complete: Module verified`, moduleCheck);
@@ -168,6 +181,13 @@ export async function POST(req: NextRequest) {
       console.error(`[PROGRESS API] [${requestId}]   Details: ${error.details}`);
       console.error(`[PROGRESS API] [${requestId}]   Hint: ${error.hint}`);
       console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (500) ======\n`);
+      const headersSummary = {
+        'user-agent': req.headers.get('user-agent') || 'unknown',
+        'content-type': req.headers.get('content-type') || 'unknown',
+        hasCookieHeader: !!cookieHeader,
+        hasSbCookies: cookieHeader.includes('sb-'),
+      };
+
       return NextResponse.json(
         { 
           error: 'Failed to update progress',
@@ -176,7 +196,10 @@ export async function POST(req: NextRequest) {
             dbError: error.message,
             code: error.code,
             details: error.details,
-            hint: error.hint
+            hint: error.hint,
+            headers: headersSummary,
+            sanitizedBodySummary,
+            userId: user?.id ? String(user?.id).slice(0, 8) + '...' : 'unknown'
           }
         },
         { status: 500 }
@@ -208,11 +231,17 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
       console.error(`[PROGRESS API] [${requestId}] ❌ Zod validation error:`, error.errors);
       console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (400) ======\n`);
+      const headersSummary = {
+        'user-agent': req.headers.get('user-agent') || 'unknown',
+        'content-type': req.headers.get('content-type') || 'unknown',
+        hasCookieHeader: !!(req.headers.get('cookie') || ''),
+        hasSbCookies: (req.headers.get('cookie') || '').includes('sb-'),
+      };
       return NextResponse.json(
         { 
           error: 'Invalid request', 
           details: error.errors,
-          debug: { requestId, zodErrors: error.errors }
+          debug: { requestId, zodErrors: error.errors, headers: headersSummary, sanitizedBodySummary }
         },
         { status: 400 }
       );
