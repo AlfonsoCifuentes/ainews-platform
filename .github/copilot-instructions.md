@@ -35,6 +35,8 @@ git commit -m "your message"
 git push origin master
 ```
 
+> ⚠️ **VERY IMPORTANT**: After making any code changes, always commit and push your changes to the `master` branch (or your feature branch), and ensure the build completes successfully. This triggers an automatic redeploy in Vercel and allows immediate verification of changes on the live site. If your changes are non-breaking and you want them staged without an immediate prod deployment, push to a feature branch and create a PR — but **do not** leave changes uncommitted locally.
+
 **Common Build Errors to Avoid:**
 - ❌ Case mismatch in imports (e.g., `card.tsx` vs `Card.tsx`)
 - ❌ Missing return statements in useEffect

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { NormalizedModule } from '@/lib/courses/normalize';
 import { loggers } from '@/lib/utils/logger';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Module = Pick<
   NormalizedModule,
@@ -32,23 +32,61 @@ export function ModuleNavigation({
   modules,
   userProgress,
 }: ModuleNavigationProps) {
+  const [completionMap, setCompletionMap] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    userProgress.forEach((progress) => {
+      if (progress.completed) {
+        seed[progress.module_id] = true;
+      }
+    });
+    return seed;
+  });
+
+  useEffect(() => {
+    const latest: Record<string, boolean> = {};
+    userProgress.forEach((progress) => {
+      if (progress.completed) {
+        latest[progress.module_id] = true;
+      }
+    });
+    setCompletionMap(latest);
+  }, [userProgress]);
+
+  useEffect(() => {
+    const handleCompletion = (event: Event) => {
+      const detail = (event as CustomEvent<{ moduleId: string; courseId: string }>).detail;
+      if (!detail || detail.courseId !== courseId) {
+        return;
+      }
+      setCompletionMap((prev) => ({ ...prev, [detail.moduleId]: true }));
+    };
+
+    window.addEventListener('course-complete', handleCompletion as EventListener);
+    return () => window.removeEventListener('course-complete', handleCompletion as EventListener);
+  }, [courseId]);
+
   useEffect(() => {
     loggers.course('ModuleNavigation mounted', {
       currentModuleId: currentModule.id,
       courseId,
       totalModules: modules.length,
-      userProgressCount: userProgress.length
+      userProgressCount: userProgress.length,
+      completedMapSize: Object.keys(completionMap).length
     });
-  }, [currentModule.id, courseId, modules.length, userProgress.length]);
+  }, [completionMap, courseId, currentModule.id, modules.length, userProgress.length]);
 
-  const currentIndex = modules.findIndex((m) => m.id === currentModule.id);
-  const prevModule = currentIndex > 0 ? modules[currentIndex - 1] : null;
-  const nextModule = currentIndex < modules.length - 1 ? modules[currentIndex + 1] : null;
-
-  // Check if next module is locked
-  const isNextLocked = nextModule && !nextModule.is_free && !userProgress.find(
-    (p) => p.module_id === currentModule.id && p.completed
-  );
+  const { currentIndex, prevModule, nextModule, isNextLocked } = useMemo(() => {
+    const idx = modules.findIndex((m) => m.id === currentModule.id);
+    const prev = idx > 0 ? modules[idx - 1] : null;
+    const next = idx < modules.length - 1 ? modules[idx + 1] : null;
+    const nextLocked = next && !next.is_free && !completionMap[currentModule.id];
+    return {
+      currentIndex: idx,
+      prevModule: prev,
+      nextModule: next,
+      isNextLocked: nextLocked,
+    };
+  }, [completionMap, currentModule.id, modules]);
 
   loggers.course('Navigation state updated', {
     currentIndex,

@@ -6,6 +6,9 @@ import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
 import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CourseLearnPage({
   params,
   searchParams,
@@ -138,26 +141,26 @@ export default async function CourseLearnPage({
 
   // Get user progress (only if enrollment exists)
   console.log('📊 Fetching user progress...');
-  let userProgress: Array<{
-    id: string;
-    enrollment_id: string;
-    module_id: string;
-    completed: boolean;
-    completed_at?: string;
-  }> = [];
-  if (enrollment) {
-    const { data: progress } = await db
-      .from('course_progress')
-      .select('*')
-      .eq('enrollment_id', enrollment.id);
-    
-    userProgress = progress || [];
-    console.log('✅ Progress fetched:', {
-      totalModules: sortedModules.length,
-      completedModules: userProgress.filter(p => p.completed).length,
-      progressRecords: userProgress.length
+  const { data: progressData, error: progressError } = await db
+    .from('user_progress')
+    .select('id, course_id, module_id, completed, completed_at, score, time_spent')
+    .eq('user_id', user.id)
+    .eq('course_id', id);
+
+  if (progressError) {
+    console.error('❌ Failed to fetch user progress:', {
+      message: progressError.message,
+      code: progressError.code,
+      details: progressError.details
     });
   }
+
+  const userProgress = progressData || [];
+  console.log('✅ Progress fetched:', {
+    totalModules: sortedModules.length,
+    completedModules: userProgress.filter(p => p.completed).length,
+    progressRecords: userProgress.length
+  });
 
   // Check if current module is locked
   const currentIndex = sortedModules.findIndex((m) => m.id === currentModule.id);

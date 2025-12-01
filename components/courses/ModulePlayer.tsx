@@ -28,10 +28,10 @@ interface QuizQuestion {
 
 interface CurrentProgress {
   id: string;
-  enrollment_id: string;
+  enrollment_id?: string | null;
   module_id: string;
   completed: boolean;
-  completed_at?: string;
+  completed_at?: string | null;
 }
 
 type Module = NormalizedModule & {
@@ -405,6 +405,22 @@ export function ModulePlayer({
         console.error('❌ Debug info:', (result as Record<string, unknown>)?.['debug'] || 'N/A');
         // Update debug info with server debug if available
         setDebugInfo((prev: DebugInfo | null) => ({ ...(prev || {} as DebugInfo), parsed: (result as Record<string, unknown>) ?? null, serverDebug: ((result as Record<string, unknown>)?.['debug'] as Record<string, unknown>) || null } as DebugInfo));
+        // Also emit server-debug event for global debugging
+        try {
+          window.dispatchEvent(new CustomEvent('server-debug', {
+            detail: {
+              route: '/api/courses/progress',
+              status: response.status,
+              statusText: response.statusText,
+              body: result,
+              clientRequestId,
+            }
+          }));
+        } catch (err) {
+          // Intentionally ignore but log for diagnostics
+          loggers.warn('ModulePlayer', 'Failed to dispatch server-debug event', err as Error);
+        }
+
         throw new Error(((result as Record<string, unknown>)?.['error'] as string) || `API error: ${response.status}`);
       }
 

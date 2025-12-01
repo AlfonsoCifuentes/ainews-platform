@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useUser } from '@/lib/hooks/useUser';
+import { loggers } from '@/lib/utils/logger';
 import { showBadges } from './BadgeNotificationProvider';
 
 /**
@@ -17,10 +18,39 @@ export function useBadgeCheck() {
   ) => {
     if (!profile) return;
 
-    try {
-      const response = await fetch('/api/badges/check', {
+      try {
+        // If user profile exists but no Supabase cookies are present, skip the call and surface a debug message
+        try {
+          const cookieString = typeof document !== 'undefined' ? document.cookie : '';
+          const hasSupabaseCookie = cookieString.includes('sb-') || cookieString.includes('supabase');
+          if (!hasSupabaseCookie) {
+            loggers.warn('badges', 'Profile exists but Supabase cookies not present, skipping badge check', { profileId: profile.id });
+            window.dispatchEvent(new CustomEvent('server-debug', {
+              detail: {
+                route: '/api/badges/check',
+                status: 0,
+                statusText: 'No Supabase cookie present on client',
+                body: { message: 'Skipping badge check because no Supabase cookies were found on client - check CookieNorm settings or SameSite attributes' },
+                triggerType,
+              }
+            }));
+            return;
+          }
+        } catch (cookieErr) {
+          loggers.warn('badges', 'Failed to inspect cookies before calling badge check', cookieErr);
+        }
+        // Log client cookie state before making the request for diagnosis
+        try {
+          const allCookies = typeof document !== 'undefined' ? document.cookie : '';
+          loggers.user('Badges check - client cookie state', { cookieSummary: allCookies ? allCookies.split(';').map(c => c.split('=')[0].trim()) : [], hasSupabaseCookie: (allCookies || '').includes('sb-') || (allCookies || '').includes('supabase') });
+        } catch (cookieErr) {
+          loggers.warn('badges', 'Failed to read document.cookie for badge check', cookieErr);
+        }
+
+        const response = await fetch('/api/badges/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           userId: profile.id,
           triggerType,
@@ -29,13 +59,42 @@ export function useBadgeCheck() {
       });
 
       if (!response.ok) {
-        console.error('Failed to check badges:', await response.text());
+        const errorText = await response.text();
+        loggers.error('badges', 'Badge check request failed', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          triggerType,
+          triggerData,
+        });
+
+        // Emit a server-debug event so UI can show the response details
+        // Try to extract debug messages from JSON responses
+        let parsedBody: unknown = errorText;
+        try { parsedBody = JSON.parse(errorText); } catch {}
+        window.dispatchEvent(new CustomEvent('server-debug', {
+          detail: {
+            route: '/api/badges/check',
+            status: response.status,
+            statusText: response.statusText,
+            body: parsedBody,
+            triggerType,
+            headers: {
+              'x-ainews-debug-id': response.headers.get('x-ainews-debug-id') ?? null,
+            }
+          },
+        }));
+
         return;
       }
 
       const data = await response.json();
 
       if (data.badges && data.badges.length > 0) {
+        loggers.success('badges', 'New badges awarded', {
+          count: data.badges.length,
+          triggerType,
+        });
         // Show badge unlock notification
         showBadges(
           data.badges.map((badge: {
@@ -51,7 +110,7 @@ export function useBadgeCheck() {
         );
       }
     } catch (error) {
-      console.error('Error checking badges:', error);
+      loggers.error('badges', 'Unexpected badge check error', error);
     }
   };
 

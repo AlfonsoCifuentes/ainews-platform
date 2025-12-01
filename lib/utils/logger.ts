@@ -5,6 +5,17 @@
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success';
 
+export interface ClientLogEntry {
+  id: string;
+  timestamp: string;
+  module: string;
+  level: LogLevel;
+  message: string;
+  data?: string | null;
+}
+
+export type ClientLogEventDetail = ClientLogEntry & { raw?: unknown };
+
 const LOG_COLORS = {
   debug: '#888888',
   info: '#0066CC',
@@ -21,6 +32,9 @@ const LOG_PREFIXES = {
   success: '✅',
 };
 
+const STORAGE_KEY = 'ainews_logs';
+const MAX_LOGS = 300;
+
 /**
  * Main logger instance
  * Usage: log('auth', 'info', 'User authenticated')
@@ -31,7 +45,8 @@ export function log(
   message: string,
   data?: Record<string, unknown> | Error | unknown
 ) {
-  const timestamp = new Date().toLocaleTimeString('en-US', {
+  const now = new Date();
+  const readableTime = now.toLocaleTimeString('en-US', {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
@@ -44,7 +59,7 @@ export function log(
   const moduleName = `[${module.toUpperCase()}]`;
 
   // Build log message
-  const logMessage = `${prefix} ${timestamp} ${moduleName} ${message}`;
+  const logMessage = `${prefix} ${readableTime} ${moduleName} ${message}`;
 
   // Console logging with styling
   if (data !== undefined) {
@@ -60,27 +75,65 @@ export function log(
     );
   }
 
-  // Store in session for debugging
+  const entry: ClientLogEntry = {
+    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `log_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    timestamp: now.toISOString(),
+    module,
+    level,
+    message,
+    data: data !== undefined ? safeSerialize(data) : null,
+  };
+
+  persistLog(entry);
+}
+
+function safeSerialize(payload: unknown): string {
+  if (payload instanceof Error) {
+    return JSON.stringify(
+      {
+        name: payload.name,
+        message: payload.message,
+        stack: payload.stack,
+      },
+      null,
+      2
+    );
+  }
+
+  if (typeof payload === 'string') {
+    return payload;
+  }
+
   try {
-    const logs = JSON.parse(sessionStorage.getItem('ainews_logs') || '[]') as Array<{
-      timestamp: string;
-      module: string;
-      level: LogLevel;
-      message: string;
-      data: string | null;
-    }>;
-    logs.push({
-      timestamp,
-      module,
-      level,
-      message,
-      data: data ? JSON.stringify(data) : null,
-    });
-    // Keep only last 100 logs
-    if (logs.length > 100) logs.shift();
-    sessionStorage.setItem('ainews_logs', JSON.stringify(logs));
+    return JSON.stringify(payload, null, 2);
   } catch {
-    // Ignore storage errors
+    return String(payload);
+  }
+}
+
+function persistLog(entry: ClientLogEntry) {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+    return;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY) || '[]';
+    const parsed = JSON.parse(raw) as ClientLogEntry[];
+    parsed.push(entry);
+    if (parsed.length > MAX_LOGS) {
+      parsed.splice(0, parsed.length - MAX_LOGS);
+    }
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+
+    window.dispatchEvent(
+      new CustomEvent<ClientLogEventDetail>('ainews-log', {
+        detail: { ...entry },
+      })
+    );
+  } catch (error) {
+    console.warn('[AINLog] Failed to persist log entry', error);
   }
 }
 
@@ -106,9 +159,13 @@ export const loggers = {
 /**
  * Get all logs from session
  */
-export function getLogs() {
+export function getLogs(): ClientLogEntry[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
   try {
-    const logs = JSON.parse(sessionStorage.getItem('ainews_logs') || '[]');
+    const logs = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || '[]') as ClientLogEntry[];
     return logs;
   } catch {
     return [];
@@ -119,7 +176,10 @@ export function getLogs() {
  * Clear logs
  */
 export function clearLogs() {
-  sessionStorage.removeItem('ainews_logs');
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.sessionStorage.removeItem(STORAGE_KEY);
 }
 
 /**
@@ -142,7 +202,7 @@ export function getLogsForDebug() {
   return {
     logs: getLogs(),
     timestamp: new Date().toISOString(),
-    url: window.location.href,
+    url: typeof window !== 'undefined' ? window.location.href : 'N/A',
   };
 }
 

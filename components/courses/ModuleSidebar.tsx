@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle2, 
@@ -52,6 +52,38 @@ export function ModuleSidebar({
   userProgress,
 }: ModuleSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [completionMap, setCompletionMap] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    userProgress.forEach((progress) => {
+      if (progress.completed) {
+        seed[progress.module_id] = true;
+      }
+    });
+    return seed;
+  });
+
+  useEffect(() => {
+    const latest: Record<string, boolean> = {};
+    userProgress.forEach((progress) => {
+      if (progress.completed) {
+        latest[progress.module_id] = true;
+      }
+    });
+    setCompletionMap(latest);
+  }, [userProgress]);
+
+  useEffect(() => {
+    const handleCompletion = (event: Event) => {
+      const detail = (event as CustomEvent<{ moduleId: string; courseId: string }>).detail;
+      if (!detail || detail.courseId !== courseId) {
+        return;
+      }
+      setCompletionMap((prev) => ({ ...prev, [detail.moduleId]: true }));
+    };
+
+    window.addEventListener('course-complete', handleCompletion as EventListener);
+    return () => window.removeEventListener('course-complete', handleCompletion as EventListener);
+  }, [courseId]);
 
   const t = locale === 'en' ? {
     courseContent: 'Course Content',
@@ -68,9 +100,7 @@ export function ModuleSidebar({
   };
 
   const title = locale === 'en' ? course.title_en : course.title_es;
-  const completedCount = modules.filter((m) =>
-    userProgress.some((p) => p.module_id === m.id && p.completed)
-  ).length;
+  const completedCount = useMemo(() => modules.filter((m) => completionMap[m.id]).length, [completionMap, modules]);
 
   const getModuleIcon = (type: string) => {
     switch (type) {
@@ -88,11 +118,9 @@ export function ModuleSidebar({
   const isModuleAccessible = (module: Module, index: number) => {
     if (module.is_free) return true;
     if (index === 0) return true;
-    
+
     const prevModule = modules[index - 1];
-    return userProgress.some(
-      (p) => p.module_id === prevModule.id && p.completed
-    );
+    return !!completionMap[prevModule.id];
   };
 
   const SidebarContent = () => (
@@ -137,9 +165,7 @@ export function ModuleSidebar({
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {modules.map((module, index) => {
           const Icon = getModuleIcon(module.content_type);
-          const isCompleted = userProgress.some(
-            (p) => p.module_id === module.id && p.completed
-          );
+          const isCompleted = completionMap[module.id];
           const isCurrent = module.id === currentModuleId;
           const isAccessible = isModuleAccessible(module, index);
           const moduleTitle = locale === 'en' ? module.title_en : module.title_es;

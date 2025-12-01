@@ -22,6 +22,7 @@ import { OAuthCallbackHandler } from '@/components/auth/OAuthCallbackHandler';
 import { PWAInstaller } from '@/components/pwa/PWAInstaller';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { LogDashboard } from '@/components/shared/LogDashboard';
+import { ServerDebugPanel } from '@/components/shared/ServerDebugPanel';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -232,6 +233,7 @@ console.log('[CookieNorm] Starting normalization...');
                   
                   {/* Debug Logs Dashboard */}
                   <LogDashboard />
+                  <ServerDebugPanel />
                 </div>
               </BadgeNotificationProvider>
             </NextIntlClientProvider>
