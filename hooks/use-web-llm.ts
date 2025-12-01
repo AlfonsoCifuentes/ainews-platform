@@ -37,13 +37,12 @@ export interface UseWebLLMResult {
   generate: (prompt: string, options?: WebLLMGenerateOptions) => Promise<string>;
 }
 
+// Server-safe snapshot - MUST be defined outside the component and cached
+const SERVER_SNAPSHOT: WebLLMSnapshot = { engine: null, modelId: null, ready: false };
+const getServerSnapshot = (): WebLLMSnapshot => SERVER_SNAPSHOT;
+
 export function useWebLLM(options: UseWebLLMOptions = {}): UseWebLLMResult {
   const { defaultModelId = DEFAULT_WEBLLM_MODEL_ID, autoLoadFromCache = false, onReady } = options;
-  
-  // Server-safe snapshot function that returns empty state during SSR
-  const getServerSnapshot = useCallback((): WebLLMSnapshot => {
-    return { engine: null, modelId: null, ready: false };
-  }, []);
   
   const snapshot = useSyncExternalStore(subscribeWebLLM, getWebLLMSnapshot, getServerSnapshot);
 
@@ -71,17 +70,21 @@ export function useWebLLM(options: UseWebLLMOptions = {}): UseWebLLMResult {
     try {
       const detected = await detectWebLLMCachedModels();
       setCachedModels(detected);
-      if (detected.length > 0 && !snapshot.ready) {
+      if (detected.length > 0) {
         setSelectedModelId((current) => (current ? current : detected[0].modelId));
       }
     } finally {
       setCheckingCache(false);
     }
-  }, [supported, snapshot.ready]);
+  }, [supported]);
 
+  // Only refresh cached models once on mount when supported
   useEffect(() => {
-    void refreshCachedModels();
-  }, [refreshCachedModels]);
+    if (supported) {
+      void refreshCachedModels();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supported]);
 
   useEffect(() => {
     if (!snapshot.ready || !snapshot.modelId) {
@@ -165,5 +168,5 @@ export function useWebLLM(options: UseWebLLMOptions = {}): UseWebLLMResult {
 }
 
 export function useWebLLMStatus(): WebLLMSnapshot {
-  return useSyncExternalStore(subscribeWebLLM, getWebLLMSnapshot, getWebLLMSnapshot);
+  return useSyncExternalStore(subscribeWebLLM, getWebLLMSnapshot, getServerSnapshot);
 }

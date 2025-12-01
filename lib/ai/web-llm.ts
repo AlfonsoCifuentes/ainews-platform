@@ -80,7 +80,12 @@ export function subscribeWebLLM(listener: () => void): () => void {
 }
 
 export function getWebLLMSnapshot(): WebLLMSnapshot {
-  return { ...state };
+  // Return the same object reference instead of a copy to ensure
+  // useSyncExternalStore sees a stable snapshot identity when no
+  // properties changed. Returning a new object here causes the
+  // snapshot to be considered different on every read and triggers
+  // infinite re-renders in React components using the hook.
+  return state;
 }
 
 export function isWebGPUSupported(): boolean {

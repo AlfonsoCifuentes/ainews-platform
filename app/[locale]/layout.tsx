@@ -88,6 +88,7 @@ export default async function LocaleLayout({
     <html lang={locale} suppressHydrationWarning>
       <body
         className={`${inter.className} bg-black text-white antialiased selection:bg-purple-500/40 selection:text-white`}
+        suppressHydrationWarning
       >
         <Analytics />
         {umamiSiteId ? (

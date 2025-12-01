@@ -199,27 +199,35 @@ const TextbookSectionSchema = z.object({
 // ============================================================================
 
 async function checkOllamaRunning(): Promise<boolean> {
-  const url = `${CONFIG.OLLAMA_BASE_URL}/api/version`;
-  console.log(`   📡 Checking Ollama at: ${url}`);
+  const candidates = [
+    CONFIG.OLLAMA_BASE_URL,
+    'http://127.0.0.1:11434',
+    'http://localhost:11434',
+    'http://host.docker.internal:11434'
+  ];
+  // Iterate candidate hosts and check /api/version until one responds
   
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log(`   ✅ Ollama version: ${data.version || 'unknown'}`);
-      return true;
-    } else {
-      console.log(`   ❌ Ollama responded with status: ${response.status}`);
-      return false;
+  for (const host of candidates) {
+    const url = `${host}/api/version`;
+    console.log(`   📡 Checking Ollama at: ${url}`);
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(15000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`   ✅ Ollama version: ${data.version || 'unknown'}`);
+        // Update the config to use the working host
+        CONFIG.OLLAMA_BASE_URL = host;
+        return true;
+      }
+      console.log(`   ❌ Ollama responded with status: ${response.status} at ${host}`);
+    } catch (error) {
+      console.log(`   ❌ Failed to connect to Ollama at ${host}: ${error instanceof Error ? error.message : error}`);
     }
-  } catch (error) {
-    console.log(`   ❌ Failed to connect to Ollama: ${error instanceof Error ? error.message : error}`);
-    console.log(`   💡 Make sure Ollama is running: ollama serve`);
-    return false;
   }
+  console.log(`   💡 Make sure Ollama is running: ollama serve`);
+  return false;
 }
 
 async function getOllamaModels(): Promise<OllamaModel[]> {
@@ -228,7 +236,7 @@ async function getOllamaModels(): Promise<OllamaModel[]> {
   
   try {
     const response = await fetch(url, {
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(20000)
     });
     
     if (!response.ok) {
@@ -244,6 +252,54 @@ async function getOllamaModels(): Promise<OllamaModel[]> {
     console.log(`   ❌ Failed to fetch models: ${error instanceof Error ? error.message : error}`);
     return [];
   }
+}
+
+/**
+ * Warm up the Ollama model by sending a minimal prompt to trigger load.
+ * Some heavy models may need time to start; this helper retries until the
+ * server responds or the warmup limit is reached.
+ */
+async function warmOllamaModel(modelName: string, maxAttempts: number = 5): Promise<boolean> {
+  const url = `${CONFIG.OLLAMA_BASE_URL}/api/generate`;
+  const pingPrompt = 'Please respond with OK once ready.';
+  console.log(`   🌓 Warming Ollama model: ${modelName} (attempts: ${maxAttempts})`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`   [Warmup] Attempt ${attempt}/${maxAttempts}...`);
+      const controller = new AbortController();
+      const timeout = Math.min(30000 * attempt, 180000); // progressively larger (30s->180s)
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelName, prompt: pingPrompt, stream: false }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.log(`   [Warmup] HTTP ${response.status}`);
+        await sleep(attempt * 1000);
+        continue;
+      }
+      const data = await response.json();
+      if (typeof data.response === 'string' && data.response.toLowerCase().includes('ok')) {
+        console.log(`   [Warmup] Model ${modelName} is ready.`);
+        return true;
+      }
+      // Received something, consider warmed
+      console.log(`   [Warmup] Received non-empty response; model is warm.`);
+      return true;
+
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      console.log(`   [Warmup] Attempt ${attempt} failed: ${m}`);
+      await sleep(attempt * 2000);
+    }
+  }
+  return false;
 }
 
 async function downloadOllamaModel(modelName: string): Promise<boolean> {
@@ -421,8 +477,28 @@ async function generateForTask(
   systemPrompt: string,
   maxRetries: number = 3
 ): Promise<string> {
-  const modelName = await selectModelForTask(task);
-  const result = await generateWithOllama(modelName, prompt, systemPrompt, maxRetries);
+  let modelName = await selectModelForTask(task);
+  try {
+    const result = await generateWithOllama(modelName, prompt, systemPrompt, maxRetries);
+    return result;
+  } catch (e) {
+    console.warn(`   ⚠️ Primary model ${modelName} failed, attempting fallback.`);
+    // Try fallback chain: prose -> fallback -> largest
+    let altModel = '';
+    if (modelName === CONFIG.MODELS.reasoning) {
+      altModel = CONFIG.MODELS.prose;
+    } else if (modelName === CONFIG.MODELS.prose) {
+      altModel = CONFIG.MODELS.reasoning;
+    }
+    if (!altModel) altModel = CONFIG.MODELS.fallback;
+    try {
+      const fallbackResult = await generateWithOllama(altModel, prompt, systemPrompt, maxRetries);
+      return fallbackResult;
+    } catch (e2) {
+      console.warn(`   ⚠️ Fallback model ${altModel} also failed.`);
+      throw e2;
+    }
+  }
   
   // Apply model-specific cleaning
   if (modelName.includes('deepseek')) {
@@ -451,6 +527,14 @@ async function generateWithOllama(
   console.log(`      Prompt length: ${prompt.length} chars`);
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // If this is the first attempt and model may be heavy, attempt to warm up first
+    if (attempt === 1) {
+      try {
+        await warmOllamaModel(modelName, 3);
+      } catch {
+        // ignore warmup failures; we'll proceed to generate and retry normally
+      }
+    }
     try {
       console.log(`   [Ollama] Generating with ${modelName} (attempt ${attempt}/${maxRetries})...`);
       const startTime = Date.now();
@@ -458,21 +542,24 @@ async function generateWithOllama(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
       
+      const shouldStream = prompt.length > 8000 || modelName.includes('deepseek') || modelName.includes('70b');
+      const payload = {
+        model: modelName,
+        prompt: prompt,
+        system: systemPrompt,
+        stream: shouldStream,
+        options: {
+          temperature,
+          top_p: 0.9,
+          num_predict: 32000, // Allow long outputs
+          num_ctx: 8192,      // Large context
+        }
+      };
+
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: modelName,
-          prompt: prompt,
-          system: systemPrompt,
-          stream: false,
-          options: {
-            temperature,
-            top_p: 0.9,
-            num_predict: 32000, // Allow long outputs
-            num_ctx: 8192,      // Large context
-          }
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal
       });
       
@@ -488,8 +575,28 @@ async function generateWithOllama(
         throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
       }
       
-      const data = await response.json();
-      const responseText = data.response || '';
+      let responseText = '';
+      if (shouldStream && response.body) {
+        // Read streamed data
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let done = false;
+        while (!done) {
+          const { value, done: rd } = await reader.read();
+          done = !!rd;
+          if (value) responseText += decoder.decode(value, { stream: !done });
+        }
+        // Try to parse JSON out of stream if possible
+        try {
+          const json = JSON.parse(responseText);
+          responseText = json.response || responseText;
+        } catch {
+          // it's okay if streaming returned raw text
+        }
+      } else {
+        const data = await response.json();
+        responseText = data.response || '';
+      }
       
       console.log(`   ✅ Generated ${responseText.length} chars`);
       if (CONFIG.DEBUG) {
@@ -511,6 +618,11 @@ async function generateWithOllama(
       } else if (errorMessage.includes('fetch failed')) {
         console.log(`   💡 Network error - check if Ollama is accessible at ${CONFIG.OLLAMA_BASE_URL}`);
         console.log(`   💡 If using WSL, try: OLLAMA_BASE_URL=http://host.docker.internal:11434`);
+      } else if (errorMessage.includes('HeadersTimeoutError') || errorMessage.includes('headers timeout')) {
+        console.log(`   💡 Ollama model took too long to respond headers - model may be cold or loading.`);
+        console.log(`   💡 Attempting to warmup model then retry...`);
+        // Try to explicitly warm the model and retry
+        await warmOllamaModel(modelName, 4);
       }
       
       if (attempt === maxRetries) {
@@ -1249,6 +1361,7 @@ async function main() {
   
   // Check Ollama
   console.log('🔍 Checking Ollama...');
+  console.log(`   Using OLLAMA_BASE_URL: ${CONFIG.OLLAMA_BASE_URL}`);
   const ollamaRunning = await checkOllamaRunning();
   
   if (!ollamaRunning) {
@@ -1261,6 +1374,9 @@ async function main() {
   }
   
   console.log('✅ Ollama is running');
+  if (process.env.WSL_DISTRO_NAME || process.platform === 'linux' && process.env.SSH_CONNECTION) {
+    console.log('   ⚠️ Detected WSL environment: If Ollama is running on host, try setting OLLAMA_BASE_URL to http://host.docker.internal:11434');
+  }
   
   // Select or download model
   let modelName = await selectBestModel();

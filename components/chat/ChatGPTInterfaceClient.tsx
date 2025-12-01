@@ -53,10 +53,20 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
 
   // Check model ready status only on client side - detect both legacy and WebLLM
   useEffect(() => {
-    const hasLegacyModel = isBrowserLLMReady();
-    const hasWebLLMModels = cachedModels.length > 0;
-    setModelReady(hasLegacyModel || hasWebLLMModels);
-  }, [cachedModels]);
+    // Use a stable check to avoid infinite loops
+    const checkModelReady = () => {
+      const hasLegacyModel = isBrowserLLMReady();
+      const hasWebLLMModels = cachedModels.length > 0;
+      return hasLegacyModel || hasWebLLMModels;
+    };
+    
+    const isReady = checkModelReady();
+    setModelReady(prev => {
+      // Only update if actually changed to avoid re-renders
+      if (prev !== isReady) return isReady;
+      return prev;
+    });
+  }, [cachedModels.length]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

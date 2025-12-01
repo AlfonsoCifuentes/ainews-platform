@@ -44,12 +44,62 @@ const MAX_DUPLICATE_COUNT = 5; // Stop logging after 5 identical messages
 
 // Deduplication tracking
 const messageCountMap = new Map<string, number>();
+// Tracks whether we've already emitted a summary suppression log for a key
+const suppressionEmitted = new Set<string>();
+// Track how many messages were suppressed after the limit
+const suppressedCounts = new Map<string, number>();
 
 /**
  * Generate a deduplication key for a log entry
  */
 function getDedupeKey(module: string, level: LogLevel, message: string): string {
-  return `${module}:${level}:${message}`;
+  // Normalize message to remove uuid/timestamps and other volatile parts
+  const normalized = normalizeMessageForDedupe(message);
+  return `${module}:${level}:${normalized}`;
+}
+
+/**
+ * Normalize volatile parts of messages so they dedupe correctly.
+ * This reduces log noise when IDs, timestamps or long stacks differ.
+ */
+function normalizeMessageForDedupe(input: string): string {
+  if (!input) return '';
+  let s = input;
+  // Replace UUIDs
+  s = s.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<UUID>');
+  // Replace ISO timestamps
+  s = s.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z/g, '<TS>');
+  // Replace hex addresses (e.g. 0x...)
+  s = s.replace(/0x[0-9a-f]{6,}/gi, '<HEX>');
+  // Replace long numbers (IDs / auto-incremented IDs)
+  s = s.replace(/\b\d{4,}\b/g, '<NUM>');
+  // Strip stack noise like file paths (only keep file name)
+  s = s.replace(/([\\/][\w-_.]+\.[tj]s[x]?)(:\d+:\d+)?/g, '/<FILE>');
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+// Detect compact console mode (use localStorage 'ainews_log_mode' === 'compact')
+function isCompactConsole(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage?.getItem('ainews_log_mode') === 'compact';
+  } catch {
+    return false;
+  }
+}
+
+// Set compact console mode helper
+export function setLogMode(mode: 'compact' | 'pretty' | 'auto') {
+  if (typeof window === 'undefined') return;
+  if (mode === 'auto') {
+    try {
+      window.localStorage.removeItem('ainews_log_mode');
+    } catch {}
+  } else {
+    try { window.localStorage.setItem('ainews_log_mode', mode); } catch {}
+  }
 }
 
 /**
@@ -60,30 +110,36 @@ function shouldLog(module: string, level: LogLevel, message: string): number {
   const key = getDedupeKey(module, level, message);
   const currentCount = messageCountMap.get(key) || 0;
   
-  if (currentCount >= MAX_DUPLICATE_COUNT) {
-    return -1; // Skip this log
+  if (currentCount < MAX_DUPLICATE_COUNT) {
+    // We are still within allowed repetitions
+    messageCountMap.set(key, currentCount + 1);
+    return currentCount + 1;
   }
-  
-  messageCountMap.set(key, currentCount + 1);
-  return currentCount + 1;
+
+  // Already exceeded the threshold
+  if (!suppressionEmitted.has(key)) {
+    // Emit a single suppression summary once
+    suppressionEmitted.add(key);
+    // We use a special code (MAX_DUPLICATE_COUNT + 1) to indicate 'emitted summary'
+    return MAX_DUPLICATE_COUNT + 1;
+  }
+
+  // Count suppressed messages for diagnostics (not printed)
+  suppressedCounts.set(key, (suppressedCounts.get(key) || 0) + 1);
+  return -1; // Skip
 }
 
 /**
  * Main logger instance
  * Usage: log('auth', 'info', 'User authenticated')
  */
-export function log(
-  module: string,
-  level: LogLevel = 'info',
+function logInternal(
+  moduleName: string,
+  level: LogLevel,
   message: string,
-  data?: Record<string, unknown> | Error | unknown
+  data: Record<string, unknown> | Error | unknown | undefined,
+  count: number
 ) {
-  // Check deduplication
-  const count = shouldLog(module, level, message);
-  if (count === -1) {
-    return; // Skip duplicate log
-  }
-
   const now = new Date();
   const readableTime = now.toLocaleTimeString('en-US', {
     hour12: false,
@@ -95,26 +151,37 @@ export function log(
 
   const prefix = LOG_PREFIXES[level] || '📝';
   const color = LOG_COLORS[level] || '#888888';
-  const moduleName = `[${module.toUpperCase()}]`;
+  const moduleNamePrefixed = `[${moduleName.toUpperCase()}]`;
   const countSuffix = count > 1 ? ` (x${count})` : '';
 
   // Build log message
-  const logMessage = `${prefix} ${readableTime} ${moduleName} ${message}${countSuffix}`;
+  const logMessage = `${prefix} ${readableTime} ${moduleNamePrefixed} ${message}${countSuffix}`;
 
   // Console logging with styling (suppress for network/db to reduce noise)
   const suppressConsole = level === 'network' || level === 'db';
   if (!suppressConsole) {
-    if (data !== undefined) {
-      console.log(
-        `%c${logMessage}`,
-        `color: ${color}; font-weight: bold;`,
-        data
-      );
+    if (isCompactConsole()) {
+      // Compact JSON mode for machine consumption
+      try {
+        const compactEntry = {
+          t: now.toISOString(),
+          m: moduleName,
+          l: level,
+          msg: message,
+          cnt: count,
+          data: data !== undefined ? safeSerialize(data) : undefined,
+        };
+        // Use console.log without color to be machine-parseable
+        console.log(JSON.stringify(compactEntry));
+      } catch {
+        console.log(logMessage, data);
+      }
     } else {
-      console.log(
-        `%c${logMessage}`,
-        `color: ${color}; font-weight: bold;`
-      );
+      if (data !== undefined) {
+        console.log(`%c${logMessage}`, `color: ${color}; font-weight: bold;`, data);
+      } else {
+        console.log(`%c${logMessage}`, `color: ${color}; font-weight: bold;`);
+      }
     }
   }
 
@@ -123,7 +190,7 @@ export function log(
       ? crypto.randomUUID()
       : `log_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     timestamp: now.toISOString(),
-    module,
+    module: moduleName,
     level,
     message: count > 1 ? `${message} (x${count})` : message,
     data: data !== undefined ? safeSerialize(data) : null,
@@ -131,6 +198,31 @@ export function log(
   };
 
   persistLog(entry);
+}
+
+export function log(
+  moduleName: string,
+  level: LogLevel = 'info',
+  message: string,
+  data?: Record<string, unknown> | Error | unknown
+) {
+  // Check deduplication and increment
+  const count = shouldLog(moduleName, level, message);
+  if (count === -1) {
+    return; // Skip duplicate log
+  }
+  // If it's the suppression summary code, then build a suppression message
+  if (count === MAX_DUPLICATE_COUNT + 1) {
+    const key = getDedupeKey(moduleName, level, message);
+    const suppressed = suppressedCounts.get(key) || 0;
+    logInternal(moduleName, level, `${message} (suppressed ${suppressed} more times)`, data, count);
+    // Reset suppressed counts for that key
+    suppressedCounts.set(key, 0);
+    return;
+  }
+
+  // Use internal logger to persist / console the message
+  logInternal(moduleName, level, message, data, count);
 }
 
 function safeSerialize(payload: unknown): string {
@@ -209,6 +301,8 @@ export const loggers = {
  */
 export function resetDeduplication() {
   messageCountMap.clear();
+  suppressionEmitted.clear();
+  suppressedCounts.clear();
 }
 
 /**
@@ -236,6 +330,8 @@ export function clearLogs() {
   }
   window.sessionStorage.removeItem(STORAGE_KEY);
   messageCountMap.clear();
+  suppressionEmitted.clear();
+  suppressedCounts.clear();
 }
 
 /**
@@ -251,6 +347,31 @@ export function exportLogs() {
   a.download = `ainews-logs-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Export logs in compact machine-friendly format (one-line JSON per entry)
+ */
+export function exportLogsCompact(): string {
+  const logs = getLogs();
+  const minified = logs.map(l => ({ t: l.timestamp, m: l.module, l: l.level, msg: l.message, cnt: l.count, data: l.data }));
+  return JSON.stringify(minified);
+}
+
+/**
+ * Copy compact logs to clipboard for quick sharing
+ */
+export async function copyLogsCompact() {
+  if (typeof navigator === 'undefined' || typeof navigator.clipboard === 'undefined') {
+    return false;
+  }
+  try {
+    const compact = exportLogsCompact();
+    await navigator.clipboard.writeText(compact);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Export all logs helper
@@ -279,6 +400,8 @@ function initializeInterceptors() {
   const originalFetch = window.fetch;
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
+  const originalConsoleInfo = console.info;
+  const originalConsoleLog = console.log;
   
   // Intercept fetch for network logging
   window.fetch = async function(...args: Parameters<typeof fetch>) {
@@ -348,8 +471,6 @@ function initializeInterceptors() {
   
   // Intercept console.error for automatic error capture
   console.error = function(...args: unknown[]) {
-    originalConsoleError.apply(console, args);
-    
     // Build message from args
     const message = args.map(arg => 
       typeof arg === 'string' ? arg : 
@@ -357,27 +478,92 @@ function initializeInterceptors() {
       tryStringify(arg)
     ).join(' ').substring(0, 500);
     
+    // Check dedupe and decide whether to print to original console
+    const count = shouldLog('console', 'error', message);
+    if (count === -1) {
+      // Too many duplicates; don't flood original console
+      return;
+    }
+    if (count === MAX_DUPLICATE_COUNT + 1) {
+      // Emit a single suppression summary to avoid flood
+      originalConsoleError(`[AINLOG] Further duplicate console.error suppressed for: ${message}`);
+      // Persist a suppression log
+      logInternal('console', 'error', `${message} (further duplicates suppressed)`, undefined, count);
+      return;
+    }
+    // Print actual message
+    originalConsoleError(...args);
+    
     // Don't log our own errors or React internal errors to avoid noise
     const skipPatterns = ['[AINLOG]', '[network]', 'Warning:', 'React does not recognize'];
     if (!skipPatterns.some(p => message.includes(p))) {
-      log('console', 'error', message);
+      logInternal('console', 'error', message, undefined, count);
     }
   };
   
   // Intercept console.warn for automatic warning capture
   console.warn = function(...args: unknown[]) {
-    originalConsoleWarn.apply(console, args);
-    
     const message = args.map(arg => 
       typeof arg === 'string' ? arg : 
       arg instanceof Error ? arg.message : 
       tryStringify(arg)
     ).join(' ').substring(0, 500);
+    const count = shouldLog('console', 'warn', message);
+    if (count === -1) {
+      return;
+    }
+    if (count === MAX_DUPLICATE_COUNT + 1) {
+      originalConsoleWarn(`[AINLOG] Further duplicate console.warn suppressed for: ${message}`);
+      logInternal('console', 'warn', `${message} (further duplicates suppressed)`, undefined, count);
+      return;
+    }
+    originalConsoleWarn(...args);
     
-    // Skip React warnings and our own logs
     const skipPatterns = ['[AINLOG]', '[network]', 'Warning: React', 'Warning: Each child', 'Warning: Failed prop'];
     if (!skipPatterns.some(p => message.includes(p))) {
-      log('console', 'warn', message);
+      logInternal('console', 'warn', message, undefined, count);
+    }
+  };
+
+  // Intercept console.info for automatic info capture
+  console.info = function(...args: unknown[]) {
+    const message = args.map(arg => 
+      typeof arg === 'string' ? arg : 
+      arg instanceof Error ? arg.message : 
+      tryStringify(arg)
+    ).join(' ').substring(0, 500);
+    const count = shouldLog('console', 'info', message);
+    if (count === -1) return;
+    if (count === MAX_DUPLICATE_COUNT + 1) {
+      originalConsoleInfo(`[AINLOG] Further duplicate console.info suppressed for: ${message}`);
+      logInternal('console', 'info', `${message} (further duplicates suppressed)`, undefined, count);
+      return;
+    }
+    originalConsoleInfo(...args);
+    const skipPatterns = ['[AINLOG]'];
+    if (!skipPatterns.some(p => message.includes(p))) {
+      logInternal('console', 'info', message, undefined, count);
+    }
+  };
+
+  // Intercept console.log for automatic info capture (less noisy than warn/error)
+  console.log = function(...args: unknown[]) {
+    const message = args.map(arg => 
+      typeof arg === 'string' ? arg : 
+      arg instanceof Error ? arg.message : 
+      tryStringify(arg)
+    ).join(' ').substring(0, 500);
+    const count = shouldLog('console', 'info', message);
+    if (count === -1) return;
+    if (count === MAX_DUPLICATE_COUNT + 1) {
+      originalConsoleLog(`[AINLOG] Further duplicate console.log suppressed for: ${message}`);
+      logInternal('console', 'info', `${message} (further duplicates suppressed)`, undefined, count);
+      return;
+    }
+    originalConsoleLog(...args);
+    const skipPatterns = ['[AINLOG]'];
+    if (!skipPatterns.some(p => message.includes(p))) {
+      logInternal('console', 'info', message, undefined, count);
     }
   };
   
@@ -409,6 +595,9 @@ if (typeof window !== 'undefined') {
     exportLogs,
     getLogsForDebug,
     resetDeduplication,
+    setLogMode,
+    exportLogsCompact,
+    copyLogsCompact,
   };
   
   // Initialize interceptors for automatic capture
