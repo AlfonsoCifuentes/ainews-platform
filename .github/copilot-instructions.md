@@ -90,6 +90,39 @@ git push origin master
 
 ---
 
+## 🔄 SCRIPT EXECUTION & MONITORING POLICY
+
+**CRITICAL**: When executing any script or long-running process:
+
+1. **ALWAYS monitor the output** using `get_terminal_output` repeatedly
+2. **Check for errors** - Don't assume success, verify actual output
+3. **Be ready to interrupt** if the script hangs or produces errors
+4. **Add comprehensive logging** to any script you create:
+   - Log start/end of major operations
+   - Log progress (e.g., "Processing 5/73 modules...")
+   - Log errors with full context
+   - Log timing information
+5. **Never leave a script running unmonitored** - Check output every few seconds for long processes
+
+**Script Monitoring Pattern:**
+```typescript
+// When launching a background script:
+const terminalId = await run_in_terminal({ command: "...", isBackground: true });
+
+// Then monitor it:
+let lastOutput = "";
+while (scriptRunning) {
+  const output = await get_terminal_output({ id: terminalId });
+  if (output !== lastOutput) {
+    // Check for errors, progress, completion
+    lastOutput = output;
+  }
+  await sleep(5000); // Check every 5 seconds
+}
+```
+
+---
+
 ## 🧠 OPERATIONAL ROLES & CONTEXT
 
 **For every prompt, decision, and implementation, I assume the following combined expertise:**
