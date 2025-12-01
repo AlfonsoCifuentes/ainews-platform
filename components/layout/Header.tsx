@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
+import { XPAnimator } from '@/components/gamification/XPAnimator';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
@@ -233,6 +234,9 @@ export function Header() {
           </div>
         </div>
       </div>
+
+      {/* XP Animator - attached to header so animation target exists in DOM */}
+      <XPAnimator />
 
       {/* Mobile Menu */}
       <AnimatePresence>

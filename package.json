@@ -20,6 +20,7 @@
     "ai:extract-entities": "tsx scripts/extract-entities.ts",
     "ai:test-rag": "tsx scripts/test-rag-system.ts",
     "ai:gen-embeddings": "tsx scripts/generate-embeddings.ts",
+    "ai:remodel-courses": "tsx scripts/remodel-courses-ollama.ts",
     "ai:analyze-articles": "tsx scripts/analyze-articles.ts analyze",
     "ai:diagnose": "tsx scripts/diagnose-articles.ts",
     "ai:diagnose-llm": "tsx scripts/diagnose-llm-fallbacks.ts",

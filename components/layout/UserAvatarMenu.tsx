@@ -64,6 +64,8 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
             {currentLevel}
           </div>
         </div>
+        {/* Hidden marker to target animation */}
+        <div className="user-avatar-target absolute inset-0 pointer-events-none" aria-hidden />
 
         {/* Name (desktop only) */}
         <div className="hidden md:block">

@@ -77,7 +77,7 @@ export function CompleteModuleButton({
       onClick={onClick}
       disabled={isCompleting || currentProgress?.completed}
       variant={currentProgress?.completed ? 'outline' : 'default'}
-      className={className}
+      className={`${className} complete-module-button`}
       size="lg"
     >
       {currentProgress?.completed ? (
@@ -105,6 +105,8 @@ export function ModulePlayer({
   const { showToast } = useToast();
   const [isCompleting, setIsCompleting] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [exerciseAnswer, setExerciseAnswer] = useState('');
+  const [gradingResult, setGradingResult] = useState<{ score: number; feedback: string } | null>(null);
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -439,10 +441,22 @@ export function ModulePlayer({
         progressId: result.progress?.id
       });
 
-      // Step 6: Dispatch event
+      // Step 6: Dispatch events
       console.log('🎊 Step 6: Dispatching course-complete event...');
       window.dispatchEvent(new CustomEvent('course-complete', {
         detail: { moduleId: module.id, courseId, clientRequestId }
+      }));
+      console.log('🎊 Dispatching xp-awarded event...');
+      // Dispatch XP award event with optional origin coordinates to allow animation
+      const btn = document.querySelector('.complete-module-button');
+      const rect = btn?.getBoundingClientRect();
+      window.dispatchEvent(new CustomEvent('xp-awarded', {
+        detail: {
+          amount: 100,
+          moduleId: module.id,
+          courseId,
+          from: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null,
+        }
       }));
       console.log('✅ Event dispatched');
 
@@ -506,6 +520,35 @@ export function ModulePlayer({
     }
   };
 
+  const handleExerciseSubmit = async () => {
+    if (!exerciseAnswer.trim()) return;
+    try {
+      const res = await fetch('/api/courses/modules/grade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ moduleId: module.id, answers: { a1: exerciseAnswer } }),
+      });
+      if (!res.ok) {
+        showToast('Failed to grade', 'error');
+        setGradingResult(null);
+        return;
+      }
+      const data = await res.json();
+      setGradingResult({ score: data.score ?? 0, feedback: data.feedback ?? '' });
+      // Award XP if passed
+      if (data.score >= 70) {
+        window.dispatchEvent(new CustomEvent('xp-awarded', { detail: { amount: 25, moduleId: module.id } }));
+        showToast('Great! Exercise passed +25 XP', 'success');
+      } else {
+        showToast('Keep trying! Review the module and try again', 'info');
+      }
+    } catch (error) {
+      loggers.error('ModulePlayer', 'Failed to grade exercise', error as Error);
+      showToast('Error grading exercise', 'error');
+    }
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'video':
@@ -538,7 +581,7 @@ export function ModulePlayer({
           currentProgress={currentProgress}
           isCompleting={isCompleting}
           onClick={handleComplete}
-          className="shrink-0"
+          className={`shrink-0 selection-class`} // Added class for selection
         />
       </div>
 
@@ -769,6 +812,29 @@ export function ModulePlayer({
         </div>
       )}
 
+      {/* Simple Exercise Short Answer */}
+      <div className="p-6 rounded-2xl bg-card border mt-6">
+        <h3 className="font-bold text-lg mb-2">Practice Exercise</h3>
+        <p className="text-sm text-muted-foreground mb-3">Try a short answer and submit for automatic grading.</p>
+        <textarea
+          value={exerciseAnswer}
+          onChange={(e) => setExerciseAnswer(e.target.value)}
+          className="w-full rounded-md p-3 bg-secondary text-sm text-foreground mb-3 min-h-[120px]"
+          placeholder={locale === 'en' ? 'Write your short answer here...' : 'Escribe tu respuesta corta aquí...'}
+        />
+        <div className="flex gap-2 items-center">
+          <Button onClick={() => handleExerciseSubmit()} disabled={!exerciseAnswer.trim()}>
+            {locale === 'en' ? 'Submit Answer' : 'Enviar Respuesta'}
+          </Button>
+          {gradingResult && (
+            <div className="text-sm">
+              <div>Score: {gradingResult.score}%</div>
+              <div className="text-xs text-muted-foreground">{gradingResult.feedback}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Botón de completar al final del contenido */}
       <div className="flex justify-center mt-8 pt-8 border-t-2 border-border">
         <CompleteModuleButton
@@ -776,7 +842,7 @@ export function ModulePlayer({
           currentProgress={currentProgress}
           isCompleting={isCompleting}
           onClick={handleComplete}
-          className="w-full sm:w-auto min-w-[250px]"
+          className={`w-full sm:w-auto min-w-[250px] selection-class`} // Added class for selection
         />
       </div>
       {/* Debug toggle button */}

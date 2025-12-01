@@ -329,6 +329,27 @@ export function useUser() {
     };
   }, [supabase]);
 
+  // Listen for XP award events to update the local profile instantly
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ amount: number; source?: string }>).detail;
+      if (!detail) return;
+      const amount = detail.amount ?? 0;
+      if (amount <= 0) return;
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const newTotal = (prev.total_xp || 0) + amount;
+        const updated = { ...prev, total_xp: newTotal } as typeof prev;
+        try { sessionStorage.setItem('ainews_auth_profile', JSON.stringify(updated)); } catch { }
+        return updated;
+      });
+      // Also trigger a background refetch so server-side profile is synced
+      void refetch();
+    };
+    window.addEventListener('xp-awarded', handler as EventListener);
+    return () => window.removeEventListener('xp-awarded', handler as EventListener);
+  }, [refetch]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
