@@ -141,7 +141,6 @@ export async function POST(req: NextRequest) {
         score: score !== undefined ? score : existing.score,
         time_spent: timeSpent !== undefined ? timeSpent : existing.time_spent,
         completed_at: completed ? new Date().toISOString() : existing.completed_at,
-        updated_at: new Date().toISOString(),
       };
       console.log(`[PROGRESS API] [${requestId}] Update payload:`, updatePayload);
       
