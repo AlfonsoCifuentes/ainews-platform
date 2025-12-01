@@ -6,7 +6,9 @@
  * 
  * This script upgrades ALL existing courses to textbook-quality standards:
  * 
- * 1. Uses the HEAVIEST local Ollama model available (or downloads one)
+ * 1. Uses specialized Ollama models for different tasks:
+ *    - DeepSeek R1 70B: Planning, exercises, exam generation (reasoning)
+ *    - Qwen3 30B: Content prose, case studies, translations (polished output)
  * 2. Expands each module to 15,000+ words with:
  *    - 8+ major sections
  *    - Case studies
@@ -16,16 +18,18 @@
  * 3. Generates educational illustrations using Nano Banana Pro (Google Gemini)
  * 4. Updates the database with the enhanced content
  * 
- * RECOMMENDED MODEL: llama3.1:70b or mistral-nemo:12b or qwen2.5:32b
+ * MODEL STRATEGY:
+ *   🧠 DeepSeek R1 70B → Outline planning, exercise banks, reasoning validation
+ *   📘 Qwen3 30B → Main prose content, case studies, translations
  * 
  * Usage:
  *   npx tsx scripts/upgrade-courses-textbook-quality.ts
  *   npx tsx scripts/upgrade-courses-textbook-quality.ts --course-id <uuid>
  *   npx tsx scripts/upgrade-courses-textbook-quality.ts --dry-run
- *   npx tsx scripts/upgrade-courses-textbook-quality.ts --download-model
+ *   npx tsx scripts/upgrade-courses-textbook-quality.ts --download-models
  * 
  * @author AI News Platform
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -52,21 +56,20 @@ const CONFIG = {
   // LLM settings
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
   
-  // Preferred models (in order of preference - larger = better)
-  PREFERRED_MODELS: [
-    'llama3.1:70b',           // Best quality, needs ~40GB VRAM
-    'llama3.1:70b-instruct-q4_K_M', // Quantized 70B
-    'qwen2.5:72b',            // Qwen 72B
-    'qwen2.5:32b',            // Qwen 32B - Good balance
-    'mixtral:8x7b',           // Mixtral MoE
-    'mistral-nemo:12b',       // Mistral Nemo 12B - Excellent quality
-    'llama3.1:8b',            // Llama 3.1 8B
-    'llama3.2:3b',            // Smaller fallback
-    'neural-chat:latest',     // Intel Neural Chat
-  ],
+  // Model Strategy: Different models for different tasks
+  // 🧠 DeepSeek R1 70B - Reasoning, planning, exercises
+  // 📘 Qwen3 30B - Prose content, case studies, translations
+  MODELS: {
+    reasoning: 'deepseek-r1:70b',   // Planning, exercises, validation
+    prose: 'qwen3:30b',              // Content generation, case studies
+    fallback: 'qwen2.5:14b'          // Lightweight fallback
+  },
   
-  // Model to download if none available
-  FALLBACK_MODEL_TO_DOWNLOAD: 'mistral-nemo:12b',
+  // Models to download if not available
+  REQUIRED_MODELS: [
+    'deepseek-r1:70b',  // ~40GB - Reasoning powerhouse
+    'qwen3:30b',        // ~17GB - Prose generation
+  ],
   
   // Batch processing
   BATCH_SIZE: 1, // Process one module at a time (heavy processing)
@@ -270,27 +273,128 @@ async function selectBestModel(): Promise<string | null> {
     console.log(`   - ${m.name} (${sizeGB} GB)`);
   });
   
-  // Find the best model from our preferred list
-  for (const preferred of CONFIG.PREFERRED_MODELS) {
-    const found = availableModels.find(m => 
-      m.name === preferred || 
-      m.name.startsWith(preferred.split(':')[0])
-    );
-    if (found) {
-      console.log(`\n✅ Selected model: ${found.name}`);
-      return found.name;
-    }
+  // Check for required models
+  const hasDeepSeek = availableModels.some(m => m.name.includes('deepseek-r1'));
+  const hasQwen3 = availableModels.some(m => m.name.includes('qwen3'));
+  
+  console.log('\n🧠 Model Strategy:');
+  console.log(`   DeepSeek R1 (reasoning): ${hasDeepSeek ? '✅ Available' : '❌ Not found'}`);
+  console.log(`   Qwen3 30B (prose):       ${hasQwen3 ? '✅ Available' : '❌ Not found'}`);
+  
+  // Return first required model as "primary" for backward compatibility
+  if (hasDeepSeek) {
+    return CONFIG.MODELS.reasoning;
+  }
+  if (hasQwen3) {
+    return CONFIG.MODELS.prose;
   }
   
-  // Fall back to largest available model
+  // Fall back to any available model
+  const fallbackModel = availableModels.find(m => 
+    m.name.includes('qwen') || m.name.includes('llama')
+  );
+  
+  if (fallbackModel) {
+    console.log(`\n⚠️  Using fallback model: ${fallbackModel.name}`);
+    return fallbackModel.name;
+  }
+  
+  // Last resort: largest model
   const largest = availableModels.sort((a, b) => b.size - a.size)[0];
-  console.log(`\n✅ Selected largest model: ${largest.name}`);
+  console.log(`\n⚠️  Using largest model: ${largest.name}`);
   return largest.name;
+}
+
+/**
+ * Select the appropriate model for a specific task type
+ */
+type TaskType = 'reasoning' | 'prose' | 'general';
+
+async function selectModelForTask(task: TaskType): Promise<string> {
+  const availableModels = await getOllamaModels();
+  
+  const hasModel = (name: string) => 
+    availableModels.some(m => m.name.includes(name.split(':')[0]));
+  
+  switch (task) {
+    case 'reasoning':
+      // DeepSeek R1 for reasoning tasks
+      if (hasModel(CONFIG.MODELS.reasoning)) return CONFIG.MODELS.reasoning;
+      if (hasModel(CONFIG.MODELS.prose)) return CONFIG.MODELS.prose;
+      break;
+    case 'prose':
+      // Qwen3 for prose generation
+      if (hasModel(CONFIG.MODELS.prose)) return CONFIG.MODELS.prose;
+      if (hasModel(CONFIG.MODELS.reasoning)) return CONFIG.MODELS.reasoning;
+      break;
+    default:
+      break;
+  }
+  
+  // Fallback chain
+  if (hasModel(CONFIG.MODELS.fallback)) return CONFIG.MODELS.fallback;
+  
+  const largest = availableModels.sort((a, b) => b.size - a.size)[0];
+  return largest?.name || 'qwen2.5:14b';
+}
+
+// ============================================================================
+// OUTPUT CLEANING
+// ============================================================================
+
+/**
+ * Clean DeepSeek R1's chain-of-thought output
+ * DeepSeek outputs <think>...</think> blocks that need removal
+ */
+function cleanDeepSeekOutput(text: string): string {
+  // Remove <think>...</think> blocks
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  
+  // Remove common reasoning artifacts
+  cleaned = cleaned.replace(/^(Let me think|Let's analyze|First,? I'll|Okay,? so)\b[^.]*\./gmi, '');
+  cleaned = cleaned.replace(/^(Step \d+:|First:|Second:|Third:|Finally:)/gmi, '');
+  
+  // Remove excessive newlines
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  
+  return cleaned.trim();
+}
+
+/**
+ * Clean Qwen3's output (usually clean, but may have thinking tokens)
+ */
+function cleanQwenOutput(text: string): string {
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  cleaned = cleaned.replace(/^(Thinking:|Let me think:?)\s*/gmi, '');
+  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n');
+  return cleaned.trim();
 }
 
 // ============================================================================
 // LLM GENERATION
 // ============================================================================
+
+/**
+ * Generate with the appropriate model for the task type
+ */
+async function generateForTask(
+  task: TaskType,
+  prompt: string,
+  systemPrompt: string,
+  maxRetries: number = 3
+): Promise<string> {
+  const modelName = await selectModelForTask(task);
+  const result = await generateWithOllama(modelName, prompt, systemPrompt, maxRetries);
+  
+  // Apply model-specific cleaning
+  if (modelName.includes('deepseek')) {
+    return cleanDeepSeekOutput(result);
+  } else if (modelName.includes('qwen')) {
+    return cleanQwenOutput(result);
+  }
+  
+  return result;
+}
 
 async function generateWithOllama(
   modelName: string,
@@ -298,6 +402,9 @@ async function generateWithOllama(
   systemPrompt: string,
   maxRetries: number = 3
 ): Promise<string> {
+  // Adjust temperature based on model
+  const temperature = modelName.includes('deepseek') ? 0.3 : 0.7;
+  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`   [Ollama] Generating with ${modelName} (attempt ${attempt}/${maxRetries})...`);
@@ -311,7 +418,7 @@ async function generateWithOllama(
           system: systemPrompt,
           stream: false,
           options: {
-            temperature: 0.7,
+            temperature,
             top_p: 0.9,
             num_predict: 32000, // Allow long outputs
             num_ctx: 8192,      // Large context
@@ -822,7 +929,7 @@ function assembleMarkdownContent(data: z.infer<typeof TextbookSectionSchema>, lo
 async function upgradeModule(
   course: Course,
   module: Module,
-  modelName: string,
+  _modelName: string, // Kept for backwards compatibility, but not used
   locale: 'en' | 'es'
 ): Promise<{ content: string; images: string[] }> {
   const prompt = buildTextbookPrompt(course, module, locale);
@@ -834,9 +941,11 @@ CRITICAL: You MUST respond with ONLY valid JSON. No markdown fences, no commenta
 The JSON must follow the exact schema provided in the prompt.`;
 
   console.log(`   📝 Generating textbook content for ${locale.toUpperCase()}...`);
+  console.log(`   🧠 Using Qwen3:30B for prose generation...`);
   const startTime = Date.now();
   
-  const rawResponse = await generateWithOllama(modelName, prompt, systemPrompt);
+  // Use prose task for content generation (Qwen3:30B)
+  const rawResponse = await generateForTask('prose', prompt, systemPrompt);
   
   // Extract JSON from response
   let jsonStr = rawResponse;

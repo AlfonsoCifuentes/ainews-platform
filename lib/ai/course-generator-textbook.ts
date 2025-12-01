@@ -10,10 +10,21 @@
  * - Includes exercises, case studies, "Did you know?" boxes
  * - Multi-pass generation for maximum depth
  * - Support for educational illustrations (Nano Banana Pro)
+ * 
+ * Model Strategy:
+ * - DeepSeek R1 70B: Outline planning, exercise generation, reasoning validation
+ * - Qwen2.5 72B: Main prose content, case studies, translations (polished output)
+ * - Fallback to cloud providers if local models unavailable
  */
 
 import { z } from 'zod';
-import { classifyWithAllProviders } from './llm-client';
+import { 
+  selectModelForTask, 
+  executeWithModel,
+  cleanDeepSeekOutput,
+  type TaskType 
+} from './model-strategy';
+import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 
 const JSON_SYSTEM_PROMPT = `You are a world-class university professor and textbook author with 30+ years of experience. You write comprehensive, engaging educational content that rivals the best academic publishers (O'Reilly, Springer, Cambridge University Press).
 
@@ -169,6 +180,7 @@ export interface TextbookChapter {
     estimatedReadingMinutes: number;
     generatedAt: string;
     language: string;
+    modelsUsed: string[];
   };
 }
 
@@ -185,6 +197,39 @@ export interface TextbookGenerationOptions {
   targetWordCount?: number; // Default 15000
 }
 
+// Track which models were used
+const modelsUsedInGeneration: Set<string> = new Set();
+
+// ============================================================================
+// HELPER: Execute task with appropriate model and parse JSON
+// ============================================================================
+
+async function executeWithSchema<T>(
+  taskType: TaskType,
+  prompt: string,
+  schema: z.ZodSchema<T>,
+  systemPrompt: string = JSON_SYSTEM_PROMPT
+): Promise<T> {
+  const model = await selectModelForTask(taskType);
+  const result = await executeWithModel(model, prompt, systemPrompt);
+  
+  // Track model usage
+  modelsUsedInGeneration.add(`${model.provider}:${model.model}`);
+  
+  // Clean output if from DeepSeek (remove chain-of-thought artifacts)
+  let content = result.content;
+  if (model.model.includes('deepseek')) {
+    content = cleanDeepSeekOutput(content);
+  }
+  
+  // Parse and validate JSON
+  const fixed = sanitizeAndFixJSON(content);
+  const parsed = parseJSON<T>(fixed, `${taskType} generation`);
+  
+  // Validate with Zod schema
+  return schema.parse(parsed);
+}
+
 // ============================================================================
 // MAIN GENERATOR
 // ============================================================================
@@ -198,12 +243,19 @@ export interface TextbookGenerationOptions {
  * - 10+ exercises with solutions
  * - 2-3 detailed case studies
  * - A comprehensive chapter exam
+ * 
+ * Model Strategy:
+ * - DeepSeek R1 70B → Outline planning, exercises, exams (reasoning tasks)
+ * - Qwen2.5 72B → Main content, case studies (polished prose)
  */
 export async function generateTextbookChapter(
   options: TextbookGenerationOptions
 ): Promise<TextbookChapter> {
   const targetWords = options.targetWordCount || 15000;
   const startTime = Date.now();
+  
+  // Reset model tracking for this generation
+  modelsUsedInGeneration.clear();
   
   console.log('\n' + '═'.repeat(80));
   console.log('📚 TEXTBOOK-QUALITY CHAPTER GENERATION');
@@ -213,6 +265,7 @@ export async function generateTextbookChapter(
   console.log(`Difficulty: ${options.difficulty}`);
   console.log(`Target words: ${targetWords}+`);
   console.log(`Language: ${options.language}`);
+  console.log('Model Strategy: DeepSeek R1 (planning/exercises) + Qwen2.5 (content/prose)');
   console.log('─'.repeat(80));
 
   // Step 1: Generate detailed chapter outline
@@ -261,6 +314,7 @@ export async function generateTextbookChapter(
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   const estimatedReadingMinutes = Math.ceil(totalWords / 200); // 200 wpm average
+  const usedModels = Array.from(modelsUsedInGeneration);
 
   console.log('\n' + '═'.repeat(80));
   console.log('✅ CHAPTER GENERATION COMPLETE');
@@ -272,6 +326,7 @@ export async function generateTextbookChapter(
   console.log(`Exam questions: ${exam.sections.reduce((sum, s) => sum + s.questions.length, 0)}`);
   console.log(`Estimated reading time: ${estimatedReadingMinutes} minutes`);
   console.log(`Generation time: ${elapsed}s`);
+  console.log(`Models used: ${usedModels.join(', ')}`);
   console.log('═'.repeat(80) + '\n');
 
   return {
@@ -285,7 +340,8 @@ export async function generateTextbookChapter(
       totalExercises: exercises.exercises.length,
       estimatedReadingMinutes,
       generatedAt: new Date().toISOString(),
-      language: options.language
+      language: options.language,
+      modelsUsed: usedModels
     }
   };
 }
@@ -326,13 +382,12 @@ Create a comprehensive chapter outline with:
 
 Return JSON matching the schema exactly.`;
 
-  const { result } = await classifyWithAllProviders(
+  // Use DeepSeek for outline planning (excellent at structured reasoning)
+  return await executeWithSchema(
+    'outline_planning',
     prompt,
-    TextbookChapterOutlineSchema,
-    JSON_SYSTEM_PROMPT
+    TextbookChapterOutlineSchema
   );
-
-  return result;
 }
 
 async function generateSectionContent(
@@ -399,13 +454,12 @@ CONTENT REQUIREMENTS:
 
 Return JSON with: content, key_terms, did_you_know, code_examples, diagrams`;
 
-  const { result } = await classifyWithAllProviders(
+  // Use Qwen for content generation (excellent prose, long context)
+  return await executeWithSchema(
+    'content_generation',
     prompt,
-    TextbookSectionContentSchema,
-    JSON_SYSTEM_PROMPT
+    TextbookSectionContentSchema
   );
-
-  return result;
 }
 
 async function generateExerciseSet(
@@ -446,13 +500,12 @@ Mix difficulties: 30% basic, 40% intermediate, 20% advanced, 10% challenge
 
 Return JSON matching the schema exactly.`;
 
-  const { result } = await classifyWithAllProviders(
+  // Use DeepSeek for exercises (excellent at problem design and reasoning)
+  return await executeWithSchema(
+    'exercise_generation',
     prompt,
-    ExerciseSetSchema,
-    JSON_SYSTEM_PROMPT
+    ExerciseSetSchema
   );
-
-  return result;
 }
 
 async function generateCaseStudies(
@@ -526,10 +579,11 @@ ${i === 2 ? 'Make this case study about an INTERNATIONAL or CROSS-CULTURAL conte
 
 Return JSON matching the schema exactly.`;
 
-    const { result } = await classifyWithAllProviders(
+    // Use Qwen for case studies (excellent narrative prose)
+    const result = await executeWithSchema(
+      'case_study',
       prompt,
-      CaseStudySchema,
-      JSON_SYSTEM_PROMPT
+      CaseStudySchema
     );
 
     caseStudies.push(result);
@@ -590,13 +644,12 @@ Total points should be 100 for easy percentage calculation.
 
 Return JSON matching the schema exactly.`;
 
-  const { result } = await classifyWithAllProviders(
+  // Use DeepSeek for exam generation (rigorous question design)
+  return await executeWithSchema(
+    'exam_generation',
     prompt,
-    ChapterExamSchema,
-    JSON_SYSTEM_PROMPT
+    ChapterExamSchema
   );
-
-  return result;
 }
 
 // ============================================================================
