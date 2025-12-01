@@ -10,7 +10,6 @@ interface UseModuleProgressResult {
     completed: boolean;
     score?: number;
     timeSpent?: number;
-    notes?: string;
   }) => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
@@ -26,7 +25,6 @@ export function useModuleProgress(): UseModuleProgressResult {
     completed: boolean;
     score?: number;
     timeSpent?: number;
-    notes?: string;
   }): Promise<boolean> => {
     setIsLoading(true);
     setError(null);

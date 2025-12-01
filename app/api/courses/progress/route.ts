@@ -8,7 +8,6 @@ const ProgressSchema = z.object({
   completed: z.boolean(),
   score: z.number().min(0).max(100).optional(),
   timeSpent: z.number().min(0).optional(),
-  notes: z.string().optional(),
 });
 
 /**
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Step 3: Validate with Zod
     console.log(`[PROGRESS API] [${requestId}] Step 3: Validating with Zod schema...`);
-    const { courseId, moduleId, completed, score, timeSpent, notes } =
+    const { courseId, moduleId, completed, score, timeSpent } =
       ProgressSchema.parse(body);
     console.log(`[PROGRESS API] [${requestId}] Step 3 Validated:`, {
       courseId,
@@ -141,7 +140,6 @@ export async function POST(req: NextRequest) {
         completed,
         score: score !== undefined ? score : existing.score,
         time_spent: timeSpent !== undefined ? timeSpent : existing.time_spent,
-        notes: notes !== undefined ? notes : existing.notes,
         completed_at: completed ? new Date().toISOString() : existing.completed_at,
         updated_at: new Date().toISOString(),
       };
@@ -162,7 +160,6 @@ export async function POST(req: NextRequest) {
         completed,
         score: score || null,
         time_spent: timeSpent || 0,
-        notes: notes || null,
         completed_at: completed ? new Date().toISOString() : null,
       };
       console.log(`[PROGRESS API] [${requestId}] Insert payload:`, insertPayload);

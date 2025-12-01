@@ -46,7 +46,6 @@ export interface UserProgress {
   completed: boolean;
   score: number | null;
   time_spent: number;
-  notes: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
