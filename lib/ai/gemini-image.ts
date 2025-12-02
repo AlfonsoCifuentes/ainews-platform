@@ -145,9 +145,9 @@ export class GeminiImageClient {
   async generateEducationalIllustration(
     moduleContent: string,
     locale: 'en' | 'es' = 'en',
-    style: 'schema' | 'infographic' | 'conceptual' | 'textbook' = 'textbook'
+    style: 'schema' | 'infographic' | 'conceptual' | 'textbook' | 'header' | 'diagram' = 'textbook'
   ): Promise<ImageGenerationResult> {
-    const stylePrompts = {
+    const stylePrompts: Record<string, Record<'en' | 'es', string>> = {
       schema: {
         en: `Create a clear, educational diagram/schema explaining the following content. Use visual metaphors like lightbulbs for ideas, question marks for concepts to explore, arrows for processes, and friendly mascot characters (like a curious cat or wise owl) to make it engaging. Style: clean, modern textbook illustration with dark background that works well on dark themes. Include labeled sections and visual hierarchy.`,
         es: `Crea un diagrama/esquema educativo claro explicando el siguiente contenido. Usa metáforas visuales como bombillas para ideas, signos de interrogación para conceptos a explorar, flechas para procesos, y personajes mascota amigables (como un gato curioso o un búho sabio) para hacerlo atractivo. Estilo: ilustración de libro de texto limpia y moderna con fondo oscuro que funcione bien en temas oscuros. Incluye secciones etiquetadas y jerarquía visual.`,
@@ -164,6 +164,14 @@ export class GeminiImageClient {
         en: `Generate a premium textbook-quality illustration for this content. Combine the rigor of an academic publication with the visual appeal of a modern educational book for young adults. Include: clear visual hierarchy, helpful annotations, friendly educational mascots (curious cat with question marks, person with lightbulb for ideas), process diagrams where applicable. Style: Dark theme compatible, professional blues and teals, clean lines.`,
         es: `Genera una ilustración de calidad de libro de texto premium para este contenido. Combina el rigor de una publicación académica con el atractivo visual de un libro educativo moderno para jóvenes adultos. Incluye: jerarquía visual clara, anotaciones útiles, mascotas educativas amigables (gato curioso con signos de interrogación, persona con bombilla para ideas), diagramas de proceso donde aplique. Estilo: Compatible con tema oscuro, azules y teales profesionales, líneas limpias.`,
       },
+      header: {
+        en: `Create a stunning cinematic header image for a course chapter. The image should be photorealistic or high-quality digital art, showing the main subject in action. For example, if it's about tattooing, show hands doing professional tattoo work with a tattoo machine on skin. If it's about programming, show elegant code visualizations. If it's about cooking, show a chef's hands preparing food. Style: Cinematic lighting, dramatic composition, professional photography style, dark moody tones with blue/teal accents. NO text or labels in the image. Focus on the visual impact and emotion.`,
+        es: `Crea una impresionante imagen de encabezado cinematográfica para un capítulo de curso. La imagen debe ser fotorrealista o arte digital de alta calidad, mostrando el tema principal en acción. Por ejemplo, si es sobre tatuaje, mostrar manos haciendo trabajo profesional de tatuaje con una máquina de tatuar sobre piel. Si es sobre programación, mostrar visualizaciones elegantes de código. Si es sobre cocina, mostrar manos de un chef preparando comida. Estilo: Iluminación cinematográfica, composición dramática, estilo de fotografía profesional, tonos oscuros y dramáticos con acentos azul/teal. SIN texto ni etiquetas en la imagen. Enfoque en el impacto visual y la emoción.`,
+      },
+      diagram: {
+        en: `Create a clear technical diagram explaining this concept. Use flowchart elements, boxes with labels, arrows showing relationships and processes. Style: Clean white or light background for maximum clarity, professional technical drawing style like engineering or architecture diagrams. Include legends if needed.`,
+        es: `Crea un diagrama técnico claro explicando este concepto. Usa elementos de diagrama de flujo, cajas con etiquetas, flechas mostrando relaciones y procesos. Estilo: Fondo blanco o claro para máxima claridad, estilo de dibujo técnico profesional como diagramas de ingeniería o arquitectura. Incluye leyendas si es necesario.`,
+      },
     };
 
     // Truncate content to fit in prompt while keeping key information
@@ -171,12 +179,23 @@ export class GeminiImageClient {
       ? moduleContent.substring(0, 2000) + '...'
       : moduleContent;
 
-    const prompt = `${stylePrompts[style][locale]}
+    // For header style, the content IS the subject (course title: module title)
+    // For other styles, we add the content after the prompt
+    let prompt: string;
+    if (style === 'header') {
+      prompt = `${stylePrompts[style][locale]}
+
+Course/Chapter subject: ${contentSummary}
+
+Generate a visually striking image that immediately communicates what this chapter is about.`;
+    } else {
+      prompt = `${stylePrompts[style][locale]}
 
 Content to illustrate:
 ${contentSummary}
 
 Important: The image should be self-explanatory and enhance understanding of the topic. Use visual metaphors and friendly characters to make complex concepts accessible.`;
+    }
 
     return this.generateImage(prompt, {
       model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE, // Use Nano Banana Pro for educational content

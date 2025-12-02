@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, BookOpenCheck, ListTree, Lock, Sparkles, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpenCheck, ListTree, Lock, X } from 'lucide-react';
 import type { NormalizedModule } from '@/lib/courses/normalize';
 import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
 import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModulePlayer } from '@/components/courses/ModulePlayer';
+import { ModuleHeaderIllustration } from '@/components/courses/ModuleHeaderIllustration';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useBookMode } from '@/lib/hooks/useBookMode';
 
 interface CourseSummary {
 	title_en: string;
@@ -50,6 +52,13 @@ export function CourseLearnExperience({
 	const [bookMode, setBookMode] = useState(true);
 	const [indexOpen, setIndexOpen] = useState(false);
 	const router = useRouter();
+	const { setBookMode: setGlobalBookMode } = useBookMode();
+
+	// Sync local bookMode with global context (for hiding header/footer)
+	useEffect(() => {
+		setGlobalBookMode(bookMode);
+		return () => setGlobalBookMode(false);
+	}, [bookMode, setGlobalBookMode]);
 
 	const navigationState = useMemo(() => {
 		const completionMap: Record<string, boolean> = {};
@@ -247,21 +256,15 @@ export function CourseLearnExperience({
 									</div>
 								</div>
 
-								<div className="mt-10 rounded-3xl border border-white/5 bg-[linear-gradient(135deg,rgba(59,130,246,0.25),rgba(14,165,233,0.15))] p-6">
-									<div className="flex items-center gap-3 text-white/80">
-										<Sparkles className="h-6 w-6" />
-										<span className="text-sm uppercase tracking-[0.3em]">Nano Banana Pro</span>
-									</div>
-									<p
-										className="mt-4 text-4xl font-black uppercase leading-tight tracking-tight text-white"
-										style={{ fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif" }}
-									>
-										Fluid
-										<br />
-										AI
-										<br />
-										Chapters
-									</p>
+								{/* Module Illustration - AI Generated */}
+								<div className="mt-10 rounded-3xl overflow-hidden border border-white/5">
+									<ModuleHeaderIllustration
+										moduleId={currentModule.id}
+										courseTitle={localizedCourseTitle}
+										moduleTitle={localizedModuleTitle}
+										locale={locale}
+										className="h-48 md:h-56"
+									/>
 								</div>
 							</div>
 						</div>

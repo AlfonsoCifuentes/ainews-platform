@@ -75,10 +75,25 @@ export interface TextbookViewProps {
 export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   
-  const content = rawContent
-    .replace(/<div[^>]*style[^>]*border[^>]*>[\s\S]*?<b>([^<]+)<\/b>[\s\S]*?<br\s*\/?>([\s\S]*?)<\/div>/gi, 
-      (_, title, body) => `\n:::didyouknow[${title.trim()}]\n${body.trim()}\n:::\n`)
-    .replace(/<\/?(?:div|span|b|br|i|em|strong)[^>]*>/gi, '')
+  // First pass: Convert styled div boxes to callouts
+  let content = rawContent
+    // Match styled divs with title in <b> tags (Did You Know boxes)
+    .replace(/<div[^>]*style=["'][^"']*border[^"']*["'][^>]*>\s*<b>([^<]+)<\/b>\s*(?:<br\s*\/?>)?\s*([\s\S]*?)<\/div>/gi, 
+      (_, title, body) => {
+        const cleanBody = body
+          .replace(/<\/?(div|span|b|br|i|em|strong|p)[^>]*>/gi, '')
+          .trim();
+        return `\n:::didyouknow[${title.trim()}]\n${cleanBody}\n:::\n`;
+      })
+    // Match any remaining styled divs as general callouts
+    .replace(/<div[^>]*style=["'][^"']*["'][^>]*>([\s\S]*?)<\/div>/gi, (_, inner) => {
+      return inner.replace(/<\/?(b|br|i|em|strong|span)[^>]*>/gi, '').trim();
+    });
+  
+  // Second pass: Clean remaining HTML tags
+  content = content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:div|span|b|i|em|strong|p)[^>]*>/gi, '')
     .replace(/\r\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n');
 

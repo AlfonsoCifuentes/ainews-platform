@@ -22,6 +22,7 @@ import { OAuthCallbackHandler } from '@/components/auth/OAuthCallbackHandler';
 import { PWAInstaller } from '@/components/pwa/PWAInstaller';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { UnifiedDebugPanel } from '@/components/shared/UnifiedDebugPanel';
+import { BookModeProvider } from '@/lib/hooks/useBookMode';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
@@ -204,6 +205,7 @@ console.log('[CookieNorm] Starting normalization...');
           <ToastProvider>
             <NextIntlClientProvider messages={messages} locale={locale}>
               <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
+                <BookModeProvider>
                 <OAuthCallbackHandler />
                 <div className="relative flex min-h-screen flex-col">
                   {/* Matrix Rain Background */}
@@ -234,6 +236,7 @@ console.log('[CookieNorm] Starting normalization...');
                   {/* Unified Debug Panel (LogDashboard + ServerDebugPanel) */}
                   <UnifiedDebugPanel />
                 </div>
+              </BookModeProvider>
               </BadgeNotificationProvider>
             </NextIntlClientProvider>
           </ToastProvider>

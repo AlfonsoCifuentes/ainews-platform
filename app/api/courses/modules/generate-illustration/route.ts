@@ -6,7 +6,7 @@ import { z } from 'zod';
 const RequestSchema = z.object({
   content: z.string().min(10, 'Content must be at least 10 characters'),
   locale: z.enum(['en', 'es']).default('en'),
-  style: z.enum(['schema', 'infographic', 'conceptual', 'textbook']).default('textbook'),
+  style: z.enum(['schema', 'infographic', 'conceptual', 'textbook', 'header', 'diagram']).default('textbook'),
   moduleId: z.string().optional(),
 });
 

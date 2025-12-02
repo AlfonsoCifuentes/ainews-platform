@@ -9,6 +9,7 @@ import { XPAnimator } from '@/components/gamification/XPAnimator';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
 import { useUser } from '@/lib/hooks/useUser';
+import { useBookMode } from '@/lib/hooks/useBookMode';
 import { AuthModalProvider } from '@/components/auth/AuthModalProvider';
 import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
@@ -26,6 +27,7 @@ export function Header() {
   const t = useTranslations('common.nav');
   const pathname = usePathname();
   const { profile, locale } = useUser();
+  const { isBookMode } = useBookMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const activeSegment = useMemo(() => {
@@ -69,6 +71,11 @@ export function Header() {
     window.dispatchEvent(event);
     closeMobileMenu();
   }, []);
+
+  // Hide header completely in book mode (after all hooks)
+  if (isBookMode) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 shadow-[0_10px_35px_rgba(8,8,28,0.45)] backdrop-blur-2xl">

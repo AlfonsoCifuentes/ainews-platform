@@ -2,10 +2,17 @@
 
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
+import { useBookMode } from '@/lib/hooks/useBookMode';
 import Image from 'next/image';
 
 export function Footer() {
   const t = useTranslations('common');
+  const { isBookMode } = useBookMode();
+
+  // Hide footer in book mode
+  if (isBookMode) {
+    return null;
+  }
 
   return (
     <footer className="border-t border-white/5 bg-black/40 backdrop-blur-2xl">
