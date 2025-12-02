@@ -38,6 +38,9 @@ function buildFallbackProfile(user: MinimalAuthUser): UserProfile {
     bio: null,
     preferred_locale: preferredLocale,
     theme: FALLBACK_THEME,
+    preferred_visual_style: 'photorealistic',
+    preferred_visual_density: 'balanced',
+    auto_diagramming: true,
     total_xp: 0,
     level: 1,
     streak_days: 0,
@@ -46,6 +49,15 @@ function buildFallbackProfile(user: MinimalAuthUser): UserProfile {
     weekly_digest: true,
     created_at: now,
     updated_at: now,
+  };
+}
+
+function ensureVisualPreferences(profile: UserProfile): UserProfile {
+  return {
+    ...profile,
+    preferred_visual_style: profile.preferred_visual_style ?? 'photorealistic',
+    preferred_visual_density: profile.preferred_visual_density ?? 'balanced',
+    auto_diagramming: typeof profile.auto_diagramming === 'boolean' ? profile.auto_diagramming : true,
   };
 }
 
@@ -143,9 +155,13 @@ export function useUser() {
           const storedProfileRaw = sessionStorage.getItem('ainews_auth_profile');
           if (storedProfileRaw) {
             storedProfile = JSON.parse(storedProfileRaw) as UserProfile;
-            loggers.success('user', 'Hydrated profile from sessionStorage', { displayName: storedProfile.display_name });
-            setProfile(storedProfile);
-            setLocale(storedProfile.preferred_locale ?? 'en');
+            const hydrated = ensureVisualPreferences(storedProfile);
+            loggers.success('user', 'Hydrated profile from sessionStorage', { displayName: hydrated.display_name });
+            setProfile(hydrated);
+            setLocale(hydrated.preferred_locale ?? 'en');
+            if (hydrated !== storedProfile) {
+              sessionStorage.setItem('ainews_auth_profile', JSON.stringify(hydrated));
+            }
           }
         } catch (profileError) {
           loggers.warn('user', 'Failed to parse sessionStorage profile', profileError);
@@ -241,13 +257,14 @@ export function useUser() {
 
       if (profileData) {
         loggers.success('user', 'Profile found from database', { displayName: profileData.display_name, locale: profileData.preferred_locale });
-        setProfile(profileData as UserProfile);
-        setLocale(profileData.preferred_locale ?? 'en');
+        const normalizedProfile = ensureVisualPreferences(profileData as UserProfile);
+        setProfile(normalizedProfile);
+        setLocale(normalizedProfile.preferred_locale ?? 'en');
         
         // Store in sessionStorage for future quick access
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(profileData));
+            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalizedProfile));
             loggers.user('Stored profile in sessionStorage');
           } catch (e) {
             loggers.warn('user', 'Failed to store profile in sessionStorage', e);
@@ -279,13 +296,14 @@ export function useUser() {
         }
 
         loggers.user('Setting fallback profile state', { displayName: fallback.display_name });
-        setProfile(fallback);
-        setLocale(fallback.preferred_locale);
+        const normalizedFallback = ensureVisualPreferences(fallback);
+        setProfile(normalizedFallback);
+        setLocale(normalizedFallback.preferred_locale);
         
         // Store in sessionStorage
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(fallback));
+            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalizedFallback));
             loggers.user('Stored fallback profile in sessionStorage');
           } catch (e) {
             loggers.warn('user', 'Failed to store fallback in sessionStorage', e);
@@ -392,11 +410,12 @@ export function useUser() {
       // Immediately set state from event payload (don't wait for refetch)
       if (nextProfile) {
         loggers.success('user', 'Setting profile immediately from auth event', { displayName: nextProfile.display_name, locale: nextProfile.preferred_locale });
-        setProfile(nextProfile);
-        setLocale(nextProfile.preferred_locale ?? 'en');
+        const normalized = ensureVisualPreferences(nextProfile);
+        setProfile(normalized);
+        setLocale(normalized.preferred_locale ?? 'en');
 
         try {
-          sessionStorage.setItem('ainews_auth_profile', JSON.stringify(nextProfile));
+          sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalized));
           loggers.user('Stored profile in sessionStorage from auth event');
         } catch (storageError) {
           loggers.warn('user', 'Failed persisting sessionStorage profile', storageError);

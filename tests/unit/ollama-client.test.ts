@@ -33,7 +33,7 @@ describe('Ollama client', () => {
       return await makeResponse(200, { response: 'OK' });
     });
 
-    const ok = await warmOllamaModel('qwen3:30b', 2);
+    const ok = await warmOllamaModel('http://localhost:11434', 'qwen3:30b', 2);
     expect(ok).toBe(true);
     expect(diag.warmups.length).toBe(1);
   });

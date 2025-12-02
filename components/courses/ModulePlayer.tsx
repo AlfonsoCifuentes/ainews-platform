@@ -12,8 +12,11 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
 import { useToast } from '@/components/shared/ToastProvider';
 import { useUser } from '@/lib/hooks/useUser';
+import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
+import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -144,6 +147,8 @@ export function ModulePlayer({
     tryAgain: 'Try Again',
     generatingContent: 'Generating module content...',
     contentGenerated: 'Module content generated successfully!',
+    visualHighlights: 'Visual highlights',
+    visualGalleryNote: 'AI illustrations anchored to this section'
   } : {
     markComplete: 'Marcar como Completado',
     completed: 'Completado',
@@ -159,12 +164,19 @@ export function ModulePlayer({
     tryAgain: 'Intentar de Nuevo',
     generatingContent: 'Generando contenido del módulo...',
     contentGenerated: '¡Contenido del módulo generado exitosamente!',
+    visualHighlights: 'Destellos visuales',
+    visualGalleryNote: 'Ilustraciones IA ancladas a esta sección'
   }, [locale]);
 
   const title = locale === 'en' ? module.title_en : module.title_es;
   const description = locale === 'en' ? module.description_en : module.description_es;
   const content = locale === 'en' ? module.content_en : module.content_es;
   const displayContent = generatedContent || content;
+  const { slots: visualSlots } = useModuleVisualSlots(module.id, locale);
+  const supportingSlots = useMemo(
+    () => visualSlots.filter((slot) => slot.slotType !== 'header'),
+    [visualSlots]
+  );
 
   // Log component mount with detailed diagnostics
   useEffect(() => {
@@ -647,99 +659,140 @@ export function ModulePlayer({
               </div>
             </div>
           ) : displayContent && displayContent.trim() ? (
-            <ReactMarkdown
-              components={{
-                // Headings más prominentes con gradientes y bordes
-                h1: ({ ...props }) => (
-                  <h1 
-                    className="text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
-                    {...props} 
-                  />
-                ),
-                h2: ({ ...props }) => (
-                  <h2 
-                    className="text-xl md:text-2xl font-semibold mb-4 mt-8 text-primary border-l-4 border-primary pl-4" 
-                    {...props} 
-                  />
-                ),
-                h3: ({ ...props }) => (
-                  <h3 
-                    className="text-lg md:text-xl font-medium mb-3 mt-6 text-foreground" 
-                    {...props} 
-                  />
-                ),
-                // Párrafos con más espacio y mejor legibilidad
-                p: ({ ...props }) => (
-                  <p 
-                    className="text-sm md:text-base leading-relaxed mb-4 text-muted-foreground" 
-                    {...props} 
-                  />
-                ),
-                // Listas con más espacio entre items
-                ul: ({ ...props }) => (
-                  <ul 
-                    className="space-y-2 my-4 pl-5" 
-                    {...props} 
-                  />
-                ),
-                ol: ({ ...props }) => (
-                  <ol 
-                    className="space-y-2 my-4 pl-5" 
-                    {...props} 
-                  />
-                ),
-                li: ({ ...props }) => (
-                  <li 
-                    className="text-sm md:text-base leading-relaxed" 
-                    {...props} 
-                  />
-                ),
-                // Blockquotes más destacados
-                blockquote: ({ ...props }) => (
-                  <blockquote 
-                    className="border-l-4 border-primary bg-primary/10 p-4 rounded-r-xl my-4 italic text-sm md:text-base" 
-                    {...props} 
-                  />
-                ),
-                // Enlaces destacados
-                a: ({ ...props }) => (
-                  <a 
-                    className="text-primary font-semibold hover:underline hover:text-blue-400 transition-colors" 
-                    {...props} 
-                  />
-                ),
-                // Code blocks y inline code
-                code(props) {
-                  const { inline, className, children, ...rest } = props as {
-                    inline?: boolean;
-                    className?: string;
-                    children?: React.ReactNode;
-                  };
-                  const match = /language-(\w+)/.exec(className || '');
-                  return !inline && match ? (
-                    <div className="my-6 rounded-xl overflow-hidden border border-border">
-                      <SyntaxHighlighter
-                        style={vscDarkPlus}
-                        language={match[1]}
-                        PreTag="div"
+            <>
+              {supportingSlots.length > 0 && (
+                <div className="space-y-6 mb-6">
+                  {supportingSlots.slice(0, 2).map((slot) => (
+                    <ModuleIllustration
+                      key={slot.id}
+                      moduleId={module.id}
+                      content={displayContent || ''}
+                      locale={locale}
+                      style={getIllustrationStyleForSlot(slot)}
+                      visualStyle={slot.suggestedVisualStyle}
+                      slot={slot}
+                    />
+                  ))}
+                </div>
+              )}
+              <ReactMarkdown
+                components={{
+                  // Headings más prominentes con gradientes y bordes
+                  h1: ({ ...props }) => (
+                    <h1 
+                      className="text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
+                      {...props} 
+                    />
+                  ),
+                  h2: ({ ...props }) => (
+                    <h2 
+                      className="text-xl md:text-2xl font-semibold mb-4 mt-8 text-primary border-l-4 border-primary pl-4" 
+                      {...props} 
+                    />
+                  ),
+                  h3: ({ ...props }) => (
+                    <h3 
+                      className="text-lg md:text-xl font-medium mb-3 mt-6 text-foreground" 
+                      {...props} 
+                    />
+                  ),
+                  // Párrafos con más espacio y mejor legibilidad
+                  p: ({ ...props }) => (
+                    <p 
+                      className="text-sm md:text-base leading-relaxed mb-4 text-muted-foreground" 
+                      {...props} 
+                    />
+                  ),
+                  // Listas con más espacio entre items
+                  ul: ({ ...props }) => (
+                    <ul 
+                      className="space-y-2 my-4 pl-5" 
+                      {...props} 
+                    />
+                  ),
+                  ol: ({ ...props }) => (
+                    <ol 
+                      className="space-y-2 my-4 pl-5" 
+                      {...props} 
+                    />
+                  ),
+                  li: ({ ...props }) => (
+                    <li 
+                      className="text-sm md:text-base leading-relaxed" 
+                      {...props} 
+                    />
+                  ),
+                  // Blockquotes más destacados
+                  blockquote: ({ ...props }) => (
+                    <blockquote 
+                      className="border-l-4 border-primary bg-primary/10 p-4 rounded-r-xl my-4 italic text-sm md:text-base" 
+                      {...props} 
+                    />
+                  ),
+                  // Enlaces destacados
+                  a: ({ ...props }) => (
+                    <a 
+                      className="text-primary font-semibold hover:underline hover:text-blue-400 transition-colors" 
+                      {...props} 
+                    />
+                  ),
+                  // Code blocks y inline code
+                  code(props) {
+                    const { inline, className, children, ...rest } = props as {
+                      inline?: boolean;
+                      className?: string;
+                      children?: React.ReactNode;
+                    };
+                    const match = /language-(\w+)/.exec(className || '');
+                    return !inline && match ? (
+                      <div className="my-6 rounded-xl overflow-hidden border border-border">
+                        <SyntaxHighlighter
+                          style={vscDarkPlus}
+                          language={match[1]}
+                          PreTag="div"
+                          {...rest}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      </div>
+                    ) : (
+                      <code 
+                        className="bg-primary/20 text-primary px-2 py-1 rounded text-base font-mono" 
                         {...rest}
                       >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    </div>
-                  ) : (
-                    <code 
-                      className="bg-primary/20 text-primary px-2 py-1 rounded text-base font-mono" 
-                      {...rest}
-                    >
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {displayContent}
-            </ReactMarkdown>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {displayContent}
+              </ReactMarkdown>
+              {supportingSlots.length > 2 && (
+                <div className="mt-10 space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.5em] text-primary/80">
+                      {t.visualHighlights}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{t.visualGalleryNote}</p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {supportingSlots.slice(2, 6).map((slot) => (
+                      <ModuleIllustration
+                        key={slot.id}
+                        moduleId={module.id}
+                        content={displayContent || ''}
+                        locale={locale}
+                        style={getIllustrationStyleForSlot(slot)}
+                        visualStyle={slot.suggestedVisualStyle}
+                        slot={slot}
+                        autoGenerate={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />

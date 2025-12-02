@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, RefreshCw, ImageOff } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ImageOff, RefreshCw, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
+import { useUser } from '@/lib/hooks/useUser';
+import type { VisualStyle } from '@/lib/types/illustrations';
 
 interface ModuleHeaderIllustrationProps {
   moduleId: string;
@@ -11,6 +14,7 @@ interface ModuleHeaderIllustrationProps {
   moduleTitle: string;
   locale: 'en' | 'es';
   className?: string;
+  visualStyleOverride?: VisualStyle;
 }
 
 interface IllustrationState {
@@ -25,77 +29,198 @@ export function ModuleHeaderIllustration({
   moduleTitle,
   locale,
   className = '',
+  visualStyleOverride,
 }: ModuleHeaderIllustrationProps) {
-  const [state, setState] = useState<IllustrationState>({
-    loading: true,
-    error: null,
-    imageUrl: null,
+  const { profile } = useUser();
+  const { slots: headerSlots, loading: slotsLoading, refresh } = useModuleVisualSlots(moduleId, locale, {
+    slotType: 'header',
+    limit: 1,
   });
+  const headerSlot = headerSlots[0] ?? null;
+  const [state, setState] = useState<IllustrationState>({ loading: true, error: null, imageUrl: null });
+  const [requestNonce, setRequestNonce] = useState(0);
 
-  useEffect(() => {
-    const cacheKey = `header_illustration_${moduleId}`;
-    
-    // Check cache first
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed.imageUrl && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) { // 7 days cache
-          setState({ loading: false, error: null, imageUrl: parsed.imageUrl });
-          return;
-        }
-      } catch {
-        // Invalid cache, proceed with generation
-      }
+  const resolvedVisualStyle: VisualStyle = useMemo(() => {
+    return (
+      visualStyleOverride ??
+      headerSlot?.suggestedVisualStyle ??
+      profile?.preferred_visual_style ??
+      'photorealistic'
+    );
+  }, [visualStyleOverride, headerSlot?.suggestedVisualStyle, profile?.preferred_visual_style]);
+
+  const cacheKey = useMemo(
+    () => `module_header_${moduleId}_${locale}_${resolvedVisualStyle}_${headerSlot?.id ?? 'default'}`,
+    [moduleId, locale, resolvedVisualStyle, headerSlot?.id]
+  );
+
+  const generationContent = useMemo(() => {
+    if (!headerSlot) {
+      return `${courseTitle}: ${moduleTitle}`;
     }
 
-    // Generate illustration
-    const generateIllustration = async () => {
+    const details = [headerSlot.summary, headerSlot.reason, `${courseTitle}: ${moduleTitle}`]
+      .filter(Boolean)
+      .join('\n\n');
+    return details || `${courseTitle}: ${moduleTitle}`;
+  }, [headerSlot, courseTitle, moduleTitle]);
+
+  useEffect(() => {
+    if (!moduleId) return;
+    if (slotsLoading && !headerSlot) return;
+
+    let cancelled = false;
+
+    const hydrateFromCache = (): string | null => {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as { imageUrl: string; timestamp: number };
+        const week = 7 * 24 * 60 * 60 * 1000;
+        if (parsed.imageUrl && Date.now() - parsed.timestamp < week) {
+          return parsed.imageUrl;
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    };
+
+    const persistCache = (imageUrl: string) => {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ imageUrl, timestamp: Date.now() }));
+      } catch {
+        // Ignore quota errors
+      }
+    };
+
+    const fetchStoredIllustration = async (): Promise<string | null> => {
+      try {
+        const params = new URLSearchParams({
+          moduleId,
+          locale,
+          style: 'header',
+          visualStyle: resolvedVisualStyle,
+        });
+        if (headerSlot?.id) {
+          params.set('slotId', headerSlot.id);
+        }
+
+        const existing = await fetch(`/api/courses/modules/illustrations?${params.toString()}`);
+        if (!existing.ok) return null;
+        const payload = (await existing.json()) as {
+          success: boolean;
+          illustration?: { image_url: string | null } | null;
+        };
+
+        if (payload.success && payload.illustration?.image_url) {
+          return payload.illustration.image_url;
+        }
+      } catch (error) {
+        console.warn('[ModuleHeaderIllustration] Prefetch failed', error);
+      }
+      return null;
+    };
+
+    const fetchOrGenerate = async () => {
+      setState({ loading: true, error: null, imageUrl: null });
+
+      const cached = hydrateFromCache();
+      if (cached) {
+        if (!cancelled) {
+          setState({ loading: false, error: null, imageUrl: cached });
+        }
+        return;
+      }
+
+      const storedUrl = await fetchStoredIllustration();
+      if (storedUrl) {
+        persistCache(storedUrl);
+        if (!cancelled) {
+          setState({ loading: false, error: null, imageUrl: storedUrl });
+        }
+        return;
+      }
+
       try {
         const response = await fetch('/api/courses/modules/generate-illustration', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: `${courseTitle}: ${moduleTitle}`,
+            content: generationContent,
             locale,
             style: 'header',
             moduleId,
+            visualStyle: resolvedVisualStyle,
+            slotId: headerSlot?.id,
+            anchor: headerSlot
+              ? {
+                  slotType: headerSlot.slotType,
+                  blockIndex: headerSlot.blockIndex,
+                  heading: headerSlot.heading,
+                }
+              : undefined,
+            metadata: headerSlot
+              ? {
+                  reason: headerSlot.reason,
+                  summary: headerSlot.summary,
+                  confidence: headerSlot.confidence,
+                }
+              : undefined,
           }),
         });
 
         const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Generation failed');
+        }
 
-        if (data.success && data.image?.data) {
-          const imageUrl = `data:${data.image.mimeType};base64,${data.image.data}`;
-          
-          // Cache the result
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify({
-              imageUrl,
-              timestamp: Date.now(),
-            }));
-          } catch {
-            // Storage full, ignore
-          }
+        const imageUrl =
+          data.image?.url ||
+          (data.image?.mimeType && data.image?.data
+            ? `data:${data.image.mimeType};base64,${data.image.data}`
+            : data.persisted?.image_url);
 
+        if (!imageUrl) {
+          throw new Error('No image returned by cascade');
+        }
+
+        persistCache(imageUrl);
+        if (!cancelled) {
           setState({ loading: false, error: null, imageUrl });
-        } else {
-          throw new Error(data.error || 'Failed to generate');
         }
       } catch (error) {
-        console.error('[ModuleHeaderIllustration] Error:', error);
-        setState({ loading: false, error: 'Failed to generate illustration', imageUrl: null });
+        console.error('[ModuleHeaderIllustration] Generation failed', error);
+        if (!cancelled) {
+          setState({ loading: false, error: 'Failed to generate illustration', imageUrl: null });
+        }
       }
     };
 
-    generateIllustration();
-  }, [moduleId, courseTitle, moduleTitle, locale]);
+    void fetchOrGenerate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    moduleId,
+    locale,
+    resolvedVisualStyle,
+    cacheKey,
+    generationContent,
+    headerSlot?.id,
+    slotsLoading,
+    requestNonce,
+  ]);
 
   const handleRetry = () => {
-    setState({ loading: true, error: null, imageUrl: null });
-    localStorage.removeItem(`header_illustration_${moduleId}`);
-    // Trigger re-fetch by updating key
-    window.location.reload();
+    try {
+      localStorage.removeItem(cacheKey);
+    } catch {
+      // Ignore cache errors
+    }
+    setRequestNonce((value) => value + 1);
+    refresh();
   };
 
   return (

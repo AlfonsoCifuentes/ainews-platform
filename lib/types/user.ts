@@ -1,3 +1,5 @@
+import type { VisualStyle, VisualDensity } from './illustrations';
+
 /**
  * User Profile and Gamification Types
  * Aligned with database schema from migration 20250101000002 and 20250103
@@ -11,6 +13,9 @@ export interface UserProfile {
   bio: string | null;
   preferred_locale: 'en' | 'es';
   theme: 'dark' | 'light' | 'system';
+  preferred_visual_style: VisualStyle;
+  preferred_visual_density: VisualDensity;
+  auto_diagramming: boolean;
   
   // Gamification
   total_xp: number;
@@ -101,5 +106,5 @@ export interface UserStats {
 
 export type UpdateProfileData = Partial<Pick<
   UserProfile,
-  'display_name' | 'full_name' | 'bio' | 'preferred_locale' | 'theme'
+  'display_name' | 'full_name' | 'bio' | 'preferred_locale' | 'theme' | 'preferred_visual_style' | 'preferred_visual_density' | 'auto_diagramming'
 >>;

@@ -1,24 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, RefreshCw, ImageIcon, AlertCircle } from 'lucide-react';
+import { Sparkles, RefreshCw, ImageIcon, AlertCircle, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils/cn';
+import type { IllustrationStyle } from '@/lib/ai/gemini-image';
+import type { VisualStyle } from '@/lib/types/illustrations';
+import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 
 interface ModuleIllustrationProps {
   moduleId: string;
   content: string;
   locale: 'en' | 'es';
-  style?: 'schema' | 'infographic' | 'conceptual' | 'textbook';
+  style?: IllustrationStyle;
+  visualStyle?: VisualStyle;
+  slot?: ModuleVisualSlot | null;
+  autoGenerate?: boolean;
   className?: string;
 }
 
-interface IllustrationState {
-  loading: boolean;
-  error: string | null;
-  imageData: string | null;
-  mimeType: string | null;
-  model: string | null;
+type LoadingState = 'idle' | 'fetching' | 'generating';
+
+interface IllustrationMeta {
+  provider?: string | null;
+  model?: string | null;
+  updatedAt?: string | null;
 }
 
 export function ModuleIllustration({
@@ -26,51 +36,197 @@ export function ModuleIllustration({
   content,
   locale,
   style = 'textbook',
+  visualStyle,
+  slot,
+  autoGenerate = true,
   className = '',
 }: ModuleIllustrationProps) {
-  const [state, setState] = useState<IllustrationState>({
-    loading: false,
-    error: null,
-    imageData: null,
-    mimeType: null,
-    model: null,
-  });
-  const [showIllustration, setShowIllustration] = useState(false);
+  const [imageSource, setImageSource] = useState<string | null>(null);
+  const [meta, setMeta] = useState<IllustrationMeta | null>(null);
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [showIllustration, setShowIllustration] = useState(true);
+  const [autoAttempted, setAutoAttempted] = useState(false);
+  const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
-  const t = locale === 'en'
-    ? {
-        generateIllustration: 'Generate AI Illustration',
-        generating: 'Generating with Nano Banana Pro...',
-        regenerate: 'Regenerate',
-        error: 'Failed to generate illustration',
-        poweredBy: 'Powered by Nano Banana Pro',
-        showIllustration: 'Show Educational Illustration',
-        hideIllustration: 'Hide Illustration',
+  const resolvedVisualStyle = useMemo<VisualStyle>(
+    () => visualStyle ?? slot?.suggestedVisualStyle ?? 'photorealistic',
+    [visualStyle, slot?.suggestedVisualStyle]
+  );
+
+  const slotContext = useMemo(() => {
+    if (!slot) return null;
+    const labels = {
+      en: {
+        header: 'Hero slot',
+        diagram: 'Diagram slot',
+        inline: 'Inline slot',
+      },
+      es: {
+        header: 'Slot hero',
+        diagram: 'Slot diagrama',
+        inline: 'Slot inline',
+      },
+    } as const;
+    return labels[locale][slot.slotType];
+  }, [slot, locale]);
+
+  const generationContent = useMemo(() => {
+    if (!slot) return content;
+    const focus = [slot.summary, slot.reason].filter(Boolean).join('\n\n');
+    return focus ? `${focus}\n\n${content}` : content;
+  }, [slot, content]);
+
+  const t = useMemo(() => (
+    locale === 'en'
+      ? {
+          poweredBy: 'AI Illustration Pipeline',
+          generate: 'Generate Illustration',
+          regenerate: 'Regenerate',
+          refresh: 'Sync Stored Image',
+          generating: 'Generating via cascade...',
+          fetching: 'Loading stored illustration...',
+          error: 'Failed to load illustration',
+          missing: 'No illustration available yet',
+          showIllustration: 'Show Illustration',
+          hideIllustration: 'Hide Illustration',
+          slotInsight: 'Visual slot insight',
+          slotReason: 'Why this matters',
+          updated: 'Updated',
+        }
+      : {
+          poweredBy: 'Canal de Ilustraciones IA',
+          generate: 'Generar Ilustración',
+          regenerate: 'Regenerar',
+          refresh: 'Sincronizar Imagen',
+          generating: 'Generando con la cascada...',
+          fetching: 'Cargando ilustración guardada...',
+          error: 'No se pudo cargar la ilustración',
+          missing: 'Aún no hay ilustración',
+          showIllustration: 'Mostrar ilustración',
+          hideIllustration: 'Ocultar ilustración',
+          slotInsight: 'Slot visual recomendado',
+          slotReason: 'Por qué importa',
+          updated: 'Actualizado',
+        }
+  ), [locale]);
+
+  useEffect(() => {
+    setImageSource(null);
+    setMeta(null);
+    setError(null);
+    setShowIllustration(true);
+    setAutoAttempted(false);
+    setShouldAutoGenerate(false);
+  }, [moduleId, locale, style, resolvedVisualStyle]);
+
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    async function loadExisting() {
+      if (!moduleId) return;
+      setLoadingState('fetching');
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({
+          moduleId,
+          locale,
+          style,
+          visualStyle: resolvedVisualStyle,
+        });
+
+        const response = await fetch(`/api/courses/modules/illustrations?${params.toString()}`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(body || 'Failed to fetch illustration');
+        }
+
+        const payload = await response.json() as {
+          success: boolean;
+          illustration?: {
+            image_url: string;
+            provider?: string | null;
+            model?: string | null;
+            created_at?: string | null;
+          } | null;
+        };
+
+        if (!isActive) return;
+
+        if (payload.success && payload.illustration) {
+          setImageSource(payload.illustration.image_url);
+          setMeta({
+            provider: payload.illustration.provider,
+            model: payload.illustration.model,
+            updatedAt: payload.illustration.created_at,
+          });
+          setShouldAutoGenerate(false);
+        } else {
+          setImageSource(null);
+          setMeta(null);
+          if (autoGenerate && !autoAttempted) {
+            setShouldAutoGenerate(true);
+            setAutoAttempted(true);
+          }
+        }
+      } catch (err) {
+        if (!isActive) return;
+        console.error('[ModuleIllustration] Fetch failed:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        if (isActive) {
+          setLoadingState('idle');
+        }
       }
-    : {
-        generateIllustration: 'Generar Ilustración IA',
-        generating: 'Generando con Nano Banana Pro...',
-        regenerate: 'Regenerar',
-        error: 'Error al generar ilustración',
-        poweredBy: 'Generado con Nano Banana Pro',
-        showIllustration: 'Mostrar Ilustración Educativa',
-        hideIllustration: 'Ocultar Ilustración',
-      };
+    }
 
-  const generateIllustration = async () => {
-    if (state.loading) return;
+    void loadExisting();
 
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [moduleId, locale, style, resolvedVisualStyle, refreshNonce, autoGenerate, autoAttempted]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!moduleId) return;
+    setLoadingState('generating');
+    setError(null);
 
     try {
       const response = await fetch('/api/courses/modules/generate-illustration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content,
+          content: generationContent,
           locale,
           style,
           moduleId,
+          visualStyle: resolvedVisualStyle,
+          slotId: slot?.id,
+          anchor: slot
+            ? {
+                slotType: slot.slotType,
+                blockIndex: slot.blockIndex,
+                heading: slot.heading,
+              }
+            : undefined,
+          metadata: slot
+            ? {
+                slotType: slot.slotType,
+                density: slot.density,
+                summary: slot.summary,
+                reason: slot.reason,
+                confidence: slot.confidence,
+              }
+            : undefined,
         }),
       });
 
@@ -80,189 +236,176 @@ export function ModuleIllustration({
         throw new Error(data.error || 'Generation failed');
       }
 
-      setState({
-        loading: false,
-        error: null,
-        imageData: data.image.data,
-        mimeType: data.image.mimeType,
-        model: data.model,
+      const finalUrl = data.image?.url ?? `data:${data.image?.mimeType};base64,${data.image?.data}`;
+      setImageSource(finalUrl);
+      setMeta({
+        provider: data.provider ?? data.persisted?.provider ?? null,
+        model: data.model ?? data.persisted?.model ?? null,
+        updatedAt: data.persisted?.created_at ?? new Date().toISOString(),
       });
       setShowIllustration(true);
-    } catch (error) {
-      console.error('[ModuleIllustration] Error:', error);
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }));
+    } catch (err) {
+      console.error('[ModuleIllustration] Generation failed:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoadingState('idle');
     }
-  };
+  }, [moduleId, generationContent, locale, style, resolvedVisualStyle, slot]);
 
-  // Auto-generate on mount if content is substantial
   useEffect(() => {
-    // Only auto-generate if content is long enough and we don't already have an image
-    if (content.length > 500 && !state.imageData && !state.loading && !state.error) {
-      // Delay to not block initial render
-      const timer = setTimeout(() => {
-        // Check localStorage for cached illustration
-        const cacheKey = `illustration_${moduleId}_${style}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (parsed.imageData && parsed.mimeType) {
-              setState({
-                loading: false,
-                error: null,
-                imageData: parsed.imageData,
-                mimeType: parsed.mimeType,
-                model: parsed.model || 'cached',
-              });
-              setShowIllustration(true);
-            }
-          } catch {
-            // Invalid cache, proceed with generation
-          }
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (shouldAutoGenerate) {
+      setShouldAutoGenerate(false);
+      void handleGenerate();
     }
-    return undefined;
-  }, [moduleId, content.length, style, state.imageData, state.loading, state.error]);
+  }, [shouldAutoGenerate, handleGenerate]);
 
-  // Cache generated illustration
-  useEffect(() => {
-    if (state.imageData && state.mimeType) {
-      const cacheKey = `illustration_${moduleId}_${style}`;
-      try {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            imageData: state.imageData,
-            mimeType: state.mimeType,
-            model: state.model,
-            timestamp: Date.now(),
-          })
-        );
-      } catch {
-        // Storage full or disabled, ignore
-      }
+  const statusLabel = useMemo(() => {
+    if (loadingState === 'generating') return t.generating;
+    if (loadingState === 'fetching') return t.fetching;
+    if (error) return t.error;
+    if (!imageSource) return t.missing;
+    return null;
+  }, [loadingState, t, error, imageSource]);
+
+  const metaDescription = useMemo(() => {
+    if (!meta?.updatedAt) return null;
+    try {
+      return `${t.updated} ${formatDistanceToNow(new Date(meta.updatedAt), { addSuffix: true })}`;
+    } catch {
+      return `${t.updated} ${meta.updatedAt}`;
     }
-  }, [state.imageData, state.mimeType, state.model, moduleId, style]);
+  }, [meta?.updatedAt, t.updated]);
 
   return (
-    <div className={`rounded-3xl border border-white/10 bg-gradient-to-br from-blue-950/30 to-slate-950/50 p-6 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-blue-400">
-          <Sparkles className="w-5 h-5" />
-          <span className="text-sm font-semibold uppercase tracking-wider">
-            {t.poweredBy}
-          </span>
+    <div className={cn('rounded-3xl border border-white/10 bg-gradient-to-br from-blue-950/30 to-slate-950/50 p-6', className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 text-blue-300">
+            <Sparkles className="w-5 h-5" />
+            <span className="text-sm font-semibold uppercase tracking-wider">{t.poweredBy}</span>
+          </div>
+          <p className="text-xs text-blue-200/70">
+            {style} • {resolvedVisualStyle}
+          </p>
         </div>
 
-        {state.imageData && (
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowIllustration(!showIllustration)}
-            className="text-xs"
+            onClick={() => setRefreshNonce((value) => value + 1)}
+            disabled={loadingState !== 'idle'}
           >
-            {showIllustration ? t.hideIllustration : t.showIllustration}
+            <RefreshCw className={cn('w-4 h-4 mr-1', loadingState === 'fetching' && 'animate-spin')} />
+            {t.refresh}
           </Button>
-        )}
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            disabled={loadingState === 'generating'}
+          >
+            <Sparkles className={cn('w-4 h-4 mr-1', loadingState === 'generating' && 'animate-spin')} />
+            {imageSource ? t.regenerate : t.generate}
+          </Button>
+          {imageSource && (
+            <Button variant="ghost" size="sm" onClick={() => setShowIllustration((value) => !value)}>
+              {showIllustration ? t.hideIllustration : t.showIllustration}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        {!state.imageData && !state.loading && !state.error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-8 text-center"
-          >
-            <ImageIcon className="w-12 h-12 text-blue-400/50 mb-4" />
-            <Button
-              onClick={generateIllustration}
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              {t.generateIllustration}
-            </Button>
-          </motion.div>
-        )}
+      {slot && (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-white/80">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-blue-200/70">
+            <span>{t.slotInsight}</span>
+            {slotContext && <Badge variant="outline" className="!text-white/80">{slotContext}</Badge>}
+          </div>
+          {slot.heading && <p className="mt-3 text-sm font-semibold text-white">{slot.heading}</p>}
+          {slot.summary && <p className="mt-2 text-sm text-white/80">{slot.summary}</p>}
+          {slot.reason && (
+            <p className="mt-3 text-xs text-white/60">
+              <span className="font-semibold uppercase tracking-widest text-white/70">{t.slotReason}: </span>
+              {slot.reason}
+            </p>
+          )}
+        </div>
+      )}
 
-        {state.loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-12 text-center"
-          >
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto w-6 h-6 text-blue-400 animate-pulse" />
-            </div>
-            <p className="mt-4 text-sm text-blue-300">{t.generating}</p>
-          </motion.div>
-        )}
-
-        {state.error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-8 text-center"
-          >
-            <AlertCircle className="w-12 h-12 text-red-400/70 mb-4" />
-            <p className="text-sm text-red-400 mb-4">{t.error}</p>
-            <p className="text-xs text-muted-foreground mb-4">{state.error}</p>
-            <Button variant="outline" onClick={generateIllustration}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {t.regenerate}
-            </Button>
-          </motion.div>
-        )}
-
-        {state.imageData && showIllustration && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="relative"
-          >
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`data:${state.mimeType};base64,${state.imageData}`}
-                alt="AI-generated educational illustration"
-                className="w-full h-auto"
-              />
-              
-              {/* Overlay badge */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-xs text-white/80">
-                <Sparkles className="w-3 h-3" />
-                <span>Nano Banana Pro</span>
-              </div>
-            </div>
-
-            {/* Regenerate button */}
-            <div className="flex justify-center mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={generateIllustration}
-                disabled={state.loading}
-                className="text-xs"
+      <div className="mt-6">
+        <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+          <AnimatePresence mode="wait">
+            {loadingState !== 'idle' && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-white"
               >
-                <RefreshCw className={`w-3 h-3 mr-2 ${state.loading ? 'animate-spin' : ''}`} />
-                {t.regenerate}
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="text-sm text-blue-100/80">{statusLabel}</p>
+              </motion.div>
+            )}
+
+            {error && loadingState === 'idle' && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-center text-white"
+              >
+                <AlertCircle className="h-10 w-10 text-red-300" />
+                <p className="text-sm text-red-100/90">{t.error}</p>
+                <p className="text-xs text-white/70 max-w-xs">{error}</p>
+                <Button size="sm" variant="outline" onClick={handleGenerate}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  {t.regenerate}
+                </Button>
+              </motion.div>
+            )}
+
+            {!imageSource && !error && loadingState === 'idle' && (
+              <motion.div
+                key="placeholder"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-blue-100/70"
+              >
+                <ImageIcon className="h-10 w-10" />
+                <p className="text-sm text-center px-6">{t.missing}</p>
+              </motion.div>
+            )}
+
+            {imageSource && showIllustration && !error && (
+              <motion.div
+                key="image"
+                initial={{ opacity: 0, scale: 1.02 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0"
+              >
+                <Image
+                  src={imageSource}
+                  alt={slot?.heading || 'AI-generated educational illustration'}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 600px"
+                  unoptimized={imageSource.startsWith('data:')}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
+                  {meta?.provider && <Badge variant="outline" className="bg-black/40 text-white/80 border-white/30">{meta.provider}</Badge>}
+                  {meta?.model && <Badge variant="outline" className="bg-black/40 text-white/80 border-white/30">{meta.model}</Badge>}
+                  {metaDescription && <span className="text-[11px] uppercase tracking-widest text-white/70">{metaDescription}</span>}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

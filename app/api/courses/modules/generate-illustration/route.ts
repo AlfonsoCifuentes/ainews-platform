@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiImageClient } from '@/lib/ai/gemini-image';
+import { generateIllustrationWithCascade, DEFAULT_PROVIDER_ORDER, type ImageProviderName } from '@/lib/ai/image-cascade';
+import { computeIllustrationChecksum } from '@/lib/ai/illustration-utils';
 import { persistModuleIllustration } from '@/lib/db/module-illustrations';
+import { VISUAL_STYLES } from '@/lib/types/illustrations';
 import { z } from 'zod';
 
 const RequestSchema = z.object({
   content: z.string().min(10, 'Content must be at least 10 characters'),
   locale: z.enum(['en', 'es']).default('en'),
   style: z.enum(['schema', 'infographic', 'conceptual', 'textbook', 'header', 'diagram']).default('textbook'),
+  visualStyle: z.enum(VISUAL_STYLES).default('photorealistic'),
   moduleId: z.string().optional(),
+  slotId: z.string().uuid().optional(),
+  anchor: z.record(z.any()).optional(),
+  checksum: z.string().optional(),
+  providerOrder: z.array(z.enum(['moonshot', 'gemini', 'huggingface'] as const)).min(1).max(3).optional(),
+  promptOverride: z.string().min(10).max(4000).optional(),
+  metadata: z.record(z.any()).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -22,24 +31,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, locale, style, moduleId } = validated.data;
-    const client = getGeminiImageClient();
+    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, providerOrder, promptOverride, metadata } = validated.data;
 
-    console.log(`[API/generate-illustration] Generating ${style} illustration for ${locale}`);
-    console.log(`[API/generate-illustration] Content length: ${content.length} chars`);
+    console.log(`[API/generate-illustration] Generating ${style} illustration with cascade (${providerOrder?.join(' -> ') ?? DEFAULT_PROVIDER_ORDER.join(' -> ')})`);
 
-    const result = await client.generateEducationalIllustration(content, locale, style);
+    const cascadeResult = await generateIllustrationWithCascade({
+      moduleContent: content,
+      locale,
+      style,
+      visualStyle,
+      providerOrder: providerOrder as ImageProviderName[] | undefined,
+      promptOverride,
+    });
 
-    if (!result.success) {
-      console.error('[API/generate-illustration] Generation failed:', result.error);
+    if (!cascadeResult.success || cascadeResult.images.length === 0) {
+      console.error('[API/generate-illustration] All providers failed', cascadeResult.attempts);
       return NextResponse.json(
-        { success: false, error: result.error, model: result.model },
-        { status: 500 }
+        {
+          success: false,
+          error: cascadeResult.error ?? 'No providers were able to generate an image',
+          attempts: cascadeResult.attempts,
+        },
+        { status: 502 }
       );
     }
 
-    // Return the first image as base64
-    const image = result.images[0];
+    const image = cascadeResult.images[0];
+    const resolvedChecksum = checksum ?? computeIllustrationChecksum({
+      moduleId,
+      content,
+      locale,
+      style,
+      visualStyle,
+      slotId: slotId ?? null,
+      anchor: anchor ?? null,
+    });
 
     let persisted = null;
     if (moduleId) {
@@ -48,11 +74,23 @@ export async function POST(req: NextRequest) {
           moduleId,
           locale,
           style,
-          model: result.model,
+          visualStyle,
+          model: cascadeResult.model,
+          provider: cascadeResult.provider,
           base64Data: image.base64Data,
           mimeType: image.mimeType,
-          prompt: content.slice(0, 2000),
+          prompt: cascadeResult.prompt.slice(0, 2000),
           source: 'api',
+          slotId: slotId ?? null,
+          anchor: anchor ?? null,
+          checksum: resolvedChecksum,
+          metadata: {
+            ...(metadata ?? {}),
+            cascadeAttempts: cascadeResult.attempts,
+            locale,
+            style,
+            visualStyle,
+          },
         });
       } catch (persistError) {
         console.error('[API/generate-illustration] Persist failed:', persistError);
@@ -67,8 +105,11 @@ export async function POST(req: NextRequest) {
         text: image.text,
         url: persisted?.image_url ?? null,
       },
-      model: result.model,
-      thoughtProcess: result.thoughtProcess,
+      model: cascadeResult.model,
+      provider: cascadeResult.provider,
+      attempts: cascadeResult.attempts,
+      thoughtProcess: cascadeResult.thoughtProcess,
+      checksum: resolvedChecksum,
       persisted,
     });
   } catch (error) {

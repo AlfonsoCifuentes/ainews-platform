@@ -15,9 +15,13 @@ import {
   Bookmark,
   BookmarkCheck,
   Search,
+  RefreshCw,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
+import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
+import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import {
   ChapterDecorator,
   CalloutBox,
@@ -61,6 +65,7 @@ export interface TextbookViewProps {
   title: string;
   moduleNumber: number;
   totalModules: number;
+  moduleId?: string;
   onComplete?: () => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
   locale: 'en' | 'es';
@@ -308,6 +313,7 @@ export function TextbookView({
   title,
   moduleNumber,
   totalModules,
+  moduleId,
   onComplete,
   onNavigate,
   locale,
@@ -327,6 +333,17 @@ export function TextbookView({
   const [searchResults, setSearchResults] = useState<number[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [isTwoPageView, setIsTwoPageView] = useState(false);
+  const {
+    slots: visualSlots,
+    loading: visualSlotsLoading,
+    refresh: refreshVisualSlots,
+  } = useModuleVisualSlots(moduleId ?? null, locale);
+  const supportingSlots = useMemo(
+    () => visualSlots.filter((slot) => slot.slotType !== 'header'),
+    [visualSlots]
+  );
+  const gallerySlots = useMemo(() => supportingSlots.slice(0, 4), [supportingSlots]);
+  const canRenderVisualGallery = Boolean(moduleId && gallerySlots.length > 0);
   const bookRef = useRef<HTMLDivElement>(null);
 
   const t = useMemo(() => locale === 'en' ? {
@@ -337,7 +354,10 @@ export function TextbookView({
     search: 'Search', searchPlaceholder: 'Search...', noResults: 'No results',
     previousChapter: 'Previous', nextChapter: 'Next', completeChapter: 'Complete',
     pressEsc: 'ESC to exit', useArrows: '← → to navigate', endOfChapter: 'End of Chapter',
-    fullscreen: 'Fullscreen', exitFullscreen: 'Exit'
+    fullscreen: 'Fullscreen', exitFullscreen: 'Exit',
+    visualHighlights: 'Visual highlights',
+    visualGalleryNote: 'AI illustrations anchored to this module',
+    refreshVisuals: 'Refresh visuals'
   } : {
     chapter: 'Capítulo', of: 'de', page: 'Página',
     tableOfContents: 'Índice', settings: 'Ajustes',
@@ -346,7 +366,10 @@ export function TextbookView({
     search: 'Buscar', searchPlaceholder: 'Buscar...', noResults: 'Sin resultados',
     previousChapter: 'Anterior', nextChapter: 'Siguiente', completeChapter: 'Completar',
     pressEsc: 'ESC salir', useArrows: '← → navegar', endOfChapter: 'Fin',
-    fullscreen: 'Completa', exitFullscreen: 'Salir'
+    fullscreen: 'Completa', exitFullscreen: 'Salir',
+    visualHighlights: 'Destellos visuales',
+    visualGalleryNote: 'Ilustraciones IA ancladas a este módulo',
+    refreshVisuals: 'Actualizar visuales'
   }, [locale]);
 
   // Parse content
@@ -488,7 +511,54 @@ export function TextbookView({
   );
 
   return (
-    <div ref={bookRef} className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] ${isDarkMode ? 'bg-background' : 'bg-stone-300'} ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-xl overflow-hidden shadow-2xl'}`}>
+    <>
+      {canRenderVisualGallery && moduleId && (
+        <div
+          className={`mb-6 rounded-3xl border p-5 ${
+            isDarkMode ? 'bg-card/70 border-white/10' : 'bg-white/80 border-stone-200'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.5em] text-primary/80">
+                {t.visualHighlights}
+              </p>
+              <p className="text-sm text-muted-foreground">{t.visualGalleryNote}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshVisualSlots}
+              disabled={visualSlotsLoading}
+              className="text-xs"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${visualSlotsLoading ? 'animate-spin' : ''}`} />
+              {t.refreshVisuals}
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {gallerySlots.map((slot) => (
+              <ModuleIllustration
+                key={slot.id}
+                moduleId={moduleId}
+                content={content}
+                locale={locale}
+                style={getIllustrationStyleForSlot(slot)}
+                visualStyle={slot.suggestedVisualStyle}
+                slot={slot}
+                autoGenerate={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={bookRef}
+        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] ${
+          isDarkMode ? 'bg-background' : 'bg-stone-300'
+        } ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-xl overflow-hidden shadow-2xl'}`}
+      >
       {/* Top bar */}
       <div className={`absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 ${isDarkMode ? 'bg-card/95' : 'bg-stone-100/95'} backdrop-blur-sm border-b ${isDarkMode ? 'border-border/30' : 'border-stone-300'}`}>
         <div className="flex items-center gap-1">
@@ -668,7 +738,8 @@ export function TextbookView({
           {t.pressEsc} • {t.useArrows}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

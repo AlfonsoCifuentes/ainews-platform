@@ -542,8 +542,9 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
 
       if (!dryRun && CONFIG.GENERATE_IMAGES) {
         const illustrationStyle = 'textbook' as const;
+        const visualStyle = 'photorealistic' as const;
         const promptPreview = contentEn.slice(0, 4000);
-        const imageResult = await generateEducationalImage(promptPreview, 'en', illustrationStyle);
+        const imageResult = await generateEducationalImage(promptPreview, 'en', illustrationStyle, visualStyle);
         if (imageResult.success) {
           let persistedCount = 0;
           for (const [index, image] of imageResult.images.entries()) {
@@ -552,6 +553,7 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
                 moduleId: module.id,
                 locale: 'en',
                 style: illustrationStyle,
+                visualStyle,
                 model: imageResult.model,
                 base64Data: image.base64Data,
                 mimeType: image.mimeType,

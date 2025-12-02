@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Bell, Globe, Save } from 'lucide-react';
+import { Settings, Bell, Globe, Save, Palette } from 'lucide-react';
+import type { VisualStyle, VisualDensity } from '@/lib/types/illustrations';
 
 interface UserProfile {
   display_name: string;
@@ -13,6 +14,9 @@ interface UserProfile {
   weekly_digest: boolean;
   achievement_notifications: boolean;
   course_reminders: boolean;
+  preferred_visual_style: VisualStyle;
+  preferred_visual_density: VisualDensity;
+  auto_diagramming: boolean;
 }
 
 interface SettingsPageClientProps {
@@ -41,6 +45,17 @@ interface SettingsPageClientProps {
     save: string;
     cancel: string;
     saved: string;
+    visualPreferences: string;
+    visualStyle: string;
+    visualDensity: string;
+    autoDiagramming: string;
+    autoDiagrammingHint: string;
+    stylePhotorealistic: string;
+    styleAnime: string;
+    styleComic: string;
+    densityMinimal: string;
+    densityBalanced: string;
+    densityImmersive: string;
   };
 }
 
@@ -67,6 +82,15 @@ export function SettingsPageClient({
   const [courseReminders, setCourseReminders] = useState(
     profile?.course_reminders ?? true
   );
+  const [visualStyle, setVisualStyle] = useState<VisualStyle>(
+    profile?.preferred_visual_style ?? 'photorealistic'
+  );
+  const [visualDensity, setVisualDensity] = useState<VisualDensity>(
+    profile?.preferred_visual_density ?? 'balanced'
+  );
+  const [autoDiagramming, setAutoDiagramming] = useState(
+    profile?.auto_diagramming ?? true
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,6 +112,9 @@ export function SettingsPageClient({
           weeklyDigest,
           achievementNotifications,
           courseReminders,
+            visualStyle,
+            visualDensity,
+            autoDiagramming,
         }),
       });
 
@@ -190,6 +217,83 @@ export function SettingsPageClient({
                 <option value="dark">{translations.themeDark}</option>
                 <option value="system">{translations.themeSystem}</option>
               </select>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/15 bg-white/5 p-5">
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em] text-white/60">
+              <Palette className="h-4 w-4" />
+              <span>{translations.visualPreferences}</span>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold">{translations.visualStyle}</label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { value: 'photorealistic', label: translations.stylePhotorealistic },
+                    { value: 'anime', label: translations.styleAnime },
+                    { value: 'comic', label: translations.styleComic },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setVisualStyle(option.value as VisualStyle)}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                        visualStyle === option.value
+                          ? 'border-primary/60 bg-primary/20 text-white'
+                          : 'border-white/10 bg-black/20 text-white/70 hover:border-white/30'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">{translations.visualDensity}</label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { value: 'minimal', label: translations.densityMinimal },
+                    { value: 'balanced', label: translations.densityBalanced },
+                    { value: 'immersive', label: translations.densityImmersive },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setVisualDensity(option.value as VisualDensity)}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                        visualDensity === option.value
+                          ? 'border-primary/60 bg-primary/20 text-white'
+                          : 'border-white/10 bg-black/20 text-white/70 hover:border-white/30'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold">{translations.autoDiagramming}</p>
+                <p className="text-xs text-white/60">{translations.autoDiagrammingHint}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoDiagramming((value) => !value)}
+                className={`relative h-8 w-14 rounded-full transition-all ${
+                  autoDiagramming ? 'bg-primary' : 'bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${
+                    autoDiagramming ? 'right-1' : 'left-1'
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>

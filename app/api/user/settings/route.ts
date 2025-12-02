@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { z } from 'zod';
+import { VISUAL_STYLES, VISUAL_DENSITIES } from '@/lib/types/illustrations';
 
 const SettingsSchema = z.object({
   displayName: z.string().min(3).max(30).optional(),
@@ -12,6 +13,9 @@ const SettingsSchema = z.object({
   weeklyDigest: z.boolean().optional(),
   achievementNotifications: z.boolean().optional(),
   courseReminders: z.boolean().optional(),
+  visualStyle: z.enum(VISUAL_STYLES).optional(),
+  visualDensity: z.enum(VISUAL_DENSITIES).optional(),
+  autoDiagramming: z.boolean().optional(),
 });
 
 /**
@@ -29,7 +33,7 @@ export async function GET(_req: NextRequest) {
 
     const { data: profile } = await db
       .from('user_profiles')
-      .select('display_name, bio, preferred_locale, theme, email_notifications, weekly_digest, achievement_notifications, course_reminders')
+      .select('display_name, bio, preferred_locale, theme, email_notifications, weekly_digest, achievement_notifications, course_reminders, preferred_visual_style, preferred_visual_density, auto_diagramming')
       .eq('id', user.id)
       .single();
 
@@ -68,6 +72,9 @@ export async function PATCH(req: NextRequest) {
     if (validated.weeklyDigest !== undefined) updates.weekly_digest = validated.weeklyDigest;
     if (validated.achievementNotifications !== undefined) updates.achievement_notifications = validated.achievementNotifications;
     if (validated.courseReminders !== undefined) updates.course_reminders = validated.courseReminders;
+    if (validated.visualStyle) updates.preferred_visual_style = validated.visualStyle;
+    if (validated.visualDensity) updates.preferred_visual_density = validated.visualDensity;
+    if (validated.autoDiagramming !== undefined) updates.auto_diagramming = validated.autoDiagramming;
 
     updates.updated_at = new Date().toISOString();
 

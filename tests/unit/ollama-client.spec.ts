@@ -17,7 +17,7 @@ describe('Ollama client', () => {
   });
 
   it('should detect an available Ollama host among candidates', async () => {
-    const fetchStub = vi.stubGlobal('fetch', async (url: string) => {
+    vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('127.0.0.1')) return await makeResponse(404, {});
       if (url.includes('host.docker')) return await makeResponse(200, { version: '0.1.0' });
       return await makeResponse(404, {});
@@ -26,7 +26,6 @@ describe('Ollama client', () => {
     const host = await checkOllamaRunning([ 'http://127.0.0.1:11434', 'http://host.docker.internal:11434' ]);
     expect(host).toBe('http://host.docker.internal:11434');
     expect(diag.hostChecks.length).toBeGreaterThanOrEqual(1);
-    fetchStub.mockRestore();
   });
 
   it('should warm up an Ollama model (OK response)', async () => {
@@ -34,7 +33,7 @@ describe('Ollama client', () => {
       return await makeResponse(200, { response: 'OK' });
     });
 
-    const ok = await warmOllamaModel('qwen3:30b', 2);
+    const ok = await warmOllamaModel('http://localhost:11434', 'qwen3:30b', 2);
     expect(ok).toBe(true);
     expect(diag.warmups.length).toBe(1);
   });

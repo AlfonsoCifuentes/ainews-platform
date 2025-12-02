@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
+import type { VisualStyle } from '@/lib/types/illustrations';
 
 const BUCKET_NAME = 'module-illustrations';
 
@@ -12,11 +13,15 @@ export interface ModuleIllustrationRecord {
   module_id: string;
   locale: Locale;
   style: string;
+  visual_style: VisualStyle;
   model: string | null;
   provider: string | null;
   prompt_summary: string | null;
   image_url: string;
   storage_path: string;
+  slot_id: string | null;
+  anchor: Record<string, unknown> | null;
+  checksum: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
 }
@@ -25,12 +30,16 @@ export interface PersistModuleIllustrationInput {
   moduleId: string;
   locale: Locale;
   style: string;
+  visualStyle?: VisualStyle;
   model?: string | null;
   provider?: string | null;
   prompt?: string;
   base64Data: string;
   mimeType: string;
   source?: PersistSource;
+  slotId?: string | null;
+  anchor?: Record<string, unknown> | null;
+  checksum?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -38,6 +47,8 @@ export interface FetchModuleIllustrationInput {
   moduleId: string;
   locale: Locale;
   style: string;
+  visualStyle?: VisualStyle;
+  slotId?: string | null;
 }
 
 let supabaseAdmin: SupabaseClient | null = null;
@@ -119,6 +130,9 @@ function buildMetadata(input: PersistModuleIllustrationInput) {
   return {
     mimeType: input.mimeType,
     source: input.source ?? 'unknown',
+    visualStyle: input.visualStyle ?? 'photorealistic',
+    slotId: input.slotId ?? null,
+    anchor: input.anchor ?? null,
     extra: input.metadata ?? {},
   } as Record<string, unknown>;
 }
@@ -132,7 +146,25 @@ export async function persistModuleIllustration(
   const buffer = Buffer.from(input.base64Data, 'base64');
   const extension = mimeToExtension(input.mimeType);
   const timestamp = Date.now();
-  const filePath = `${input.moduleId}/${input.style}-${input.locale}-${timestamp}.${extension}`;
+  const visualStyle = input.visualStyle ?? 'photorealistic';
+  const filePath = `${input.moduleId}/${input.style}-${visualStyle}-${input.locale}-${timestamp}.${extension}`;
+
+  let existingId: string | null = null;
+  if (input.checksum) {
+    const { data: existing, error: existingError } = await client
+      .from('module_illustrations')
+      .select('id')
+      .eq('module_id', input.moduleId)
+      .eq('locale', input.locale)
+      .eq('style', input.style)
+      .eq('visual_style', visualStyle)
+      .eq('checksum', input.checksum)
+      .maybeSingle();
+
+    if (!existingError && existing?.id) {
+      existingId = existing.id;
+    }
+  }
 
   const { error: uploadError } = await client.storage
     .from(BUCKET_NAME)
@@ -157,21 +189,43 @@ export async function persistModuleIllustration(
     ? input.prompt.slice(0, 1000)
     : null;
 
-  const { data, error } = await client
-    .from('module_illustrations')
-    .insert({
-      module_id: input.moduleId,
-      locale: input.locale,
-      style: input.style,
-      model: input.model ?? null,
-      provider: input.provider ?? detectProvider(input.model),
-      prompt_summary: promptSummary,
-      image_url: publicUrlData?.publicUrl ?? '',
-      storage_path: filePath,
-      metadata: buildMetadata(input),
-    })
-    .select()
-    .single();
+  const payload = {
+    module_id: input.moduleId,
+    locale: input.locale,
+    style: input.style,
+    visual_style: visualStyle,
+    model: input.model ?? null,
+    provider: input.provider ?? detectProvider(input.model),
+    prompt_summary: promptSummary,
+    image_url: publicUrlData?.publicUrl ?? '',
+    storage_path: filePath,
+    slot_id: input.slotId ?? null,
+    anchor: input.anchor ?? null,
+    checksum: input.checksum ?? null,
+    metadata: buildMetadata(input),
+  };
+
+  let data: ModuleIllustrationRecord | null = null;
+  let error: PostgrestError | null = null;
+
+  if (existingId) {
+    const { data: updated, error: updateError } = await client
+      .from('module_illustrations')
+      .update(payload)
+      .eq('id', existingId)
+      .select()
+      .single();
+    data = updated as ModuleIllustrationRecord | null;
+    error = updateError;
+  } else {
+    const { data: inserted, error: insertError } = await client
+      .from('module_illustrations')
+      .insert(payload)
+      .select()
+      .single();
+    data = inserted as ModuleIllustrationRecord | null;
+    error = insertError;
+  }
 
   if (error) {
     console.error('[Illustrations] Failed to insert metadata', error);
@@ -186,15 +240,21 @@ export async function fetchLatestModuleIllustration(
 ): Promise<ModuleIllustrationRecord | null> {
   const client = getSupabaseAdminClient();
 
-  const { data, error } = await client
+  let query = client
     .from('module_illustrations')
     .select('*')
     .eq('module_id', params.moduleId)
     .eq('locale', params.locale)
     .eq('style', params.style)
+    .eq('visual_style', params.visualStyle ?? 'photorealistic')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (params.slotId) {
+    query = query.eq('slot_id', params.slotId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error('[Illustrations] Failed to fetch metadata', error);
