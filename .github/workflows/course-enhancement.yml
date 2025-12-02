@@ -1,0 +1,71 @@
+name: Course Enhancement Auto Upgrade
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+    - cron: '45 15 * * *'
+  workflow_dispatch:
+    inputs:
+      combination:
+        description: 'Provider combination (groq_gemini_mistral or deepseek_openai_claude)'
+        required: false
+      dry_run:
+        description: 'Run in dry-run mode'
+        required: false
+        default: 'false'
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine provider combination
+        id: combo
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.combination }}" ]; then
+            combo="${{ github.event.inputs.combination }}"
+          else
+            day=$(date -u +%j)
+            if [ $((day % 2)) -eq 0 ]; then
+              combo="groq_gemini_mistral"
+            else
+              combo="deepseek_openai_claude"
+            fi
+          fi
+          echo "value=$combo" >> "$GITHUB_OUTPUT"
+          echo "Selected combination: $combo"
+
+      - name: Upgrade textbook modules
+        env:
+          LLM_COMBINATION: ${{ steps.combo.outputs.value }}
+          DISPATCH_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        shell: bash
+        run: |
+          FLAGS="--yes"
+          if [ "${DISPATCH_DRY_RUN}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+          echo "Running with flags: $FLAGS"
+          npx tsx scripts/upgrade-courses-working.ts $FLAGS

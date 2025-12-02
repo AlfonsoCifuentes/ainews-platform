@@ -38,6 +38,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
+import { execSync } from 'child_process';
 import {
   analyzeModuleForImages,
   generateModuleImages,
@@ -258,6 +259,7 @@ async function getOllamaModels(): Promise<OllamaModel[]> {
  * Warm up the Ollama model by sending a minimal prompt to trigger load.
  * Some heavy models may need time to start; this helper retries until the
  * server responds or the warmup limit is reached.
+ * Uses PowerShell Invoke-RestMethod for reliability.
  */
 async function warmOllamaModel(modelName: string, maxAttempts: number = 5): Promise<boolean> {
   const url = `${CONFIG.OLLAMA_BASE_URL}/api/generate`;
@@ -267,25 +269,29 @@ async function warmOllamaModel(modelName: string, maxAttempts: number = 5): Prom
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       console.log(`   [Warmup] Attempt ${attempt}/${maxAttempts}...`);
-      const controller = new AbortController();
-      // Start with 90s, increase by 30s each attempt, max 5 mins
-      const timeout = Math.min(60000 + (30000 * attempt), 300000); 
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: modelName, prompt: pingPrompt, stream: false }),
-        signal: controller.signal
+      // Timeout increases with each attempt: 180s, 240s, 300s, etc. (up to 10 min)
+      const timeoutSec = Math.min(120 + (60 * attempt), 600);
+      
+      const payload = JSON.stringify({ model: modelName, prompt: pingPrompt, stream: false });
+      const tempPayloadPath = path.join(process.env.TEMP || '/tmp', `ollama_warmup_${Date.now()}.json`);
+      fs.writeFileSync(tempPayloadPath, payload, 'utf-8');
+      
+      const psCommand = `
+        $ErrorActionPreference = 'Stop'
+        $payload = Get-Content -Path '${tempPayloadPath.replace(/\\/g, '\\\\')}' -Raw
+        $response = Invoke-RestMethod -Uri '${url}' -Method POST -ContentType 'application/json' -Body $payload -TimeoutSec ${timeoutSec}
+        $response | ConvertTo-Json -Depth 5 -Compress
+      `.trim().replace(/\n/g, '; ');
+      
+      const result = execSync(`powershell -Command "${psCommand}"`, {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: timeoutSec * 1000,
       });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.log(`   [Warmup] HTTP ${response.status}`);
-        await sleep(attempt * 1000);
-        continue;
-      }
-      const data = await response.json();
+      
+      try { fs.unlinkSync(tempPayloadPath); } catch {}
+      
+      const data = JSON.parse(result);
       if (typeof data.response === 'string' && data.response.toLowerCase().includes('ok')) {
         console.log(`   [Warmup] Model ${modelName} is ready.`);
         return true;
@@ -296,7 +302,7 @@ async function warmOllamaModel(modelName: string, maxAttempts: number = 5): Prom
 
     } catch (err) {
       const m = err instanceof Error ? err.message : String(err);
-      console.log(`   [Warmup] Attempt ${attempt} failed: ${m}`);
+      console.log(`   [Warmup] Attempt ${attempt} failed: ${m.substring(0, 100)}`);
       await sleep(attempt * 2000);
     }
   }
@@ -540,52 +546,53 @@ async function generateWithOllama(
       console.log(`   [Ollama] Generating with ${modelName} (attempt ${attempt}/${maxRetries})...`);
       const startTime = Date.now();
       
-      const controller = new AbortController();
-      // 20 minutes for large models like qwen3:30b or deepseek-r1:70b
-      const timeoutMs = modelName.includes('70b') || modelName.includes('30b') ? 1200000 : 900000;
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
-      // ALWAYS use stream:false to avoid Node.js fetch/undici streaming issues
-      // PowerShell Invoke-RestMethod works fine, but Node fetch has keep-alive problems
+      // Use PowerShell Invoke-RestMethod instead of Node.js fetch
+      // Node.js fetch/undici has issues with Ollama's HTTP responses
       const payload = {
         model: modelName,
         prompt: prompt,
         system: systemPrompt,
-        stream: false, // Disable streaming - Node.js fetch has issues with Ollama streaming
+        stream: false,
         options: {
           temperature,
           top_p: 0.9,
-          num_predict: 32000, // Allow long outputs
-          num_ctx: 8192,      // Large context
+          num_predict: 32000,
+          num_ctx: 8192,
         }
       };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Connection': 'close' // Disable keep-alive to avoid socket reuse issues
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
+      
+      // Write payload to temp file to avoid PowerShell escaping issues
+      const tempPayloadPath = path.join(process.env.TEMP || '/tmp', `ollama_payload_${Date.now()}.json`);
+      fs.writeFileSync(tempPayloadPath, JSON.stringify(payload), 'utf-8');
+      
+      // Timeout in seconds (20 minutes for large models)
+      const timeoutSec = modelName.includes('70b') || modelName.includes('30b') ? 1200 : 900;
+      
+      // Use PowerShell Invoke-RestMethod which works reliably with Ollama
+      const psCommand = `
+        $ErrorActionPreference = 'Stop'
+        $payload = Get-Content -Path '${tempPayloadPath.replace(/\\/g, '\\\\')}' -Raw
+        $response = Invoke-RestMethod -Uri '${url}' -Method POST -ContentType 'application/json' -Body $payload -TimeoutSec ${timeoutSec}
+        $response | ConvertTo-Json -Depth 10 -Compress
+      `.trim().replace(/\n/g, '; ');
+      
+      console.log(`   🔄 Using PowerShell Invoke-RestMethod (timeout: ${timeoutSec}s)...`);
+      
+      const result = execSync(`powershell -Command "${psCommand}"`, {
+        encoding: 'utf-8',
+        maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large responses
+        timeout: timeoutSec * 1000,
       });
       
-      clearTimeout(timeoutId);
+      // Clean up temp file
+      try { fs.unlinkSync(tempPayloadPath); } catch {}
       
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`   ⏱️  Response received in ${elapsed}s`);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log(`   ❌ HTTP Error: ${response.status}`);
-        console.log(`   📄 Response: ${errorText.substring(0, 500)}`);
-        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
-      }
-      
-      let responseText = '';
-      // Since we use stream:false, just parse the JSON response directly
-      const data = await response.json();
-      responseText = data.response || '';
+      // Parse the response
+      const data = JSON.parse(result);
+      const responseText = data.response || '';
       
       if (data.eval_count) {
         console.log(`   📊 Generation complete. Tokens: ${data.eval_count}`);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiImageClient } from '@/lib/ai/gemini-image';
+import { persistModuleIllustration } from '@/lib/db/module-illustrations';
 import { z } from 'zod';
 
 const RequestSchema = z.object({
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, locale, style } = validated.data;
+    const { content, locale, style, moduleId } = validated.data;
     const client = getGeminiImageClient();
 
     console.log(`[API/generate-illustration] Generating ${style} illustration for ${locale}`);
@@ -39,16 +40,36 @@ export async function POST(req: NextRequest) {
 
     // Return the first image as base64
     const image = result.images[0];
-    
+
+    let persisted = null;
+    if (moduleId) {
+      try {
+        persisted = await persistModuleIllustration({
+          moduleId,
+          locale,
+          style,
+          model: result.model,
+          base64Data: image.base64Data,
+          mimeType: image.mimeType,
+          prompt: content.slice(0, 2000),
+          source: 'api',
+        });
+      } catch (persistError) {
+        console.error('[API/generate-illustration] Persist failed:', persistError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       image: {
         data: image.base64Data,
         mimeType: image.mimeType,
         text: image.text,
+        url: persisted?.image_url ?? null,
       },
       model: result.model,
       thoughtProcess: result.thoughtProcess,
+      persisted,
     });
   } catch (error) {
     console.error('[API/generate-illustration] Error:', error);

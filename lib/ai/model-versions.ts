@@ -21,12 +21,14 @@
 // ============================================================================
 
 export const MODEL_VERSION_METADATA = {
-  lastUpdated: '2025-01-XX',
+  lastUpdated: '2025-12-02',
   lastCheckedSources: {
     openai: 'https://openai.com/api/pricing/',
-    google: 'https://ai.google.dev/models/gemini',
-    anthropic: 'https://www.anthropic.com/claude',
-    groq: 'https://console.groq.com/docs/models'
+    google: 'https://ai.google.dev/gemini-api/docs/models',
+    anthropic: 'https://platform.claude.com/docs/en/about-claude/models/overview',
+    groq: 'https://console.groq.com/docs/models',
+    deepseek: 'https://api-docs.deepseek.com/quick_start/pricing',
+    mistral: 'https://docs.mistral.ai/getting-started/models/models_overview/'
   }
 };
 
@@ -165,21 +167,122 @@ export const CLAUDE_MODELS = {
 } as const;
 
 // ============================================================================
-// GROQ MODELS (Fastest cloud inference)
+// GROQ MODELS (Fastest cloud inference - December 2025)
 // ============================================================================
 
 export const GROQ_MODELS = {
-  /** Llama 3.3 70B - Ultra fast cloud inference */
+  // === Production Models ===
+  
+  /** Llama 3.3 70B - Ultra fast cloud inference (280 tok/s) */
   LLAMA_3_3_70B: 'llama-3.3-70b-versatile',
   
-  /** Llama 3.1 70B - Stable version */
-  LLAMA_3_1_70B: 'llama-3.1-70b-versatile',
-  
-  /** Llama 3.1 8B - Fast, lightweight */
+  /** Llama 3.1 8B - Fast, lightweight (560 tok/s) */
   LLAMA_3_1_8B: 'llama-3.1-8b-instant',
   
-  /** Mixtral 8x7B - Good for variety */
+  /** OpenAI GPT-OSS 120B - OpenAI's open-weight model (500 tok/s) */
+  GPT_OSS_120B: 'openai/gpt-oss-120b',
+  
+  /** OpenAI GPT-OSS 20B - Lighter version (1000 tok/s) */
+  GPT_OSS_20B: 'openai/gpt-oss-20b',
+  
+  // === Preview Models ===
+  
+  /** Llama 4 Maverick 17B - Latest Llama 4 (600 tok/s) */
+  LLAMA_4_MAVERICK: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+  
+  /** Llama 4 Scout 17B - Fast Llama 4 (750 tok/s) */
+  LLAMA_4_SCOUT: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  
+  /** Qwen3 32B - Alibaba's latest (400 tok/s) */
+  QWEN3_32B: 'qwen/qwen3-32b',
+  
+  /** Kimi K2 - Moonshot AI reasoning model */
+  KIMI_K2: 'moonshotai/kimi-k2-instruct-0905',
+  
+  // === Compound Systems (Agentic) ===
+  
+  /** Groq Compound - Agentic with web search + code execution */
+  COMPOUND: 'groq/compound',
+  
+  /** Groq Compound Mini - Lighter agentic system */
+  COMPOUND_MINI: 'groq/compound-mini',
+  
+  // === Legacy ===
+  LLAMA_3_1_70B: 'llama-3.1-70b-versatile',
   MIXTRAL_8X7B: 'mixtral-8x7b-32768',
+} as const;
+
+// ============================================================================
+// DEEPSEEK MODELS (Best price/performance for reasoning - December 2025)
+// ============================================================================
+
+export const DEEPSEEK_MODELS = {
+  // === Latest V3.2 Series ===
+  
+  /** DeepSeek Chat - V3.2 Non-thinking mode */
+  DEEPSEEK_CHAT: 'deepseek-chat',
+  
+  /** DeepSeek Reasoner - V3.2 Thinking mode (CoT reasoning) */
+  DEEPSEEK_REASONER: 'deepseek-reasoner',
+  
+  /** DeepSeek V3.2 Speciale - Extended thinking (128K output) */
+  DEEPSEEK_SPECIALE: 'deepseek-v3.2-speciale',
+  
+  // === Pricing info ===
+  // Input (cache miss): $0.28/1M tokens
+  // Input (cache hit): $0.028/1M tokens  
+  // Output: $0.42/1M tokens
+  // Context: 128K tokens
+} as const;
+
+// ============================================================================
+// MISTRAL MODELS (Best multilingual - December 2025)
+// ============================================================================
+
+export const MISTRAL_MODELS = {
+  // === Frontier Generalist Models ===
+  
+  /** Mistral Medium 3.1 - Frontier multimodal (August 2025) */
+  MISTRAL_MEDIUM_3_1: 'mistral-medium-3.1-2508',
+  
+  /** Mistral Small 3.2 - Fast & efficient (June 2025) */
+  MISTRAL_SMALL_3_2: 'mistral-small-3.2-2506',
+  
+  // === Reasoning Models (Magistral) ===
+  
+  /** Magistral Medium 1.2 - Frontier reasoning (September 2025) */
+  MAGISTRAL_MEDIUM_1_2: 'magistral-medium-1.2-2509',
+  
+  /** Magistral Small 1.2 - Fast reasoning (September 2025) */
+  MAGISTRAL_SMALL_1_2: 'magistral-small-1.2-2509',
+  
+  // === Specialist Models ===
+  
+  /** Codestral - Cutting-edge coding (July 2025) */
+  CODESTRAL: 'codestral-2508',
+  
+  /** Devstral Medium - Enterprise SWE (July 2025) */
+  DEVSTRAL_MEDIUM: 'devstral-medium-1.0-2507',
+  
+  /** Devstral Small - Open source SWE (July 2025) */
+  DEVSTRAL_SMALL: 'devstral-small-1.1-2507',
+  
+  // === Audio Models ===
+  
+  /** Voxtral Small - Audio input for instruct */
+  VOXTRAL_SMALL: 'voxtral-small-2507',
+  
+  /** Voxtral Mini - Lighter audio model */
+  VOXTRAL_MINI: 'voxtral-mini-2507',
+  
+  // === Vision/Multimodal ===
+  
+  /** Pixtral Large - Frontier multimodal (November 2024) */
+  PIXTRAL_LARGE: 'pixtral-large-2411',
+  
+  // === Legacy ===
+  MISTRAL_LARGE_2_1: 'mistral-large-2.1-2411',
+  MISTRAL_MEDIUM_3: 'mistral-medium-3-2505',
 } as const;
 
 // ============================================================================
@@ -225,7 +328,7 @@ export const OLLAMA_MODELS = {
 } as const;
 
 // ============================================================================
-// RECOMMENDED MODELS BY USE CASE
+// RECOMMENDED MODELS BY USE CASE (Updated December 2025)
 // ============================================================================
 
 export const RECOMMENDED_MODELS = {
@@ -233,42 +336,47 @@ export const RECOMMENDED_MODELS = {
   reasoning: {
     local: OLLAMA_MODELS.DEEPSEEK_R1_70B,
     cloud: OPENAI_MODELS.O3,
-    budget: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    budget: DEEPSEEK_MODELS.DEEPSEEK_REASONER, // Best price/quality for reasoning
+    ultraFast: GROQ_MODELS.LLAMA_3_3_70B,
   },
   
   /** For high-quality prose and content generation */
   content: {
     local: OLLAMA_MODELS.QWEN3_30B,
-    cloud: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
-    budget: GROQ_MODELS.LLAMA_3_3_70B,
+    cloud: CLAUDE_MODELS.CLAUDE_SONNET_4_5, // Best prose quality
+    budget: DEEPSEEK_MODELS.DEEPSEEK_CHAT,
+    ultraFast: GROQ_MODELS.LLAMA_3_3_70B,
   },
   
   /** For fast classification and simple tasks */
   fast: {
     local: OLLAMA_MODELS.LLAMA3_1_8B,
-    cloud: GROQ_MODELS.LLAMA_3_1_8B,
+    cloud: CLAUDE_MODELS.CLAUDE_HAIKU_4_5,
     budget: GEMINI_MODELS.GEMINI_2_5_FLASH_LITE,
+    ultraFast: GROQ_MODELS.LLAMA_3_1_8B, // 560 tok/s!
   },
   
   /** For code generation */
   coding: {
     local: OLLAMA_MODELS.DEEPSEEK_R1_70B,
-    cloud: OPENAI_MODELS.GPT_5_1,
-    budget: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    cloud: OPENAI_MODELS.GPT_5_1, // Best for coding
+    budget: MISTRAL_MODELS.CODESTRAL,
+    ultraFast: GROQ_MODELS.GPT_OSS_120B,
   },
   
-  /** For image generation */
+  /** For image generation (Nano Banana Pro) */
   imageGeneration: {
-    primary: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
-    fast: GEMINI_MODELS.GEMINI_2_5_FLASH_IMAGE,
+    primary: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,    // "Nano Banana Pro"
+    fast: GEMINI_MODELS.GEMINI_2_5_FLASH_IMAGE,   // "Nano Banana"
     openai: OPENAI_MODELS.GPT_IMAGE_1,
   },
   
   /** For multilingual/translation */
   multilingual: {
     local: OLLAMA_MODELS.QWEN3_30B, // 100+ languages
-    cloud: GEMINI_MODELS.GEMINI_3_PRO,
-    budget: GROQ_MODELS.LLAMA_3_3_70B,
+    cloud: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1, // Excellent multilingual
+    budget: GEMINI_MODELS.GEMINI_2_5_FLASH,
+    ultraFast: GROQ_MODELS.QWEN3_32B,
   },
   
   /** For maximum quality (cost not a concern) */
@@ -276,6 +384,29 @@ export const RECOMMENDED_MODELS = {
     openai: OPENAI_MODELS.GPT_5_PRO,
     anthropic: CLAUDE_MODELS.CLAUDE_OPUS_4_5,
     google: GEMINI_MODELS.GEMINI_3_PRO,
+  },
+  
+  /** For educational content (courses) - OPTIMIZED MIX */
+  education: {
+    /** Structure & planning */
+    planning: DEEPSEEK_MODELS.DEEPSEEK_REASONER,
+    /** Main prose content */
+    prose: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    /** Exercises & quizzes */
+    exercises: OPENAI_MODELS.GPT_5_1,
+    /** Fast drafts */
+    drafts: GROQ_MODELS.LLAMA_3_3_70B,
+    /** Translations */
+    translation: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1,
+    /** Images */
+    images: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
+  },
+  
+  /** For agentic workflows */
+  agentic: {
+    cloud: GROQ_MODELS.COMPOUND, // Built-in web search + code execution
+    openai: OPENAI_MODELS.GPT_5_1,
+    anthropic: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
   },
 } as const;
 
@@ -504,4 +635,68 @@ export type OpenAIModel = typeof OPENAI_MODELS[keyof typeof OPENAI_MODELS];
 export type GeminiModel = typeof GEMINI_MODELS[keyof typeof GEMINI_MODELS];
 export type ClaudeModel = typeof CLAUDE_MODELS[keyof typeof CLAUDE_MODELS];
 export type GroqModel = typeof GROQ_MODELS[keyof typeof GROQ_MODELS];
+export type DeepSeekModel = typeof DEEPSEEK_MODELS[keyof typeof DEEPSEEK_MODELS];
+export type MistralModel = typeof MISTRAL_MODELS[keyof typeof MISTRAL_MODELS];
 export type OllamaModel = typeof OLLAMA_MODELS[keyof typeof OLLAMA_MODELS];
+
+// Union type for all cloud models
+export type CloudModel = OpenAIModel | GeminiModel | ClaudeModel | GroqModel | DeepSeekModel | MistralModel;
+
+// ============================================================================
+// COURSE UPGRADE WORKFLOW - Optimal AI Mix
+// ============================================================================
+
+/**
+ * Optimized workflow for upgrading courses to textbook quality.
+ * Uses the best AI for each specific task.
+ */
+export const COURSE_UPGRADE_WORKFLOW = {
+  /** Step 1: Analyze existing content & create expansion plan */
+  analysis: {
+    model: DEEPSEEK_MODELS.DEEPSEEK_REASONER,
+    provider: 'deepseek',
+    reason: 'Best reasoning at lowest cost - ideal for planning',
+  },
+  
+  /** Step 2: Generate main prose content (sections, explanations) */
+  prose: {
+    model: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    provider: 'anthropic',
+    reason: 'Best prose quality, natural writing style',
+  },
+  
+  /** Step 3: Generate case studies with real-world examples */
+  caseStudies: {
+    model: OPENAI_MODELS.GPT_5_1,
+    provider: 'openai',
+    reason: 'Excellent at structured, detailed examples',
+  },
+  
+  /** Step 4: Generate exercises, quizzes, exam questions */
+  exercises: {
+    model: GROQ_MODELS.LLAMA_3_3_70B,
+    provider: 'groq',
+    reason: 'Ultra-fast, good quality - perfect for many small generations',
+  },
+  
+  /** Step 5: Generate educational diagrams and illustrations */
+  images: {
+    model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
+    provider: 'google',
+    reason: 'Nano Banana Pro - best for educational visuals',
+  },
+  
+  /** Step 6: Translate content to second language */
+  translation: {
+    model: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1,
+    provider: 'mistral',
+    reason: 'Excellent multilingual, preserves technical accuracy',
+  },
+  
+  /** Step 7: Final quality review & consistency check */
+  review: {
+    model: CLAUDE_MODELS.CLAUDE_SONNET_4_5,
+    provider: 'anthropic',
+    reason: 'Best at maintaining consistent tone & quality',
+  },
+} as const;
