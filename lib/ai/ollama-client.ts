@@ -67,7 +67,7 @@ export async function getOllamaModels(baseUrl: string, timeout = 20000): Promise
   }
 }
 
-export async function warmOllamaModel(baseUrl: string, model: string, maxAttempts: number = 3, timeout = 30000): Promise<boolean> {
+export async function warmOllamaModel(baseUrl: string, model: string, maxAttempts: number = 3, timeout = 120000): Promise<boolean> {
   const url = `${baseUrl}/api/generate`;
   const pingPrompt = 'Please respond with OK once model is ready.';
   let lastError: string | undefined;

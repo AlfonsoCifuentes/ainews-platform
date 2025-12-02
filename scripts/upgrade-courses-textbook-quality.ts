@@ -268,7 +268,8 @@ async function warmOllamaModel(modelName: string, maxAttempts: number = 5): Prom
     try {
       console.log(`   [Warmup] Attempt ${attempt}/${maxAttempts}...`);
       const controller = new AbortController();
-      const timeout = Math.min(30000 * attempt, 180000); // progressively larger (30s->180s)
+      // Start with 90s, increase by 30s each attempt, max 5 mins
+      const timeout = Math.min(60000 + (30000 * attempt), 300000); 
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       const response = await fetch(url, {
@@ -540,14 +541,17 @@ async function generateWithOllama(
       const startTime = Date.now();
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+      // 20 minutes for large models like qwen3:30b or deepseek-r1:70b
+      const timeoutMs = modelName.includes('70b') || modelName.includes('30b') ? 1200000 : 900000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
-      const shouldStream = prompt.length > 8000 || modelName.includes('deepseek') || modelName.includes('70b');
+      // ALWAYS use stream:false to avoid Node.js fetch/undici streaming issues
+      // PowerShell Invoke-RestMethod works fine, but Node fetch has keep-alive problems
       const payload = {
         model: modelName,
         prompt: prompt,
         system: systemPrompt,
-        stream: shouldStream,
+        stream: false, // Disable streaming - Node.js fetch has issues with Ollama streaming
         options: {
           temperature,
           top_p: 0.9,
@@ -558,7 +562,10 @@ async function generateWithOllama(
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Connection': 'close' // Disable keep-alive to avoid socket reuse issues
+        },
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -576,26 +583,12 @@ async function generateWithOllama(
       }
       
       let responseText = '';
-      if (shouldStream && response.body) {
-        // Read streamed data
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let done = false;
-        while (!done) {
-          const { value, done: rd } = await reader.read();
-          done = !!rd;
-          if (value) responseText += decoder.decode(value, { stream: !done });
-        }
-        // Try to parse JSON out of stream if possible
-        try {
-          const json = JSON.parse(responseText);
-          responseText = json.response || responseText;
-        } catch {
-          // it's okay if streaming returned raw text
-        }
-      } else {
-        const data = await response.json();
-        responseText = data.response || '';
+      // Since we use stream:false, just parse the JSON response directly
+      const data = await response.json();
+      responseText = data.response || '';
+      
+      if (data.eval_count) {
+        console.log(`   📊 Generation complete. Tokens: ${data.eval_count}`);
       }
       
       console.log(`   ✅ Generated ${responseText.length} chars`);
@@ -614,7 +607,7 @@ async function generateWithOllama(
         console.log(`   💡 Connection refused - Ollama may not be running`);
         console.log(`   💡 Try: ollama serve`);
       } else if (errorMessage.includes('abort')) {
-        console.log(`   💡 Request timed out after 10 minutes`);
+        console.log(`   💡 Request timed out - try increasing timeout or use a smaller model`);
       } else if (errorMessage.includes('fetch failed')) {
         console.log(`   💡 Network error - check if Ollama is accessible at ${CONFIG.OLLAMA_BASE_URL}`);
         console.log(`   💡 If using WSL, try: OLLAMA_BASE_URL=http://host.docker.internal:11434`);
@@ -1348,6 +1341,14 @@ async function main() {
   const downloadModel = args.includes('--download-model');
   const courseIdArg = args.find(a => a.startsWith('--course-id='));
   const specificCourseId = courseIdArg?.split('=')[1];
+  
+  // Support --ollama-host flag for manual override
+  const ollamaHostArg = args.find(a => a.startsWith('--ollama-host='));
+  if (ollamaHostArg) {
+    const customHost = ollamaHostArg.split('=')[1];
+    CONFIG.OLLAMA_BASE_URL = customHost;
+    console.log(`🔧 Using custom Ollama host: ${customHost}`);
+  }
   
   if (dryRun) {
     console.log('🔸 DRY RUN MODE - No changes will be saved\n');
