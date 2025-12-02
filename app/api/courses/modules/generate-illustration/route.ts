@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateIllustrationWithCascade, DEFAULT_PROVIDER_ORDER, type ImageProviderName } from '@/lib/ai/image-cascade';
 import { computeIllustrationChecksum } from '@/lib/ai/illustration-utils';
 import { persistModuleIllustration } from '@/lib/db/module-illustrations';
+import { generateFallbackImage } from '@/lib/utils/generate-fallback-image';
 import { VISUAL_STYLES } from '@/lib/types/illustrations';
 import { z } from 'zod';
 
@@ -44,19 +45,6 @@ export async function POST(req: NextRequest) {
       promptOverride,
     });
 
-    if (!cascadeResult.success || cascadeResult.images.length === 0) {
-      console.error('[API/generate-illustration] All providers failed', cascadeResult.attempts);
-      return NextResponse.json(
-        {
-          success: false,
-          error: cascadeResult.error ?? 'No providers were able to generate an image',
-          attempts: cascadeResult.attempts,
-        },
-        { status: 502 }
-      );
-    }
-
-    const image = cascadeResult.images[0];
     const resolvedChecksum = checksum ?? computeIllustrationChecksum({
       moduleId,
       content,
@@ -66,6 +54,64 @@ export async function POST(req: NextRequest) {
       slotId: slotId ?? null,
       anchor: anchor ?? null,
     });
+
+    if (!cascadeResult.success || cascadeResult.images.length === 0) {
+      console.error('[API/generate-illustration] All providers failed', cascadeResult.attempts);
+      const fallback = buildFallbackIllustration({
+        content,
+        style,
+        locale,
+        metadata,
+      });
+
+      let persistedFallback = null;
+      if (moduleId) {
+        try {
+          persistedFallback = await persistModuleIllustration({
+            moduleId,
+            locale,
+            style,
+            visualStyle,
+            model: 'svg-fallback',
+            provider: 'fallback',
+            base64Data: fallback.base64Data,
+            mimeType: fallback.mimeType,
+            prompt: fallback.title,
+            source: 'fallback',
+            slotId: slotId ?? null,
+            anchor: anchor ?? null,
+            checksum: resolvedChecksum,
+            metadata: {
+              ...(metadata ?? {}),
+              fallback: true,
+              cascadeError: cascadeResult.error ?? 'All providers failed',
+              attempts: cascadeResult.attempts,
+            },
+          });
+        } catch (persistError) {
+          console.error('[API/generate-illustration] Fallback persist failed:', persistError);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        fallback: true,
+        reason: cascadeResult.error ?? 'No providers were able to generate an image',
+        image: {
+          data: fallback.base64Data,
+          mimeType: fallback.mimeType,
+          url: persistedFallback?.image_url ?? fallback.dataUrl,
+        },
+        provider: 'fallback',
+        model: 'svg-fallback',
+        attempts: cascadeResult.attempts,
+        thoughtProcess: null,
+        checksum: resolvedChecksum,
+        persisted: persistedFallback,
+      });
+    }
+
+    const image = cascadeResult.images[0];
 
     let persisted = null;
     if (moduleId) {
@@ -119,4 +165,66 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+const FALLBACK_CATEGORY_MAP: Record<string, string> = {
+  header: 'research',
+  diagram: 'machine-learning',
+  schema: 'machine-learning',
+  infographic: 'tools',
+  conceptual: 'models',
+  textbook: 'models',
+};
+
+interface FallbackInput {
+  content: string;
+  style: string;
+  locale: 'en' | 'es';
+  metadata?: Record<string, unknown>;
+}
+
+function buildFallbackIllustration(input: FallbackInput) {
+  const fallbackTitle = deriveFallbackTitle(input.content, input.metadata);
+  const category = FALLBACK_CATEGORY_MAP[input.style] ?? 'default';
+  const isHeader = input.style === 'header';
+  const dataUrl = generateFallbackImage({
+    title: fallbackTitle,
+    category,
+    width: isHeader ? 1920 : 1400,
+    height: isHeader ? 1080 : 840,
+  });
+
+  const [prefix, base64Data] = dataUrl.split(',', 2);
+  const mimeMatch = prefix.match(/^data:(.*?);base64$/);
+  return {
+    dataUrl,
+    base64Data: base64Data ?? '',
+    mimeType: mimeMatch?.[1] ?? 'image/svg+xml',
+    title: fallbackTitle,
+    category,
+  };
+}
+
+function deriveFallbackTitle(content: string, metadata?: Record<string, unknown>) {
+  const candidates = [
+    typeof metadata?.summary === 'string' ? metadata.summary : null,
+    typeof metadata?.reason === 'string' ? metadata.reason : null,
+  ];
+
+  const normalized = content
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized) {
+    const firstSentenceMatch = normalized.match(/[^.!?]+[.!?]?/);
+    if (firstSentenceMatch) {
+      candidates.push(firstSentenceMatch[0]);
+    } else {
+      candidates.push(normalized);
+    }
+  }
+
+  const fallback = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
+  const finalTitle = fallback ? fallback.trim() : 'AI-powered course illustration';
+  return finalTitle.length > 160 ? `${finalTitle.slice(0, 157)}...` : finalTitle;
 }

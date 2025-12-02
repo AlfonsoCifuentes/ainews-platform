@@ -69,3 +69,15 @@ jobs:
           fi
           echo "Running with flags: $FLAGS"
           npx tsx scripts/upgrade-courses-working.ts $FLAGS
+
+      - name: Backfill hero illustrations
+        env:
+          DISPATCH_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        shell: bash
+        run: |
+          FLAGS="--limit=4"
+          if [ "${DISPATCH_DRY_RUN}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+          echo "Backfilling with flags: $FLAGS"
+          npx tsx scripts/backfill-module-illustrations.ts $FLAGS

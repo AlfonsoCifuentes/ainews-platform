@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient, type PostgrestError } from '@supabas
 import type { VisualStyle } from '@/lib/types/illustrations';
 
 const BUCKET_NAME = 'module-illustrations';
+const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
 type Locale = 'en' | 'es';
 
@@ -89,13 +90,23 @@ async function ensureBucketExists(client: SupabaseClient) {
         const { error: createError } = await client.storage.createBucket(BUCKET_NAME, {
           public: true,
           fileSizeLimit: '10485760', // 10MB per illustration
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'],
+          allowedMimeTypes: ALLOWED_MIME_TYPES,
         });
         if (createError) {
           throw createError;
         }
       } else {
         throw error;
+      }
+    } else {
+      // Ensure bucket allows SVG uploads for fallback illustrations
+      const { error: updateError } = await client.storage.updateBucket(BUCKET_NAME, {
+        public: true,
+        fileSizeLimit: '10485760',
+        allowedMimeTypes: ALLOWED_MIME_TYPES,
+      });
+      if (updateError) {
+        console.warn('[Illustrations] Failed to update bucket configuration:', updateError.message);
       }
     }
   } catch (error) {
@@ -110,6 +121,7 @@ async function ensureBucketExists(client: SupabaseClient) {
 }
 
 function mimeToExtension(mimeType: string): string {
+  if (mimeType.includes('svg')) return 'svg';
   if (mimeType.includes('png')) return 'png';
   if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
   if (mimeType.includes('webp')) return 'webp';

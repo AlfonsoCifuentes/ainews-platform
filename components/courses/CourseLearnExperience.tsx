@@ -213,99 +213,140 @@ export function CourseLearnExperience({
 	) : null;
 
 	const BookSpread = (
-		<section className="relative z-10 px-4 pb-20 pt-10">
-			<div className="mx-auto max-w-6xl">
-				<div className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[rgba(4,8,23,0.85)] shadow-[0_40px_160px_rgba(3,8,20,0.65)] backdrop-blur-3xl">
-					<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),transparent_45%),radial-gradient(circle_at_bottom,_rgba(3,7,18,0.85),transparent_50%)]" aria-hidden />
-					<div className="relative grid gap-0 lg:grid-cols-[minmax(280px,1fr)_minmax(520px,1.5fr)]">
-						{/* Left page */}
-						<div className="relative border-r border-white/5 bg-gradient-to-br from-slate-900/60 via-blue-950/55 to-slate-950/80 p-8 md:p-10">
-							<div className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-white shadow-inner">
-								<p className="text-xs uppercase tracking-[0.4em] text-blue-100/75">
-									{localization.chapter} {currentIndex + 1}
-								</p>
-								<h1
-									className="mt-4 text-3xl font-semibold leading-tight text-white md:text-4xl"
-									style={{ fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif" }}
-								>
-									{localizedModuleTitle}
-								</h1>
-								<p className="mt-5 text-sm text-blue-100/90">{localization.metaTagline}</p>
-
-								<div className="mt-8 space-y-6 text-sm">
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-white/50">{localization.courseLabel}</p>
-										<p className="text-lg font-semibold text-white">{localizedCourseTitle}</p>
-									</div>
-									<div className="grid gap-4 rounded-2xl border border-white/10 p-4 text-white/90">
-										<div className="flex items-center justify-between text-sm">
-											<span>{localization.progress}</span>
-											<span>{progressPercent}%</span>
-										</div>
-										<div className="h-1.5 rounded-full bg-white/10">
-											<div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-600" style={{ width: `${progressPercent}%` }} />
-										</div>
-										<div className="flex items-center justify-between text-sm">
-											<span>{localization.readingTime}</span>
-											<span>{readingMinutes} min</span>
-										</div>
-										<div className="flex items-center justify-between text-sm">
-											<span>{localization.xpEarned}</span>
-											<span>{currentProgress?.completed ? '100 XP' : '0 XP'}</span>
-										</div>
-									</div>
-								</div>
-
-								{/* Module Illustration - AI Generated */}
-								<div className="mt-10 rounded-3xl overflow-hidden border border-white/5">
-									<ModuleHeaderIllustration
-										moduleId={currentModule.id}
-										courseTitle={localizedCourseTitle}
-										moduleTitle={localizedModuleTitle}
-										locale={locale}
-										className="h-48 md:h-56"
-									/>
+		<section className="relative z-10 pb-24">
+			<div className="relative h-[420px] sm:h-[520px]">
+				<div className="absolute inset-0">
+					<ModuleHeaderIllustration
+						moduleId={currentModule.id}
+						courseTitle={localizedCourseTitle}
+						moduleTitle={localizedModuleTitle}
+						locale={locale}
+						frameless
+						className="h-full w-full"
+					/>
+				</div>
+				<div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-[#02030B]" aria-hidden />
+				<div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-between px-4 py-10 sm:px-6 lg:px-8">
+					<div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.5em] text-white/70">
+						<span>{localization.courseLabel}</span>
+						<div className="h-px flex-1 bg-white/30" />
+						<span>{localizedCourseTitle}</span>
+					</div>
+					<div className="space-y-6">
+						<div>
+							<p className="text-xs uppercase tracking-[0.4em] text-white/70">
+								{localization.chapter} {currentIndex + 1}
+							</p>
+							<h1 className="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl" style={{ fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif" }}>
+								{localizedModuleTitle}
+							</h1>
+							<p className="mt-4 max-w-2xl text-sm text-white/80">{localization.metaTagline}</p>
+						</div>
+						<div className="grid gap-4 sm:grid-cols-3">
+							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
+								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.progress}</p>
+								<p className="mt-2 text-2xl font-semibold">{progressPercent}%</p>
+								<div className="mt-3 h-1.5 rounded-full bg-white/20">
+									<div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500" style={{ width: `${progressPercent}%` }} />
 								</div>
 							</div>
-						</div>
-
-						{/* Right page */}
-						<div className="relative bg-slate-950/40 p-4 sm:p-6 lg:p-10">
-							<div className="rounded-[26px] border border-white/10 bg-background/90 p-4 sm:p-6 lg:p-8 shadow-2xl">
-								<ModulePlayer
-									locale={locale}
-									module={currentModule}
-									courseId={courseId}
-									enrollmentId={enrollmentId}
-									currentProgress={currentProgress}
-								/>
+							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
+								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.readingTime}</p>
+								<p className="mt-2 text-2xl font-semibold">{readingMinutes} min</p>
+								<p className="text-xs text-white/70">{locale === 'en' ? 'Estimated immersion' : 'Inmersión estimada'}</p>
+							</div>
+							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
+								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.xpEarned}</p>
+								<p className="mt-2 text-2xl font-semibold">{currentProgress?.completed ? '100 XP' : '0 XP'}</p>
+								<p className="text-xs text-white/70">{locale === 'en' ? 'Per completed chapter' : 'Por capítulo completado'}</p>
 							</div>
 						</div>
 					</div>
 				</div>
+			</div>
 
-				<div className="mt-10 flex flex-col items-center gap-4 text-white/80 sm:flex-row sm:justify-between">
+			<div className="relative -mt-24 px-4 sm:px-6 lg:px-8">
+				<div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(280px,0.95fr)_minmax(600px,1.6fr)]">
+					<aside className="rounded-3xl border border-white/10 bg-[rgba(4,8,23,0.92)] p-6 text-white shadow-[0_40px_120px_rgba(3,6,20,0.65)]">
+						<div className="space-y-6">
+							<div>
+								<p className="text-[10px] uppercase tracking-[0.4em] text-white/50">{localization.courseLabel}</p>
+								<p className="mt-2 text-xl font-semibold">{localizedCourseTitle}</p>
+								<p className="text-sm text-white/70">{locale === 'en' ? 'Immersive AI textbook mode' : 'Modo libro inmersivo de IA'}</p>
+							</div>
+							<div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div className="flex items-center justify-between text-sm">
+									<span>{localization.progress}</span>
+									<span>{progressPercent}%</span>
+								</div>
+								<div className="h-1.5 rounded-full bg-white/15">
+									<div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500" style={{ width: `${progressPercent}%` }} />
+								</div>
+								<div className="flex items-center justify-between text-sm text-white/80">
+									<span>{localization.readingTime}</span>
+									<span>{readingMinutes} min</span>
+								</div>
+								<div className="flex items-center justify-between text-sm text-white/80">
+									<span>{localization.xpEarned}</span>
+									<span>{currentProgress?.completed ? '100 XP' : locale === 'en' ? 'Finish chapter to claim' : 'Completa para reclamar'}</span>
+								</div>
+							</div>
+							<div className="space-y-3">
+								<p className="text-xs uppercase tracking-[0.4em] text-white/60">{locale === 'en' ? 'Navigate chapters' : 'Navegar capítulos'}</p>
+								<div className="flex gap-3">
+									<button
+										onClick={() => handleNavigate(prevModule)}
+										disabled={!prevModule}
+										className="group flex flex-1 items-center justify-center rounded-2xl border border-white/15 bg-white/5 py-3 text-white transition hover:-translate-y-0.5 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+										aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex}`}
+									>
+										<ChevronLeft className="mr-2 h-4 w-4 transition group-hover:-translate-x-1" />
+										{locale === 'en' ? 'Previous' : 'Anterior'}
+									</button>
+									<button
+										onClick={() => handleNavigate(nextModule)}
+										disabled={!nextModule || isNextLocked}
+										className="group flex flex-1 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-sky-500/30 to-blue-600/40 py-3 text-white transition hover:translate-y-[-2px] disabled:cursor-not-allowed disabled:opacity-40"
+										aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex + 2}`}
+										title={isNextLocked ? localization.nextLocked : undefined}
+									>
+										{isNextLocked ? <Lock className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4 transition group-hover:translate-x-1" />}
+										{locale === 'en' ? 'Next' : 'Siguiente'}
+									</button>
+								</div>
+							</div>
+						</div>
+					</aside>
+					<div className="rounded-[36px] border border-white/10 bg-[rgba(5,9,23,0.95)] p-4 sm:p-6 lg:p-8 shadow-2xl">
+						<ModulePlayer
+							locale={locale}
+							module={currentModule}
+							courseId={courseId}
+							enrollmentId={enrollmentId}
+							currentProgress={currentProgress}
+						/>
+					</div>
+				</div>
+				<div className="mx-auto mt-8 flex max-w-6xl flex-col items-center gap-4 text-white/80 sm:flex-row sm:justify-between">
 					<button
 						onClick={() => handleNavigate(prevModule)}
 						disabled={!prevModule}
-						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition-all duration-500 hover:-translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:-translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
 						aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex}`}
 					>
-						<ChevronLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+						<ChevronLeft className="h-5 w-5 transition group-hover:-translate-x-1" />
 					</button>
-
 					<div className="text-xs uppercase tracking-[0.5em] text-white/60">
 						{localization.chapter} {currentIndex + 1} / {modules.length}
 					</div>
-
 					<button
 						onClick={() => handleNavigate(nextModule)}
 						disabled={!nextModule || isNextLocked}
-						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition-all duration-500 hover:translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
 						aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex + 2}`}
 						title={isNextLocked ? localization.nextLocked : undefined}
 					>
-						{isNextLocked ? <Lock className="h-5 w-5" /> : <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
+						{isNextLocked ? <Lock className="h-5 w-5" /> : <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />}
 					</button>
 				</div>
 			</div>

@@ -15,6 +15,7 @@ interface ModuleHeaderIllustrationProps {
   locale: 'en' | 'es';
   className?: string;
   visualStyleOverride?: VisualStyle;
+  frameless?: boolean;
 }
 
 interface IllustrationState {
@@ -30,6 +31,7 @@ export function ModuleHeaderIllustration({
   locale,
   className = '',
   visualStyleOverride,
+  frameless = false,
 }: ModuleHeaderIllustrationProps) {
   const { profile } = useUser();
   const { slots: headerSlots, loading: slotsLoading, refresh } = useModuleVisualSlots(moduleId, locale, {
@@ -208,7 +210,7 @@ export function ModuleHeaderIllustration({
     resolvedVisualStyle,
     cacheKey,
     generationContent,
-    headerSlot?.id,
+    headerSlot,
     slotsLoading,
     requestNonce,
   ]);
@@ -223,8 +225,16 @@ export function ModuleHeaderIllustration({
     refresh();
   };
 
+  const wrapperClassName = [
+    'relative overflow-hidden',
+    frameless ? '' : 'rounded-3xl',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={`relative overflow-hidden rounded-3xl ${className}`}>
+    <div className={wrapperClassName}>
       <AnimatePresence mode="wait">
         {state.loading && (
           <motion.div

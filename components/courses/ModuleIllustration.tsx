@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, RefreshCw, ImageIcon, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, ImageIcon, AlertCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils/cn';
 import type { IllustrationStyle } from '@/lib/ai/gemini-image';
@@ -45,15 +44,25 @@ export function ModuleIllustration({
   const [meta, setMeta] = useState<IllustrationMeta | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [showIllustration, setShowIllustration] = useState(true);
-  const [autoAttempted, setAutoAttempted] = useState(false);
   const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
-  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [autoAttempts, setAutoAttempts] = useState(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxAutoAttempts = autoGenerate ? 3 : 0;
+
+  const slotSuggestedStyle = slot?.suggestedVisualStyle;
 
   const resolvedVisualStyle = useMemo<VisualStyle>(
-    () => visualStyle ?? slot?.suggestedVisualStyle ?? 'photorealistic',
-    [visualStyle, slot?.suggestedVisualStyle]
+    () => visualStyle ?? slotSuggestedStyle ?? 'photorealistic',
+    [visualStyle, slotSuggestedStyle]
   );
+
+  const generationContent = useMemo(() => {
+    if (!slot) return content;
+    const sections = [slot.heading, slot.summary, slot.reason, content]
+      .filter(Boolean)
+      .join('\n\n');
+    return sections || content;
+  }, [slot, content]);
 
   const slotContext = useMemo(() => {
     if (!slot) return null;
@@ -72,40 +81,24 @@ export function ModuleIllustration({
     return labels[locale][slot.slotType];
   }, [slot, locale]);
 
-  const generationContent = useMemo(() => {
-    if (!slot) return content;
-    const focus = [slot.summary, slot.reason].filter(Boolean).join('\n\n');
-    return focus ? `${focus}\n\n${content}` : content;
-  }, [slot, content]);
-
   const t = useMemo(() => (
     locale === 'en'
       ? {
           poweredBy: 'AI Illustration Pipeline',
-          generate: 'Generate Illustration',
-          regenerate: 'Regenerate',
-          refresh: 'Sync Stored Image',
           generating: 'Generating via cascade...',
           fetching: 'Loading stored illustration...',
           error: 'Failed to load illustration',
           missing: 'No illustration available yet',
-          showIllustration: 'Show Illustration',
-          hideIllustration: 'Hide Illustration',
           slotInsight: 'Visual slot insight',
           slotReason: 'Why this matters',
           updated: 'Updated',
         }
       : {
           poweredBy: 'Canal de Ilustraciones IA',
-          generate: 'Generar Ilustración',
-          regenerate: 'Regenerar',
-          refresh: 'Sincronizar Imagen',
           generating: 'Generando con la cascada...',
           fetching: 'Cargando ilustración guardada...',
           error: 'No se pudo cargar la ilustración',
           missing: 'Aún no hay ilustración',
-          showIllustration: 'Mostrar ilustración',
-          hideIllustration: 'Ocultar ilustración',
           slotInsight: 'Slot visual recomendado',
           slotReason: 'Por qué importa',
           updated: 'Actualizado',
@@ -116,10 +109,19 @@ export function ModuleIllustration({
     setImageSource(null);
     setMeta(null);
     setError(null);
-    setShowIllustration(true);
-    setAutoAttempted(false);
     setShouldAutoGenerate(false);
-  }, [moduleId, locale, style, resolvedVisualStyle]);
+    setAutoAttempts(0);
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  }, [moduleId, locale, style, resolvedVisualStyle, slot?.id]);
+
+  useEffect(() => () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -171,9 +173,8 @@ export function ModuleIllustration({
         } else {
           setImageSource(null);
           setMeta(null);
-          if (autoGenerate && !autoAttempted) {
+          if (autoGenerate && maxAutoAttempts > 0) {
             setShouldAutoGenerate(true);
-            setAutoAttempted(true);
           }
         }
       } catch (err) {
@@ -193,9 +194,9 @@ export function ModuleIllustration({
       isActive = false;
       controller.abort();
     };
-  }, [moduleId, locale, style, resolvedVisualStyle, refreshNonce, autoGenerate, autoAttempted]);
+  }, [moduleId, locale, style, resolvedVisualStyle, autoGenerate, maxAutoAttempts, slot?.id]);
 
-  const handleGenerate = useCallback(async () => {
+  const handleGenerate = useCallback(async (triggeredAutomatically = false) => {
     if (!moduleId) return;
     setLoadingState('generating');
     setError(null);
@@ -243,21 +244,27 @@ export function ModuleIllustration({
         model: data.model ?? data.persisted?.model ?? null,
         updatedAt: data.persisted?.created_at ?? new Date().toISOString(),
       });
-      setShowIllustration(true);
     } catch (err) {
       console.error('[ModuleIllustration] Generation failed:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+      if (triggeredAutomatically && autoGenerate && maxAutoAttempts > 0) {
+        retryTimeoutRef.current = setTimeout(() => {
+          setShouldAutoGenerate(true);
+        }, 4000);
+      }
     } finally {
       setLoadingState('idle');
     }
-  }, [moduleId, generationContent, locale, style, resolvedVisualStyle, slot]);
+  }, [moduleId, generationContent, locale, style, resolvedVisualStyle, slot, autoGenerate, maxAutoAttempts]);
 
   useEffect(() => {
-    if (shouldAutoGenerate) {
-      setShouldAutoGenerate(false);
-      void handleGenerate();
-    }
-  }, [shouldAutoGenerate, handleGenerate]);
+    if (!autoGenerate) return;
+    if (!shouldAutoGenerate) return;
+    if (autoAttempts >= maxAutoAttempts) return;
+    setShouldAutoGenerate(false);
+    setAutoAttempts((value) => value + 1);
+    void handleGenerate(true);
+  }, [autoGenerate, shouldAutoGenerate, autoAttempts, maxAutoAttempts, handleGenerate]);
 
   const statusLabel = useMemo(() => {
     if (loadingState === 'generating') return t.generating;
@@ -288,31 +295,9 @@ export function ModuleIllustration({
             {style} • {resolvedVisualStyle}
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setRefreshNonce((value) => value + 1)}
-            disabled={loadingState !== 'idle'}
-          >
-            <RefreshCw className={cn('w-4 h-4 mr-1', loadingState === 'fetching' && 'animate-spin')} />
-            {t.refresh}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleGenerate}
-            disabled={loadingState === 'generating'}
-          >
-            <Sparkles className={cn('w-4 h-4 mr-1', loadingState === 'generating' && 'animate-spin')} />
-            {imageSource ? t.regenerate : t.generate}
-          </Button>
-          {imageSource && (
-            <Button variant="ghost" size="sm" onClick={() => setShowIllustration((value) => !value)}>
-              {showIllustration ? t.hideIllustration : t.showIllustration}
-            </Button>
-          )}
-        </div>
+        {metaDescription && (
+          <span className="text-[11px] uppercase tracking-[0.4em] text-blue-200/70">{metaDescription}</span>
+        )}
       </div>
 
       {slot && (
@@ -359,10 +344,11 @@ export function ModuleIllustration({
                 <AlertCircle className="h-10 w-10 text-red-300" />
                 <p className="text-sm text-red-100/90">{t.error}</p>
                 <p className="text-xs text-white/70 max-w-xs">{error}</p>
-                <Button size="sm" variant="outline" onClick={handleGenerate}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  {t.regenerate}
-                </Button>
+                {autoGenerate && (
+                  <p className="text-[11px] uppercase tracking-[0.4em] text-white/60">
+                    {locale === 'en' ? 'Auto-retrying shortly…' : 'Reintentando automáticamente…'}
+                  </p>
+                )}
               </motion.div>
             )}
 
@@ -379,7 +365,7 @@ export function ModuleIllustration({
               </motion.div>
             )}
 
-            {imageSource && showIllustration && !error && (
+            {imageSource && !error && (
               <motion.div
                 key="image"
                 initial={{ opacity: 0, scale: 1.02 }}
@@ -399,7 +385,6 @@ export function ModuleIllustration({
                 <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
                   {meta?.provider && <Badge variant="outline" className="bg-black/40 text-white/80 border-white/30">{meta.provider}</Badge>}
                   {meta?.model && <Badge variant="outline" className="bg-black/40 text-white/80 border-white/30">{meta.model}</Badge>}
-                  {metaDescription && <span className="text-[11px] uppercase tracking-widest text-white/70">{metaDescription}</span>}
                 </div>
               </motion.div>
             )}
