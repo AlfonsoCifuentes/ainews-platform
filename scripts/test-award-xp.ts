@@ -434,7 +434,7 @@ async function testLevelCalculation(client: ReturnType<typeof createClient>): Pr
 
 async function main() {
   console.log('\n' + '='.repeat(60));
-  log('  AINews - award_xp RPC Test Suite', 'cyan');
+  log('  ThotNet Core - award_xp RPC Test Suite', 'cyan');
   console.log('='.repeat(60) + '\n');
   
   const config = parseArgs();

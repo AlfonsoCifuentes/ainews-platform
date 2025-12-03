@@ -68,7 +68,7 @@ export function PWAInstallPrompt() {
       <div className="bg-card border rounded-lg shadow-lg p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <h3 className="font-semibold mb-1">Install AINews</h3>
+            <h3 className="font-semibold mb-1">Install ThotNet Core</h3>
             <p className="text-sm text-muted-foreground">
               Get instant access and offline support
             </p>

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       console.warn(`[BADGES API] [${requestId}] Unauthorized request - no user session found`);
       return NextResponse.json(
         { error: 'Unauthorized', details: authError?.message, debug: { requestId, headers: headerSummary } },
-        { status: 401, headers: { 'X-AINEWS-DEBUG-ID': requestId } }
+        { status: 401, headers: { 'X-THOTNET-DEBUG-ID': requestId } }
       );
     }
 

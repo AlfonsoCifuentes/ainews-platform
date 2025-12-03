@@ -9,7 +9,7 @@ export function setupAuthFlowDiagnostics() {
   // Track sessionStorage changes
   const originalSetItem = sessionStorage.setItem;
   sessionStorage.setItem = function(key: string, value: string) {
-    if (key === 'ainews_auth_user') {
+    if (key === 'thotnet_auth_user') {
       console.log('📦 [SessionStorage] User data stored:', JSON.parse(value));
     }
     return originalSetItem.call(this, key, value);
@@ -17,7 +17,7 @@ export function setupAuthFlowDiagnostics() {
 
   const originalRemoveItem = sessionStorage.removeItem;
   sessionStorage.removeItem = function(key: string) {
-    if (key === 'ainews_auth_user') {
+    if (key === 'thotnet_auth_user') {
       console.log('🗑️  [SessionStorage] User data cleared');
     }
     return originalRemoveItem.call(this, key);
@@ -31,7 +31,7 @@ export function setupAuthFlowDiagnostics() {
 
   // Periodic check of sessionStorage
   setInterval(() => {
-    const stored = sessionStorage.getItem('ainews_auth_user');
+    const stored = sessionStorage.getItem('thotnet_auth_user');
     if (stored) {
       const userData = JSON.parse(stored);
       console.log('💾 [Check] SessionStorage user still present:', {
@@ -52,12 +52,12 @@ export function setupAuthFlowDiagnostics() {
       return data;
     },
     checkSessionStorage: () => {
-      const user = sessionStorage.getItem('ainews_auth_user');
+      const user = sessionStorage.getItem('thotnet_auth_user');
       console.log('📦 [SessionStorage Check]:', user ? JSON.parse(user) : 'EMPTY');
       return user;
     },
     clearSession: () => {
-      sessionStorage.removeItem('ainews_auth_user');
+      sessionStorage.removeItem('thotnet_auth_user');
       console.log('🗑️  [Manual Clear] SessionStorage cleared');
     },
     simulateAuthChange: () => {

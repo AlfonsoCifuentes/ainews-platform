@@ -94,9 +94,9 @@ Solo si cumples **TODOS** estos requisitos:
 2. Selecciona: **"Enabled"**
 3. Reinicia el navegador
 
-### **Paso 3: Activar WebLLM en AINews**
+### **Paso 3: Activar WebLLM en ThotNet Core**
 
-1. Inicia sesión en AINews
+1. Inicia sesión en ThotNet Core
 2. Ve a: **Settings** o **Admin Panel**
 3. Busca: **"🔒 Privacy Mode: On-Device AI"**
 4. Click: **"Download Model (5GB)"**
@@ -107,7 +107,7 @@ Solo si cumples **TODOS** estos requisitos:
 
 ## ❓ **Preguntas Frecuentes**
 
-### **1. ¿Necesito WebLLM para usar AINews?**
+### **1. ¿Necesito WebLLM para usar ThotNet Core?**
 **NO.** WebLLM es 100% opcional. La plataforma funciona perfectamente con Cloud AI (OpenRouter/Groq).
 
 ### **2. ¿Es gratis WebLLM?**
@@ -166,6 +166,6 @@ Solo si cumples **TODOS** estos requisitos:
 ## 💬 **Soporte**
 
 ¿Problemas con WebLLM? Abre un issue en GitHub:
-https://github.com/AlfonsoCifuentes/ainews-platform/issues
+https://github.com/AlfonsoCifuentes/thotnet-core/issues
 
 **Recuerda:** Si WebLLM no funciona, simplemente usa el modo Cloud AI (predeterminado). Tu experiencia será igualmente excelente. 🚀

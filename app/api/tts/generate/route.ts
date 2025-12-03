@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     //   .getPublicUrl(fileName);
 
     // For demo purposes, return a placeholder
-    const audioUrl = `https://demo.ainews.com/audio/${contentId}.mp3`;
+    const audioUrl = `https://demo.thotnetcore.com/audio/${contentId}.mp3`;
 
     // Store in database
     await supabase.from('audio_files').insert({

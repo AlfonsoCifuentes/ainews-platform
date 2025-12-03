@@ -128,7 +128,7 @@ function AuthPageContent() {
           </Link>
 
           <h1 className="text-5xl font-bold bg-gradient-to-r from-white to-primary bg-clip-text text-transparent">
-            AINews
+            ThotNet Core
           </h1>
           <p className="text-xl text-white/80">
             {mode === 'signin' ? t.welcomeBack : t.createAccount}

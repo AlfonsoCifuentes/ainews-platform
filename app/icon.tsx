@@ -1,43 +1,53 @@
 import { ImageResponse } from 'next/og'
- 
-// Route segment config
+
+const LOGO_URL = new URL('../public/logos/thotnet-core-white-only.svg', import.meta.url)
+let cachedLogoDataUri: string | null = null
+
+async function getLogoDataUri() {
+  if (cachedLogoDataUri) {
+    return cachedLogoDataUri
+  }
+  const logoSvg = await fetch(LOGO_URL).then((res) => res.text())
+  cachedLogoDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`
+  return cachedLogoDataUri
+}
+
 export const runtime = 'edge'
- 
-// Image metadata
+
 export const size = {
   width: 32,
   height: 32,
 }
 export const contentType = 'image/png'
- 
-// Image generation
-export default function Icon() {
+
+export default async function Icon() {
+  const logoDataUri = await getLogoDataUri()
+
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 20,
-          background: '#0a0e27',
           width: '100%',
           height: '100%',
+          backgroundColor: '#020617',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#3b82f6',
-          fontWeight: 'bold',
-          borderRadius: '6px',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          borderRadius: 6,
+          padding: 2,
         }}
       >
-        <div style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          lineHeight: '1'
-        }}>
-          <span style={{ fontSize: '14px', fontWeight: '900' }}>AI</span>
-          <span style={{ fontSize: '8px', marginTop: '-2px', color: '#60a5fa' }}>News</span>
-        </div>
+        <div
+          style={{
+            width: '90%',
+            height: '90%',
+            backgroundImage: `url('${logoDataUri}')`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'drop-shadow(0 0 6px rgba(59,130,246,0.6))',
+          }}
+        />
       </div>
     ),
     {

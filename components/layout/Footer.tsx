@@ -19,17 +19,17 @@ export function Footer() {
       <div className="container py-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative w-8 h-8 drop-shadow-[0_0_10px_rgba(104,58,255,0.4)]">
+            <div className="relative w-8 h-8 drop-shadow-[0_0_15px_rgba(59,130,246,0.45)]">
               <Image
-                src="/images/ainews-logo.png"
-                alt="AINEWS Logo"
+                src="/logos/thotnet-core-white-only.svg"
+                alt="ThotNet Core Logo"
                 fill
                 sizes="32px"
                 className="object-contain"
               />
             </div>
             <div>
-              <p className="text-lg font-semibold text-white">AINews</p>
+              <p className="text-lg font-semibold text-white">ThotNet Core</p>
               <p className="text-sm text-muted-foreground">
                 {t('footer.builtWith')}
               </p>

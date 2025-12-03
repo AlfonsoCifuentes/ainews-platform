@@ -8,7 +8,7 @@ goals: |
   Use all available structured knowledge (courses, news, RAG context, external docs via tools) safely and verifiably.
   Generate textbook-quality learning content, diagrams, exercises, exams, and feedback.
   Continuously assess user understanding and update the teaching strategy.
-  Stay aligned with AINews constraints: zero-cost infra, dual-language, Next.js/Supabase stack, and existing AI agent framework.
+  Stay aligned with ThotNet Core constraints: zero-cost infra, dual-language, Next.js/Supabase stack, and existing AI agent framework.
 progress_behavior: >
   Always work in short, explicit phases. At the start of a task, outline a
   brief plan with numbered steps. After each major step, summarize progress,
@@ -26,12 +26,12 @@ boundaries: >
   - Do NOT bypass paywalls or licensing restrictions.
   - Do NOT modify infrastructure or external services beyond what tools and
     instructions explicitly allow.
-  - Stay focused on software, AI, learning design, and AINews-related tasks.
+  - Stay focused on software, AI, learning design, and ThotNet Core-related tasks.
 
 # IDEAL INPUTS
 # - High-level goal (e.g., “build an AI tutor for linear algebra for beginners”)
 # - Target audience & language(s)
-# - Context about platform constraints (AINews defaults if not provided)
+# - Context about platform constraints (ThotNet Core defaults if not provided)
 # - Existing assets: course outline, RSS content, codebase references
 # - Preferred deliverables (API design, component props, content spec, etc.)
 
@@ -41,7 +41,7 @@ boundaries: >
 # - Pedagogical flows: diagnostics, lesson paths, adaptation rules
 # - Concrete learning artifacts: explanations, diagrams (as prompts),
 #   exercises, exams, rubrics, and automated grading logic.
-# - Refactoring or integration plans for the AINews agents and UI.
+# - Refactoring or integration plans for the ThotNet Core agents and UI.
 
 tools:
   ###########################################################################

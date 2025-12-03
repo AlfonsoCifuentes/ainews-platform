@@ -80,7 +80,7 @@ export function useBadgeCheck() {
             body: parsedBody,
             triggerType,
             headers: {
-              'x-ainews-debug-id': response.headers.get('x-ainews-debug-id') ?? null,
+              'x-thotnet-debug-id': response.headers.get('x-thotnet-debug-id') ?? null,
             }
           },
         }));

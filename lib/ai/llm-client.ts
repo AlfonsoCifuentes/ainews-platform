@@ -270,8 +270,8 @@ export class LLMClient {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
           ...(this.provider === 'openrouter' && {
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews-platform.vercel.app',
-            'X-Title': 'AI News Platform'
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app',
+            'X-Title': 'ThotNet Core Platform'
           })
         },
         body: JSON.stringify({

@@ -7,7 +7,7 @@ echo "================================================"
 # Test 1: Demo endpoint
 echo ""
 echo "1️⃣ Testing /api/courses/demo endpoint..."
-curl -X POST https://ainews-platform.vercel.app/api/courses/demo \
+curl -X POST https://thotnet-core.vercel.app/api/courses/demo \
   -H "Content-Type: application/json" \
   -d '{
     "topic": "AI",
@@ -20,13 +20,13 @@ curl -X POST https://ainews-platform.vercel.app/api/courses/demo \
 # Test 2: Provider diagnostics
 echo ""
 echo "2️⃣ Testing /api/courses/diagnose-providers endpoint..."
-curl -X GET https://ainews-platform.vercel.app/api/courses/diagnose-providers \
+curl -X GET https://thotnet-core.vercel.app/api/courses/diagnose-providers \
   -w "\nHTTP Status: %{http_code}\n"
 
 # Test 3: OpenAI diagnostics
 echo ""
 echo "3️⃣ Testing /api/openai/diagnose endpoint..."
-curl -X GET https://ainews-platform.vercel.app/api/openai/diagnose \
+curl -X GET https://thotnet-core.vercel.app/api/openai/diagnose \
   -w "\nHTTP Status: %{http_code}\n"
 
 echo ""

@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: ProfilePageProps) {
   const { locale } = await params;
 
   return {
-    title: `${locale === 'en' ? 'Profile' : 'Perfil'} | AINews`,
+    title: `${locale === 'en' ? 'Profile' : 'Perfil'} | ThotNet Core`,
     description:
       locale === 'en'
         ? 'Manage your profile, achievements, and preferences.'

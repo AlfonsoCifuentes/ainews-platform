@@ -241,7 +241,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: '
   const title = locale === 'en' ? course.title_en : course.title_es;
 
   return {
-    title: `${title} - Learn - AINews`,
+    title: `${title} - Learn - ThotNet Core`,
     robots: {
       index: false, // Don't index learning pages
     },

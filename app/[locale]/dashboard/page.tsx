@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: DashboardPageProps) {
   const { locale } = await params;
 
   return {
-    title: `${locale === 'en' ? 'Dashboard' : 'Panel'} | AINews`,
+    title: `${locale === 'en' ? 'Dashboard' : 'Panel'} | ThotNet Core`,
     description:
       locale === 'en'
         ? 'Track your learning progress, manage courses, and view achievements.'

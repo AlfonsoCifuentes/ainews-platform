@@ -18,8 +18,8 @@ export async function generateMetadata({ params, searchParams }: SearchPageProps
 
   return {
     title: query
-      ? `${locale === 'en' ? 'Search' : 'Buscar'}: ${query} | AINews`
-      : `${locale === 'en' ? 'Search' : 'Buscar'} | AINews`,
+      ? `${locale === 'en' ? 'Search' : 'Buscar'}: ${query} | ThotNet Core`
+      : `${locale === 'en' ? 'Search' : 'Buscar'} | ThotNet Core`,
     description:
       locale === 'en'
         ? 'Search AI news, courses, and research with advanced filters and semantic search.'

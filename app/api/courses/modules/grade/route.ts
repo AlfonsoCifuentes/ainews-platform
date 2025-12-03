@@ -192,7 +192,7 @@ function createOpenRouterProvider(): LLMProvider {
           headers: { 
             'Content-Type': 'application/json', 
             'Authorization': `Bearer ${key}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.app',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app',
           },
           body: JSON.stringify({ 
             model: 'google/gemini-2.0-flash-exp:free',

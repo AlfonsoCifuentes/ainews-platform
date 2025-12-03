@@ -65,8 +65,8 @@ export class SmartSummarizer {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://ainews.dev',
-          'X-Title': 'AINews Platform'
+          'HTTP-Referer': 'https://thotnet-core.vercel.app',
+          'X-Title': 'ThotNet Core Platform'
         },
         body: JSON.stringify({
           model: process.env.OPENROUTER_API_KEY ? 'meta-llama/llama-3.1-8b-instruct:free' : 'llama3-8b-8192',

@@ -1,4 +1,4 @@
-# RSS News Sources - AINews Platform
+# RSS News Sources - ThotNet Core Platform
 
 ## Active English RSS Feeds
 

@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { createClient } from '@/lib/db/supabase-server';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ainews.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://thotnet-core.vercel.app';
   
   const supabase = await createClient();
 

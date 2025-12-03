@@ -38,7 +38,7 @@ export async function GET() {
     return new NextResponse(JSON.stringify(exportData, null, 2), {
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="ainews-data-${user.id}.json"`,
+        'Content-Disposition': `attachment; filename="thotnet-core-data-${user.id}.json"`,
       },
     });
   } catch (error) {

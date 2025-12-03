@@ -156,7 +156,7 @@ export function generateFallbackImageSVG(config: FallbackImageConfig): string {
           ${gradient.icon} ${category.toUpperCase().replace(/-/g, ' ')}
         </text>
         
-        <!-- Logo AINews -->
+        <!-- Logo ThotNet Core -->
         <text 
           x="${width - 250}" 
           y="287" 

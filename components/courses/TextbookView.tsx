@@ -486,7 +486,7 @@ export function TextbookView({
                 <div className={`text-xs uppercase tracking-[0.3em] mb-3 ${isDarkMode ? 'text-muted-foreground' : 'text-stone-500'}`}>
                   {t.chapter} {moduleNumber}
                 </div>
-                <div className={`w-12 h-px mx-auto ${isDarkMode ? 'bg-primary/50' : 'bg-blue-400/50'}`} />
+                <div className={`w-12 h-px mx-auto ${isDarkMode ? 'bg-primary/50' : 'bg-primary/50'}`} />
               </div>
             </div>
           )}

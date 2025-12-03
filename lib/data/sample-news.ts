@@ -99,7 +99,7 @@ export const sampleNewsArticles: INewsArticle[] = [
       'Una ola de startups edtech en Latinoamérica anunció la integración de tutores de IA para adaptar contenidos a cada estudiante. Los sistemas aprovechan modelos multilingües optimizados para escenarios de bajo ancho de banda.',
     category: 'machinelearning',
     tags: ['education', 'latam', 'tutors'],
-    source_url: 'https://ainews.lat/startups-ai-tutors',
+    source_url: 'https://thotnet-core.vercel.app/startups-ai-tutors',
     image_url: 'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=1600&q=80',
     published_at: new Date(Date.now() - 1000 * 60 * 60 * 42).toISOString(),
     ai_generated: false,

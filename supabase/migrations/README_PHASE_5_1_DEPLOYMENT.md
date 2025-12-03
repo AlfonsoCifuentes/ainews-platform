@@ -326,7 +326,7 @@ If you encounter issues:
    ```
 
 4. **Contact**
-   - GitHub Issues: https://github.com/AlfonsoCifuentes/ainews-platform/issues
+   - GitHub Issues: https://github.com/AlfonsoCifuentes/thotnet-core/issues
    - Supabase Support: https://supabase.com/support
 
 ---

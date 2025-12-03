@@ -76,10 +76,10 @@ export default function HomePage() {
               }}
               className="relative inline-block"
             >
-              <div className="absolute inset-0 blur-[60px] bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 opacity-60 animate-pulse" />
+              <div className="absolute inset-0 blur-[60px] bg-gradient-to-r from-blue-500 via-amber-400 to-blue-500 opacity-60 animate-pulse" />
               <Image 
-                src="/images/ainews-logo.png" 
-                alt="AINews Logo" 
+                src="/logos/thotnet-core-white-only.svg" 
+                alt="ThotNet Core Logo" 
                 width={240}
                 height={240}
                 className="relative drop-shadow-[0_0_80px_rgba(59,130,246,0.8)]"
@@ -95,8 +95,8 @@ export default function HomePage() {
             transition={{ delay: 0.5, duration: 0.8 }}
             className="text-6xl md:text-8xl lg:text-9xl font-black mb-8"
           >
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
-              AINews
+            <span className="bg-gradient-to-r from-blue-400 via-amber-300 to-blue-400 bg-clip-text text-transparent animate-gradient">
+              ThotNet Core
             </span>
           </motion.h1>
 

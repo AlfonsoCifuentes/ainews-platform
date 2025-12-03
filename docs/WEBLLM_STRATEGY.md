@@ -120,7 +120,7 @@ Even if only 10% use WebLLM, you can market:
 ### **Phase 3: Promote WebLLM (Later)**
 - If users ask for more privacy features
 - Create "Privacy Mode" toggle in settings
-- Blog post: "How to use AINews 100% offline"
+- Blog post: "How to use ThotNet Core 100% offline"
 - Growth: 10% → 15% adoption
 
 ### **Phase 4: Hybrid Intelligence (Future)**

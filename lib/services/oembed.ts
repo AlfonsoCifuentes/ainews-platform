@@ -114,7 +114,7 @@ export async function fetchOEmbed(url: string): Promise<OEmbedResponse | null> {
 
     const response = await fetch(oembedUrl.toString(), {
       headers: {
-        'User-Agent': 'AINews/1.0 (https://ainews-platform.vercel.app)',
+        'User-Agent': 'ThotNetCore/1.0 (https://thotnet-core.vercel.app)',
         'Accept': 'application/json'
       },
       signal: AbortSignal.timeout(5000) // 5 second timeout

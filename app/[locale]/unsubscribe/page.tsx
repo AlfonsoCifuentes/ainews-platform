@@ -52,8 +52,8 @@ export default async function UnsubscribePage({
           
           <p className="text-sm text-muted-foreground">
             {locale === 'en'
-              ? 'You will no longer receive weekly digest emails from AINews.'
-              : 'Ya no recibirás emails de resumen semanal de AINews.'}
+              ? 'You will no longer receive weekly digest emails from ThotNet Core.'
+              : 'Ya no recibirás emails de resumen semanal de ThotNet Core.'}
           </p>
 
           <button
@@ -86,9 +86,9 @@ export default async function UnsubscribePage({
 export async function generateMetadata({ params }: { params: Promise<{ locale: 'en' | 'es' }> }) {
   const { locale } = await params;
   return {
-    title: locale === 'en' ? 'Unsubscribe - AINews' : 'Cancelar Suscripción - AINews',
+    title: locale === 'en' ? 'Unsubscribe - ThotNet Core' : 'Cancelar Suscripción - ThotNet Core',
     description: locale === 'en' 
-      ? 'Unsubscribe from AINews email notifications' 
-      : 'Cancelar suscripción de notificaciones por email de AINews',
+      ? 'Unsubscribe from ThotNet Core email notifications' 
+      : 'Cancelar suscripción de notificaciones por email de ThotNet Core',
   };
 }

@@ -26,7 +26,7 @@ async function checkCourses() {
     console.log(`   ID: ${course.id}`);
     console.log(`   Status: ${course.status}`);
     console.log(`   Category: ${course.category}`);
-    console.log(`   URL: https://ainews-platform.vercel.app/en/courses/${course.id}`);
+    console.log(`   URL: https://thotnet-core.vercel.app/en/courses/${course.id}`);
     console.log('');
   });
 

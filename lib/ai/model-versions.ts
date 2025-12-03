@@ -12,7 +12,7 @@
  * 📅 LAST UPDATED: 2025-01-XX (Update this date when modifying)
  * 
  * This file serves as the central configuration for all AI model versions
- * used throughout the AINews platform. It ensures consistency and makes
+ * used throughout the ThotNet Core platform. It ensures consistency and makes
  * version updates a single-file operation.
  */
 

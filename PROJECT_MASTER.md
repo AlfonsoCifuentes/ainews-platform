@@ -1,4 +1,4 @@
-# 🚀 PROYECTO MASTER: Plataforma de Noticias e Aprendizaje de IA
+# 🚀 PROYECTO MASTER: ThotNet Core · Plataforma de Noticias y Aprendizaje de IA
 
 ## 📋 VISIÓN EJECUTIVA
 
@@ -13,6 +13,54 @@ Asumimos simultáneamente los siguientes roles para cada decisión y entrega den
 - **Editor jefe de noticias** con criterio global, rigor periodístico y enfoque editorial de primer nivel.
 
 Todas las recomendaciones, planes e implementaciones deben reflejar esta combinación de perspectivas de manera integrada.
+
+## 🆕 Rediseño Integral · Diciembre 2025
+
+### Dirección Visual Global (Paleta Negro + Ámbar + Azul)
+- Fondo base `#020309` con halos azulados suaves y ruido mínimo para evitar superficies planas.
+- Tipografía brutalista en titulares, cuerpo blanco/gris claro optimizado para lecturas largas.
+- Secundario cálido `#F5A623‒#FFB347` para CTAs, badges, barras de progreso y subrayados.
+- Terciario tecnológico `#3B82F6` / `#38BDF8` para bordes, glows, líneas de datos y el elemento 3D principal.
+- Glassmorphism controlado, sombras profundas, microfeedback consistente en hover/scroll y tolerancia `prefers-reduced-motion`.
+
+### Nueva Home · Orden Narrativo
+1. **KineticHero** – titular brutalista + CTAs + métricas, acompañado de **AINewsOrb** (elemento 3D) en desktop.
+2. **TodayDigestRail** – carrusel horizontal con 5–10 noticias top, tags cálidos y hover tilt.
+3. **OrbitingTopicsRail** – chips orbitales para tendencias actuales; fallback grid en mobile/reduced motion.
+4. **CourseGalaxyNavigator** – navegación tipo tracklist (phlntn.com) con panel preview cruzado.
+5. **AIPlaygroundStrip** – cards para agentes (News Curator, Course Generator, Learning Agent, futuros phase 5).
+6. **LeaderboardStrip** – ranking gamificado con halo amber para #1 y azul para el resto.
+7. **DeepDiveFeatures** – bloques alternos explicando news pipeline, cursos libro, agentes autónomos, bilingüismo y $0 infra.
+8. **FooterCTA** – cierre contundente con doble CTA y franja amber.
+
+### Component Blueprints (Props mínimos)
+- **KineticHero**: `{ locale, headline, subheadline, stats: { sources, freshnessMinutes, courses }, primaryCta, secondaryCta }`
+- **AINewsOrb**: `{ metrics: { sources, articles, bilingual }, orbitTopics: string[], interactive?: boolean }`
+- **TodayDigestRail**: `{ articles: Array<{ id, category, title, relativeTime, href, image? }>, locale }`
+- **OrbitingTopicsRail**: `{ topics: Array<{ slug, label, deltaArticles }>, reducedMotion?: boolean }`
+- **CourseGalaxyNavigator**: `{ courses: Array<{ id, title, level, duration, progress?, heroImage }>, featuredCourseId?: string }`
+- **AIPlaygroundStrip**: `{ agents: Array<{ id, name, cadence, stack, status, metrics }> }`
+- **LeaderboardStrip**: `{ leaders: Array<{ id, name, avatarUrl, xp, weeklyDelta }>, summary }`
+- **DeepDiveFeatures**: `{ blocks: Array<{ id, title, copy, mediaType, mediaSrc }> }`
+- **FooterCTA**: `{ title, subtitle, primaryCta, secondaryCta }`
+
+### Animaciones y Elementos 3D
+- Hero copy usa `fade-up` + `slide-left` (creativewebmanual + chronicle) con delays escalonados (0.08s).
+- **AINewsOrb** toma la referencia de yinger.dev + video godly: rotación suave, chips orbitando, parallax máximo 8° desktop, idle-only mobile.
+- Hover tilt aplicado a hero cards, digest rail y orbit chips; fallback glow si `prefers-reduced-motion`.
+- yinger.dev guía el foco en un único elemento 3D, phlntn.com dicta el explorador de cursos, mues.ai marca la limpieza de rails.
+
+### Book View
+- Mantener UX (doble página, buscador, fullscreen, navegación teclado).
+- Re-skin: papel gris oscuro, controles amber/blue, títulos brutalistas y cuerpo serif legible.
+- Añadir indicadores de progreso, tabs, bookmarks con acentos consistentes.
+
+### Pasos Siguientes (round técnico)
+1. Actualizar `DESIGN_SYSTEM.md` + `tailwind.config.ts` con los nuevos tokens (negro, blanco, warm amber, electric blue) eliminando morados.
+2. Refactorizar `app/[locale]/page.tsx` con la estructura anterior y montar los nuevos componentes base.
+3. Definir/implementar las interfaces de props listadas en `components/home/*` con variantes compartidas de Framer Motion.
+4. Re-skin de BookModuleView y layouts de cursos con la nueva estética sin alterar interacciones.
+5. Revisar i18n EN/ES para incorporar “ThotNet Core” y los nuevos copy/CTA.
 
  
 ### Objetivo Principal
@@ -306,7 +354,7 @@ AI Orchestrator (Python/TypeScript)
 
 ## 🛰️ FASE 5: EXPANSIÓN REVOLUCIONARIA (Visión y Arquitectura)
 
-Objetivo: convertir AINews en la plataforma número 1 mundial de noticias y aprendizaje de IA mediante un ecosistema de agentes, un grafo de conocimiento en vivo, experiencias interactivas y aprendizaje personalizado que operan con costo $0.
+Objetivo: convertir **ThotNet Core** en la plataforma número 1 mundial de noticias y aprendizaje de IA mediante un ecosistema de agentes, un grafo de conocimiento en vivo, experiencias interactivas y aprendizaje personalizado que operan con costo $0.
 
 ### 1) Multi‑Agent Newsroom (autónomo y auditable)
 
@@ -1137,7 +1185,7 @@ export async function generateMetadata({ params }) {
 ## 🛠️ ESTRUCTURA DE DIRECTORIOS
 
 ```
-AINews/
+ThotNet Core/
 ├── .github/
 │   ├── workflows/
 │   │   ├── ai-curation.yml

@@ -105,7 +105,7 @@ export class WeeklyDigestGenerator {
           const articles = topArticles.slice(0, 5).map((article) => ({
             title: profile.locale === 'en' ? article.title_en : article.title_es,
             summary: profile.locale === 'en' ? article.summary_en : article.summary_es,
-            url: `https://ainews.dev/${profile.locale}/news/${article.id}`,
+            url: `https://thotnet-core.vercel.app/${profile.locale}/news/${article.id}`,
             category: article.category
           }));
 
@@ -113,7 +113,7 @@ export class WeeklyDigestGenerator {
           const courses = (newCourses || []).map((course) => ({
             title: profile.locale === 'en' ? course.title_en : course.title_es,
             description: profile.locale === 'en' ? course.description_en : course.description_es,
-            url: `https://ainews.dev/${profile.locale}/courses/${course.id}`
+            url: `https://thotnet-core.vercel.app/${profile.locale}/courses/${course.id}`
           }));
 
           // Send email

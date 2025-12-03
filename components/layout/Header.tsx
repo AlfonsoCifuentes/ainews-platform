@@ -87,10 +87,10 @@ export function Header() {
             className="group flex items-center gap-2 font-semibold text-lg tracking-tight shrink-0"
             onClick={closeMobileMenu}
           >
-            <div className="relative w-8 h-8 md:w-10 md:h-10 transition-transform group-hover:scale-105 drop-shadow-[0_0_15px_rgba(104,58,255,0.6)]">
+            <div className="relative w-8 h-8 md:w-10 md:h-10 transition-transform group-hover:scale-105 drop-shadow-[0_0_20px_rgba(59,130,246,0.55)]">
               <Image
-                src="/images/ainews-logo.png"
-                alt="AINEWS Logo"
+                src="/logos/thotnet-core-white-only.svg"
+                alt="ThotNet Core Logo"
                 fill
                 sizes="40px"
                 className="object-contain"
@@ -99,7 +99,7 @@ export function Header() {
               />
             </div>
             <span className="text-sm md:text-base font-semibold uppercase tracking-[0.2rem] md:tracking-[0.35rem] text-muted-foreground transition-colors group-hover:text-white">
-              AINEWS
+              THOTNET CORE
             </span>
           </Link>
 

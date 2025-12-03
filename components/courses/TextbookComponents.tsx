@@ -76,10 +76,10 @@ export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
     'key-concept': {
       icon: <Brain className="w-5 h-5" />,
       title: '🎯 Key Concept',
-      bgClass: isDark ? 'bg-purple-500/10' : 'bg-purple-50',
-      borderClass: isDark ? 'border-purple-500/40' : 'border-purple-400',
-      iconBg: isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-200 text-purple-700',
-      accentColor: isDark ? 'text-purple-400' : 'text-purple-700'
+      bgClass: isDark ? 'bg-primary/10' : 'bg-blue-50',
+      borderClass: isDark ? 'border-primary/40' : 'border-blue-400',
+      iconBg: isDark ? 'bg-primary/20 text-primary' : 'bg-blue-200 text-blue-700',
+      accentColor: isDark ? 'text-primary' : 'text-blue-700'
     },
     'example': {
       icon: <Zap className="w-5 h-5" />,

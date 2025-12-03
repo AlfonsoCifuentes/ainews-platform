@@ -2,11 +2,11 @@
 
 ## Architecture Overview
 
-AINews Platform implements a **hybrid AI strategy** with 4 LLM providers:
+ThotNet Core Platform implements a **hybrid AI strategy** with 4 LLM providers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    AINews LLM Client                    │
+│                  ThotNet Core LLM Client                │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  1. OpenRouter (Free Tier) ────► Default for all users │

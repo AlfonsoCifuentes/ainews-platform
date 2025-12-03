@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AINews platform now automatically syncs AI model rankings from [Artificial Analysis](https://artificialanalysis.ai/leaderboards/models) every 6 hours using GitHub Actions.
+The ThotNet Core platform now automatically syncs AI model rankings from [Artificial Analysis](https://artificialanalysis.ai/leaderboards/models) every 6 hours using GitHub Actions.
 
 ## How It Works
 

@@ -1,7 +1,7 @@
 {
-  "name": "AINews - AI News & Learning Platform",
-  "short_name": "AINews",
-  "description": "Bilingual AI-powered news aggregator and learning platform. Stay updated with the latest AI news in English and Spanish.",
+  "name": "ThotNet Core · AI News & Learning Nexus",
+  "short_name": "ThotNet",
+  "description": "ThotNet Core es tu hub bilingüe de noticias y cursos de IA con experiencias tipo libro y agentes autónomos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0E27",
@@ -12,52 +12,16 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "/logos/thotnet-core-white-only.png",
+      "sizes": "2048x2048",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
+      "src": "/logos/thotnet-core-white-only.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "screenshots": [
@@ -80,7 +44,7 @@
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "AINews Dashboard"
+      "label": "ThotNet Core Dashboard"
     }
   ],
   "categories": [
@@ -140,7 +104,7 @@
   },
   "protocol_handlers": [
     {
-      "protocol": "web+ainews",
+      "protocol": "web+thotnet",
       "url": "/open?url=%s"
     }
   ],
@@ -159,7 +123,7 @@
   "handle_links": "preferred",
   "scope_extensions": [
     {
-      "origin": "https://ainews.vercel.app"
+      "origin": "https://thotnet-core.vercel.app"
     }
   ],
   "file_handlers": [

@@ -34,7 +34,7 @@ async function callLLM(prompt) {
         'Content-Type': 'application/json',
         'Content-Length': data.length,
         'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://ainews-platform.vercel.app'
+        'HTTP-Referer': 'https://thotnet-core.vercel.app'
       }
     };
 

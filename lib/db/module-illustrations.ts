@@ -73,7 +73,7 @@ function getSupabaseAdminClient(): SupabaseClient {
 
     supabaseAdmin = createClient(url, serviceKey, {
       auth: { persistSession: false },
-      global: { headers: { 'X-Client-Info': 'AINews-Illustrations' } },
+      global: { headers: { 'X-Client-Info': 'ThotNet-Illustrations' } },
     });
   }
 

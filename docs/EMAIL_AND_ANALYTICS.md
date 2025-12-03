@@ -39,7 +39,7 @@ This document covers the email notification system and analytics dashboard added
 
 5. Update the `from` address in `lib/email/email-service.ts`:
    ```typescript
-   private from = 'AINews <noreply@yourdomain.com>';
+   private from = 'ThotNet Core <noreply@yourdomain.com>';
    ```
 
 ### 2. Database Migration

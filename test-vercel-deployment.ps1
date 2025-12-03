@@ -8,7 +8,7 @@ Write-Host ""
 Write-Host "[1] Testing /api/courses/demo endpoint..." -ForegroundColor Yellow
 
 try {
-    $response = Invoke-WebRequest -Uri "https://ainews-platform.vercel.app/api/courses/demo" `
+    $response = Invoke-WebRequest -Uri "https://thotnet-core.vercel.app/api/courses/demo" `
         -Method POST `
         -Headers @{"Content-Type"="application/json"} `
         -Body (ConvertTo-Json @{
@@ -32,7 +32,7 @@ Write-Host ""
 Write-Host "[2] Testing /api/courses/diagnose-providers endpoint..." -ForegroundColor Yellow
 
 try {
-    $response = Invoke-WebRequest -Uri "https://ainews-platform.vercel.app/api/courses/diagnose-providers" `
+    $response = Invoke-WebRequest -Uri "https://thotnet-core.vercel.app/api/courses/diagnose-providers" `
         -SkipHttpErrorCheck
     
     Write-Host "   Status: $($response.StatusCode)" -ForegroundColor Green
@@ -48,7 +48,7 @@ Write-Host ""
 Write-Host "[3] Testing /api/openai/diagnose endpoint..." -ForegroundColor Yellow
 
 try {
-    $response = Invoke-WebRequest -Uri "https://ainews-platform.vercel.app/api/openai/diagnose" `
+    $response = Invoke-WebRequest -Uri "https://thotnet-core.vercel.app/api/openai/diagnose" `
         -SkipHttpErrorCheck
     
     Write-Host "   Status: $($response.StatusCode)" -ForegroundColor Green

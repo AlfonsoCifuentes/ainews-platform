@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 AINews Platform
+# 🤖 ThotNet Core
 
 ### *The Ultimate AI News & Learning Hub*
 
@@ -10,9 +10,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**[Live Demo](https://ainews-platform.vercel.app)** • **[Documentation](#-documentation)** • **[Contributing](#-contributing)**
+**[Live Demo](https://thotnet-core.vercel.app)** • **[Documentation](#-documentation)** • **[Contributing](#-contributing)**
 
-*A revolutionary bilingual platform combining AI-powered news curation, personalized learning paths, and gamified knowledge acquisition — all at $0 infrastructure cost.*
+*La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma, cursos tipo libro y gamificación puntera sobre un stack $0.*
 
 </div>
 
@@ -125,7 +125,7 @@
 ## 📁 Project Structure
 
 ```
-ainews-platform/
+thotnet-core/
 ├── app/
 │   ├── [locale]/              # Internationalized routes
 │   │   ├── news/             # News listing and articles
@@ -194,8 +194,8 @@ ainews-platform/
 
 ```bash
 # Clone the repository
-git clone https://github.com/AlfonsoCifuentes/ainews-platform.git
-cd ainews-platform
+git clone https://github.com/AlfonsoCifuentes/thotnet-core.git
+cd thotnet-core
 
 # Install dependencies
 npm install
@@ -426,10 +426,10 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 📊 Project Stats
 
-![GitHub stars](https://img.shields.io/github/stars/AlfonsoCifuentes/ainews-platform?style=social)
-![GitHub forks](https://img.shields.io/github/forks/AlfonsoCifuentes/ainews-platform?style=social)
-![GitHub issues](https://img.shields.io/github/issues/AlfonsoCifuentes/ainews-platform)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/AlfonsoCifuentes/ainews-platform)
+![GitHub stars](https://img.shields.io/github/stars/AlfonsoCifuentes/thotnet-core?style=social)
+![GitHub forks](https://img.shields.io/github/forks/AlfonsoCifuentes/thotnet-core?style=social)
+![GitHub issues](https://img.shields.io/github/issues/AlfonsoCifuentes/thotnet-core)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/AlfonsoCifuentes/thotnet-core)
 
 ---
 
@@ -437,7 +437,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Alfonso Cifuentes** — [@AlfonsoCifuentes](https://github.com/AlfonsoCifuentes)
 
-**Project Link**: [https://github.com/AlfonsoCifuentes/ainews-platform](https://github.com/AlfonsoCifuentes/ainews-platform)
+**Project Link**: [https://github.com/AlfonsoCifuentes/thotnet-core](https://github.com/AlfonsoCifuentes/thotnet-core)
 
 ---
 

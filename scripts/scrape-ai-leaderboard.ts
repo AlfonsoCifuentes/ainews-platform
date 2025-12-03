@@ -36,7 +36,7 @@ async function scrapeLeaderboard(): Promise<AIModel[]> {
     // Fetch the leaderboard page
     const response = await fetch('https://artificialanalysis.ai/leaderboards/models', {
       headers: {
-        'User-Agent': 'AINews-Bot/1.0 (+https://ainews.dev)',
+        'User-Agent': 'ThotNetBot/1.0 (+https://thotnet-core.vercel.app)',
       }
     });
 

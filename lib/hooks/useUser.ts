@@ -7,6 +7,8 @@ import type { UserProfile } from '@/lib/types/user';
 import { loggers } from '@/lib/utils/logger';
 
 const FALLBACK_THEME: UserProfile['theme'] = 'dark';
+const AUTH_USER_KEY = 'thotnet_auth_user';
+const AUTH_PROFILE_KEY = 'thotnet_auth_profile';
 
 type MinimalAuthUser = {
   id: string;
@@ -123,7 +125,7 @@ export function useUser() {
           
           // Immediately store this in sessionStorage for auth event
           if (typeof window !== 'undefined') {
-            sessionStorage.setItem('ainews_auth_user', JSON.stringify({
+            sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify({
               id: sessionUser.id,
               email: sessionUser.email,
               user_metadata: sessionUser.user_metadata,
@@ -142,7 +144,7 @@ export function useUser() {
       let storedProfile: UserProfile | null = null;
       if (typeof window !== 'undefined') {
         try {
-          const stored = sessionStorage.getItem('ainews_auth_user');
+          const stored = sessionStorage.getItem(AUTH_USER_KEY);
           if (stored) {
             storedUser = JSON.parse(stored) as Partial<User>;
             loggers.user('Found user in sessionStorage', { userId: (storedUser as Record<string, unknown>).id });
@@ -152,7 +154,7 @@ export function useUser() {
         }
 
         try {
-          const storedProfileRaw = sessionStorage.getItem('ainews_auth_profile');
+          const storedProfileRaw = sessionStorage.getItem(AUTH_PROFILE_KEY);
           if (storedProfileRaw) {
             storedProfile = JSON.parse(storedProfileRaw) as UserProfile;
             const hydrated = ensureVisualPreferences(storedProfile);
@@ -160,7 +162,7 @@ export function useUser() {
             setProfile(hydrated);
             setLocale(hydrated.preferred_locale ?? 'en');
             if (hydrated !== storedProfile) {
-              sessionStorage.setItem('ainews_auth_profile', JSON.stringify(hydrated));
+              sessionStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(hydrated));
             }
           }
         } catch (profileError) {
@@ -264,7 +266,7 @@ export function useUser() {
         // Store in sessionStorage for future quick access
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalizedProfile));
+            sessionStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(normalizedProfile));
             loggers.user('Stored profile in sessionStorage');
           } catch (e) {
             loggers.warn('user', 'Failed to store profile in sessionStorage', e);
@@ -303,7 +305,7 @@ export function useUser() {
         // Store in sessionStorage
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalizedFallback));
+            sessionStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(normalizedFallback));
             loggers.user('Stored fallback profile in sessionStorage');
           } catch (e) {
             loggers.warn('user', 'Failed to store fallback in sessionStorage', e);
@@ -332,8 +334,8 @@ export function useUser() {
         setIsLoading(false);
         // Clear sessionStorage on logout
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('ainews_auth_user');
-          sessionStorage.removeItem('ainews_auth_profile');
+          sessionStorage.removeItem(AUTH_USER_KEY);
+          sessionStorage.removeItem(AUTH_PROFILE_KEY);
           loggers.user('Cleared sessionStorage on SIGNED_OUT');
         }
       }
@@ -358,7 +360,7 @@ export function useUser() {
         if (!prev) return prev;
         const newTotal = (prev.total_xp || 0) + amount;
         const updated = { ...prev, total_xp: newTotal } as typeof prev;
-        try { sessionStorage.setItem('ainews_auth_profile', JSON.stringify(updated)); } catch { }
+        try { sessionStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(updated)); } catch { }
         return updated;
       });
       // Also trigger a background refetch so server-side profile is synced
@@ -389,8 +391,8 @@ export function useUser() {
         setProfile(null);
         setLocale('en');
         try {
-          sessionStorage.removeItem('ainews_auth_user');
-          sessionStorage.removeItem('ainews_auth_profile');
+          sessionStorage.removeItem(AUTH_USER_KEY);
+          sessionStorage.removeItem(AUTH_PROFILE_KEY);
           loggers.user('Cleared sessionStorage on profile reset');
         } catch (storageError) {
           loggers.warn('user', 'Failed clearing sessionStorage on auth reset', storageError);
@@ -415,7 +417,7 @@ export function useUser() {
         setLocale(normalized.preferred_locale ?? 'en');
 
         try {
-          sessionStorage.setItem('ainews_auth_profile', JSON.stringify(normalized));
+          sessionStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(normalized));
           loggers.user('Stored profile in sessionStorage from auth event');
         } catch (storageError) {
           loggers.warn('user', 'Failed persisting sessionStorage profile', storageError);
@@ -424,7 +426,7 @@ export function useUser() {
 
       if (detail.user) {
         try {
-          sessionStorage.setItem('ainews_auth_user', JSON.stringify(detail.user));
+          sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(detail.user));
           loggers.user('Stored user in sessionStorage from auth event');
         } catch (storageError) {
           loggers.warn('user', 'Failed persisting sessionStorage user', storageError);

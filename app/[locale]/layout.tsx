@@ -33,19 +33,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   
   // Default titles for homepage
   const titles: Record<string, string> = {
-    en: 'AINews - Your AI News & Learning Hub',
-    es: 'AINews - Tu Hub de Noticias y Aprendizaje de IA'
+    en: 'ThotNet Core · AI News & Learning Nexus',
+    es: 'ThotNet Core · Noticias y Aprendizaje de IA'
   };
   
   const descriptions: Record<string, string> = {
-    en: 'Stay updated with the latest AI news, learn from AI-generated courses, and explore the AI knowledge graph.',
-    es: 'Mantente actualizado con las últimas noticias de IA, aprende de cursos generados por IA y explora el grafo de conocimiento de IA.'
+    en: 'ThotNet Core te mantiene al día con noticias de IA, cursos tipo libro y agentes autónomos en EN/ES.',
+    es: 'ThotNet Core te mantiene al día con noticias de IA, cursos tipo libro y agentes autónomos en EN/ES.'
   };
   
   return {
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.vercel.app'),
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app'),
     alternates: {
       languages: {
         en: '/en',

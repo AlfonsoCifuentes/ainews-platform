@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AINews Hexagon Logo Component
+ * ThotNet Core Hexagon Logo Component
  * Inline SVG for better performance and reliability
  */
 

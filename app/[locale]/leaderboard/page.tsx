@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: LeaderboardPageProps) {
   const { locale } = await params;
 
   return {
-    title: `${locale === 'en' ? 'Leaderboard' : 'Clasificación'} | AINews`,
+    title: `${locale === 'en' ? 'Leaderboard' : 'Clasificación'} | ThotNet Core`,
     description:
       locale === 'en'
         ? 'See the top learners and compete for the highest XP.'

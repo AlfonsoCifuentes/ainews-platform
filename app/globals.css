@@ -32,30 +32,31 @@
     --chart-5: 27 87% 67%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    /* ThotNet Core Black & Blue palette */
+    --background: 222 47% 4%;       /* Deep black-blue */
+    --foreground: 0 0% 98%;          /* White foreground */
+    --card: 217 30% 8%;              /* Dark blue-gray card */
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 217 30% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
+    --primary: 217 91% 60%;          /* Vibrant blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 30% 15%;        /* Dark blue-gray */
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --muted: 217 30% 15%;
+    --muted-foreground: 217 20% 60%;
+    --accent: 210 100% 50%;          /* Electric blue */
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --border: 217 30% 20%;
+    --input: 217 30% 15%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;          /* Blue */
+    --chart-2: 210 100% 50%;         /* Electric blue */
+    --chart-3: 40 96% 53%;           /* Amber / Yellow-orange */
+    --chart-4: 199 89% 48%;          /* Cyan */
+    --chart-5: 171 77% 64%;          /* Teal */
   }
 }
 

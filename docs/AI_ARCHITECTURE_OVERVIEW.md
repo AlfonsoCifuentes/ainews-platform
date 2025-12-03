@@ -2,7 +2,7 @@
 
 ## 📊 **Estrategia: Sistema Híbrido Inteligente**
 
-Tu plataforma AINews utiliza un **sistema de IA híbrido con 4 proveedores**, garantizando:
+Tu plataforma ThotNet Core utiliza un **sistema de IA híbrido con 4 proveedores**, garantizando:
 - ✅ **100% disponibilidad** (fallbacks automáticos)
 - ✅ **$0 costo fijo** (solo free tiers)
 - ✅ **Escalabilidad** (múltiples opciones según caso de uso)

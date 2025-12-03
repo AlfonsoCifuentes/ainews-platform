@@ -49,7 +49,7 @@ function createServerClient(): SupabaseClient {
     },
     global: {
       headers: {
-        'X-Client-Info': 'AINews-Server',
+        'X-Client-Info': 'ThotNet-Server',
       },
     },
   });

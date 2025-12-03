@@ -25,15 +25,15 @@ export const TIMEOUTS = {
 // ============================================================================
 
 const PACKAGE_VERSION = '1.0.0';
-const CONTACT_EMAIL = 'bot@ainews.com';
-const REPO_URL = 'https://github.com/AlfonsoCifuentes/ainews-platform';
+const CONTACT_EMAIL = 'bot@thotnetcore.com';
+const REPO_URL = 'https://github.com/AlfonsoCifuentes/thotnet-core';
 
 /**
  * Generate proper User-Agent string following RFC 7231
  * Format: ProductName/Version (Contact) Purpose
  */
 export function getUserAgent(): string {
-  return `AINewsBot/${PACKAGE_VERSION} (+${REPO_URL}; ${CONTACT_EMAIL}) - AI News Aggregator`;
+  return `ThotNetBot/${PACKAGE_VERSION} (+${REPO_URL}; ${CONTACT_EMAIL}) - AI Intelligence Hub`;
 }
 
 /**
@@ -135,7 +135,7 @@ function parseRobotsTxt(content: string): RobotsTxt {
 
     if (lowerKey === 'user-agent') {
       currentUserAgent = value;
-      isOurBot = value === '*' || value.toLowerCase().includes('ainewsbot');
+      isOurBot = value === '*' || value.toLowerCase().includes('thotnetbot');
     } else if (isOurBot || currentUserAgent === '*') {
       if (lowerKey === 'disallow' && value) {
         result.disallow.push(value);

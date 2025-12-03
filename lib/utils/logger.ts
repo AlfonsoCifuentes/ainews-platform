@@ -38,7 +38,7 @@ const LOG_PREFIXES: Record<LogLevel, string> = {
   db: '🗄️',
 };
 
-const STORAGE_KEY = 'ainews_logs';
+const STORAGE_KEY = 'thotnet_logs';
 const MAX_LOGS = 500;
 const MAX_DUPLICATE_COUNT = 5; // Stop logging after 5 identical messages
 
@@ -80,11 +80,11 @@ function normalizeMessageForDedupe(input: string): string {
   return s;
 }
 
-// Detect compact console mode (use localStorage 'ainews_log_mode' === 'compact')
+// Detect compact console mode (use localStorage 'thotnet_log_mode' === 'compact')
 function isCompactConsole(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage?.getItem('ainews_log_mode') === 'compact';
+    return window.localStorage?.getItem('thotnet_log_mode') === 'compact';
   } catch {
     return false;
   }
@@ -95,10 +95,10 @@ export function setLogMode(mode: 'compact' | 'pretty' | 'auto') {
   if (typeof window === 'undefined') return;
   if (mode === 'auto') {
     try {
-      window.localStorage.removeItem('ainews_log_mode');
+      window.localStorage.removeItem('thotnet_log_mode');
     } catch {}
   } else {
-    try { window.localStorage.setItem('ainews_log_mode', mode); } catch {}
+    try { window.localStorage.setItem('thotnet_log_mode', mode); } catch {}
   }
 }
 
@@ -264,7 +264,7 @@ function persistLog(entry: ClientLogEntry) {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
 
     window.dispatchEvent(
-      new CustomEvent<ClientLogEventDetail>('ainews-log', {
+      new CustomEvent<ClientLogEventDetail>('thotnet-log', {
         detail: { ...entry },
       })
     );
@@ -344,7 +344,7 @@ export function exportLogs() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ainews-logs-${Date.now()}.json`;
+  a.download = `thotnet-logs-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

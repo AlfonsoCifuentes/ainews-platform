@@ -9,13 +9,13 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
     <main className="container mx-auto px-4 py-12">
       <div className="flex items-center gap-4 mb-6">
         <Image 
-          src="/images/ainews-logo.png" 
-          alt="AINews Logo" 
+          src="/logos/thotnet-core-white-only.svg" 
+          alt="ThotNet Core Logo" 
           width={64}
           height={64}
-          className="drop-shadow-[0_0_20px_rgba(104,58,255,0.6)]"
+          className="drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]"
         />
-        <h1 className="text-3xl font-bold">AINews</h1>
+        <h1 className="text-3xl font-bold">ThotNet Core</h1>
       </div>
       <p className="text-muted-foreground max-w-2xl">
         {t('features.subtitle')}

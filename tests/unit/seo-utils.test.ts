@@ -43,7 +43,7 @@ describe('SEO Utils - Canonical URL Normalization', () => {
   });
 
   it('should generate full canonical URLs', () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
     
     expect(getCanonicalUrl('/en/news')).toBe(`${baseUrl}/en/news`);
     expect(getCanonicalUrl('/ES/Courses/')).toBe(`${baseUrl}/es/courses`);
@@ -80,7 +80,7 @@ describe('SEO Utils - Locale Handling', () => {
 
 describe('SEO Utils - Alternate Languages', () => {
   it('should generate alternate language links', () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
     const alternates = generateAlternateLanguages('/en/news');
 
     expect(alternates).toBeTruthy();
@@ -91,7 +91,7 @@ describe('SEO Utils - Alternate Languages', () => {
   });
 
   it('should handle spanish paths', () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
     const alternates = generateAlternateLanguages('/es/courses');
 
     expect(alternates).toBeTruthy();
@@ -101,7 +101,7 @@ describe('SEO Utils - Alternate Languages', () => {
   });
 
   it('should handle root paths', () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
     const alternates = generateAlternateLanguages('/en');
 
     expect(alternates).toBeTruthy();

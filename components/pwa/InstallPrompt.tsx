@@ -95,7 +95,7 @@ export function InstallPrompt() {
                 <Download className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold mb-1">Install AINews</h3>
+                <h3 className="font-semibold mb-1">Install ThotNet Core</h3>
                 <p className="text-sm text-muted-foreground">
                   Install our app for faster access and offline reading
                 </p>

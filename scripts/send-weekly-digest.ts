@@ -23,7 +23,7 @@ async function sendEmailDigest(email: string, html: string): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'AINews Weekly <noreply@ainews.com>',
+        from: 'ThotNet Core Weekly <noreply@thotnetcore.com>',
         to: email,
         subject: 'Your Weekly AI Digest 🤖',
         html,

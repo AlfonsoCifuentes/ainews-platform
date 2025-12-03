@@ -37,7 +37,7 @@ export default async function OnboardingPage({
 export async function generateMetadata({ params }: { params: Promise<{ locale: 'en' | 'es' }> }) {
   const { locale } = await params;
   return {
-    title: locale === 'en' ? 'Welcome to AINews' : 'Bienvenido a AINews',
+    title: locale === 'en' ? 'Welcome to ThotNet Core' : 'Bienvenido a ThotNet Core',
     description: locale === 'en' 
       ? 'Set up your personalized AI news experience' 
       : 'Configura tu experiencia personalizada de noticias de IA',

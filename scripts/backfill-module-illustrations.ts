@@ -47,7 +47,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
-  global: { headers: { 'X-Client-Info': 'AINews-IllustrationBackfill' } },
+  global: { headers: { 'X-Client-Info': 'ThotNet-IllustrationBackfill' } },
 });
 
 const args = process.argv.slice(2);
@@ -126,7 +126,7 @@ async function fetchCandidateModules(limitHint: number): Promise<ModuleRow[]> {
 
 function buildPromptContext(module: ModuleRow, locale: Locale, slot: HeaderSlotRow | null): string {
   const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
-  const courseTitle = module.course ? (locale === 'en' ? module.course.title_en : module.course.title_es) : 'AINews Course';
+  const courseTitle = module.course ? (locale === 'en' ? module.course.title_en : module.course.title_es) : 'ThotNet Core Course';
   const localizedContent = locale === 'en' ? module.content_en : module.content_es;
   const fallbackContent = locale === 'en' ? module.content_es : module.content_en;
   const payload: string[] = [];

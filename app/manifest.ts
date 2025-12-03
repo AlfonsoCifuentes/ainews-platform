@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next'
  
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AINews - AI News & Learning Platform',
-    short_name: 'AINews',
-    description: 'Your ultimate AI news and learning hub with AI-generated courses and knowledge graphs',
+    name: 'ThotNet Core · AI News & Learning Nexus',
+    short_name: 'ThotNet',
+    description: 'ThotNet Core is your bilingual AI news and learning hub with book-style courses and autonomous agents.',
     start_url: '/en',
     display: 'standalone',
     background_color: '#0a0a0f',
@@ -12,14 +12,14 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait',
     icons: [
       {
-        src: '/images/ainews-logo.png',
-        sizes: '512x512',
+        src: '/logos/thotnet-core-white-only.png',
+        sizes: '2048x2048',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/images/ainews-logo.png',
-        sizes: '192x192',
+        src: '/logos/thotnet-core-white-only.png',
+        sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },

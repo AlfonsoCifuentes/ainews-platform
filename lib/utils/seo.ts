@@ -37,7 +37,7 @@ export interface NewsArticleSEO {
 export function generateAlternateLanguages(
   pathname: string
 ): Metadata['alternates'] {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
 
   // Remove locale from pathname if present
   const cleanPath = pathname.replace(/^\/(en|es)/, '');
@@ -66,7 +66,7 @@ export function generateLocalizedMetadata(
     type?: 'website' | 'article';
   }
 ): Metadata {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
   const url = `${baseUrl}${pathname}`;
 
   return {
@@ -78,7 +78,7 @@ export function generateLocalizedMetadata(
       title,
       description,
       url,
-      siteName: 'AINews',
+      siteName: 'ThotNet Core',
       locale: locale === 'en' ? 'en_US' : 'es_ES',
       type: options?.type || 'website',
       images: options?.image ? [
@@ -111,7 +111,7 @@ export function generateNewsArticleJsonLd(
   article: NewsArticleSEO,
   locale: 'en' | 'es'
 ): object {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
   const title = locale === 'en' ? article.title_en : article.title_es;
   const summary = locale === 'en' ? article.summary_en : article.summary_es;
 
@@ -125,12 +125,12 @@ export function generateNewsArticleJsonLd(
     dateModified: article.published_at || new Date().toISOString(),
     author: {
       '@type': 'Organization',
-      name: article.author || 'AINews',
+      name: article.author || 'ThotNet Core',
       url: baseUrl,
     },
     publisher: {
       '@type': 'Organization',
-      name: 'AINews',
+      name: 'ThotNet Core',
       url: baseUrl,
       logo: {
         '@type': 'ImageObject',
@@ -152,7 +152,7 @@ export function generateNewsArticleJsonLd(
 export function generateBreadcrumbJsonLd(
   items: Array<{ name: string; url: string }>
 ): object {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
 
   return {
     '@context': 'https://schema.org',
@@ -170,12 +170,12 @@ export function generateBreadcrumbJsonLd(
  * Generate JSON-LD WebSite schema with search box
  */
 export function generateWebSiteJsonLd(locale: 'en' | 'es'): object {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
 
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'AINews',
+    name: 'ThotNet Core',
     url: baseUrl,
     potentialAction: {
       '@type': 'SearchAction',
@@ -222,7 +222,7 @@ export function normalizeCanonicalPath(pathname: string): string {
  * Generate full canonical URL
  */
 export function getCanonicalUrl(pathname: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
   const normalized = normalizeCanonicalPath(pathname);
   return `${baseUrl}${normalized}`;
 }
@@ -267,7 +267,7 @@ export function generateSitemapEntry(
     priority?: number;
   }
 ): SitemapEntry {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
   const cleanPath = removeLocalePrefix(normalizeCanonicalPath(path));
 
   return {

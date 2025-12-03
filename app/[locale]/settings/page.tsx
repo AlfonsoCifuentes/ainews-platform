@@ -5,7 +5,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Settings | AINews',
+  title: 'Settings | ThotNet Core',
   description: 'Manage your account settings and preferences',
 };
 

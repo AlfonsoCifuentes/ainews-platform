@@ -12,10 +12,10 @@
  */
 
 const CACHE_VERSION = 'v4'; // Bumped from v3 - Navigation now network-first to avoid stale HTML
-const STATIC_CACHE = `ainews-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `ainews-dynamic-${CACHE_VERSION}`;
-const IMAGE_CACHE = `ainews-images-${CACHE_VERSION}`;
-const AUDIO_CACHE = `ainews-audio-${CACHE_VERSION}`;
+const STATIC_CACHE = `thotnet-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `thotnet-dynamic-${CACHE_VERSION}`;
+const IMAGE_CACHE = `thotnet-images-${CACHE_VERSION}`;
+const AUDIO_CACHE = `thotnet-audio-${CACHE_VERSION}`;
 
 // Static assets to precache
 const STATIC_ASSETS = [
@@ -349,7 +349,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'AINews', options)
+    self.registration.showNotification(data.title || 'ThotNet Core', options)
   );
 });
 
@@ -368,7 +368,7 @@ self.addEventListener('notificationclick', (event) => {
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('ainews-offline', 2); // Bumped version
+    const request = indexedDB.open('thotnet-offline', 2); // Bumped version
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);

@@ -261,7 +261,7 @@ export function StorageManager() {
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('ainews-offline', 2);
+    const request = indexedDB.open('thotnet-offline', 2);
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);

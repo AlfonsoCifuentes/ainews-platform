@@ -37,7 +37,7 @@ interface WeeklyDigestData {
 export class EmailService {
   private apiKey: string;
   private baseUrl = 'https://api.resend.com';
-  private from = 'AINews <noreply@ainews.dev>'; // Configure your domain
+  private from = 'ThotNet Core <noreply@thotnetcore.com>'; // Configure your domain
 
   constructor() {
     this.apiKey = process.env.RESEND_API_KEY || '';
@@ -84,12 +84,12 @@ export class EmailService {
    */
   async sendWelcomeEmail(email: string, name: string, locale: 'en' | 'es') {
     const subject = locale === 'en'
-      ? 'Welcome to AINews! 🎉'
-      : '¡Bienvenido a AINews! 🎉';
+      ? 'Welcome to ThotNet Core! 🎉'
+      : '¡Bienvenido a ThotNet Core! 🎉';
 
     const html = locale === 'en' ? `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #6366f1;">Welcome to AINews, ${name}!</h1>
+        <h1 style="color: #6366f1;">Welcome to ThotNet Core, ${name}!</h1>
         <p>We're excited to have you join our community of AI enthusiasts.</p>
         <p>Here's what you can do:</p>
         <ul>
@@ -98,17 +98,17 @@ export class EmailService {
           <li>🏆 Earn badges and level up as you learn</li>
           <li>🔥 Build learning streaks and compete on leaderboards</li>
         </ul>
-        <a href="https://ainews.dev" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Start Learning
         </a>
         <p style="margin-top: 32px; color: #666;">
           Happy learning!<br>
-          The AINews Team
+          The ThotNet Core Team
         </p>
       </div>
     ` : `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #6366f1;">¡Bienvenido a AINews, ${name}!</h1>
+        <h1 style="color: #6366f1;">¡Bienvenido a ThotNet Core, ${name}!</h1>
         <p>Estamos emocionados de tenerte en nuestra comunidad de entusiastas de la IA.</p>
         <p>Esto es lo que puedes hacer:</p>
         <ul>
@@ -117,12 +117,12 @@ export class EmailService {
           <li>🏆 Gana insignias y sube de nivel mientras aprendes</li>
           <li>🔥 Construye rachas de aprendizaje y compite en tablas de clasificación</li>
         </ul>
-        <a href="https://ainews.dev" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Empezar a Aprender
         </a>
         <p style="margin-top: 32px; color: #666;">
           ¡Feliz aprendizaje!<br>
-          El equipo de AINews
+          El equipo de ThotNet Core
         </p>
       </div>
     `;
@@ -204,13 +204,13 @@ export class EmailService {
             : ''
         }
 
-        <a href="https://ainews.dev" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
           Continue Learning
         </a>
 
         <p style="margin-top: 48px; color: #999; font-size: 12px;">
           You're receiving this because you subscribed to weekly digests. 
-          <a href="https://ainews.dev/settings" style="color: #6366f1;">Unsubscribe</a>
+          <a href="https://thotnet-core.vercel.app/settings" style="color: #6366f1;">Unsubscribe</a>
         </p>
       </div>
     `
@@ -246,13 +246,13 @@ export class EmailService {
             : ''
         }
 
-        <a href="https://ainews.dev" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
           Continuar Aprendiendo
         </a>
 
         <p style="margin-top: 48px; color: #999; font-size: 12px;">
           Recibes esto porque te suscribiste a resúmenes semanales. 
-          <a href="https://ainews.dev/settings" style="color: #6366f1;">Cancelar suscripción</a>
+          <a href="https://thotnet-core.vercel.app/settings" style="color: #6366f1;">Cancelar suscripción</a>
         </p>
       </div>
     `;
@@ -300,7 +300,7 @@ export class EmailService {
         }
 
         <p style="margin-top: 32px;">Keep up the great work! 🚀</p>
-        <a href="https://ainews.dev/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Start Another Course
         </a>
       </div>
@@ -324,7 +324,7 @@ export class EmailService {
         }
 
         <p style="margin-top: 32px;">¡Sigue con el excelente trabajo! 🚀</p>
-        <a href="https://ainews.dev/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Comenzar Otro Curso
         </a>
       </div>

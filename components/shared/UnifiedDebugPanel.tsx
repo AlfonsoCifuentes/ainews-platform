@@ -112,7 +112,7 @@ export function UnifiedDebugPanel() {
       });
     };
 
-    window.addEventListener('ainews-log', handleClientLog as EventListener);
+    window.addEventListener('thotnet-log', handleClientLog as EventListener);
     window.addEventListener('server-debug', handleServerDebug as EventListener);
 
     // Periodic refresh for runtime logs
@@ -121,7 +121,7 @@ export function UnifiedDebugPanel() {
     }, 1500);
 
     return () => {
-      window.removeEventListener('ainews-log', handleClientLog as EventListener);
+      window.removeEventListener('thotnet-log', handleClientLog as EventListener);
       window.removeEventListener('server-debug', handleServerDebug as EventListener);
       window.clearInterval(interval);
     };
@@ -235,7 +235,7 @@ export function UnifiedDebugPanel() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `ainews-debug-${Date.now()}.json`;
+    anchor.download = `thotnet-debug-${Date.now()}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -286,7 +286,7 @@ export function UnifiedDebugPanel() {
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-xs uppercase tracking-wide text-slate-300">
             <div className="flex items-center gap-2">
               <Bug className="h-4 w-4" />
-              AINews Debug Console
+              ThotNet Core Debug Console
             </div>
             <div className="flex items-center gap-3 text-[10px] font-semibold">
               <div className="flex items-center gap-1 text-red-300" title="Errors">

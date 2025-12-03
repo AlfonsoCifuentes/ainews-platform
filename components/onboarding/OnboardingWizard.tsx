@@ -34,7 +34,7 @@ export function OnboardingWizard({ locale, onComplete }: OnboardingWizardProps) 
   const [notifications, setNotifications] = useState(true);
 
   const t = locale === 'en' ? {
-    welcome: 'Welcome to AINews!',
+    welcome: 'Welcome to ThotNet Core!',
     welcomeSubtitle: 'Your AI knowledge hub',
     step1Title: 'What interests you?',
     step1Subtitle: 'Select your topics to personalize your feed',
@@ -50,7 +50,7 @@ export function OnboardingWizard({ locale, onComplete }: OnboardingWizardProps) 
     skip: 'Skip',
     selectMin: 'Select at least 3 topics',
   } : {
-    welcome: '¡Bienvenido a AINews!',
+    welcome: '¡Bienvenido a ThotNet Core!',
     welcomeSubtitle: 'Tu hub de conocimiento en IA',
     step1Title: '¿Qué te interesa?',
     step1Subtitle: 'Selecciona tus temas para personalizar tu feed',

@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
     // TODO: Send welcome email with Resend
     // const resend = new Resend(process.env.RESEND_API_KEY);
     // await resend.emails.send({
-    //   from: 'AINews <newsletter@ainews.com>',
+    //   from: 'ThotNet Core <newsletter@thotnetcore.com>',
     //   to: email,
-    //   subject: locale === 'en' ? 'Welcome to AINews!' : '¡Bienvenido a AINews!',
+    //   subject: locale === 'en' ? 'Welcome to ThotNet Core!' : '¡Bienvenido a ThotNet Core!',
     //   html: `<h1>Welcome!</h1>`,
     // });
 

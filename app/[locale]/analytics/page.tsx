@@ -4,7 +4,7 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import { AnalyticsPageClient } from '@/components/analytics/AnalyticsPageClient';
 
 export const metadata: Metadata = {
-  title: 'Analytics Dashboard - AINews',
+  title: 'Analytics Dashboard - ThotNet Core',
   description: 'Platform performance and user engagement metrics'
 };
 

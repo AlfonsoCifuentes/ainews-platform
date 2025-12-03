@@ -1,4 +1,4 @@
-# AI Agent Instructions - AINews Platform
+# AI Agent Instructions - ThotNet Core Platform
 
 ## 📚 PERMANENT CONTEXT DOCUMENTS
 
@@ -367,7 +367,7 @@ This is a **bilingual AI-powered news and learning platform** focused on Artific
 - **Anthropic Claude** - Cascade fallback for complex tasks
 
 ### AI Image Generation (Nano Banana Pro)
-AINews uses Google's Gemini models for educational illustration generation:
+ThotNet Core uses Google's Gemini models for educational illustration generation:
 
 - **Nano Banana Pro** = `gemini-3-pro-image-preview` - Advanced reasoning, 4K resolution, complex educational diagrams
 - **Nano Banana** = `gemini-2.5-flash-image` - Fast generation, efficient for high-volume illustrations

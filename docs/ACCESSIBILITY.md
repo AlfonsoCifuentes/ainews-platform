@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines accessibility requirements, audit procedures, and remediation strategies to achieve **WCAG 2.1 Level AA compliance** across the AINews platform.
+This document outlines accessibility requirements, audit procedures, and remediation strategies to achieve **WCAG 2.1 Level AA compliance** across the ThotNet Core platform.
 
 ---
 
@@ -132,7 +132,7 @@ This document outlines accessibility requirements, audit procedures, and remedia
 </main>
 
 <footer>
-  <p>© 2025 AINews</p>
+  <p>© 2025 ThotNet Core</p>
 </footer>
 
 // ❌ Bad - Divs everywhere
@@ -342,7 +342,7 @@ npm run test:lighthouse
 npm install --save-dev pa11y-ci
 
 # Run
-npx pa11y-ci --sitemap https://ainews.com/sitemap.xml
+npx pa11y-ci --sitemap https://thotnet-core.vercel.app/sitemap.xml
 ```
 
 ### Manual Testing

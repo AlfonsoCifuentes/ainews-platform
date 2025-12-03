@@ -171,8 +171,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
 
       // 6. Store to sessionStorage before dispatching event
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('ainews_auth_user', JSON.stringify(syncData.user));
-        sessionStorage.setItem('ainews_auth_profile', JSON.stringify(syncedProfile));
+        sessionStorage.setItem('thotnet_auth_user', JSON.stringify(syncData.user));
+        sessionStorage.setItem('thotnet_auth_profile', JSON.stringify(syncedProfile));
         console.log('[AuthModal] Stored to sessionStorage, about to dispatch event');
       }
 

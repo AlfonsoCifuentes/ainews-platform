@@ -912,7 +912,7 @@ async function generateQueryEmbedding(query: string): Promise<number[] | null> {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://ainews.vercel.app',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app',
         'X-Title': 'AI News Platform'
       },
       body: JSON.stringify({

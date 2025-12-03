@@ -94,7 +94,7 @@ export async function scrapeWithBrowser(
     waitForSelector,
     waitForNetworkIdle = true,
     screenshot = false,
-    userAgent = 'AINewsBot/1.0.0 (+https://ainews.app/bot)',
+    userAgent = 'ThotNetBot/1.0.0 (+https://thotnet-core.vercel.app/bot)',
     viewport = { width: 1280, height: 720 },
   } = options;
 
@@ -340,7 +340,7 @@ export async function smartScrape(
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'AINewsBot/1.0.0 (+https://ainews.app/bot)',
+        'User-Agent': 'ThotNetBot/1.0.0 (+https://thotnet-core.vercel.app/bot)',
       },
       signal: AbortSignal.timeout(10000),
     });

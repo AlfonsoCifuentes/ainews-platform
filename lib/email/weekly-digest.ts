@@ -37,7 +37,7 @@ export function generateWeeklyDigestHTML(data: EmailDigestData): string {
     stats: 'This Week in Numbers',
     totalArticles: `${weeklyStats.totalArticles} new articles`,
     readMore: 'Read Full Article',
-    footer: 'You received this email because you subscribed to AINews weekly digest.',
+    footer: 'You received this email because you subscribed to the ThotNet Core weekly digest.',
     unsubscribe: 'Unsubscribe',
     preferences: 'Manage preferences',
   } : {
@@ -49,7 +49,7 @@ export function generateWeeklyDigestHTML(data: EmailDigestData): string {
     stats: 'Esta Semana en Números',
     totalArticles: `${weeklyStats.totalArticles} artículos nuevos`,
     readMore: 'Leer Artículo Completo',
-    footer: 'Recibiste este correo porque te suscribiste al resumen semanal de AINews.',
+    footer: 'Recibiste este correo porque te suscribiste al resumen semanal de ThotNet Core.',
     unsubscribe: 'Cancelar suscripción',
     preferences: 'Gestionar preferencias',
   };
@@ -305,8 +305,8 @@ export function generateWeeklyDigestHTML(data: EmailDigestData): string {
     
     <div class="footer">
       <p>${t.footer}</p>
-      <a href="https://ainews.com/${locale}/settings#notifications">${t.preferences}</a>
-      <a href="https://ainews.com/${locale}/unsubscribe">${t.unsubscribe}</a>
+      <a href="https://thotnet-core.vercel.app/${locale}/settings#notifications">${t.preferences}</a>
+      <a href="https://thotnet-core.vercel.app/${locale}/unsubscribe">${t.unsubscribe}</a>
     </div>
   </div>
 </body>

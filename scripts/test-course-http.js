@@ -11,7 +11,7 @@ const courseIds = [
   'a75b63f1-5e2a-46f1-bfb7-58a121c860bd'  // n8n Automatización
 ];
 
-const baseUrl = 'https://ainews-platform.vercel.app';
+const baseUrl = 'https://thotnet-core.vercel.app';
 
 async function testCourseAccess() {
   console.log('🧪 Testing course page accessibility...\n');
@@ -42,7 +42,7 @@ async function testCourseAccess() {
   }
 
   console.log('\n✅ Test complete!');
-  console.log('🌐 Visit: https://ainews-platform.vercel.app/en/courses');
+  console.log('🌐 Visit: https://thotnet-core.vercel.app/en/courses');
 }
 
 testCourseAccess();

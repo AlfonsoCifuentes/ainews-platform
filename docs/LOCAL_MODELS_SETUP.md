@@ -1,5 +1,5 @@
 # Local AI Models Setup Guide
-# Complete guide to use Ollama with AINews Platform
+# Complete guide to use Ollama with ThotNet Core Platform
 
 ## Quick Start (5 minutes)
 
@@ -33,7 +33,7 @@ ollama list
 curl http://localhost:11434/api/version
 ```
 
-### Step 4: Configure AINews (Optional)
+### Step 4: Configure ThotNet Core (Optional)
 If Ollama is running locally (default), no configuration needed.
 
 If using a remote Ollama instance (via ngrok, cloudflare tunnel, etc):

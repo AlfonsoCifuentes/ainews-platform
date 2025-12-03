@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Home, Search, ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: '404 - Page Not Found | AINews',
+  title: '404 - Page Not Found | ThotNet Core',
   description: 'The page you are looking for does not exist',
 };
 

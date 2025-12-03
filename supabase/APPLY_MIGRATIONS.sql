@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIONES CONSOLIDADAS - AINEWS PLATFORM
+-- MIGRACIONES CONSOLIDADAS - THOTNET CORE PLATFORM
 -- ============================================================================
 -- Aplicar en Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql/new
 --

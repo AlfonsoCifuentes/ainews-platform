@@ -36,7 +36,7 @@ jobs:
   run-agents:
     runs-on: ubuntu-latest
     env:
-      SITE_URL: https://ainews-platform.vercel.app
+      SITE_URL: https://thotnet-core.vercel.app
     
     steps:
       - name: Checkout code

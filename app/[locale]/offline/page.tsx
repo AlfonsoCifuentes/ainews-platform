@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 export default function OfflinePage() {
   useEffect(() => {
     // Set page title dynamically
-    document.title = 'Offline - AINews';
+    document.title = 'Offline - ThotNet Core';
   }, []);
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-black via-gray-900 to-black">
