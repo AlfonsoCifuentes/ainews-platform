@@ -1,306 +1,208 @@
 "use client";
 
-import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import Image from 'next/image';
+import { useTranslations, useLocale } from 'next-intl';
+import {
+  KineticHero,
+  ThotNetOrb,
+  TodayDigestRail,
+  OrbitingTopicsRail,
+  CourseGalaxyNavigator,
+  AIPlaygroundStrip,
+  LeaderboardStrip,
+  DeepDiveFeatures,
+  FooterCTA,
+} from '@/components/home';
 
 export default function HomePage() {
   const t = useTranslations('home');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"]
-  });
+  const locale = useLocale() as 'en' | 'es';
 
-  const logoScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
-  const logoOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-  const contentY = useTransform(scrollYProgress, [0, 0.5], [0, -100]);
+  // Mock data - in production, these would come from API/database
+  const heroStats = {
+    sources: 50,
+    freshnessMinutes: 15,
+    courses: 12,
+  };
+
+  const orbMetrics = {
+    sources: 50,
+    articles: 2847,
+    bilingual: true,
+  };
+
+  const orbitTopics = [
+    'GPT-5', 'Claude 4', 'Gemini 3', 'Open Source',
+    'Agents', 'RAG', 'Fine-tuning', 'Computer Vision',
+    'NLP', 'Robotics'
+  ];
+
+  const digestArticles = [
+    { id: '1', category: 'LLMs', title: 'OpenAI announces GPT-5 with unprecedented reasoning', relativeTime: '2h ago', href: '/news/gpt5-announcement', image: '/images/fallback/llm-neural-network.svg' },
+    { id: '2', category: 'Research', title: 'New breakthrough in efficient transformer architectures', relativeTime: '4h ago', href: '/news/transformer-breakthrough', image: '/images/fallback/research-paper.svg' },
+    { id: '3', category: 'Agents', title: 'Autonomous AI agents now capable of complex reasoning', relativeTime: '6h ago', href: '/news/autonomous-agents', image: '/images/fallback/ai-agent.svg' },
+    { id: '4', category: 'Industry', title: 'Tech giants race to deploy AI infrastructure globally', relativeTime: '8h ago', href: '/news/ai-infrastructure', image: '/images/fallback/tech-infrastructure.svg' },
+    { id: '5', category: 'Ethics', title: 'New framework proposed for responsible AI deployment', relativeTime: '12h ago', href: '/news/ai-ethics-framework', image: '/images/fallback/ai-ethics.svg' },
+    { id: '6', category: 'Open Source', title: 'Community releases powerful open-weight model', relativeTime: '1d ago', href: '/news/open-source-model', image: '/images/fallback/open-source.svg' },
+  ];
+
+  const trendingTopics = [
+    { slug: 'gpt-5', label: 'GPT-5', deltaArticles: 12 },
+    { slug: 'claude-opus', label: 'Claude Opus 4', deltaArticles: 8 },
+    { slug: 'ai-agents', label: 'AI Agents', deltaArticles: 6 },
+    { slug: 'multimodal', label: 'Multimodal AI', deltaArticles: 5 },
+    { slug: 'open-source', label: 'Open Source', deltaArticles: 4 },
+    { slug: 'rag', label: 'RAG', deltaArticles: 3 },
+    { slug: 'fine-tuning', label: 'Fine-tuning', deltaArticles: 2 },
+    { slug: 'computer-vision', label: 'Computer Vision', deltaArticles: 2 },
+  ];
+
+  const courses = [
+    { id: 'llm-fundamentals', title: 'LLM Fundamentals', level: 'beginner' as const, duration: '4h', progress: 75, description: 'Master the basics of Large Language Models', moduleCount: 8 },
+    { id: 'prompt-engineering', title: 'Prompt Engineering Mastery', level: 'intermediate' as const, duration: '6h', progress: 30, description: 'Learn advanced prompting techniques', moduleCount: 12 },
+    { id: 'ai-agents', title: 'Building AI Agents', level: 'advanced' as const, duration: '8h', description: 'Create autonomous AI agents from scratch', moduleCount: 15 },
+    { id: 'rag-systems', title: 'RAG Systems Deep Dive', level: 'intermediate' as const, duration: '5h', description: 'Implement Retrieval Augmented Generation', moduleCount: 10 },
+    { id: 'fine-tuning', title: 'Fine-tuning LLMs', level: 'advanced' as const, duration: '6h', description: 'Customize models for your use case', moduleCount: 11 },
+  ];
+
+  const agents = [
+    { id: 'curator', name: 'News Curator', cadence: 'Every 6 hours', stack: ['LLM', 'RSS', 'Embeddings'], status: 'active' as const, metrics: { processed: 12847, accuracy: 94, lastRun: '2h ago' } },
+    { id: 'translator', name: 'Bilingual Translator', cadence: 'On-demand', stack: ['GPT-5', 'DeepL'], status: 'active' as const, metrics: { processed: 5621, accuracy: 98 } },
+    { id: 'learner', name: 'Learning Agent', cadence: 'Daily', stack: ['Feedback', 'RL'], status: 'learning' as const, metrics: { processed: 847, lastRun: '4h ago' } },
+    { id: 'course-gen', name: 'Course Generator', cadence: 'On-demand', stack: ['RAG', 'LLM', 'Vision'], status: 'idle' as const, metrics: { processed: 156, accuracy: 91 } },
+    { id: 'trend-detector', name: 'Trend Detector', cadence: 'Hourly', stack: ['Clustering', 'NLP'], status: 'active' as const, metrics: { processed: 3412, lastRun: '45m ago' } },
+    { id: 'fact-checker', name: 'Fact Checker', cadence: 'Per article', stack: ['Search', 'LLM'], status: 'active' as const, metrics: { processed: 2156, accuracy: 89 } },
+  ];
+
+  const leaders = [
+    { id: '1', name: 'TechExplorer', xp: 12450, weeklyDelta: 850, rank: 1 },
+    { id: '2', name: 'AIEnthusiast', xp: 11200, weeklyDelta: 720, rank: 2 },
+    { id: '3', name: 'DataScientist99', xp: 10800, weeklyDelta: 680, rank: 3 },
+    { id: '4', name: 'MLNinja', xp: 9500, weeklyDelta: 520, rank: 4 },
+    { id: '5', name: 'NeuralNetFan', xp: 8900, weeklyDelta: 450, rank: 5 },
+  ];
+
+  const featureBlocks = [
+    {
+      id: 'curated-news',
+      title: locale === 'en' ? 'AI-Curated News' : 'Noticias Curadas por IA',
+      copy: locale === 'en'
+        ? 'Our autonomous AI agents monitor 50+ sources 24/7, filtering signal from noise to bring you only the most relevant and impactful AI news.'
+        : 'Nuestros agentes IA autónomos monitorean 50+ fuentes 24/7, filtrando señal del ruido para traerte solo las noticias más relevantes e impactantes.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/news-curation.json',
+      icon: '📰',
+    },
+    {
+      id: 'personalized-learning',
+      title: locale === 'en' ? 'Personalized Learning' : 'Aprendizaje Personalizado',
+      copy: locale === 'en'
+        ? 'Generate custom courses on any AI topic in seconds. Our RAG-powered system creates comprehensive, textbook-quality content tailored to your level.'
+        : 'Genera cursos personalizados sobre cualquier tema de IA en segundos. Nuestro sistema RAG crea contenido comprehensivo de calidad universitaria adaptado a tu nivel.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/learning-path.json',
+      icon: '🎓',
+    },
+    {
+      id: 'knowledge-graph',
+      title: locale === 'en' ? 'Interactive Knowledge Graph' : 'Grafo de Conocimiento Interactivo',
+      copy: locale === 'en'
+        ? 'Explore the interconnected world of AI through our visual knowledge graph. Discover relationships between concepts, companies, and technologies.'
+        : 'Explora el mundo interconectado de la IA a través de nuestro grafo visual. Descubre relaciones entre conceptos, empresas y tecnologías.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/knowledge-graph.json',
+      icon: '🕸️',
+    },
+  ];
 
   return (
-    <main ref={containerRef} className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a0b18] via-[#0f1023] to-[#0a0b18]">
-      {/* Animated Background Grid */}
-      <div className="fixed inset-0 opacity-20">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px',
-          animation: 'grid-flow 20s linear infinite'
-        }} />
+    <main className="relative min-h-screen overflow-hidden bg-[#020309]">
+      {/* Subtle animated background grid */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.02]">
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '60px 60px',
+          }}
+        />
       </div>
 
-      {/* Gradient Orbs */}
-      <motion.div
-        className="fixed top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-30"
-        style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }}
-        animate={{
-          scale: [1, 1.2, 1],
-          x: [0, 50, 0],
-          y: [0, 30, 0],
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      {/* Hero Section with Orb */}
+      <div className="relative">
+        <KineticHero
+          locale={locale}
+          headline={t('hero.title')}
+          subheadline={t('hero.subtitle')}
+          stats={heroStats}
+          primaryCta={{ label: t('hero.cta'), href: '/news' }}
+          secondaryCta={{ label: t('hero.ctaSecondary'), href: '/courses' }}
+        />
+
+        {/* Orb positioned absolutely on desktop */}
+        <div className="hidden xl:block absolute right-[5%] top-1/2 -translate-y-1/2 z-10">
+          <ThotNetOrb
+            metrics={orbMetrics}
+            orbitTopics={orbitTopics}
+            interactive={true}
+          />
+        </div>
+
+        {/* Orb below hero on mobile/tablet */}
+        <div className="xl:hidden flex justify-center pb-16">
+          <ThotNetOrb
+            metrics={orbMetrics}
+            orbitTopics={orbitTopics}
+            interactive={false}
+          />
+        </div>
+      </div>
+
+      {/* Today's Digest */}
+      <TodayDigestRail articles={digestArticles} locale={locale} />
+
+      {/* Trending Topics */}
+      <OrbitingTopicsRail topics={trendingTopics} locale={locale} />
+
+      {/* Course Galaxy */}
+      <CourseGalaxyNavigator
+        courses={courses}
+        featuredCourseId="llm-fundamentals"
+        locale={locale}
       />
-      <motion.div
-        className="fixed bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20"
-        style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)' }}
-        animate={{
-          scale: [1.2, 1, 1.2],
-          x: [0, -30, 0],
-          y: [0, -50, 0],
-        }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+
+      {/* AI Playground */}
+      <AIPlaygroundStrip agents={agents} locale={locale} />
+
+      {/* Leaderboard */}
+      <LeaderboardStrip
+        leaders={leaders}
+        summary={{ totalUsers: 2847, weeklyXpAwarded: 45600 }}
+        locale={locale}
       />
 
-      {/* Hero Content */}
-      <motion.section 
-        className="relative flex min-h-screen items-center justify-center px-6"
-        style={{ y: contentY }}
-      >
-        <div className="relative z-10 text-center max-w-5xl mx-auto">
-          {/* Logo */}
-          <motion.div
-            style={{ scale: logoScale, opacity: logoOpacity }}
-            className="mb-12"
-          >
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 100,
-                damping: 20,
-                delay: 0.2 
-              }}
-              className="relative inline-block"
-            >
-              <div className="absolute inset-0 blur-[60px] bg-gradient-to-r from-blue-500 via-amber-400 to-blue-500 opacity-60 animate-pulse" />
-              <Image 
-                src="/logos/thotnet-core-white-only.svg" 
-                alt="ThotNet Core Logo" 
-                width={240}
-                height={240}
-                className="relative drop-shadow-[0_0_80px_rgba(59,130,246,0.8)]"
-                priority
-              />
-            </motion.div>
-          </motion.div>
+      {/* Deep Dive Features */}
+      <DeepDiveFeatures blocks={featureBlocks} locale={locale} />
 
-          {/* Main Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.8 }}
-            className="text-6xl md:text-8xl lg:text-9xl font-black mb-8"
-          >
-            <span className="bg-gradient-to-r from-blue-400 via-amber-300 to-blue-400 bg-clip-text text-transparent animate-gradient">
-              ThotNet Core
-            </span>
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.8 }}
-            className="text-xl md:text-2xl lg:text-3xl text-white/70 mb-16 font-light tracking-wide"
-          >
-            {t('hero.subtitle')}
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.8 }}
-            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-          >
-            <Link href="/news">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="group relative px-10 py-5 text-lg font-bold text-white overflow-hidden rounded-2xl"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 transition-transform group-hover:scale-110" />
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
-                <span className="relative flex items-center gap-3">
-                  {t('hero.cta')}
-                  <motion.span
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    →
-                  </motion.span>
-                </span>
-              </motion.button>
-            </Link>
-
-            <Link href="/courses">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-10 py-5 text-lg font-bold text-white border-2 border-white/20 rounded-2xl backdrop-blur-sm hover:bg-white/5 transition-colors"
-              >
-                {t('hero.ctaSecondary')}
-              </motion.button>
-            </Link>
-          </motion.div>
-
-          {/* Feature Pills */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 1 }}
-            className="mt-20 flex flex-wrap justify-center gap-4"
-          >
-            {[
-              { icon: '🤖', text: 'Self-Improving AI' },
-              { icon: '📈', text: 'Live Trending' },
-              { icon: '🕸️', text: 'Knowledge Graph' },
-              { icon: '🎓', text: 'AI Courses' }
-            ].map((item, i) => (
-              <motion.div
-                key={item.text}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.2 + (i * 0.1) }}
-                whileHover={{ scale: 1.1 }}
-                className="px-6 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full text-white/80 text-sm font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">{item.icon}</span>
-                {item.text}
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center"
-          >
-            <motion.div
-              animate={{ y: [0, 12, 0], opacity: [0, 1, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-1.5 h-3 bg-white/60 rounded-full mt-2"
-            />
-          </motion.div>
-        </motion.div>
-      </motion.section>
-
-      {/* Quick Access Grid - Minimal */}
-      <section className="relative py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
-            {[
-              {
-                href: '/news',
-                title: 'Latest News',
-                desc: '50+ AI sources curated',
-                icon: '📰',
-                gradient: 'from-blue-500/20 to-cyan-500/20'
-              },
-              {
-                href: '/trending',
-                title: 'Trending',
-                desc: 'Real-time topic detection',
-                icon: '📈',
-                gradient: 'from-purple-500/20 to-pink-500/20'
-              },
-              {
-                href: '/kg',
-                title: 'Knowledge Graph',
-                desc: 'Interactive AI insights',
-                icon: '🕸️',
-                gradient: 'from-violet-500/20 to-blue-500/20'
-              }
-            ].map((card, i) => (
-              <Link key={card.href} href={card.href}>
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.2 }}
-                  whileHover={{ y: -10, scale: 1.02 }}
-                  className={`relative p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-gradient-to-br ${card.gradient} overflow-hidden group cursor-pointer`}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10">
-                    <div className="text-5xl mb-4">{card.icon}</div>
-                    <h3 className="text-2xl font-bold text-white mb-2">{card.title}</h3>
-                    <p className="text-white/60">{card.desc}</p>
-                  </div>
-                </motion.div>
-              </Link>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* AI Features Section */}
-      <section className="relative py-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-              {t('aiFeatures.title')}
-            </h2>
-            <p className="text-white/60 text-lg">{t('aiFeatures.subtitle')}</p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[
-              { key: 'llm', icon: '🤖', color: 'from-blue-500/10 to-cyan-500/10' },
-              { key: 'embeddings', icon: '🔍', color: 'from-purple-500/10 to-pink-500/10' },
-              { key: 'curator', icon: '📰', color: 'from-green-500/10 to-emerald-500/10' },
-              { key: 'courseGen', icon: '🎓', color: 'from-orange-500/10 to-yellow-500/10' },
-              { key: 'learning', icon: '🧠', color: 'from-violet-500/10 to-purple-500/10' },
-              { key: 'validation', icon: '✅', color: 'from-teal-500/10 to-cyan-500/10' },
-              { key: 'translation', icon: '🌐', color: 'from-blue-500/10 to-indigo-500/10' },
-              { key: 'gamification', icon: '🎮', color: 'from-pink-500/10 to-rose-500/10' },
-              { key: 'normalization', icon: '✨', color: 'from-amber-500/10 to-orange-500/10' },
-              { key: 'deduplication', icon: '🔗', color: 'from-slate-500/10 to-gray-500/10' }
-            ].map((item, i) => (
-              <motion.div
-                key={item.key}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className={`p-4 rounded-2xl border border-white/10 backdrop-blur-sm bg-gradient-to-br ${item.color} group cursor-default`}
-              >
-                <div className="text-3xl mb-2">{item.icon}</div>
-                <h3 className="text-sm font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
-                  {t(`aiFeatures.${item.key}.title`)}
-                </h3>
-                <p className="text-xs text-white/50 leading-tight">
-                  {t(`aiFeatures.${item.key}.desc`)}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Footer CTA */}
+      <FooterCTA
+        title={locale === 'en' ? 'Ready to master AI?' : '¿Listo para dominar la IA?'}
+        subtitle={locale === 'en'
+          ? 'Join thousands of learners exploring the future of artificial intelligence.'
+          : 'Únete a miles de estudiantes explorando el futuro de la inteligencia artificial.'
+        }
+        primaryCta={{
+          label: locale === 'en' ? 'Start Learning Free' : 'Comienza Gratis',
+          href: '/courses',
+        }}
+        secondaryCta={{
+          label: locale === 'en' ? 'Explore News' : 'Explorar Noticias',
+          href: '/news',
+        }}
+        locale={locale}
+      />
 
       <style jsx global>{`
         @keyframes gradient {
@@ -310,10 +212,6 @@ export default function HomePage() {
         .animate-gradient {
           background-size: 200% auto;
           animation: gradient 3s ease infinite;
-        }
-        @keyframes grid-flow {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(50px); }
         }
       `}</style>
     </main>
