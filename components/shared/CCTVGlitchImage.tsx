@@ -15,14 +15,15 @@ interface CCTVGlitchImageProps {
   className?: string;
 }
 
+type GlitchState = 'idle' | 'glitching' | 'active';
+
 /**
- * CCTVGlitchImage - Image component with CCTV glitch effect on hover
+ * CCTVGlitchImage - Image component with aggressive glitch effect on hover
  * 
- * Features:
- * - Starts grayscale, transitions to color on hover
- * - Glitch/tearing effect on hover start
- * - Animated scanlines while hovering (arcade CRT style)
- * - VHS tracking distortion effect
+ * Effect matches glitchcard.tsx exactly:
+ * - Starts grayscale with contrast boost
+ * - 800ms glitch animation with clip-path RGB channel splits
+ * - Transitions to color with scanlines/vignette
  * - Works with parent .group hover (for overlays that block pointer events)
  */
 export function CCTVGlitchImage({
@@ -36,42 +37,29 @@ export function CCTVGlitchImage({
   unoptimized = false,
   className = '',
 }: CCTVGlitchImageProps) {
-  const [isHovering, setIsHovering] = useState(false);
-  const [isGlitching, setIsGlitching] = useState(false);
+  const [status, setStatus] = useState<GlitchState>('idle');
   const containerRef = useRef<HTMLDivElement>(null);
-  const glitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const triggerGlitch = useCallback(() => {
-    if (isGlitching) return; // Prevent re-triggering during glitch
-    setIsHovering(true);
-    setIsGlitching(true);
-    
-    // Clear any existing timeout
-    if (glitchTimeoutRef.current) {
-      clearTimeout(glitchTimeoutRef.current);
-    }
-    
-    // Glitch effect lasts 400ms then stops
-    glitchTimeoutRef.current = setTimeout(() => {
-      setIsGlitching(false);
-    }, 400);
-  }, [isGlitching]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = useCallback(() => {
-    triggerGlitch();
-  }, [triggerGlitch]);
+    // If already active or glitching, do nothing
+    if (status !== 'idle') return;
+
+    setStatus('glitching');
+
+    // Transition from glitch to active (color view) after 800ms
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setStatus('active');
+    }, 800); // Duration of the glitch effect - matches glitchcard.tsx
+  }, [status]);
 
   const handleMouseLeave = useCallback(() => {
-    setIsHovering(false);
-    setIsGlitching(false);
-    if (glitchTimeoutRef.current) {
-      clearTimeout(glitchTimeoutRef.current);
-      glitchTimeoutRef.current = null;
-    }
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setStatus('idle');
   }, []);
 
-  // Listen to parent .group hover via MutationObserver for class changes
-  // This handles cases where overlay elements block direct hover events
+  // Listen to parent .group hover for cases where overlay elements block direct hover events
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -80,61 +68,100 @@ export function CCTVGlitchImage({
     const groupParent = container.closest('.group');
     if (!groupParent) return;
 
-    let wasHovered = false;
+    const onEnter = () => handleMouseEnter();
+    const onLeave = () => handleMouseLeave();
 
-    const checkHover = () => {
-      const isNowHovered = groupParent.matches(':hover');
-      if (isNowHovered && !wasHovered) {
-        triggerGlitch();
-      } else if (!isNowHovered && wasHovered) {
-        handleMouseLeave();
-      }
-      wasHovered = isNowHovered;
-    };
-
-    // Check on mouse events on the group parent
-    groupParent.addEventListener('mouseenter', checkHover);
-    groupParent.addEventListener('mouseleave', checkHover);
+    groupParent.addEventListener('mouseenter', onEnter);
+    groupParent.addEventListener('mouseleave', onLeave);
 
     return () => {
-      groupParent.removeEventListener('mouseenter', checkHover);
-      groupParent.removeEventListener('mouseleave', checkHover);
-      if (glitchTimeoutRef.current) {
-        clearTimeout(glitchTimeoutRef.current);
-      }
+      groupParent.removeEventListener('mouseenter', onEnter);
+      groupParent.removeEventListener('mouseleave', onLeave);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [triggerGlitch, handleMouseLeave]);
+  }, [handleMouseEnter, handleMouseLeave]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const isHovering = status !== 'idle';
+  const isGlitching = status === 'glitching';
 
   return (
     <div 
       ref={containerRef}
-      className="cctv-container relative w-full h-full overflow-hidden"
+      className="glitch-container relative w-full h-full overflow-hidden bg-black"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Main Image - uses both JS state AND CSS group-hover for maximum compatibility */}
-      <Image
-        src={src}
-        alt={alt}
-        fill={fill}
-        width={!fill ? width : undefined}
-        height={!fill ? height : undefined}
-        sizes={sizes}
-        priority={priority}
-        unoptimized={unoptimized}
-        className={`
-          object-cover transition-all duration-500
-          grayscale group-hover:grayscale-0 group-hover:scale-105
-          ${isHovering ? 'grayscale-0 scale-105' : ''}
-          ${isGlitching ? 'cctv-glitch' : ''}
-          ${className}
-        `}
-      />
+      {/* Keyframes matching glitchcard.tsx exactly */}
+      <style jsx global>{`
+        @keyframes glitch-anim-1 {
+          0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 1px); }
+          20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
+          40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 2px); }
+          60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -2px); }
+          80% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 1px); }
+          100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
+        }
+        @keyframes glitch-anim-2 {
+          0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
+          20% { clip-path: inset(80% 0 5% 0); transform: translate(-2px, 2px); }
+          40% { clip-path: inset(30% 0 20% 0); transform: translate(2px, 1px); }
+          60% { clip-path: inset(15% 0 80% 0); transform: translate(-1px, -2px); }
+          80% { clip-path: inset(55% 0 10% 0); transform: translate(1px, 2px); }
+          100% { clip-path: inset(40% 0 30% 0); transform: translate(-2px, 1px); }
+        }
+        @keyframes scanline-scroll {
+          0% { background-position: 0 0; }
+          100% { background-position: 0 100%; }
+        }
+        .animate-glitch-1 {
+          animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+        }
+        .animate-glitch-2 {
+          animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+        }
+        .animate-scanlines {
+          background: linear-gradient(
+            to bottom,
+            rgba(255,255,255,0),
+            rgba(255,255,255,0) 50%,
+            rgba(0,0,0,0.2) 50%,
+            rgba(0,0,0,0.2)
+          );
+          background-size: 100% 4px;
+          animation: scanline-scroll 20s linear infinite;
+        }
+      `}</style>
 
-      {/* Glitch Layers - Only visible during glitch */}
+      {/* --- BASE IMAGE (Changes based on state) --- */}
+      <div className={`relative w-full h-full transition-all duration-150 ${status === 'idle' ? 'grayscale contrast-125 brightness-75 blur-[0.5px]' : ''}`}>
+        <Image
+          src={src}
+          alt={alt}
+          fill={fill}
+          width={!fill ? width : undefined}
+          height={!fill ? height : undefined}
+          sizes={sizes}
+          priority={priority}
+          unoptimized={unoptimized}
+          className={`object-cover ${className}`}
+        />
+      </div>
+
+      {/* --- GLITCH LAYERS (Only visible during 'glitching') --- */}
       {isGlitching && (
         <>
-          <div className="cctv-glitch-layer cctv-glitch-r" aria-hidden>
+          {/* Red Channel Shift - clip-path animation */}
+          <div 
+            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-1 pointer-events-none"
+            aria-hidden="true"
+          >
             <Image
               src={src}
               alt=""
@@ -142,11 +169,14 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              priority={priority}
-              style={{ filter: 'hue-rotate(-60deg) saturate(160%) brightness(110%)' }}
+              style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(-50deg) saturate(300%)' }}
             />
           </div>
-          <div className="cctv-glitch-layer cctv-glitch-g" aria-hidden>
+          {/* Blue Channel Shift - clip-path animation */}
+          <div 
+            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-2 pointer-events-none"
+            aria-hidden="true"
+          >
             <Image
               src={src}
               alt=""
@@ -154,229 +184,25 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              priority={priority}
-              style={{ filter: 'hue-rotate(60deg) saturate(160%) brightness(110%)' }}
+              style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(180deg) saturate(300%)' }}
             />
           </div>
-          <div className="cctv-glitch-layer cctv-glitch-b" aria-hidden>
-            <Image
-              src={src}
-              alt=""
-              fill
-              className="object-cover"
-              sizes={sizes}
-              unoptimized={unoptimized}
-              priority={priority}
-              style={{ filter: 'hue-rotate(180deg) saturate(160%) brightness(110%)' }}
-            />
-          </div>
-          <div className="cctv-tear" />
+          {/* White Noise Overlay for glitch moment */}
+          <div className="absolute inset-0 bg-white/10 mix-blend-overlay animate-pulse pointer-events-none" />
         </>
       )}
 
-      {/* Scanlines - Visible while hovering (JS or CSS group-hover) */}
-      <div className={`cctv-scanlines ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-
-      {/* VHS Noise Overlay - Visible while hovering */}
-      <div className={`cctv-noise ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-
-      {/* CRT Vignette */}
-      <div className={`cctv-vignette transition-opacity duration-300 ${isHovering ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'}`} />
-
-      {/* Timestamp Overlay - Visible while hovering */}
-      <div className={`absolute top-2 left-2 font-mono text-[10px] text-[#00ff00] z-20 mix-blend-screen transition-opacity duration-300 ${isHovering ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'}`}>
-        <span className="cctv-blink">REC</span>
-        <span className="ml-2">{new Date().toLocaleTimeString('en-US', { hour12: false })}</span>
-      </div>
-
-      <style jsx>{`
-        .cctv-container {
-          position: relative;
-        }
-
-        /* Main Glitch Animation */
-        :global(.cctv-glitch) {
-          animation: cctv-glitch-skew 0.4s steps(2) forwards;
-        }
-
-        @keyframes cctv-glitch-skew {
-          0% {
-            transform: skewX(0deg) scale(1);
-            filter: grayscale(100%);
-          }
-          10% {
-            transform: skewX(-2deg) scale(1.01);
-            filter: grayscale(80%) hue-rotate(90deg);
-          }
-          20% {
-            transform: skewX(3deg) translateX(5px) scale(1);
-            filter: grayscale(50%) saturate(150%);
-          }
-          30% {
-            transform: skewX(-1deg) translateX(-3px) scale(1.02);
-            filter: grayscale(30%);
-          }
-          40% {
-            transform: skewX(2deg) translateY(2px) scale(1);
-            filter: grayscale(10%) saturate(120%);
-          }
-          50% {
-            transform: skewX(0deg) scale(1.01);
-            filter: grayscale(0%);
-          }
-          60% {
-            transform: skewX(-1deg) scale(1);
-          }
-          70% {
-            transform: skewX(1deg) scale(1.005);
-          }
-          80% {
-            transform: skewX(0deg) scale(1);
-          }
-          100% {
-            transform: skewX(0deg) scale(1.05);
-            filter: grayscale(0%) saturate(110%);
-          }
-        }
-
-        /* RGB Split Glitch Layers */
-        .cctv-glitch-layer {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.6;
-          overflow: hidden;
-        }
-
-        .cctv-glitch-r {
-          background: inherit;
-          animation: glitch-r 0.3s steps(1) infinite;
-          mix-blend-mode: screen;
-          filter: hue-rotate(-60deg);
-        }
-
-        .cctv-glitch-g {
-          background: inherit;
-          animation: glitch-g 0.25s steps(1) infinite;
-          mix-blend-mode: screen;
-          filter: hue-rotate(60deg);
-        }
-
-        .cctv-glitch-b {
-          background: inherit;
-          animation: glitch-b 0.35s steps(1) infinite;
-          mix-blend-mode: screen;
-          filter: hue-rotate(180deg);
-        }
-
-        @keyframes glitch-r {
-          0%, 100% { transform: translate(0, 0); }
-          20% { transform: translate(-3px, 1px); }
-          40% { transform: translate(2px, -1px); }
-          60% { transform: translate(-1px, 2px); }
-          80% { transform: translate(3px, 0); }
-        }
-
-        @keyframes glitch-g {
-          0%, 100% { transform: translate(0, 0); }
-          25% { transform: translate(2px, -2px); }
-          50% { transform: translate(-2px, 1px); }
-          75% { transform: translate(1px, 2px); }
-        }
-
-        @keyframes glitch-b {
-          0%, 100% { transform: translate(0, 0); }
-          33% { transform: translate(-2px, -1px); }
-          66% { transform: translate(2px, 2px); }
-        }
-
-        /* Horizontal Tear Effect */
-        .cctv-tear {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(255,255,255,0.8) 20%, 
-            rgba(0,255,255,0.5) 50%, 
-            rgba(255,255,255,0.8) 80%, 
-            transparent 100%
-          );
-          animation: tear-move 0.4s steps(8) forwards;
-          pointer-events: none;
-          z-index: 15;
-        }
-
-        @keyframes tear-move {
-          0% { top: 10%; opacity: 1; }
-          25% { top: 35%; opacity: 0.8; }
-          50% { top: 60%; opacity: 1; }
-          75% { top: 80%; opacity: 0.6; }
-          100% { top: 95%; opacity: 0; }
-        }
-
-        /* Animated Scanlines - Arcade CRT Style */
-        .cctv-scanlines {
-          position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            0deg,
-            transparent 0px,
-            transparent 1px,
-            rgba(0, 0, 0, 0.3) 1px,
-            rgba(0, 0, 0, 0.3) 2px
-          );
-          animation: scanline-scroll 0.1s linear infinite;
-          pointer-events: none;
-          z-index: 10;
-        }
-
-        @keyframes scanline-scroll {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 4px; }
-        }
-
-        /* VHS Static Noise */
-        .cctv-noise {
-          position: absolute;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-          opacity: 0.03;
-          pointer-events: none;
-          z-index: 12;
-          animation: noise-flicker 0.05s steps(1) infinite;
-        }
-
-        @keyframes noise-flicker {
-          0%, 100% { opacity: 0.03; }
-          50% { opacity: 0.05; }
-        }
-
-        /* CRT Vignette Effect */
-        .cctv-vignette {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            ellipse at center,
-            transparent 50%,
-            rgba(0, 0, 0, 0.8) 100%
-          );
-          pointer-events: none;
-          z-index: 11;
-          transition: opacity 0.3s ease;
-        }
-
-        /* REC Blinking */
-        .cctv-blink {
-          animation: blink 1s steps(1) infinite;
-        }
-
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-      `}</style>
+      {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
+      {isHovering && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Scanlines */}
+          <div className="absolute inset-0 animate-scanlines opacity-30" />
+          {/* Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6)_100%)]" />
+          {/* Slight tube glow */}
+          <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,255,0,0.1)]" />
+        </div>
+      )}
     </div>
   );
 }
