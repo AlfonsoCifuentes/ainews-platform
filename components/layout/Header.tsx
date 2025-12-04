@@ -85,7 +85,7 @@ export function Header() {
           className="group flex items-center gap-3 cursor-pointer"
           onClick={closeMobileMenu}
         >
-          <div className="relative w-8 h-8 transition-transform group-hover:rotate-180 duration-700">
+          <div className="relative w-8 h-8">
             <Image
               src="/logos/thotnet-core-white-only.svg"
               alt="ThotNet Core Logo"

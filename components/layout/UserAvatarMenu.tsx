@@ -40,27 +40,27 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
     <div className="relative group">
       {/* Avatar Button */}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="relative flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-2 backdrop-blur-xl transition-all hover:border-primary/30 hover:bg-black/30"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="relative flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-1.5 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-black/30"
       >
         {/* Avatar */}
-        <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-br from-primary/20 to-purple-600/20">
+        <div className="relative h-7 w-7 overflow-hidden rounded-md bg-gradient-to-br from-primary/20 to-purple-600/20">
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
               alt={profile.display_name || 'User'}
-              width={40}
-              height={40}
+              width={28}
+              height={28}
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl font-bold text-primary">
+            <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary">
               {(profile.display_name || 'U')[0].toUpperCase()}
             </div>
           )}
           {/* Level Badge */}
-          <div className="absolute -bottom-1 -right-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-bold">
+          <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-primary px-1 py-0 text-[10px] font-bold leading-tight">
             {currentLevel}
           </div>
         </div>
@@ -69,9 +69,9 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
 
         {/* Name (desktop only) */}
         <div className="hidden md:block">
-          <p className="text-sm font-semibold">{profile.display_name || 'User'}</p>
-          <p className="text-xs text-muted-foreground">
-            Level {currentLevel} • {profile.total_xp || 0} XP
+          <p className="text-xs font-semibold">{profile.display_name || 'User'}</p>
+          <p className="text-[10px] text-muted-foreground">
+            Lvl {currentLevel} • {profile.total_xp || 0} XP
           </p>
         </div>
 
