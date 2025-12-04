@@ -1,12 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { GlitchImage } from '@/components/news/GlitchImage';
 
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
@@ -65,23 +65,21 @@ export function ArticleCard({
         perspective: 1000,
       }}
     >
-      {/* Image */}
+      {/* Image with Glitch Effect */}
       <div className="relative h-48 w-full overflow-hidden">
-        <Image
+        <GlitchImage
           src={imageUrl}
           alt={title}
-          fill
           priority={priority}
-          className="scale-105 object-cover transition-transform duration-500 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           unoptimized={imageUrl.startsWith('data:')}
         />
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-20" />
 
         {/* Category + Time badge */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/90">
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/90 z-20 pointer-events-none">
           <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur-sm">
             {translations.category}
           </span>

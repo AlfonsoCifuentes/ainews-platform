@@ -5,13 +5,13 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
-import Image from 'next/image';
+import { useRef } from 'react';
 import Link from 'next/link';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Clock, TrendingUp, Bookmark, Share2, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { getLocalizedField } from '@/lib/utils/i18n';
+import { GlitchImage } from '@/components/news/GlitchImage';
 import type { INewsArticle } from '@/lib/types/news';
 
 interface EnhancedArticleCardProps {
@@ -31,7 +31,6 @@ export default function EnhancedArticleCard({
   onShare,
   isBookmarked = false,
 }: EnhancedArticleCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // 3D tilt effect
@@ -64,7 +63,6 @@ export default function EnhancedArticleCard({
   const handleMouseLeave = () => {
     x.set(0);
     y.set(0);
-    setIsHovered(false);
   };
 
   const title = getLocalizedField(article, 'title', locale) as string;
@@ -79,7 +77,6 @@ export default function EnhancedArticleCard({
         perspective: '1000px',
       }}
       onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -110,36 +107,26 @@ export default function EnhancedArticleCard({
           }}
         />
 
-        {/* Image section with parallax effect */}
+        {/* Image section with glitch effect */}
         <Link href={`/${locale}/news/${article.id}`}>
           <div className="relative aspect-video overflow-hidden">
-            <motion.div
-              className="absolute inset-0"
-              style={{
-                transform: isHovered ? 'scale(1.1)' : 'scale(1)',
-                transition: 'transform 0.6s ease-out',
-              }}
-            >
-              <Image
-                src={article.image_url || '/placeholder-news.jpg'}
-                alt={title}
-                fill
-                className="object-cover"
-                priority={priority}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            </motion.div>
+            <GlitchImage
+              src={article.image_url || '/placeholder-news.jpg'}
+              alt={title}
+              priority={priority}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
 
             {/* Gradient overlay on image */}
             <div
               className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent
-                         opacity-60 group-hover:opacity-80 transition-opacity duration-300"
+                         opacity-60 group-hover:opacity-80 transition-opacity duration-300 pointer-events-none z-20"
             />
 
             {/* Trending badge */}
             {'trending_score' in article && (article as { trending_score: number }).trending_score > 0.7 && (
               <motion.div
-                className="absolute top-4 right-4"
+                className="absolute top-4 right-4 z-30"
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
@@ -154,7 +141,7 @@ export default function EnhancedArticleCard({
             {/* Category badge */}
             {article.category && (
               <motion.div
-                className="absolute top-4 left-4"
+                className="absolute top-4 left-4 z-30"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.1 }}
@@ -286,16 +273,7 @@ export default function EnhancedArticleCard({
           }}
         >
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-            initial={{ x: '-100%', skewX: -20 }}
-            animate={
-              isHovered
-                ? {
-                    x: '200%',
-                    transition: { duration: 0.8, ease: 'easeInOut' },
-                  }
-                : { x: '-100%' }
-            }
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-[200%] transition-transform duration-700 ease-in-out skew-x-[-20deg]"
           />
         </motion.div>
       </motion.article>
