@@ -23,6 +23,15 @@ import {
 import { CourseThumbnail } from '@/components/courses/CourseThumbnail';
 import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
+// Brutalist design tokens
+const BRUTALIST = {
+  bg: '#020309',
+  bgCard: '#0A0A0A',
+  text: '#EAEAEA',
+  textMuted: '#888888',
+  border: '#1F1F1F',
+};
+
 export default async function CourseDetailPage({
   params,
 }: {
@@ -164,46 +173,50 @@ export default async function CourseDetailPage({
   const learningObjectives = locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
+    <div className="min-h-screen" style={{ backgroundColor: BRUTALIST.bg }}>
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
+      <div className="border-b" style={{ borderColor: BRUTALIST.border }}>
         <div className="container mx-auto px-4 py-12 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             {/* Left: Course Info */}
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-                <BookOpen className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary">
-                  {categoryLabel}
-                </span>
+              <div 
+                className="inline-flex items-center gap-2 px-4 py-2 border font-mono text-sm uppercase tracking-wider"
+                style={{ borderColor: BRUTALIST.border, color: BRUTALIST.text }}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>{categoryLabel}</span>
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+              <h1 
+                className="font-mono text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight leading-tight"
+                style={{ color: BRUTALIST.text }}
+              >
                 {title}
               </h1>
 
-              <p className="text-lg text-muted-foreground">
+              <p className="font-mono text-base" style={{ color: BRUTALIST.textMuted }}>
                 {description}
               </p>
 
               {/* Stats */}
-              <div className="flex flex-wrap gap-6">
+              <div className="flex flex-wrap gap-6 font-mono text-sm">
                 <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                  <span className="font-semibold">{avgRating.toFixed(1)}</span>
-                  <span className="text-muted-foreground">({reviews?.length || 0})</span>
+                  <Star className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                  <span style={{ color: BRUTALIST.text }}>{avgRating.toFixed(1)}</span>
+                  <span style={{ color: BRUTALIST.textMuted }}>({reviews?.length || 0})</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{course.enrollment_count || 0} {t.students}</span>
+                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                  <Users className="w-5 h-5" />
+                  <span>{course.enrollment_count || 0} {t.students}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{durationLabel}</span>
+                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                  <Clock className="w-5 h-5" />
+                  <span>{durationLabel}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{totalModules} {t.modules_count}</span>
+                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                  <BookOpen className="w-5 h-5" />
+                  <span>{totalModules} {t.modules_count}</span>
                 </div>
               </div>
 
@@ -239,7 +252,7 @@ export default async function CourseDetailPage({
             </div>
 
             {/* Right: Course Image */}
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
+            <div className="relative overflow-hidden border group" style={{ borderColor: BRUTALIST.border }}>
                 <CourseThumbnail
                   src={course.thumbnail_url}
                   alt={title}
@@ -249,7 +262,7 @@ export default async function CourseDetailPage({
                 />
               {enrollment && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <PlayCircle className="w-20 h-20 text-white" />
+                  <PlayCircle className="w-20 h-20" style={{ color: BRUTALIST.text }} />
                 </div>
               )}
             </div>
@@ -263,15 +276,15 @@ export default async function CourseDetailPage({
           {/* Left: Course Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* What You'll Learn */}
-            <div className="p-8 rounded-2xl bg-card border">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <CheckCircle2 className="w-6 h-6 text-primary" />
+            <div className="p-8 border" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+              <h2 className="font-mono text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight" style={{ color: BRUTALIST.text }}>
+                <CheckCircle2 className="w-6 h-6" />
                 {t.whatYouWillLearn}
               </h2>
               <ul className="grid md:grid-cols-2 gap-4">
                 {learningObjectives.map((objective, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                  <li key={i} className="flex items-start gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
+                    <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" style={{ color: BRUTALIST.text }} />
                     <span>{objective}</span>
                   </li>
                 ))}
@@ -279,9 +292,9 @@ export default async function CourseDetailPage({
             </div>
 
             {/* Modules */}
-            <div className="p-8 rounded-2xl bg-card border">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <BookOpen className="w-6 h-6 text-primary" />
+            <div className="p-8 border" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+              <h2 className="font-mono text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight" style={{ color: BRUTALIST.text }}>
+                <BookOpen className="w-6 h-6" />
                 {t.modules}
               </h2>
               <CourseModulesList
@@ -294,9 +307,9 @@ export default async function CourseDetailPage({
             </div>
 
             {/* Reviews */}
-            <div className="p-8 rounded-2xl bg-card border">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Star className="w-6 h-6 text-primary" />
+            <div className="p-8 border" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+              <h2 className="font-mono text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight" style={{ color: BRUTALIST.text }}>
+                <Star className="w-6 h-6" />
                 {t.reviews}
               </h2>
               <CourseReviews
@@ -312,38 +325,38 @@ export default async function CourseDetailPage({
           {/* Right: Sidebar */}
           <div className="space-y-6">
             {/* Course Includes */}
-            <div className="p-6 rounded-2xl bg-card border sticky top-24">
-              <h3 className="text-lg font-bold mb-4">{t.courseIncludes}</h3>
+            <div className="p-6 border sticky top-24" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+              <h3 className="font-mono text-lg font-bold mb-4 uppercase" style={{ color: BRUTALIST.text }}>{t.courseIncludes}</h3>
               <ul className="space-y-3">
-                <li className="flex items-center gap-3">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="text-sm">{t.courseContent}</span>
+                <li className="flex items-center gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
+                  <BookOpen className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                  <span>{t.courseContent}</span>
                 </li>
-                <li className="flex items-center gap-3">
-                  <BarChart3 className="w-5 h-5 text-primary" />
-                  <span className="text-sm">{t.quizzes}</span>
+                <li className="flex items-center gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
+                  <BarChart3 className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                  <span>{t.quizzes}</span>
                 </li>
-                <li className="flex items-center gap-3">
-                  <Award className="w-5 h-5 text-primary" />
-                  <span className="text-sm">{t.certificate}</span>
+                <li className="flex items-center gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
+                  <Award className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                  <span>{t.certificate}</span>
                 </li>
-                <li className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <span className="text-sm">{t.lifetime}</span>
+                <li className="flex items-center gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
+                  <Clock className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                  <span>{t.lifetime}</span>
                 </li>
               </ul>
 
-              <div className="mt-6 pt-6 border-t space-y-3">
+              <div className="mt-6 pt-6 space-y-3" style={{ borderTop: `1px solid ${BRUTALIST.border}` }}>
                 <div>
-                  <span className="text-sm text-muted-foreground">{t.difficulty}</span>
-                  <p className="font-semibold mt-1">
+                  <span className="font-mono text-xs uppercase tracking-wider" style={{ color: BRUTALIST.textMuted }}>{t.difficulty}</span>
+                  <p className="font-mono font-bold mt-1" style={{ color: BRUTALIST.text }}>
                     {t[course.difficulty]}
                   </p>
                 </div>
                 {course.prerequisites_en && (
                   <div>
-                    <span className="text-sm text-muted-foreground">{t.prerequisites}</span>
-                    <p className="text-sm mt-1">
+                    <span className="font-mono text-xs uppercase tracking-wider" style={{ color: BRUTALIST.textMuted }}>{t.prerequisites}</span>
+                    <p className="font-mono text-sm mt-1" style={{ color: BRUTALIST.text }}>
                       {locale === 'en' ? course.prerequisites_en : course.prerequisites_es}
                     </p>
                   </div>
@@ -364,7 +377,7 @@ export default async function CourseDetailPage({
       </div>
 
       {/* Flashcard Study System - Phase 5+ */}
-      <section className="border-t border-border bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-16">
+      <section className="py-16" style={{ borderTop: `1px solid ${BRUTALIST.border}`, backgroundColor: BRUTALIST.bg }}>
         <div className="container mx-auto px-4">
           <FlashcardDeck 
             contentId={course.id} 
@@ -375,9 +388,9 @@ export default async function CourseDetailPage({
       </section>
 
       {/* Discussion Thread - Phase 5+ */}
-      <section className="border-t border-border bg-muted/30 py-16">
+      <section className="py-16" style={{ borderTop: `1px solid ${BRUTALIST.border}`, backgroundColor: BRUTALIST.bgCard }}>
         <div className="container mx-auto px-4">
-          <h2 className="mb-8 text-3xl font-black md:text-4xl">
+          <h2 className="mb-8 font-mono text-2xl md:text-3xl font-bold uppercase tracking-tight" style={{ color: BRUTALIST.text }}>
             {locale === 'en' ? 'Discussion' : 'Discusión'}
           </h2>
           <DiscussionThread 

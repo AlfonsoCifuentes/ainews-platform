@@ -13,8 +13,16 @@ import {
   Video,
   FileQuestion
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { NormalizedModule } from '@/lib/courses/normalize';
+
+// Brutalist design tokens
+const BRUTALIST = {
+  bg: '#020309',
+  bgCard: '#0A0A0A',
+  text: '#EAEAEA',
+  textMuted: '#888888',
+  border: '#1F1F1F',
+};
 
 type Module = Pick<
   NormalizedModule,
@@ -94,9 +102,12 @@ export function CourseModulesList({
 
   if (sortedModules.length === 0) {
     return (
-      <div className="p-8 rounded-lg bg-muted/50 border border-dashed text-center">
-        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-        <p className="text-muted-foreground">
+      <div 
+        className="p-8 border border-dashed text-center"
+        style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}
+      >
+        <FileText className="w-12 h-12 mx-auto mb-3" style={{ color: BRUTALIST.textMuted }} />
+        <p className="font-mono" style={{ color: BRUTALIST.textMuted }}>
           {locale === 'en' 
             ? 'No modules yet. Course content is being prepared.' 
             : 'Sin módulos aún. El contenido del curso se está preparando.'}
@@ -118,22 +129,26 @@ export function CourseModulesList({
         return (
           <div
             key={module.id}
-            className={cn(
-              'rounded-xl border transition-all',
-              isCompleted ? 'bg-primary/5 border-primary/20' : 'bg-card'
-            )}
+            className="border transition-all"
+            style={{ 
+              backgroundColor: isCompleted ? BRUTALIST.bg : BRUTALIST.bgCard,
+              borderColor: isCompleted ? BRUTALIST.text : BRUTALIST.border,
+            }}
           >
             <button
               onClick={() => setExpandedModule(isExpanded ? null : module.id)}
-              className="w-full p-4 flex items-center gap-4 text-left hover:bg-secondary/50 rounded-xl transition-colors"
+              className="w-full p-4 flex items-center gap-4 text-left transition-colors"
+              style={{ color: BRUTALIST.text }}
             >
               {/* Module Number */}
-              <div className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0',
-                isCompleted 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-secondary text-muted-foreground'
-              )}>
+              <div 
+                className="w-8 h-8 flex items-center justify-center font-mono font-bold text-sm shrink-0 border"
+                style={{ 
+                  backgroundColor: isCompleted ? BRUTALIST.text : BRUTALIST.bg,
+                  color: isCompleted ? BRUTALIST.bg : BRUTALIST.textMuted,
+                  borderColor: isCompleted ? BRUTALIST.text : BRUTALIST.border,
+                }}
+              >
                 {isCompleted ? (
                   <CheckCircle2 className="w-5 h-5" />
                 ) : (
@@ -144,16 +159,19 @@ export function CourseModulesList({
               {/* Module Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <h3 className="font-semibold truncate">{title}</h3>
+                  <Icon className="w-4 h-4 shrink-0" style={{ color: BRUTALIST.textMuted }} />
+                  <h3 className="font-mono font-bold truncate" style={{ color: BRUTALIST.text }}>{title}</h3>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3 font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {module.duration_minutes} min
                   </span>
                   {module.is_free && (
-                    <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    <span 
+                      className="px-2 py-0.5 border font-mono text-xs uppercase"
+                      style={{ borderColor: BRUTALIST.text, color: BRUTALIST.text }}
+                    >
                       Free
                     </span>
                   )}
@@ -163,13 +181,14 @@ export function CourseModulesList({
               {/* Status Icon */}
               <div className="shrink-0">
                 {!canAccess ? (
-                  <Lock className="w-5 h-5 text-muted-foreground" />
+                  <Lock className="w-5 h-5" style={{ color: BRUTALIST.textMuted }} />
                 ) : (
                   <ChevronDown 
-                    className={cn(
-                      'w-5 h-5 text-muted-foreground transition-transform',
-                      isExpanded && 'rotate-180'
-                    )}
+                    className="w-5 h-5 transition-transform"
+                    style={{ 
+                      color: BRUTALIST.textMuted,
+                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}
                   />
                 )}
               </div>
@@ -185,7 +204,7 @@ export function CourseModulesList({
                   className="overflow-hidden"
                 >
                   <div className="px-4 pb-4 space-y-4">
-                    <p className="text-sm text-muted-foreground pl-12">
+                    <p className="font-mono text-sm pl-12" style={{ color: BRUTALIST.textMuted }}>
                       {description}
                     </p>
 
@@ -193,12 +212,12 @@ export function CourseModulesList({
                       <div className="pl-12">
                         <Link
                           href={`/${locale}/courses/${courseId}/learn?module=${module.id}`}
-                          className={cn(
-                            'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
-                            isCompleted
-                              ? 'bg-secondary text-foreground hover:bg-secondary/80'
-                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          )}
+                          className="inline-flex items-center gap-2 px-4 py-2 font-mono text-sm uppercase tracking-wider transition-colors border"
+                          style={{
+                            backgroundColor: isCompleted ? 'transparent' : BRUTALIST.text,
+                            color: isCompleted ? BRUTALIST.text : BRUTALIST.bg,
+                            borderColor: BRUTALIST.text,
+                          }}
                         >
                           {isCompleted ? (
                             <>
@@ -214,7 +233,7 @@ export function CourseModulesList({
                         </Link>
                       </div>
                     ) : (
-                      <div className="pl-12 text-sm text-muted-foreground flex items-center gap-2">
+                      <div className="pl-12 font-mono text-sm flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
                         <Lock className="w-4 h-4" />
                         {locale === 'en' 
                           ? 'Enroll to unlock this module' 
