@@ -8,9 +8,17 @@ import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
 import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModulePlayer } from '@/components/courses/ModulePlayer';
 import { ModuleHeaderIllustration } from '@/components/courses/ModuleHeaderIllustration';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { useBookMode } from '@/lib/hooks/useBookMode';
+
+// Brutalist design tokens
+const BRUTALIST = {
+	bg: '#020309',
+	bgCard: '#0A0A0A',
+	text: '#EAEAEA',
+	textMuted: '#888888',
+	border: '#1F1F1F',
+	accent: '#EAEAEA',
+};
 
 interface CourseSummary {
 	title_en: string;
@@ -139,44 +147,62 @@ export function CourseLearnExperience({
 
 	const BookModeHUD = (
 		<div className="sticky top-4 z-40 flex justify-end gap-3 px-4 pt-4">
-			<Button
-				variant="ghost"
-				size="sm"
+			<button
 				onClick={() => setBookMode((value) => !value)}
-				className={cn(
-					'rounded-full border text-xs font-semibold tracking-wide transition-all duration-300 backdrop-blur',
-					bookMode
-						? 'border-white/25 bg-white/10 text-white hover:bg-white/20'
-						: 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
-				)}
+				className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors"
+				style={{
+					backgroundColor: bookMode ? BRUTALIST.bgCard : BRUTALIST.bg,
+					borderColor: BRUTALIST.border,
+					color: BRUTALIST.text,
+				}}
 			>
-				<BookOpenCheck className="mr-2 h-4 w-4" />
+				<BookOpenCheck className="h-4 w-4" />
 				{bookMode ? localization.exitBook : localization.enterBook}
-			</Button>
+			</button>
 
 			{bookMode && (
-				<Button
-					variant="ghost"
-					size="sm"
+				<button
 					onClick={() => setIndexOpen((open) => !open)}
-					className="rounded-full border border-white/25 bg-white/10 text-xs font-semibold text-white hover:bg-white/20"
+					className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors"
+					style={{
+						backgroundColor: BRUTALIST.bgCard,
+						borderColor: BRUTALIST.border,
+						color: BRUTALIST.text,
+					}}
 				>
-					<ListTree className="mr-2 h-4 w-4" />
+					<ListTree className="h-4 w-4" />
 					{indexOpen ? localization.hideIndex : localization.showIndex}
-				</Button>
+				</button>
 			)}
 		</div>
 	);
 
 	const MiniIndex = indexOpen ? (
-		<div className="fixed top-28 right-6 z-50 w-80 overflow-hidden rounded-3xl border border-white/10 bg-[rgba(2,8,23,0.95)] shadow-2xl backdrop-blur-xl">
-			<div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm font-semibold uppercase tracking-[0.4em] text-white/70">
+		<div 
+			className="fixed top-28 right-6 z-50 w-80 overflow-hidden border shadow-2xl"
+			style={{
+				backgroundColor: BRUTALIST.bg,
+				borderColor: BRUTALIST.border,
+			}}
+		>
+			<div 
+				className="flex items-center justify-between border-b px-5 py-4 font-mono text-xs uppercase tracking-[0.3em]"
+				style={{
+					borderColor: BRUTALIST.border,
+					color: BRUTALIST.textMuted,
+				}}
+			>
 				<span>{localization.quickIndex}</span>
-				<button onClick={() => setIndexOpen(false)} aria-label={localization.hideIndex} className="text-white/70 transition hover:text-white">
+				<button 
+					onClick={() => setIndexOpen(false)} 
+					aria-label={localization.hideIndex} 
+					className="transition hover:opacity-70"
+					style={{ color: BRUTALIST.textMuted }}
+				>
 					<X className="h-4 w-4" />
 				</button>
 			</div>
-			<div className="max-h-[60vh] space-y-2 overflow-y-auto px-4 py-4">
+			<div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
 				{modules.map((module, index) => {
 					const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
 					const completed = completionMap[module.id];
@@ -187,22 +213,23 @@ export function CourseLearnExperience({
 							key={module.id}
 							disabled={!accessible}
 							onClick={() => handleDirectNavigation(module, index)}
-							className={cn(
-								'w-full rounded-2xl border px-4 py-3 text-left transition-all duration-300',
-								isCurrent
-									? 'border-white/40 bg-white/15 text-white shadow-lg'
-									: 'border-white/10 bg-transparent text-white/80 hover:border-white/30 hover:bg-white/5',
-								!accessible && 'cursor-not-allowed opacity-40'
-							)}
+							className="w-full border p-3 text-left font-mono transition-colors"
+							style={{
+								backgroundColor: isCurrent ? BRUTALIST.bgCard : 'transparent',
+								borderColor: isCurrent ? BRUTALIST.text : BRUTALIST.border,
+								color: accessible ? BRUTALIST.text : BRUTALIST.textMuted,
+								opacity: accessible ? 1 : 0.4,
+								cursor: accessible ? 'pointer' : 'not-allowed',
+							}}
 						>
-							<div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-white/60">
+							<div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em]" style={{ color: BRUTALIST.textMuted }}>
 								<span>
 									{localization.chapter} {index + 1}
 								</span>
-								{!accessible && <Lock className="h-3.5 w-3.5" />}
+								{!accessible && <Lock className="h-3 w-3" />}
 							</div>
-							<p className="mt-1 text-sm font-semibold text-white">{moduleTitle}</p>
-							<p className="text-xs text-white/60">
+							<p className="mt-1 text-sm" style={{ color: BRUTALIST.text }}>{moduleTitle}</p>
+							<p className="text-xs" style={{ color: BRUTALIST.textMuted }}>
 								{completed ? '✓' : '•'} {localization.miniIndexCta}
 							</p>
 						</button>
@@ -213,8 +240,9 @@ export function CourseLearnExperience({
 	) : null;
 
 	const BookSpread = (
-		<section className="relative z-10 pb-24">
-			<div className="relative h-[420px] sm:h-[520px]">
+		<section className="relative z-10 pb-24" style={{ backgroundColor: BRUTALIST.bg }}>
+			{/* Hero header with illustration */}
+			<div className="relative h-[320px] sm:h-[380px]">
 				<div className="absolute inset-0">
 					<ModuleHeaderIllustration
 						moduleId={currentModule.id}
@@ -222,102 +250,109 @@ export function CourseLearnExperience({
 						moduleTitle={localizedModuleTitle}
 						locale={locale}
 						frameless
-						className="h-full w-full"
+						className="h-full w-full object-cover"
 					/>
 				</div>
-				<div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-[#02030B]" aria-hidden />
-				<div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-between px-4 py-10 sm:px-6 lg:px-8">
-					<div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.5em] text-white/70">
+				<div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#020309]/70 to-[#020309]" aria-hidden />
+				<div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
+					<div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
 						<span>{localization.courseLabel}</span>
-						<div className="h-px flex-1 bg-white/30" />
+						<div className="h-px flex-1" style={{ backgroundColor: BRUTALIST.border }} />
 						<span>{localizedCourseTitle}</span>
 					</div>
-					<div className="space-y-6">
-						<div>
-							<p className="text-xs uppercase tracking-[0.4em] text-white/70">
-								{localization.chapter} {currentIndex + 1}
-							</p>
-							<h1 className="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl" style={{ fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif" }}>
-								{localizedModuleTitle}
-							</h1>
-							<p className="mt-4 max-w-2xl text-sm text-white/80">{localization.metaTagline}</p>
-						</div>
-						<div className="grid gap-4 sm:grid-cols-3">
-							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
-								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.progress}</p>
-								<p className="mt-2 text-2xl font-semibold">{progressPercent}%</p>
-								<div className="mt-3 h-1.5 rounded-full bg-white/20">
-									<div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500" style={{ width: `${progressPercent}%` }} />
-								</div>
-							</div>
-							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
-								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.readingTime}</p>
-								<p className="mt-2 text-2xl font-semibold">{readingMinutes} min</p>
-								<p className="text-xs text-white/70">{locale === 'en' ? 'Estimated immersion' : 'Inmersión estimada'}</p>
-							</div>
-							<div className="rounded-2xl border border-white/15 bg-black/30 p-4 text-white">
-								<p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{localization.xpEarned}</p>
-								<p className="mt-2 text-2xl font-semibold">{currentProgress?.completed ? '100 XP' : '0 XP'}</p>
-								<p className="text-xs text-white/70">{locale === 'en' ? 'Per completed chapter' : 'Por capítulo completado'}</p>
-							</div>
-						</div>
+					<div className="mt-4">
+						<p className="font-mono text-xs uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
+							{localization.chapter} {currentIndex + 1}
+						</p>
+						<h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight sm:text-3xl lg:text-4xl" style={{ color: BRUTALIST.text }}>
+							{localizedModuleTitle}
+						</h1>
 					</div>
 				</div>
 			</div>
 
-			<div className="relative -mt-24 px-4 sm:px-6 lg:px-8">
-				<div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(280px,0.95fr)_minmax(600px,1.6fr)]">
-					<aside className="rounded-3xl border border-white/10 bg-[rgba(4,8,23,0.92)] p-6 text-white shadow-[0_40px_120px_rgba(3,6,20,0.65)]">
+			{/* Stats row - separated from header to avoid overlap */}
+			<div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+				<div className="grid gap-4 sm:grid-cols-3">
+					<div className="border p-4" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+						<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{localization.progress}</p>
+						<p className="mt-2 font-mono text-2xl font-bold" style={{ color: BRUTALIST.text }}>{progressPercent}%</p>
+						<div className="mt-3 h-1" style={{ backgroundColor: BRUTALIST.border }}>
+							<div className="h-full" style={{ width: `${progressPercent}%`, backgroundColor: BRUTALIST.text }} />
+						</div>
+					</div>
+					<div className="border p-4" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+						<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{localization.readingTime}</p>
+						<p className="mt-2 font-mono text-2xl font-bold" style={{ color: BRUTALIST.text }}>{readingMinutes} min</p>
+						<p className="font-mono text-xs" style={{ color: BRUTALIST.textMuted }}>{locale === 'en' ? 'Estimated time' : 'Tiempo estimado'}</p>
+					</div>
+					<div className="border p-4" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+						<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{localization.xpEarned}</p>
+						<p className="mt-2 font-mono text-2xl font-bold" style={{ color: BRUTALIST.text }}>{currentProgress?.completed ? '100 XP' : '0 XP'}</p>
+						<p className="font-mono text-xs" style={{ color: BRUTALIST.textMuted }}>{locale === 'en' ? 'Per chapter' : 'Por capítulo'}</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Main content grid */}
+			<div className="px-4 sm:px-6 lg:px-8">
+				<div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[280px_1fr]">
+					{/* Sidebar */}
+					<aside className="border p-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
 						<div className="space-y-6">
 							<div>
-								<p className="text-[10px] uppercase tracking-[0.4em] text-white/50">{localization.courseLabel}</p>
-								<p className="mt-2 text-xl font-semibold">{localizedCourseTitle}</p>
-								<p className="text-sm text-white/70">{locale === 'en' ? 'Immersive AI textbook mode' : 'Modo libro inmersivo de IA'}</p>
+								<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{localization.courseLabel}</p>
+								<p className="mt-2 font-mono text-lg font-bold" style={{ color: BRUTALIST.text }}>{localizedCourseTitle}</p>
+								<p className="font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>{locale === 'en' ? 'Learning mode' : 'Modo aprendizaje'}</p>
 							</div>
-							<div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-								<div className="flex items-center justify-between text-sm">
-									<span>{localization.progress}</span>
-									<span>{progressPercent}%</span>
+							<div className="border p-4 space-y-3" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
+								<div className="flex items-center justify-between font-mono text-sm">
+									<span style={{ color: BRUTALIST.textMuted }}>{localization.progress}</span>
+									<span style={{ color: BRUTALIST.text }}>{progressPercent}%</span>
 								</div>
-								<div className="h-1.5 rounded-full bg-white/15">
-									<div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500" style={{ width: `${progressPercent}%` }} />
+								<div className="h-1" style={{ backgroundColor: BRUTALIST.border }}>
+									<div className="h-full" style={{ width: `${progressPercent}%`, backgroundColor: BRUTALIST.text }} />
 								</div>
-								<div className="flex items-center justify-between text-sm text-white/80">
-									<span>{localization.readingTime}</span>
-									<span>{readingMinutes} min</span>
+								<div className="flex items-center justify-between font-mono text-sm">
+									<span style={{ color: BRUTALIST.textMuted }}>{localization.readingTime}</span>
+									<span style={{ color: BRUTALIST.text }}>{readingMinutes} min</span>
 								</div>
-								<div className="flex items-center justify-between text-sm text-white/80">
-									<span>{localization.xpEarned}</span>
-									<span>{currentProgress?.completed ? '100 XP' : locale === 'en' ? 'Finish chapter to claim' : 'Completa para reclamar'}</span>
+								<div className="flex items-center justify-between font-mono text-sm">
+									<span style={{ color: BRUTALIST.textMuted }}>{localization.xpEarned}</span>
+									<span style={{ color: BRUTALIST.text }}>{currentProgress?.completed ? '100 XP' : locale === 'en' ? 'Finish to claim' : 'Completa'}</span>
 								</div>
 							</div>
 							<div className="space-y-3">
-								<p className="text-xs uppercase tracking-[0.4em] text-white/60">{locale === 'en' ? 'Navigate chapters' : 'Navegar capítulos'}</p>
+								<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{locale === 'en' ? 'Navigate' : 'Navegar'}</p>
 								<div className="flex gap-3">
 									<button
 										onClick={() => handleNavigate(prevModule)}
 										disabled={!prevModule}
-										className="group flex flex-1 items-center justify-center rounded-2xl border border-white/15 bg-white/5 py-3 text-white transition hover:-translate-y-0.5 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+										className="group flex flex-1 items-center justify-center gap-2 border py-3 font-mono text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+										style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
 										aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex}`}
 									>
-										<ChevronLeft className="mr-2 h-4 w-4 transition group-hover:-translate-x-1" />
-										{locale === 'en' ? 'Previous' : 'Anterior'}
+										<ChevronLeft className="h-4 w-4" />
+										{locale === 'en' ? 'Prev' : 'Ant'}
 									</button>
 									<button
 										onClick={() => handleNavigate(nextModule)}
 										disabled={!nextModule || isNextLocked}
-										className="group flex flex-1 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-sky-500/30 to-blue-600/40 py-3 text-white transition hover:translate-y-[-2px] disabled:cursor-not-allowed disabled:opacity-40"
+										className="group flex flex-1 items-center justify-center gap-2 border py-3 font-mono text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+										style={{ backgroundColor: BRUTALIST.text, borderColor: BRUTALIST.text, color: BRUTALIST.bg }}
 										aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex + 2}`}
 										title={isNextLocked ? localization.nextLocked : undefined}
 									>
-										{isNextLocked ? <Lock className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4 transition group-hover:translate-x-1" />}
-										{locale === 'en' ? 'Next' : 'Siguiente'}
+										{isNextLocked ? <Lock className="h-4 w-4" /> : null}
+										{locale === 'en' ? 'Next' : 'Sig'}
+										{!isNextLocked && <ChevronRight className="h-4 w-4" />}
 									</button>
 								</div>
 							</div>
 						</div>
 					</aside>
-					<div className="rounded-[36px] border border-white/10 bg-[rgba(5,9,23,0.95)] p-4 sm:p-6 lg:p-8 shadow-2xl">
+					{/* Content area */}
+					<div className="border p-4 sm:p-6 lg:p-8" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
 						<ModulePlayer
 							locale={locale}
 							module={currentModule}
@@ -327,26 +362,29 @@ export function CourseLearnExperience({
 						/>
 					</div>
 				</div>
-				<div className="mx-auto mt-8 flex max-w-6xl flex-col items-center gap-4 text-white/80 sm:flex-row sm:justify-between">
+				{/* Bottom navigation */}
+				<div className="mx-auto mt-8 flex max-w-6xl items-center justify-between">
 					<button
 						onClick={() => handleNavigate(prevModule)}
 						disabled={!prevModule}
-						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:-translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+						className="group flex h-12 w-12 items-center justify-center border transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+						style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
 						aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex}`}
 					>
-						<ChevronLeft className="h-5 w-5 transition group-hover:-translate-x-1" />
+						<ChevronLeft className="h-5 w-5" />
 					</button>
-					<div className="text-xs uppercase tracking-[0.5em] text-white/60">
+					<div className="font-mono text-xs uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
 						{localization.chapter} {currentIndex + 1} / {modules.length}
 					</div>
 					<button
 						onClick={() => handleNavigate(nextModule)}
 						disabled={!nextModule || isNextLocked}
-						className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:translate-x-1 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+						className="group flex h-12 w-12 items-center justify-center border transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+						style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
 						aria-label={`${localization.turnPage} ${localization.chapter} ${currentIndex + 2}`}
 						title={isNextLocked ? localization.nextLocked : undefined}
 					>
-						{isNextLocked ? <Lock className="h-5 w-5" /> : <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />}
+						{isNextLocked ? <Lock className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
 					</button>
 				</div>
 			</div>
@@ -354,7 +392,7 @@ export function CourseLearnExperience({
 	);
 
 	const ClassicLayout = (
-		<div className="flex">
+		<div className="flex" style={{ backgroundColor: BRUTALIST.bg }}>
 			<ModuleSidebar
 				locale={locale}
 				courseId={courseId}
@@ -387,14 +425,9 @@ export function CourseLearnExperience({
 
 	return (
 		<div
-			className={cn(
-				'relative min-h-screen overflow-x-hidden',
-				bookMode
-					? 'bg-[radial-gradient(circle_at_top,_#091231,_#030615_65%)] text-white'
-					: 'bg-background text-foreground'
-			)}
+			className="relative min-h-screen overflow-x-hidden"
+			style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
 		>
-			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(32,129,226,0.25),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.15),transparent_45%)]" aria-hidden />
 			<div className="relative z-10">
 				{BookModeHUD}
 				{bookMode ? BookSpread : ClassicLayout}

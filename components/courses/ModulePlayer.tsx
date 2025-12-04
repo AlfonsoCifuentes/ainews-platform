@@ -11,7 +11,6 @@ import {
   Code,
   ExternalLink
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
 import { useToast } from '@/components/shared/ToastProvider';
 import { useUser } from '@/lib/hooks/useUser';
@@ -23,6 +22,16 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { NormalizedModule } from '@/lib/courses/normalize';
 import { loggers } from '@/lib/utils/logger';
+
+// Brutalist design tokens
+const BRUTALIST = {
+  bg: '#020309',
+  bgCard: '#0A0A0A',
+  text: '#EAEAEA',
+  textMuted: '#888888',
+  border: '#1F1F1F',
+  accent: '#EAEAEA',
+};
 
 interface QuizQuestion {
   question: string;
@@ -77,16 +86,19 @@ export function CompleteModuleButton({
   };
 
   return (
-    <Button
+    <button
       onClick={onClick}
       disabled={isCompleting || currentProgress?.completed}
-      variant={currentProgress?.completed ? 'outline' : 'default'}
-      className={`${className} complete-module-button`}
-      size="lg"
+      className={`${className} complete-module-button flex items-center gap-2 px-4 py-2 font-mono text-sm uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+      style={{
+        backgroundColor: currentProgress?.completed ? 'transparent' : BRUTALIST.text,
+        color: currentProgress?.completed ? BRUTALIST.textMuted : BRUTALIST.bg,
+        border: `1px solid ${currentProgress?.completed ? BRUTALIST.border : BRUTALIST.text}`,
+      }}
     >
       {currentProgress?.completed ? (
         <>
-          <CheckCircle2 className="w-4 h-4 mr-2" />
+          <CheckCircle2 className="w-4 h-4" />
           {t.completed}
         </>
       ) : isCompleting ? (
@@ -94,7 +106,7 @@ export function CompleteModuleButton({
       ) : (
         t.markComplete
       )}
-    </Button>
+    </button>
   );
 }
 
@@ -595,10 +607,10 @@ export function ModulePlayer({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <Icon className="w-5 h-5 text-primary" />
-            <h1 className="text-xl md:text-2xl font-bold">{title}</h1>
+            <Icon className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+            <h1 className="font-mono text-xl md:text-2xl font-bold uppercase tracking-tight" style={{ color: BRUTALIST.text }}>{title}</h1>
           </div>
-          <p className="text-sm md:text-base text-muted-foreground">{description}</p>
+          <p className="font-mono text-sm md:text-base" style={{ color: BRUTALIST.textMuted }}>{description}</p>
         </div>
 
         <CompleteModuleButton
@@ -606,14 +618,14 @@ export function ModulePlayer({
           currentProgress={currentProgress}
           isCompleting={isCompleting}
           onClick={handleComplete}
-          className={`shrink-0 selection-class`} // Added class for selection
+          className="shrink-0"
         />
       </div>
 
       {/* Video Player */}
       {module.content_type === 'video' && (
         module.video_url ? (
-          <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+          <div className="aspect-video overflow-hidden border" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
             <iframe
               src={module.video_url}
               className="w-full h-full"
@@ -622,17 +634,17 @@ export function ModulePlayer({
             />
           </div>
         ) : (
-          <div className="aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
+          <div className="aspect-video overflow-hidden border flex items-center justify-center" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+            <div className="text-center" style={{ color: BRUTALIST.textMuted }}>
               {isGeneratingContent ? (
                 <div className="flex flex-col items-center gap-3">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
-                  <p className="text-lg">{t.generatingContent}</p>
+                  <div className="animate-spin h-8 w-8 border-2 border-t-transparent" style={{ borderColor: BRUTALIST.text, borderTopColor: 'transparent' }}></div>
+                  <p className="font-mono text-lg">{t.generatingContent}</p>
                 </div>
               ) : (
                 <>
                   <PlayCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">
+                  <p className="font-mono text-lg">
                     {locale === 'en'
                       ? 'Video content is being prepared. Please check back soon.'
                       : 'El contenido de video se está preparando. Por favor, vuelve pronto.'}
@@ -649,13 +661,14 @@ export function ModulePlayer({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="prose prose-base dark:prose-invert max-w-none p-6 md:p-8 rounded-3xl bg-card border shadow-lg"
+          className="max-w-none p-6 md:p-8 border"
+          style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}
         >
           {isGeneratingContent ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12" style={{ color: BRUTALIST.textMuted }}>
               <div className="inline-flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
-                <p className="text-lg">{t.generatingContent}</p>
+                <div className="animate-spin h-8 w-8 border-2 border-t-transparent" style={{ borderColor: BRUTALIST.text, borderTopColor: 'transparent' }}></div>
+                <p className="font-mono text-lg">{t.generatingContent}</p>
               </div>
             </div>
           ) : displayContent && displayContent.trim() ? (
@@ -677,33 +690,37 @@ export function ModulePlayer({
               )}
               <ReactMarkdown
                 components={{
-                  // Headings más prominentes con gradientes y bordes
+                  // Headings - brutalist uppercase monospace
                   h1: ({ ...props }) => (
                     <h1 
-                      className="text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent" 
+                      className="font-mono text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 uppercase tracking-tight" 
+                      style={{ color: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
                   h2: ({ ...props }) => (
                     <h2 
-                      className="text-xl md:text-2xl font-semibold mb-4 mt-8 text-primary border-l-4 border-primary pl-4" 
+                      className="font-mono text-xl md:text-2xl font-bold mb-4 mt-8 uppercase border-l-4 pl-4" 
+                      style={{ color: BRUTALIST.text, borderColor: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
                   h3: ({ ...props }) => (
                     <h3 
-                      className="text-lg md:text-xl font-medium mb-3 mt-6 text-foreground" 
+                      className="font-mono text-lg md:text-xl font-bold mb-3 mt-6 uppercase" 
+                      style={{ color: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
-                  // Párrafos con más espacio y mejor legibilidad
+                  // Paragraphs
                   p: ({ ...props }) => (
                     <p 
-                      className="text-sm md:text-base leading-relaxed mb-4 text-muted-foreground" 
+                      className="font-mono text-sm md:text-base leading-relaxed mb-4" 
+                      style={{ color: BRUTALIST.textMuted }}
                       {...props} 
                     />
                   ),
-                  // Listas con más espacio entre items
+                  // Lists
                   ul: ({ ...props }) => (
                     <ul 
                       className="space-y-2 my-4 pl-5" 
@@ -718,25 +735,28 @@ export function ModulePlayer({
                   ),
                   li: ({ ...props }) => (
                     <li 
-                      className="text-sm md:text-base leading-relaxed" 
+                      className="font-mono text-sm md:text-base leading-relaxed" 
+                      style={{ color: BRUTALIST.textMuted }}
                       {...props} 
                     />
                   ),
-                  // Blockquotes más destacados
+                  // Blockquotes - brutalist style
                   blockquote: ({ ...props }) => (
                     <blockquote 
-                      className="border-l-4 border-primary bg-primary/10 p-4 rounded-r-xl my-4 italic text-sm md:text-base" 
+                      className="border-l-4 p-4 my-4 font-mono text-sm md:text-base" 
+                      style={{ borderColor: BRUTALIST.text, backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
-                  // Enlaces destacados
+                  // Links
                   a: ({ ...props }) => (
                     <a 
-                      className="text-primary font-semibold hover:underline hover:text-blue-400 transition-colors" 
+                      className="font-mono font-bold underline transition-colors hover:opacity-70" 
+                      style={{ color: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
-                  // Code blocks y inline code
+                  // Code blocks and inline code
                   code(props) {
                     const { inline, className, children, ...rest } = props as {
                       inline?: boolean;
@@ -745,7 +765,7 @@ export function ModulePlayer({
                     };
                     const match = /language-(\w+)/.exec(className || '');
                     return !inline && match ? (
-                      <div className="my-6 rounded-xl overflow-hidden border border-border">
+                      <div className="my-6 overflow-hidden border" style={{ borderColor: BRUTALIST.border }}>
                         <SyntaxHighlighter
                           style={vscDarkPlus}
                           language={match[1]}
@@ -757,7 +777,8 @@ export function ModulePlayer({
                       </div>
                     ) : (
                       <code 
-                        className="bg-primary/20 text-primary px-2 py-1 rounded text-base font-mono" 
+                        className="px-2 py-1 font-mono text-base" 
+                        style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
                         {...rest}
                       >
                         {children}
@@ -769,12 +790,12 @@ export function ModulePlayer({
                 {displayContent}
               </ReactMarkdown>
               {supportingSlots.length > 2 && (
-                <div className="mt-10 space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+                <div className="mt-10 space-y-4 border p-6" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.5em] text-primary/80">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
                       {t.visualHighlights}
                     </p>
-                    <p className="text-sm text-muted-foreground">{t.visualGalleryNote}</p>
+                    <p className="font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>{t.visualGalleryNote}</p>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     {supportingSlots.slice(2, 6).map((slot) => (
@@ -794,9 +815,9 @@ export function ModulePlayer({
               )}
             </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12" style={{ color: BRUTALIST.textMuted }}>
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">
+              <p className="font-mono text-lg">
                 {locale === 'en'
                   ? 'Module content is being prepared. Please check back soon.'
                   : 'El contenido del módulo se está preparando. Por favor, vuelve pronto.'}
@@ -809,10 +830,10 @@ export function ModulePlayer({
       {/* Quiz */}
       {module.content_type === 'quiz' && (
         module.quiz_questions && module.quiz_questions.length > 0 ? (
-        <div className="space-y-6 p-8 rounded-2xl bg-card border">
+        <div className="space-y-6 p-8 border" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
           {module.quiz_questions.map((question, qIndex) => (
             <div key={qIndex} className="space-y-3">
-              <h3 className="font-semibold text-lg">
+              <h3 className="font-mono text-lg font-bold" style={{ color: BRUTALIST.text }}>
                 {qIndex + 1}. {question.question}
               </h3>
               <div className="space-y-2">
@@ -820,11 +841,12 @@ export function ModulePlayer({
                   <button
                     key={oIndex}
                     onClick={() => setQuizAnswers({ ...quizAnswers, [qIndex]: oIndex })}
-                    className={`w-full p-4 rounded-xl text-left transition-colors ${
-                      quizAnswers[qIndex] === oIndex
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary hover:bg-secondary/80'
-                    }`}
+                    className="w-full p-4 text-left font-mono text-sm transition-colors border"
+                    style={{
+                      backgroundColor: quizAnswers[qIndex] === oIndex ? BRUTALIST.text : BRUTALIST.bg,
+                      color: quizAnswers[qIndex] === oIndex ? BRUTALIST.bg : BRUTALIST.text,
+                      borderColor: quizAnswers[qIndex] === oIndex ? BRUTALIST.text : BRUTALIST.border,
+                    }}
                   >
                     {option}
                   </button>
@@ -833,18 +855,23 @@ export function ModulePlayer({
             </div>
           ))}
 
-          <Button
+          <button
             onClick={handleQuizSubmit}
             disabled={Object.keys(quizAnswers).length !== module.quiz_questions.length}
-            className="w-full"
+            className="w-full py-3 font-mono text-sm uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: BRUTALIST.text,
+              color: BRUTALIST.bg,
+              border: `1px solid ${BRUTALIST.text}`,
+            }}
           >
             {t.submitQuiz}
-          </Button>
+          </button>
         </div>
         ) : (
-          <div className="p-8 rounded-2xl bg-card border text-center text-muted-foreground">
+          <div className="p-8 border text-center" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border, color: BRUTALIST.textMuted }}>
             <FileQuestion className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg">
+            <p className="font-mono text-lg">
               {locale === 'en'
                 ? 'Quiz questions are being prepared. Please check back soon.'
                 : 'Las preguntas del cuestionario se están preparando. Por favor, vuelve pronto.'}
@@ -855,9 +882,9 @@ export function ModulePlayer({
 
       {/* Resources */}
       {module.resources && module.resources.length > 0 && (
-        <div className="p-6 rounded-2xl bg-card border">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <Code className="w-5 h-5 text-primary" />
+        <div className="p-6 border" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+          <h3 className="font-mono text-lg font-bold mb-4 flex items-center gap-2" style={{ color: BRUTALIST.text }}>
+            <Code className="w-5 h-5" style={{ color: BRUTALIST.text }} />
             {t.resources}
           </h3>
           <ul className="space-y-2">
@@ -867,7 +894,8 @@ export function ModulePlayer({
                   href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-primary hover:underline"
+                  className="flex items-center gap-2 font-mono text-sm underline transition-colors hover:opacity-70"
+                  style={{ color: BRUTALIST.text }}
                 >
                   <ExternalLink className="w-4 h-4" />
                   {resource.title}
@@ -879,25 +907,35 @@ export function ModulePlayer({
       )}
 
       {/* Simple Exercise Short Answer */}
-      <div className="p-6 rounded-2xl bg-card border mt-6">
-        <h3 className="font-bold text-lg mb-2">Practice Exercise</h3>
-        <p className="text-sm text-muted-foreground mb-3">Try a short answer and submit for automatic grading.</p>
+      <div className="p-6 border mt-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+        <h3 className="font-mono text-lg font-bold mb-2" style={{ color: BRUTALIST.text }}>Practice Exercise</h3>
+        <p className="font-mono text-sm mb-3" style={{ color: BRUTALIST.textMuted }}>Try a short answer and submit for automatic grading.</p>
         <textarea
           value={exerciseAnswer}
           onChange={(e) => setExerciseAnswer(e.target.value)}
-          className="w-full rounded-md p-3 bg-secondary text-sm text-foreground mb-3 min-h-[120px]"
+          className="w-full p-3 font-mono text-sm mb-3 min-h-[120px] border"
+          style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text, borderColor: BRUTALIST.border }}
           placeholder={locale === 'en' ? 'Write your short answer here...' : 'Escribe tu respuesta corta aquí...'}
         />
-        <div className="flex gap-2 items-center">
-          <Button onClick={() => handleExerciseSubmit()} disabled={!exerciseAnswer.trim()}>
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={() => handleExerciseSubmit()} 
+            disabled={!exerciseAnswer.trim()}
+            className="px-4 py-2 font-mono text-sm uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: BRUTALIST.text,
+              color: BRUTALIST.bg,
+              border: `1px solid ${BRUTALIST.text}`,
+            }}
+          >
             {locale === 'en' ? 'Submit Answer' : 'Enviar Respuesta'}
-          </Button>
+          </button>
           {gradingResult && (
-            <div className="text-sm">
+            <div className="font-mono text-sm" style={{ color: BRUTALIST.text }}>
               <div>Score: {gradingResult.score}%</div>
-              <div className="text-xs text-muted-foreground">{gradingResult.feedback}</div>
+              <div className="text-xs" style={{ color: BRUTALIST.textMuted }}>{gradingResult.feedback}</div>
               {gradingResult.debug?.usedModel && (
-                <div className="text-xs text-muted-foreground mt-1">Graded by: {String(gradingResult.debug.usedModel)}</div>
+                <div className="text-xs mt-1" style={{ color: BRUTALIST.textMuted }}>Graded by: {String(gradingResult.debug.usedModel)}</div>
               )}
             </div>
           )}
@@ -905,20 +943,21 @@ export function ModulePlayer({
       </div>
 
       {/* Botón de completar al final del contenido */}
-      <div className="flex justify-center mt-8 pt-8 border-t-2 border-border">
+      <div className="flex justify-center mt-8 pt-8" style={{ borderTop: `2px solid ${BRUTALIST.border}` }}>
         <CompleteModuleButton
           locale={locale}
           currentProgress={currentProgress}
           isCompleting={isCompleting}
           onClick={handleComplete}
-          className={`w-full sm:w-auto min-w-[250px] selection-class`} // Added class for selection
+          className="w-full sm:w-auto min-w-[250px]"
         />
       </div>
       {/* Debug toggle button */}
       <div className="fixed bottom-6 right-6 z-[9999]">
         <button
           onClick={() => setDebugOpen(!debugOpen)}
-          className="bg-primary text-primary-foreground p-2 rounded-full shadow-lg hover:ring-2 focus:outline-none"
+          className="p-2 shadow-lg transition-colors"
+          style={{ backgroundColor: BRUTALIST.text, color: BRUTALIST.bg }}
           title="Toggle debug overlay"
         >
           🐞
@@ -927,7 +966,10 @@ export function ModulePlayer({
 
       {/* Debug overlay panel */}
       {debugOpen && (
-        <div className="fixed bottom-20 right-6 z-[9999] w-[520px] max-h-[72vh] overflow-auto bg-card border p-4 rounded-lg shadow-2xl text-xs">
+        <div 
+          className="fixed bottom-20 right-6 z-[9999] w-[520px] max-h-[72vh] overflow-auto border p-4 shadow-2xl font-mono text-xs"
+          style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
+        >
           <div className="flex items-center justify-between mb-2">
             <strong>Progress API Debug</strong>
             <div className="flex items-center gap-2">
@@ -935,42 +977,46 @@ export function ModulePlayer({
                 onClick={() => {
                   try { navigator.clipboard.writeText(JSON.stringify(debugInfo || {}, null, 2)); } catch {};
                 }}
-                className="px-2 py-1 bg-secondary rounded"
+                className="px-2 py-1 border"
+                style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
               >Copy</button>
               <button
                 onClick={() => setDebugOpen(false)}
-                className="px-2 py-1 bg-secondary rounded"
+                className="px-2 py-1 border"
+                style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
               >Close</button>
             </div>
           </div>
           <div className="mb-3">
-            <div className="font-semibold">Last request</div>
-            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{JSON.stringify(debugInfo?.requestBody, null, 2)}</pre>
+            <div className="font-bold">Last request</div>
+            <pre className="whitespace-pre-wrap break-words p-2 mt-1" style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.textMuted }}>{JSON.stringify(debugInfo?.requestBody, null, 2)}</pre>
           </div>
           <div className="mb-3">
-            <div className="font-semibold">Response status</div>
-            <div className="mt-1">{debugInfo?.responseStatus ?? 'N/A'} ({debugInfo?.fetchDuration ?? 0}ms)</div>
+            <div className="font-bold">Response status</div>
+            <div className="mt-1" style={{ color: BRUTALIST.textMuted }}>{debugInfo?.responseStatus ?? 'N/A'} ({debugInfo?.fetchDuration ?? 0}ms)</div>
           </div>
           <div className="mb-3">
-            <div className="font-semibold">Raw response</div>
-            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{debugInfo?.responseText ?? 'N/A'}</pre>
+            <div className="font-bold">Raw response</div>
+            <pre className="whitespace-pre-wrap break-words p-2 mt-1" style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.textMuted }}>{debugInfo?.responseText ?? 'N/A'}</pre>
           </div>
           <div className="mb-3">
-            <div className="font-semibold">Server debug</div>
-            <pre className="whitespace-pre-wrap break-words bg-muted p-2 rounded mt-1">{JSON.stringify(debugInfo?.serverDebug ?? debugInfo?.parsed?.debug ?? {}, null, 2)}</pre>
+            <div className="font-bold">Server debug</div>
+            <pre className="whitespace-pre-wrap break-words p-2 mt-1" style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.textMuted }}>{JSON.stringify(debugInfo?.serverDebug ?? debugInfo?.parsed?.debug ?? {}, null, 2)}</pre>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <Button
-              variant="ghost"
+            <button
               onClick={() => handleComplete()}
-            >Retry</Button>
-            <Button
-              variant="ghost"
+              className="px-3 py-1 border"
+              style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
+            >Retry</button>
+            <button
               onClick={() => {
                 setDebugInfo(null);
                 setDebugOpen(false);
               }}
-            >Clear</Button>
+              className="px-3 py-1 border"
+              style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border, color: BRUTALIST.text }}
+            >Clear</button>
           </div>
         </div>
       )}
