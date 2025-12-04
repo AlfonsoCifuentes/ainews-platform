@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from '@/i18n';
-import Image from 'next/image';
+import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 import { Clock, RefreshCw } from 'lucide-react';
 
 interface DigestArticle {
@@ -94,18 +94,17 @@ export function TodayDigestRail({ articles, locale }: TodayDigestRailProps) {
               {/* Image Layer */}
               <div className="absolute inset-0 z-0">
                 {article.image ? (
-                  <Image
+                  <CCTVGlitchImage
                     src={article.image}
                     alt={article.title}
-                    fill
-                    className="w-full h-full object-cover opacity-60 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700 grayscale"
                     sizes="(max-width: 768px) 280px, 320px"
                     unoptimized={isDataUrl(article.image)}
+                    className="opacity-60 group-hover:opacity-80"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-[#1F1F1F] to-[#0A0A0A]" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-[5]" />
               </div>
 
               {/* Content Layer */}

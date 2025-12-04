@@ -9,7 +9,7 @@ import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { type Locale } from '@/i18n';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 import { MiniShareButtons } from '@/components/shared/ShareButtons';
-import Image from 'next/image';
+import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 // Lazy load ArticleModal (heavy component with animations)
@@ -149,12 +149,10 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
         >
           <article className="relative border border-[#1F1F1F] bg-[#0A0A0A]">
             <div className="relative w-full" style={{ aspectRatio: '16 / 9', minHeight: '500px', overflow: 'hidden' }}>
-              <Image
+              <CCTVGlitchImage
                 src={hero.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"%3E%3Crect fill="%23111827" width="1200" height="630"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="48" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
                 alt={getLocalizedString(hero, 'title', locale)}
-                fill
                 priority
-                className="object-cover grayscale group-hover:grayscale-0"
                 sizes="100vw"
                 unoptimized={!hero.image_url}
               />
@@ -208,15 +206,13 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
             >
               <article className="relative h-full overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] hover:border-[#EAEAEA]">
                 <div className="relative h-56 overflow-hidden">
-                  <Image
+                  <CCTVGlitchImage
                     src={getImageWithFallback(
                       article.image_url,
                       getLocalizedString(article, 'title', locale),
                       article.category
                     )}
                     alt={getLocalizedString(article, 'title', locale)}
-                    fill
-                    className="object-cover grayscale group-hover:grayscale-0"
                     sizes="(max-width: 768px) 100vw, 33vw"
                     unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                   />
@@ -272,15 +268,13 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
               >
                 <article className="relative flex h-full flex-col overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] hover:border-[#EAEAEA]">
                   <div className={`relative overflow-hidden ${isLarge ? 'flex-[2] min-h-0' : 'h-48'}`}>
-                    <Image
+                    <CCTVGlitchImage
                       src={getImageWithFallback(
                         article.image_url,
                         getLocalizedString(article, 'title', locale),
                         article.category
                       )}
                       alt={getLocalizedString(article, 'title', locale)}
-                      fill
-                      className="object-cover grayscale group-hover:grayscale-0"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                     />

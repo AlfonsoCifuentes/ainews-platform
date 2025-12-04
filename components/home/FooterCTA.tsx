@@ -25,8 +25,8 @@ interface FooterCTAProps {
  */
 export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }: FooterCTAProps) {
   return (
-    <section className="py-32 border-t border-[#1F1F1F]">
-      <div className="max-w-[1000px] mx-auto px-6 lg:px-12">
+    <section className="py-32 border-t border-[#1F1F1F] relative z-20 bg-[#020309]">
+      <div className="max-w-[1000px] mx-auto px-6 lg:px-12 relative z-10">
         {/* Brutalist Title */}
         <motion.h2
           initial={{ opacity: 0, y: 30 }}
@@ -54,10 +54,10 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="mt-12 flex flex-col sm:flex-row items-start gap-4"
+          className="mt-12 flex flex-col sm:flex-row items-start gap-4 relative z-10"
         >
           {/* Primary CTA */}
-          <Link href={primaryCta.href}>
+          <Link href={primaryCta.href} className="relative z-10">
             <motion.button
               whileHover={{ x: 5 }}
               whileTap={{ scale: 0.98 }}
@@ -70,7 +70,7 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
 
           {/* Secondary CTA */}
           {secondaryCta && (
-            <Link href={secondaryCta.href}>
+            <Link href={secondaryCta.href} className="relative z-10">
               <motion.button
                 whileHover={{ borderColor: '#EAEAEA' }}
                 whileTap={{ scale: 0.98 }}
