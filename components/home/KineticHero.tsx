@@ -176,24 +176,24 @@ export function KineticHero({
         </div>
       </div>
 
-      {/* Stats strip at bottom */}
+      {/* Stats strip at bottom - below buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1 }}
-        className="absolute bottom-12 left-6 md:left-12 flex gap-12 font-mono text-sm"
+        className="mt-16 md:mt-20 flex gap-8 md:gap-12 font-mono text-sm px-6 md:px-12 pb-8"
       >
         <div>
-          <span className="text-[#888888] block text-xs uppercase tracking-widest mb-1">Sources</span>
-          <span className="text-white text-2xl font-bold">{stats.sources}</span>
+          <span className="text-[#888888] block text-[10px] uppercase tracking-widest mb-1">Sources</span>
+          <span className="text-white text-xl md:text-2xl font-bold">{stats.sources}</span>
         </div>
         <div>
-          <span className="text-[#888888] block text-xs uppercase tracking-widest mb-1">Freshness</span>
-          <span className="text-white text-2xl font-bold">{stats.freshnessMinutes}m</span>
+          <span className="text-[#888888] block text-[10px] uppercase tracking-widest mb-1">Freshness</span>
+          <span className="text-white text-xl md:text-2xl font-bold">{stats.freshnessMinutes}m</span>
         </div>
         <div>
-          <span className="text-[#888888] block text-xs uppercase tracking-widest mb-1">Courses</span>
-          <span className="text-white text-2xl font-bold">{stats.courses}+</span>
+          <span className="text-[#888888] block text-[10px] uppercase tracking-widest mb-1">Courses</span>
+          <span className="text-white text-xl md:text-2xl font-bold">{stats.courses}+</span>
         </div>
       </motion.div>
     </section>
