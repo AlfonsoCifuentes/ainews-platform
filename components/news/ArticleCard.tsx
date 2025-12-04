@@ -6,7 +6,7 @@ import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
-import { GlitchImage } from '@/components/news/GlitchImage';
+import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
@@ -67,7 +67,7 @@ export function ArticleCard({
     >
       {/* Image with Glitch Effect */}
       <div className="relative h-48 w-full overflow-hidden">
-        <GlitchImage
+        <CCTVGlitchImage
           src={imageUrl}
           alt={title}
           priority={priority}

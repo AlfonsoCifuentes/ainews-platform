@@ -11,7 +11,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Clock, TrendingUp, Bookmark, Share2, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { getLocalizedField } from '@/lib/utils/i18n';
-import { GlitchImage } from '@/components/news/GlitchImage';
+import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 import type { INewsArticle } from '@/lib/types/news';
 
 interface EnhancedArticleCardProps {
@@ -110,7 +110,7 @@ export default function EnhancedArticleCard({
         {/* Image section with glitch effect */}
         <Link href={`/${locale}/news/${article.id}`}>
           <div className="relative aspect-video overflow-hidden">
-            <GlitchImage
+            <CCTVGlitchImage
               src={article.image_url || '/placeholder-news.jpg'}
               alt={title}
               priority={priority}
