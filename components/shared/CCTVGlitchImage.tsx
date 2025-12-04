@@ -196,12 +196,12 @@ export function CCTVGlitchImage({
         />
       </div>
 
-      {/* --- AGGRESSIVE GLITCH LAYERS - 3 RGB channels + white flash + tear lines --- */}
+      {/* --- GLITCH LAYERS - 2 RGB channels with exclusion blend to prevent burn --- */}
       {isGlitching && (
         <>
-          {/* Red Channel Shift - visible displacement without burn */}
+          {/* Red/Magenta Channel Shift */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-75 animate-glitch-1 pointer-events-none z-10"
+            className="absolute inset-0 mix-blend-exclusion opacity-60 animate-glitch-1 pointer-events-none z-10"
             aria-hidden="true"
           >
             <Image
@@ -211,27 +211,12 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(-50deg) saturate(250%)' }}
-            />
-          </div>
-          {/* Green Channel Shift - full RGB split */}
-          <div 
-            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-3 pointer-events-none z-20"
-            aria-hidden="true"
-          >
-            <Image
-              src={src}
-              alt=""
-              fill
-              className="object-cover"
-              sizes={sizes}
-              unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(90deg) saturate(250%)' }}
+              style={{ filter: 'brightness(110%) saturate(150%) hue-rotate(-30deg)' }}
             />
           </div>
           {/* Cyan/Blue Channel Shift */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-75 animate-glitch-2 pointer-events-none z-30"
+            className="absolute inset-0 mix-blend-exclusion opacity-60 animate-glitch-2 pointer-events-none z-20"
             aria-hidden="true"
           >
             <Image
@@ -241,18 +226,18 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(180deg) saturate(250%)' }}
+              style={{ filter: 'brightness(110%) saturate(150%) hue-rotate(180deg)' }}
             />
           </div>
-          {/* White Flash Overlay - reduced intensity */}
-          <div className="absolute inset-0 bg-white/25 mix-blend-overlay animate-white-flash pointer-events-none z-40" />
+          {/* Noise/Static Overlay */}
+          <div className="absolute inset-0 bg-white/15 mix-blend-overlay animate-white-flash pointer-events-none z-30" />
           {/* Horizontal Tear Lines */}
           <div 
-            className="absolute inset-0 pointer-events-none z-50 animate-tear"
+            className="absolute inset-0 pointer-events-none z-40 animate-tear"
             style={{
               background: `
-                linear-gradient(transparent 0%, transparent 45%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.2) 46%, transparent 46%),
-                linear-gradient(transparent 0%, transparent 78%, rgba(0,255,255,0.25) 78%, rgba(0,255,255,0.25) 79%, transparent 79%)
+                linear-gradient(transparent 0%, transparent 45%, rgba(0,255,255,0.3) 45%, rgba(0,255,255,0.3) 46%, transparent 46%),
+                linear-gradient(transparent 0%, transparent 78%, rgba(255,0,100,0.3) 78%, rgba(255,0,100,0.3) 79%, transparent 79%)
               `
             }}
           />
@@ -262,12 +247,10 @@ export function CCTVGlitchImage({
       {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
       {isHovering && (
         <div className="absolute inset-0 pointer-events-none z-50">
-          {/* Scanlines - subtle */}
-          <div className="absolute inset-0 animate-scanlines opacity-20" />
-          {/* Vignette - lighter */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,0,0,0.4)_100%)]" />
-          {/* Subtle tube glow */}
-          <div className="absolute inset-0 shadow-[inset_0_0_15px_rgba(0,255,0,0.08)]" />
+          {/* Scanlines - very subtle */}
+          <div className="absolute inset-0 animate-scanlines opacity-15" />
+          {/* Vignette - subtle */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_70%,rgba(0,0,0,0.3)_100%)]" />
         </div>
       )}
     </div>
