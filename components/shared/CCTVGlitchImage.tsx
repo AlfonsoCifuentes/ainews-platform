@@ -80,9 +80,42 @@ export function CCTVGlitchImage({
       {/* Glitch Layers - Only visible during glitch */}
       {isGlitching && (
         <>
-          <div className="cctv-glitch-layer cctv-glitch-r" />
-          <div className="cctv-glitch-layer cctv-glitch-g" />
-          <div className="cctv-glitch-layer cctv-glitch-b" />
+          <div className="cctv-glitch-layer cctv-glitch-r" aria-hidden>
+            <Image
+              src={src}
+              alt=""
+              fill
+              className="object-cover"
+              sizes={sizes}
+              unoptimized={unoptimized}
+              priority={priority}
+              style={{ filter: 'hue-rotate(-60deg) saturate(160%) brightness(110%)' }}
+            />
+          </div>
+          <div className="cctv-glitch-layer cctv-glitch-g" aria-hidden>
+            <Image
+              src={src}
+              alt=""
+              fill
+              className="object-cover"
+              sizes={sizes}
+              unoptimized={unoptimized}
+              priority={priority}
+              style={{ filter: 'hue-rotate(60deg) saturate(160%) brightness(110%)' }}
+            />
+          </div>
+          <div className="cctv-glitch-layer cctv-glitch-b" aria-hidden>
+            <Image
+              src={src}
+              alt=""
+              fill
+              className="object-cover"
+              sizes={sizes}
+              unoptimized={unoptimized}
+              priority={priority}
+              style={{ filter: 'hue-rotate(180deg) saturate(160%) brightness(110%)' }}
+            />
+          </div>
           <div className="cctv-tear" />
         </>
       )}
@@ -162,10 +195,9 @@ export function CCTVGlitchImage({
         .cctv-glitch-layer {
           position: absolute;
           inset: 0;
-          background-size: cover;
-          background-position: center;
           pointer-events: none;
-          opacity: 0.5;
+          opacity: 0.6;
+          overflow: hidden;
         }
 
         .cctv-glitch-r {
