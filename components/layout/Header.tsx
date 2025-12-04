@@ -71,42 +71,42 @@ export function Header() {
 
   return (
     <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 px-6 md:px-12 py-6 transition-all duration-500 ${
-        scrolled ? 'bg-black/80 backdrop-blur-lg border-b border-white/5 py-4' : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-3 transition-all duration-500 ${
+        scrolled ? 'bg-black/90 backdrop-blur-lg border-b border-white/5 py-2' : 'bg-transparent'
       }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.8 }}
     >
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {/* Logo */}
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        {/* Left: Logo */}
         <Link 
           href="/" 
-          className="group flex items-center gap-3 cursor-pointer"
+          className="flex items-center gap-2 shrink-0"
           onClick={closeMobileMenu}
         >
-          <div className="relative w-8 h-8">
+          <div className="relative w-6 h-6">
             <Image
               src="/logos/thotnet-core-white-only.svg"
               alt="ThotNet Core Logo"
               fill
-              sizes="32px"
+              sizes="24px"
               className="object-contain"
               priority
             />
           </div>
-          <span className="font-bold text-xl tracking-tighter text-white">THOTNET</span>
+          <span className="font-bold text-base tracking-tight text-white hidden sm:block">THOTNET</span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#888]">
+        {/* Center: Navigation */}
+        <nav className="hidden md:flex items-center gap-6 text-xs font-mono uppercase tracking-wider text-[#888]">
           {NAV_ITEMS.map((item) => {
             const isActive = mapSegmentToKey(activeSegment) === item.key;
             return (
               <Link
                 key={item.key}
                 href={item.href}
-                className={`hover:text-white transition-colors ${isActive ? 'text-white' : ''}`}
+                className={`hover:text-white transition-colors whitespace-nowrap ${isActive ? 'text-white' : ''}`}
               >
                 {t(item.key)}
               </Link>
@@ -114,39 +114,37 @@ export function Header() {
           })}
         </nav>
 
-        {/* Right Side */}
-        <div className="flex items-center gap-6">
+        {/* Right: Search + Auth + Language */}
+        <div className="flex items-center gap-3 shrink-0">
           <Search locale={locale} />
           
           {profile ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <NotificationBell />
               <UserAvatarMenu profile={profile} locale={locale} />
             </div>
           ) : (
             <button 
               onClick={handleLoginClick}
-              className="hidden md:block px-5 py-2 border border-white/20 text-white text-xs font-mono tracking-widest hover:bg-white hover:text-black transition-all"
+              className="hidden md:block px-4 py-1.5 border border-white/20 text-white text-[10px] font-mono tracking-widest hover:bg-white hover:text-black transition-all"
             >
               LOGIN
             </button>
           )}
           
-          {/* Language Switcher - Desktop */}
           <div className="hidden sm:flex">
             <LanguageSwitcher />
           </div>
           
-          {/* Mobile Menu */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden"
+            className="md:hidden p-1"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
-              <X className="w-6 h-6 text-white" />
+              <X className="w-5 h-5 text-white" />
             ) : (
-              <Menu className="w-6 h-6 text-white" />
+              <Menu className="w-5 h-5 text-white" />
             )}
           </button>
         </div>

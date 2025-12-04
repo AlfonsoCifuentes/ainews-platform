@@ -57,27 +57,27 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
           className="mt-12 flex flex-col sm:flex-row items-start gap-4 relative z-10"
         >
           {/* Primary CTA */}
-          <Link href={primaryCta.href} className="relative z-10">
-            <motion.button
+          <Link href={primaryCta.href} className="inline-block">
+            <motion.span
               whileHover={{ x: 5 }}
               whileTap={{ scale: 0.98 }}
-              className="group flex items-center gap-4 px-8 py-4 bg-[#EAEAEA] text-[#0A0A0A] font-mono font-semibold text-sm tracking-wider uppercase transition-all duration-300 hover:bg-white"
+              className="group inline-flex items-center gap-3 px-6 py-3 bg-[#EAEAEA] text-[#0A0A0A] font-mono font-semibold text-xs tracking-wider uppercase transition-all duration-300 hover:bg-white"
             >
-              {primaryCta.label}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </motion.button>
+              <span>{primaryCta.label}</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform shrink-0" />
+            </motion.span>
           </Link>
 
           {/* Secondary CTA */}
           {secondaryCta && (
-            <Link href={secondaryCta.href} className="relative z-10">
-              <motion.button
+            <Link href={secondaryCta.href} className="inline-block">
+              <motion.span
                 whileHover={{ borderColor: '#EAEAEA' }}
                 whileTap={{ scale: 0.98 }}
-                className="px-8 py-4 border border-[#333333] text-[#EAEAEA] font-mono text-sm tracking-wider uppercase hover:bg-[#1F1F1F] transition-all duration-300"
+                className="inline-flex items-center justify-center px-6 py-3 border border-[#333333] text-[#EAEAEA] font-mono text-xs tracking-wider uppercase hover:bg-[#1F1F1F] transition-all duration-300"
               >
                 {secondaryCta.label}
-              </motion.button>
+              </motion.span>
             </Link>
           )}
         </motion.div>

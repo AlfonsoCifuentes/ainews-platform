@@ -38,46 +38,39 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
 
   return (
     <div className="relative group">
-      {/* Avatar Button */}
+      {/* Avatar Button - Compact */}
       <motion.button
-        whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className="relative flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-1.5 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-black/30"
+        className="relative flex items-center gap-1.5 border border-white/10 bg-black/40 px-2 py-1 backdrop-blur-xl transition-all hover:border-white/20"
       >
         {/* Avatar */}
-        <div className="relative h-7 w-7 overflow-hidden rounded-md bg-gradient-to-br from-primary/20 to-purple-600/20">
+        <div className="relative h-6 w-6 overflow-hidden bg-white/10">
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
               alt={profile.display_name || 'User'}
-              width={28}
-              height={28}
+              width={24}
+              height={24}
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary">
+            <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
               {(profile.display_name || 'U')[0].toUpperCase()}
             </div>
           )}
-          {/* Level Badge */}
-          <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-primary px-1 py-0 text-[10px] font-bold leading-tight">
-            {currentLevel}
-          </div>
         </div>
         {/* Hidden marker to target animation */}
         <div className="user-avatar-target absolute inset-0 pointer-events-none" aria-hidden />
 
-        {/* Name (desktop only) */}
-        <div className="hidden md:block">
-          <p className="text-xs font-semibold">{profile.display_name || 'User'}</p>
-          <p className="text-[10px] text-muted-foreground">
-            Lvl {currentLevel} • {profile.total_xp || 0} XP
-          </p>
+        {/* Compact info */}
+        <div className="hidden lg:flex items-center gap-1 text-[10px] font-mono text-[#888]">
+          <span className="text-white">{profile.display_name?.split(' ')[0] || 'User'}</span>
+          <span>L{currentLevel}</span>
         </div>
 
         {/* Dropdown Icon */}
         <svg
-          className="h-4 w-4 text-muted-foreground transition-transform group-hover:rotate-180"
+          className="h-3 w-3 text-[#888] transition-transform group-hover:rotate-180"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
