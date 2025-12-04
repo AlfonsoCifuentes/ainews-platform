@@ -19,6 +19,13 @@ const config: Config = {
   	},
   	extend: {
   		colors: {
+  			void: '#020309',
+  			surface: '#0A0A0A',
+  			'surface-hover': '#121212',
+  			'off-white': '#EAEAEA',
+  			ghost: '#444444',
+  			subtle: '#1F1F1F',
+  			highlight: '#333333',
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -60,10 +67,14 @@ const config: Config = {
   				'5': 'hsl(var(--chart-5))'
   			}
   		},
+  		fontFamily: {
+  			sans: ['Inter', 'sans-serif'],
+  			mono: ['JetBrains Mono', 'monospace'],
+  		},
   		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			lg: '0',
+  			md: '0',
+  			sm: '0'
   		},
   		keyframes: {
   			'accordion-down': {

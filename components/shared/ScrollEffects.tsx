@@ -1,80 +1,14 @@
 "use client";
 
-import { motion, useMotionValueEvent, useScroll, useTransform } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
-
-const SEGMENT_BREAKPOINTS = [
-  { minWidth: 1600, segments: 48 },
-  { minWidth: 1280, segments: 36 },
-  { minWidth: 1024, segments: 30 },
-  { minWidth: 768, segments: 24 },
-  { minWidth: 0, segments: 18 },
-];
-
-const DEFAULT_SEGMENTS = 24;
-
-const getViewportWidth = () => (typeof window === 'undefined' ? 1440 : window.innerWidth);
-
-const resolveSegmentCount = (width = getViewportWidth()) => {
-  const match = SEGMENT_BREAKPOINTS.find((bp) => width >= bp.minWidth);
-  return match ? match.segments : DEFAULT_SEGMENTS;
-};
-
-const resolveBlockSize = (segments: number) => {
-  if (segments >= 40) return 8;
-  if (segments >= 30) return 10;
-  if (segments >= 24) return 12;
-  return 14;
-};
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 /**
- * Scroll Progress Indicator - Shows reading progress at top of page
+ * Scroll Progress Indicator - DISABLED (brutalist redesign)
+ * Previously showed segmented reading progress at top of page
  */
 export function ScrollProgress() {
-  const { scrollYProgress } = useScroll();
-  const [segmentCount, setSegmentCount] = useState<number>(() => resolveSegmentCount());
-  const [activeSegments, setActiveSegments] = useState(0);
-
-  useEffect(() => {
-    const handleResize = () => setSegmentCount(resolveSegmentCount());
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    setActiveSegments((current) => Math.min(current, segmentCount));
-  }, [segmentCount]);
-
-  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    const filled = Math.min(segmentCount, Math.max(0, Math.round(latest * segmentCount)));
-    setActiveSegments(filled);
-  });
-
-  const segments = useMemo(() => Array.from({ length: segmentCount }), [segmentCount]);
-  const blockSize = resolveBlockSize(segmentCount);
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-6 z-50 hidden select-none justify-center sm:flex">
-      <div className="flex w-full max-w-4xl items-center justify-center gap-1 rounded-full border border-white/10 bg-white/5 px-6 py-3 backdrop-blur-xl">
-        {segments.map((_, index) => (
-          <motion.span
-            key={`${segmentCount}-${index}`}
-            initial={false}
-            animate={{
-              opacity: index < activeSegments ? 1 : 0.2,
-              backgroundColor: index < activeSegments ? 'rgb(255,255,255)' : 'rgba(255,255,255,0.18)',
-              boxShadow: index < activeSegments ? '0 0 12px rgba(255,255,255,0.45)' : 'none',
-            }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="rounded-[2px]"
-            style={{ width: blockSize, height: blockSize }}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
-    </div>
-  );
+  return null;
 }
 
 /**

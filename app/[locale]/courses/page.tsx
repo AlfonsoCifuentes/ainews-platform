@@ -26,7 +26,7 @@ function isLocale(value: string): value is Locale {
 
 export default async function CoursesPage({ params, searchParams }: CoursesPageProps) {
   const { locale } = await params;
-  await searchParams;
+  const resolvedSearchParams = await searchParams;
 
   if (!isLocale(locale)) {
     throw new Error('Invalid locale received for courses page.');
@@ -35,14 +35,21 @@ export default async function CoursesPage({ params, searchParams }: CoursesPageP
   setRequestLocale(locale);
 
   const tCourses = await getTranslations({ locale, namespace: 'courses' });
+  const generateParam = resolvedSearchParams?.generate;
+  const initialTopic = Array.isArray(generateParam)
+    ? generateParam[0] ?? ''
+    : typeof generateParam === 'string'
+      ? generateParam
+      : '';
 
   return (
     <CoursesPageClient 
       title={tCourses('title')}
       subtitle={tCourses('catalog.title')}
     >
-      <CourseGeneratorWrapper
+        <CourseGeneratorWrapper
           locale={locale}
+          initialTopic={initialTopic}
           translations={{
             title: tCourses('generator.title'),
             subtitle: tCourses('generator.subtitle'),

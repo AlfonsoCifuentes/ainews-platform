@@ -10,7 +10,6 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { ToastProvider } from '@/components/shared/ToastProvider';
-import { ScrollProgress } from '@/components/shared/ScrollEffects';
 import { DailyLoginTracker } from '@/components/gamification/DailyLoginTracker';
 import { GamificationListeners } from '@/components/gamification/GamificationListeners';
 import { XPNotificationManager } from '@/components/gamification/XPFloatingNotification';
@@ -198,34 +197,7 @@ console.log('[CookieNorm] Starting normalization...');
             <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
               <BookModeProvider>
                 <OAuthCallbackHandler />
-                <div className="relative flex min-h-screen flex-col">
-                  {/* Scroll Progress Indicator */}
-                  <ScrollProgress />
-
-                  {/* Structural frame */}
-                  <div
-                    className="pointer-events-none fixed inset-5 hidden lg:block rounded-[40px] border border-white/5 opacity-40"
-                    aria-hidden="true"
-                  />
-                  <div
-                    className="pointer-events-none fixed inset-x-8 top-24 hidden lg:block h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                    aria-hidden="true"
-                  />
-                  <div
-                    className="pointer-events-none fixed left-6 top-6 z-40 hidden md:flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.35em] text-white/50"
-                    aria-hidden="true"
-                  >
-                    <span className="h-px w-8 bg-white/30" />
-                    Live Feed · ThotNet Core
-                  </div>
-                  <div
-                    className="pointer-events-none fixed right-6 bottom-6 z-40 hidden md:flex flex-col items-end text-[10px] font-mono uppercase tracking-[0.35em] text-white/40"
-                    aria-hidden="true"
-                  >
-                    <span className="h-px w-12 bg-white/20 mb-2" />
-                    Systems Nominal
-                  </div>
-
+                <div className="relative flex min-h-screen flex-col bg-[#020309]">
                   <Header />
                   <main className="relative z-10 flex-1">{children}</main>
                   <Footer />

@@ -9,59 +9,94 @@ export function Footer() {
   const t = useTranslations('common');
   const { isBookMode } = useBookMode();
 
-  // Hide footer in book mode
-  if (isBookMode) {
-    return null;
-  }
+  if (isBookMode) return null;
 
   return (
-    <footer className="border-t border-white/5 bg-black/40 backdrop-blur-2xl">
-      <div className="container py-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative w-8 h-8 drop-shadow-[0_0_15px_rgba(59,130,246,0.45)]">
-              <Image
-                src="/logos/thotnet-core-white-only.svg"
-                alt="ThotNet Core Logo"
-                fill
-                sizes="32px"
-                className="object-contain"
-              />
+    <footer className="bg-black pt-24 pb-12 border-t border-[#1F1F1F] relative z-20">
+      <div className="max-w-7xl mx-auto px-6 md:px-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-24">
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="relative w-8 h-8">
+                <Image
+                  src="/logos/thotnet-core-white-only.svg"
+                  alt="ThotNet Core Logo"
+                  fill
+                  sizes="32px"
+                  className="object-contain"
+                />
+              </div>
+              <span className="font-bold text-xl tracking-tighter text-white">THOTNET</span>
             </div>
-            <div>
-              <p className="text-lg font-semibold text-white">ThotNet Core</p>
-              <p className="text-sm text-muted-foreground">
-                {t('footer.builtWith')}
-              </p>
-            </div>
+            <p className="text-[#888] text-sm leading-relaxed max-w-xs">
+              {t('footer.builtWith')}
+            </p>
+          </div>
+          
+          <div>
+            <h4 className="text-white font-bold mb-6">PLATFORM</h4>
+            <ul className="space-y-4 text-sm text-[#888]">
+              <li>
+                <Link href="/news" className="hover:text-white transition-colors">
+                  {t('nav.news')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/courses" className="hover:text-white transition-colors">
+                  {t('nav.courses')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/chat" className="hover:text-white transition-colors">
+                  {t('nav.chat')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/kg" className="hover:text-white transition-colors">
+                  Knowledge Graph
+                </Link>
+              </li>
+            </ul>
           </div>
 
-          <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <Link href="/news" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
-              {t('nav.news')}
-            </Link>
-            <Link href="/courses" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
-              {t('nav.courses')}
-            </Link>
-            <Link href="/chat" className="rounded-full px-3 py-1 transition-colors hover:bg-white/10 hover:text-white">
-              {t('nav.chat')}
-            </Link>
-          </nav>
+          <div>
+            <h4 className="text-white font-bold mb-6">LEGAL</h4>
+            <ul className="space-y-4 text-sm text-[#888]">
+              <li className="hover:text-white cursor-pointer transition-colors">Privacy Policy</li>
+              <li className="hover:text-white cursor-pointer transition-colors">Terms of Service</li>
+              <li className="hover:text-white cursor-pointer transition-colors">Cookie Settings</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-white font-bold mb-6">CONNECT</h4>
+            <ul className="space-y-4 text-sm text-[#888]">
+              <li>
+                <a href="https://twitter.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+                  Twitter / X
+                </a>
+              </li>
+              <li>
+                <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+                  GitHub
+                </a>
+              </li>
+              <li>
+                <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+                  LinkedIn
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
-
-        <div className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} Alfonso Cifuentes Alonso. Todos los derechos reservados.</p>
-          <div className="flex items-center gap-4">
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">
-              GitHub
-            </a>
-            <a href="https://twitter.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">
-              X
-            </a>
-            <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">
-              LinkedIn
-            </a>
-          </div>
+        
+        <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/5">
+          <p className="text-xs text-[#888] font-mono uppercase tracking-widest">
+            © {new Date().getFullYear()} ThotNet Core. All Systems Operational.
+          </p>
+          <p className="text-xs text-[#888] font-mono mt-4 md:mt-0">
+            DESIGNED BY ALFONSO CIFUENTES
+          </p>
         </div>
       </div>
     </footer>

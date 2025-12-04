@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 import { logger } from '@/lib/utils/logging';
 import Image from 'next/image';
@@ -65,7 +64,6 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
       logger.info('AILeaderboard', 'Starting fetch leaderboard');
       setIsLoading(true);
       setError(null);
-      // First try to fetch from our API endpoint
       const response = await fetch('/api/ai-leaderboard');
       logger.debug('AILeaderboard', 'API response received', { status: response.status, ok: response.ok });
       
@@ -81,7 +79,6 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     } catch (err) {
       logger.error('AILeaderboard', 'Error fetching leaderboard', err);
       console.error('Error fetching leaderboard:', err);
-      // Use fallback data
       const fallbackModels = [
         { rank: 1, name: 'GPT-4o', provider: 'OpenAI', performance_score: 98.5, description: 'Most advanced reasoning' },
         { rank: 2, name: 'Claude 3.5 Sonnet', provider: 'Anthropic', performance_score: 97.8, description: 'Excellent analysis' },
@@ -107,8 +104,8 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
     return (
       <div className="flex justify-center items-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{texts.loading}</p>
+          <div className="h-12 w-12 border-2 border-[#EAEAEA] border-t-transparent mx-auto mb-4 animate-spin"></div>
+          <p className="text-[#888888] font-mono text-sm">{texts.loading}</p>
         </div>
       </div>
     );
@@ -117,25 +114,20 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
   if (error && models.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{texts.error}</p>
+        <p className="text-[#888888] font-mono">{texts.error}</p>
       </div>
     );
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="w-full py-6 px-4 max-h-[600px] overflow-visible"
-    >
+    <section className="w-full py-6 px-4 max-h-[600px] overflow-visible border border-[#1F1F1F] bg-[#0A0A0A]">
       {/* Header */}
       <div className="mb-6 text-center">
-        <h3 className="text-xl md:text-2xl font-bold mb-1 flex items-center justify-center gap-2">
-          <TrendingUp className="w-5 h-5 text-primary" />
+        <h3 className="text-sm font-mono uppercase tracking-widest text-[#EAEAEA] mb-1 flex items-center justify-center gap-2">
+          <TrendingUp className="w-4 h-4" />
           {texts.title}
         </h3>
-        <p className="text-xs text-muted-foreground">{texts.subtitle}</p>
+        <p className="text-xs font-mono text-[#888888]">{texts.subtitle}</p>
       </div>
 
       {/* Podium - Compact version */}
@@ -144,19 +136,11 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
         <div className="flex flex-col md:flex-row md:justify-center md:items-end md:gap-2 lg:gap-3">
           {/* Silver (2nd) - Hidden on mobile, shows on desktop */}
           {models[1] && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto"
-            >
+            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto">
               {/* Card */}
-              <motion.div
-                className="w-full md:w-24 lg:w-28 bg-gradient-to-b from-slate-700 to-slate-800 rounded-xl p-2 md:p-3 border border-slate-600 text-center shadow-lg"
-                whileHover={{ translateY: -2 }}
-              >
+              <div className="w-full md:w-24 lg:w-28 border border-[#1F1F1F] bg-[#020309] p-2 md:p-3 text-center">
                 <p className="text-2xl md:text-3xl mb-1">🥈</p>
-                <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center bg-white/10 rounded-lg overflow-hidden">
+                <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center border border-[#1F1F1F] bg-[#0A0A0A] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[1].provider)}
                     alt={models[1].provider}
@@ -165,36 +149,28 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     className="object-contain w-8 h-8 md:w-10 md:h-10"
                   />
                 </div>
-                <h3 className="font-bold text-xs md:text-sm text-white leading-tight truncate">{models[1].name}</h3>
-                <p className="text-[10px] text-slate-300 mt-0.5 truncate">{models[1].provider}</p>
-                <p className="text-sm md:text-base font-bold text-blue-400 mt-1">{models[1].performance_score}%</p>
-              </motion.div>
+                <h3 className="font-bold font-mono text-xs md:text-sm text-[#EAEAEA] leading-tight truncate">{models[1].name}</h3>
+                <p className="text-[10px] font-mono text-[#888888] mt-0.5 truncate">{models[1].provider}</p>
+                <p className="text-sm md:text-base font-bold font-mono text-[#EAEAEA] mt-1">{models[1].performance_score}%</p>
+              </div>
               
-              {/* Position number - simplified */}
-              <p className="font-bold text-white text-xl mt-2">2</p>
-            </motion.div>
+              {/* Position number */}
+              <p className="font-bold font-mono text-[#EAEAEA] text-xl mt-2">2</p>
+            </div>
           )}
 
           {/* Gold (1st) - Full width mobile, centered desktop */}
           {models[0] && (
-            <motion.div
-              initial={{ opacity: 0, y: -30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex flex-col items-center w-full md:w-auto flex-shrink-0 md:z-10"
-            >
-              {/* Crown - positioned behind top of card */}
+            <div className="flex flex-col items-center w-full md:w-auto flex-shrink-0 md:z-10">
+              {/* Crown */}
               <div className="relative w-20 h-6 md:w-24 md:h-8 flex items-center justify-center -mb-1 md:-mb-2 z-10">
-                <p className="text-3xl md:text-4xl filter drop-shadow-lg">👑</p>
+                <p className="text-3xl md:text-4xl">👑</p>
               </div>
               
               {/* Larger card */}
-              <motion.div
-                className="w-full md:w-28 lg:w-32 bg-gradient-to-b from-yellow-600 to-amber-700 rounded-xl p-3 md:p-4 border-2 border-yellow-500 text-center shadow-2xl relative"
-                whileHover={{ translateY: -3 }}
-              >
+              <div className="w-full md:w-28 lg:w-32 border-2 border-[#EAEAEA] bg-[#0A0A0A] p-3 md:p-4 text-center relative">
                 <p className="text-4xl md:text-5xl mb-2">🥇</p>
-                <div className="relative w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 flex items-center justify-center bg-white/20 rounded-lg overflow-hidden">
+                <div className="relative w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 flex items-center justify-center border border-[#1F1F1F] bg-[#020309] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[0].provider)}
                     alt={models[0].provider}
@@ -203,31 +179,23 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     className="object-contain w-12 h-12 md:w-16 md:h-16"
                   />
                 </div>
-                <h3 className="font-bold text-sm md:text-base text-white leading-tight truncate">{models[0].name}</h3>
-                <p className="text-[10px] text-yellow-100 mt-0.5 truncate">{models[0].provider}</p>
-                <p className="text-base md:text-lg font-bold text-white mt-1">{models[0].performance_score}%</p>
-              </motion.div>
+                <h3 className="font-bold font-mono text-sm md:text-base text-white leading-tight truncate">{models[0].name}</h3>
+                <p className="text-[10px] font-mono text-[#888888] mt-0.5 truncate">{models[0].provider}</p>
+                <p className="text-base md:text-lg font-bold font-mono text-white mt-1">{models[0].performance_score}%</p>
+              </div>
               
-              {/* Position number - simplified */}
-              <p className="font-bold text-white text-2xl md:text-3xl mt-2">1</p>
-            </motion.div>
+              {/* Position number */}
+              <p className="font-bold font-mono text-white text-2xl md:text-3xl mt-2">1</p>
+            </div>
           )}
 
           {/* Bronze (3rd) - Hidden on mobile, shows on desktop */}
           {models[2] && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto"
-            >
+            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto">
               {/* Card */}
-              <motion.div
-                className="w-full md:w-24 lg:w-28 bg-gradient-to-b from-orange-700 to-orange-800 rounded-xl p-2 md:p-3 border border-orange-600 text-center shadow-lg"
-                whileHover={{ translateY: -2 }}
-              >
+              <div className="w-full md:w-24 lg:w-28 border border-[#1F1F1F] bg-[#020309] p-2 md:p-3 text-center">
                 <p className="text-2xl md:text-3xl mb-1">🥉</p>
-                <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center bg-white/10 rounded-lg overflow-hidden">
+                <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center border border-[#1F1F1F] bg-[#0A0A0A] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[2].provider)}
                     alt={models[2].provider}
@@ -236,33 +204,30 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     className="object-contain w-8 h-8 md:w-10 md:h-10"
                   />
                 </div>
-                <h3 className="font-bold text-xs md:text-sm text-white leading-tight truncate">{models[2].name}</h3>
-                <p className="text-[10px] text-orange-200 mt-0.5 truncate">{models[2].provider}</p>
-                <p className="text-sm md:text-base font-bold text-orange-300 mt-1">{models[2].performance_score}%</p>
-              </motion.div>
+                <h3 className="font-bold font-mono text-xs md:text-sm text-[#EAEAEA] leading-tight truncate">{models[2].name}</h3>
+                <p className="text-[10px] font-mono text-[#888888] mt-0.5 truncate">{models[2].provider}</p>
+                <p className="text-sm md:text-base font-bold font-mono text-[#EAEAEA] mt-1">{models[2].performance_score}%</p>
+              </div>
               
-              {/* Position number - simplified */}
-              <p className="font-bold text-white text-xl mt-2">3</p>
-            </motion.div>
+              {/* Position number */}
+              <p className="font-bold font-mono text-[#EAEAEA] text-xl mt-2">3</p>
+            </div>
           )}
         </div>
 
         {/* Mobile: Show all 3 as cards stacked */}
         <div className="md:hidden space-y-2 mt-4">
           {[0, 1, 2].map((idx) => models[idx] && (
-            <motion.div
+            <div
               key={idx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="w-full bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg p-3 border border-slate-700 flex items-center gap-3"
+              className="w-full border border-[#1F1F1F] bg-[#020309] p-3 flex items-center gap-3"
             >
               <div className="text-2xl">
                 {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-white/10 rounded-lg overflow-hidden">
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center border border-[#1F1F1F] bg-[#0A0A0A] overflow-hidden">
                     <Image
                       src={getCompanyLogo(models[idx].provider)}
                       alt={models[idx].provider}
@@ -272,29 +237,29 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm text-white truncate">{models[idx].name}</p>
-                    <p className="text-xs text-slate-400">{models[idx].provider}</p>
+                    <p className="font-bold font-mono text-sm text-[#EAEAEA] truncate">{models[idx].name}</p>
+                    <p className="text-xs font-mono text-[#888888]">{models[idx].provider}</p>
                   </div>
                 </div>
-                <p className="text-base font-bold text-yellow-400">#{idx + 1} - {models[idx].performance_score}%</p>
+                <p className="text-base font-bold font-mono text-[#EAEAEA]">#{idx + 1} - {models[idx].performance_score}%</p>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
 
       {/* Citation moved directly under podium */}
-      <p className="text-center text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1">
+      <p className="text-center text-xs font-mono text-[#888888] mt-4 flex items-center justify-center gap-1">
         {texts.citation}{' '}
         <a
           href={texts.citationUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary hover:underline flex items-center gap-1"
+          className="text-[#EAEAEA] hover:text-white flex items-center gap-1"
         >
           Artificial Analysis <ExternalLink className="w-3 h-3" />
         </a>
       </p>
-    </motion.section>
+    </section>
   );
 }

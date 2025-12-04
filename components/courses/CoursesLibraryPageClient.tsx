@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { Search, Filter, ChevronDown } from 'lucide-react';
 import { CourseCard } from './CourseCard';
-import Link from 'next/link';
-import { BookOpen } from 'lucide-react';
+import { Link } from '@/i18n';
+import { BookOpen, Plus } from 'lucide-react';
 import { useLogger } from '@/lib/utils/logging';
 
 interface Course {
@@ -226,68 +225,68 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
 
   return (
     <>
-      {/* Header */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/5 px-4 py-16">
-        <div className="absolute inset-0 bg-grid-white/5 [mask-image:radial-gradient(white,transparent_70%)]" />
-        <div className="container relative mx-auto max-w-6xl">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="h-1 w-12 bg-gradient-to-r from-primary to-accent" />
-            <span className="text-sm font-bold uppercase tracking-wider text-primary">
-              {locale === 'en' ? 'Learning' : 'Aprendizaje'}
-            </span>
-          </div>
-          <h1 className="mb-4 text-5xl font-black tracking-tight md:text-6xl">
-            <span className="bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
-              {texts.title}
-            </span>
-          </h1>
-          <p className="max-w-2xl text-lg text-muted-foreground">
-            {texts.subtitle}
-          </p>
-          <div className="mt-6 flex gap-2">
+      {/* Header - Brutalist Style */}
+      <section className="py-24 border-t border-[#1F1F1F] relative z-10">
+        <div className="px-6 md:px-12 max-w-7xl mx-auto">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <div className="flex items-center gap-4 mb-2">
+                <h2 className="text-sm font-mono tracking-widest text-[#888888]">
+                  02 — {locale === 'en' ? 'COURSE LIBRARY' : 'BIBLIOTECA DE CURSOS'}
+                </h2>
+              </div>
+              <div className="h-px w-24 bg-white/50" />
+            </div>
             <Link
-              href={`/${locale}/courses`}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2"
+              href="/courses"
+              className="hidden md:flex items-center gap-2 px-5 py-2 border border-white/20 text-white text-xs font-mono tracking-widest hover:bg-white hover:text-black transition-colors"
             >
-              <BookOpen className="w-4 h-4" />
-              {locale === 'en' ? 'Generate New Course' : 'Generar Nuevo Curso'}
+              <Plus className="w-4 h-4" />
+              {locale === 'en' ? 'GENERATE NEW' : 'GENERAR NUEVO'}
             </Link>
           </div>
+          
+          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight mb-4">
+            {texts.title.replace('📚 ', '')}
+          </h1>
+          <p className="max-w-2xl text-lg text-[#888888] font-mono">
+            {texts.subtitle}
+          </p>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="px-4 py-12">
-        <div className="container mx-auto max-w-6xl">
+      <section className="px-6 md:px-12 py-12 bg-[#0A0A0A]">
+        <div className="max-w-7xl mx-auto">
           {/* Search and Filters */}
           <div className="mb-12 space-y-4">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#888888]" />
               <input
                 type="text"
                 placeholder={texts.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-12 pr-4 py-4 bg-black/50 border border-[#1F1F1F] text-white placeholder-[#888888] focus:border-white focus:outline-none font-mono"
               />
             </div>
 
             {/* Filter Controls */}
-            <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex gap-4 flex-wrap items-center">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-lg hover:bg-muted/80 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 border border-[#1F1F1F] text-[#888888] hover:border-white hover:text-white transition-colors font-mono text-sm"
               >
                 <Filter className="w-4 h-4" />
                 {texts.filters}
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 ${showFilters ? 'rotate-180' : ''}`} />
               </button>
 
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'newest' | 'popular' | 'rating')}
-                className="px-4 py-2 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                className="px-4 py-2 bg-black/50 border border-[#1F1F1F] text-white focus:border-white focus:outline-none cursor-pointer font-mono text-sm"
               >
                 <option value="newest">{texts.newest}</option>
                 <option value="popular">{texts.popular}</option>
@@ -297,24 +296,19 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
 
             {/* Expandable Filters */}
             {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-4 p-4 bg-muted rounded-lg border border-border"
-              >
+              <div className="space-y-6 p-6 bg-[#0A0A0A] border border-[#1F1F1F]">
                 {/* Category Filter */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2">{texts.category}</label>
+                  <label className="block text-sm font-mono tracking-widest text-[#888888] mb-4">{texts.category.toUpperCase()}</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                     {CATEGORY_OPTIONS.map((cat) => (
                       <button
                         key={cat.value}
                         onClick={() => setSelectedCategory(cat.value)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-3 py-2 text-sm font-mono border ${
                           selectedCategory === cat.value
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background border border-border hover:border-primary'
+                            ? 'border-white bg-white text-black'
+                            : 'border-[#1F1F1F] text-[#888888] hover:border-white hover:text-white'
                         }`}
                       >
                         {cat.label[locale]}
@@ -325,16 +319,16 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
 
                 {/* Difficulty Filter */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2">{texts.difficulty}</label>
-                  <div className="flex gap-2">
+                  <label className="block text-sm font-mono tracking-widest text-[#888888] mb-4">{texts.difficulty.toUpperCase()}</label>
+                  <div className="flex gap-2 flex-wrap">
                     {DIFFICULTY_OPTIONS.map((diff) => (
                       <button
                         key={diff.value}
                         onClick={() => setSelectedDifficulty(diff.value as DifficultyFilter)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-4 py-2 text-sm font-mono border ${
                           selectedDifficulty === diff.value
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background border border-border hover:border-primary'
+                            ? 'border-white bg-white text-black'
+                            : 'border-[#1F1F1F] text-[#888888] hover:border-white hover:text-white'
                         }`}
                       >
                         {diff.label[locale]}
@@ -342,7 +336,7 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                     ))}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
           </div>
 
@@ -350,35 +344,33 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <div className="w-8 h-8 border-2 border-white border-t-transparent animate-spin"></div>
               </div>
+              <p className="mt-4 font-mono text-sm text-[#888888]">
+                {locale === 'en' ? 'LOADING COURSES...' : 'CARGANDO CURSOS...'}
+              </p>
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">{locale === 'en' ? 'Unable to load courses right now.' : 'No se pueden cargar los cursos en este momento.'}</p>
-              <p className="text-sm text-muted-foreground mt-2">{error}</p>
+            <div className="text-center py-12 border border-[#1F1F1F] p-8">
+              <p className="text-[#888888] font-mono">{locale === 'en' ? 'Unable to load courses right now.' : 'No se pueden cargar los cursos en este momento.'}</p>
+              <p className="text-sm text-[#888888] mt-2 font-mono">{error}</p>
             </div>
           ) : courses.length > 0 ? (
             <div>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-[#888888] mb-6 font-mono">
                 {locale === 'en' 
-                  ? `Showing ${courses.length} of ${totalAvailable} course${totalAvailable !== 1 ? 's' : ''}`
-                  : `Mostrando ${courses.length} de ${totalAvailable} curso${totalAvailable !== 1 ? 's' : ''}`
+                  ? `SHOWING ${courses.length} OF ${totalAvailable} COURSE${totalAvailable !== 1 ? 'S' : ''}`
+                  : `MOSTRANDO ${courses.length} DE ${totalAvailable} CURSO${totalAvailable !== 1 ? 'S' : ''}`
                 }
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course, idx) => (
-                  <motion.div
-                    key={course.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
+                {courses.map((course) => (
+                  <div key={course.id}>
                     <CourseCard 
                       course={course}
                       locale={locale}
                     />
-                  </motion.div>
+                  </div>
                 ))}
               </div>
               {hasMore && (
@@ -386,18 +378,21 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
                   <button
                     onClick={handleLoadMore}
                     disabled={isLoadingMore}
-                    className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 border border-white/20 text-white text-xs font-mono tracking-widest hover:bg-white hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoadingMore ? (locale === 'en' ? 'Loading...' : 'Cargando...') : (locale === 'en' ? 'Load more courses' : 'Cargar más cursos')}
+                    {isLoadingMore 
+                      ? (locale === 'en' ? 'LOADING...' : 'CARGANDO...') 
+                      : (locale === 'en' ? 'LOAD MORE COURSES' : 'CARGAR MÁS CURSOS')
+                    }
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
-              <h3 className="text-xl font-semibold mb-2">{texts.noCourses}</h3>
-              <p className="text-muted-foreground">{texts.tryOther}</p>
+            <div className="text-center py-12 border border-[#1F1F1F] p-8">
+              <BookOpen className="w-16 h-16 mx-auto text-[#888888] mb-4 opacity-50" />
+              <h3 className="text-xl font-bold text-white mb-2">{texts.noCourses}</h3>
+              <p className="text-[#888888] font-mono">{texts.tryOther}</p>
             </div>
           )}
         </div>

@@ -20,6 +20,8 @@ interface TodayDigestRailProps {
   locale: 'en' | 'es';
 }
 
+const isDataUrl = (value?: string): boolean => Boolean(value && value.startsWith('data:image'));
+
 /**
  * TodayDigestRail - Brutalist horizontal carousel
  * - Grayscale images with hover effects
@@ -97,6 +99,8 @@ export function TodayDigestRail({ articles, locale }: TodayDigestRailProps) {
                     alt={article.title}
                     fill
                     className="w-full h-full object-cover opacity-60 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700 grayscale"
+                    sizes="(max-width: 768px) 280px, 320px"
+                    unoptimized={isDataUrl(article.image)}
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-[#1F1F1F] to-[#0A0A0A]" />

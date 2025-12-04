@@ -146,7 +146,7 @@ function buildDigestArticles(articles: INewsArticle[], locale: Locale) {
       category: translateCategory(article.category, locale),
       title,
       relativeTime: formatRelativeTimeFromNow(article.published_at, locale),
-      href: `/${locale}/news/${article.id}`,
+      href: `/news/${article.id}`,
       image: getImageWithFallback(article.image_url, title, article.category),
     };
   });

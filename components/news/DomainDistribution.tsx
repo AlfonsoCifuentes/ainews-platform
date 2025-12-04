@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import type { DomainDistribution } from '@/lib/types/news-analytics';
 
 interface DomainDistributionProps {
@@ -11,33 +10,18 @@ interface DomainDistributionProps {
 const DOMAIN_CONFIG = {
   cv: {
     emoji: '👁️',
-    color: 'from-purple-600 to-purple-400',
-    bgColor: 'bg-purple-500/20',
-    textColor: 'text-purple-400',
   },
   nlp: {
     emoji: '🧠',
-    color: 'from-blue-600 to-blue-400',
-    bgColor: 'bg-blue-500/20',
-    textColor: 'text-blue-400',
   },
   robotics: {
     emoji: '🤖',
-    color: 'from-green-600 to-green-400',
-    bgColor: 'bg-green-500/20',
-    textColor: 'text-green-400',
   },
   ethics: {
     emoji: '🛡️',
-    color: 'from-yellow-600 to-yellow-400',
-    bgColor: 'bg-yellow-500/20',
-    textColor: 'text-yellow-400',
   },
   tools: {
     emoji: '🔧',
-    color: 'from-orange-600 to-orange-400',
-    bgColor: 'bg-orange-500/20',
-    textColor: 'text-orange-400',
   },
 };
 
@@ -71,68 +55,58 @@ export function DomainDistribution({ distribution, locale }: DomainDistributionP
     .filter(([, percentage]) => percentage > 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.4 }}
-      className="w-full h-full bg-gradient-to-b from-slate-800/50 to-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700 p-4 md:p-6"
-    >
+    <div className="w-full h-full border border-[#1F1F1F] bg-[#0A0A0A] p-4 md:p-6">
       {/* Header */}
       <div className="mb-4 text-center">
-        <h3 className="text-lg md:text-xl font-bold mb-1 flex items-center justify-center gap-2">
-          <span className="text-2xl">🎯</span>
+        <h3 className="text-sm font-mono uppercase tracking-widest text-[#EAEAEA] mb-1 flex items-center justify-center gap-2">
+          <span className="text-lg">🎯</span>
           {texts.title}
         </h3>
-        <p className="text-xs text-muted-foreground">{texts.subtitle}</p>
+        <p className="text-xs font-mono text-[#888888]">{texts.subtitle}</p>
       </div>
 
       {/* Domain Cards */}
       <div className="space-y-2">
-        {sortedDomains.map(([domain, percentage], index) => {
+        {sortedDomains.map(([domain, percentage]) => {
           const config = DOMAIN_CONFIG[domain as keyof DomainDistribution];
           const domainKey = domain as keyof typeof texts;
           const label = texts[domainKey] as string;
 
           return (
-            <motion.div
+            <div
               key={domain}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 + index * 0.1 }}
-              className={`${config.bgColor} rounded-lg p-3 border border-slate-700/50`}
+              className="border border-[#1F1F1F] bg-[#020309] p-3"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{config.emoji}</span>
-                  <span className="text-xs md:text-sm font-semibold text-white">
+                  <span className="text-lg">{config.emoji}</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
                     {label}
                   </span>
                 </div>
-                <span className={`text-sm md:text-base font-bold ${config.textColor}`}>
+                <span className="text-sm font-bold font-mono text-[#EAEAEA]">
                   {percentage}%
                 </span>
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${percentage}%` }}
-                  transition={{ duration: 1, delay: 0.6 + index * 0.1 }}
-                  className={`h-full bg-gradient-to-r ${config.color} rounded-full`}
+              <div className="w-full h-1.5 bg-[#1F1F1F] overflow-hidden">
+                <div
+                  style={{ width: `${percentage}%` }}
+                  className="h-full bg-[#EAEAEA]"
                 />
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
 
       {/* Footer Note */}
-      <div className="mt-4 pt-3 border-t border-slate-700">
-        <p className="text-[10px] text-center text-slate-500">
+      <div className="mt-4 pt-3 border-t border-[#1F1F1F]">
+        <p className="text-[10px] text-center font-mono text-[#888888]">
           {locale === 'en' ? 'Based on last 100 articles' : 'Basado en últimos 100 artículos'}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

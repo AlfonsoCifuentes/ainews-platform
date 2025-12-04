@@ -71,6 +71,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
     }
   }, [isOpen, courseId]);
 
+  useEffect(() => {
+    console.log('[AuthModal] render -> isOpen:', isOpen, 'pendingCourseId:', pendingCourseId);
+  }, [isOpen, pendingCourseId]);
+
   const translations = {
     en: {
       signin: 'Sign In',
@@ -243,8 +247,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin', locale, cou
     }
   };
 
-  // Debug render
-  console.log('[AuthModal] render -> isOpen:', isOpen, 'pendingCourseId:', pendingCourseId);
   if (!isOpen) return null;
 
   // Render in a portal to escape the header's stacking context

@@ -8,11 +8,11 @@ const CourseGenerator = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="glass rounded-3xl border border-white/10 p-8">
-        <div className="h-64 animate-pulse space-y-4">
-          <div className="h-8 w-3/4 rounded bg-muted"></div>
-          <div className="h-4 w-1/2 rounded bg-muted"></div>
-          <div className="h-32 rounded bg-muted"></div>
+      <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-8">
+        <div className="h-64 space-y-4">
+          <div className="h-8 w-3/4 bg-[#1F1F1F]"></div>
+          <div className="h-4 w-1/2 bg-[#1F1F1F]"></div>
+          <div className="h-32 bg-[#1F1F1F]"></div>
         </div>
       </div>
     ),
@@ -23,6 +23,7 @@ type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
 interface CourseGeneratorWrapperProps {
   locale: string;
+  initialTopic?: string;
   translations: {
     title: string;
     subtitle: string;
@@ -66,11 +67,11 @@ export function CourseGeneratorWrapper(props: CourseGeneratorWrapperProps) {
   // Prevent hydration mismatch by rendering nothing on server
   if (!isMounted) {
     return (
-      <div className="glass rounded-3xl border border-white/10 p-8">
-        <div className="h-64 animate-pulse space-y-4">
-          <div className="h-8 w-3/4 rounded bg-muted"></div>
-          <div className="h-4 w-1/2 rounded bg-muted"></div>
-          <div className="h-32 rounded bg-muted"></div>
+      <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-8">
+        <div className="h-64 space-y-4">
+          <div className="h-8 w-3/4 bg-[#1F1F1F]"></div>
+          <div className="h-4 w-1/2 bg-[#1F1F1F]"></div>
+          <div className="h-32 bg-[#1F1F1F]"></div>
         </div>
       </div>
     );

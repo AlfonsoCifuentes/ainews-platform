@@ -40,12 +40,17 @@ export function NewsInsights({ locale }: NewsInsightsProps) {
   if (loading || !insights) {
     return (
       <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-        {/* Loading skeletons */}
+        {/* Loading skeletons - Brutalist style */}
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="w-full h-[400px] bg-gradient-to-b from-slate-800/50 to-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700 animate-pulse"
-          />
+            className="w-full h-[400px] bg-[#0A0A0A] border border-[#1F1F1F] animate-pulse"
+          >
+            <div className="h-full flex flex-col">
+              <div className="h-8 bg-[#1F1F1F] m-4" />
+              <div className="flex-1 bg-[#1F1F1F] mx-4 mb-4" />
+            </div>
+          </div>
         ))}
       </div>
     );

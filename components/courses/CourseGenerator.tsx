@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import { useState, useTransition, useEffect } from 'react';
+import { Link } from '@/i18n';
 import { LocalModelInfo } from './LocalModelInfo';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -118,6 +117,7 @@ class CourseGenerationLogger {
 
 type CourseGeneratorProps = {
   locale: string;
+  initialTopic?: string;
   translations: {
     title: string;
     subtitle: string;
@@ -159,8 +159,8 @@ const progressSteps = [
   { key: 'finalizing', weight: 0.05, estimatedSeconds: 2 },
 ] as const;
 
-export function CourseGenerator({ locale, translations }: CourseGeneratorProps) {
-  const [topic, setTopic] = useState('');
+export function CourseGenerator({ locale, translations, initialTopic = '' }: CourseGeneratorProps) {
+  const [topic, setTopic] = useState(initialTopic);
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [duration, setDuration] = useState<'short' | 'medium' | 'long'>('medium');
   const [currentStep, setCurrentStep] = useState(0);
@@ -169,6 +169,11 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   const [result, setResult] = useState<CourseGenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!initialTopic) return;
+    setTopic(initialTopic);
+  }, [initialTopic]);
 
   // Diagnostics
   const handleDiagnosis = () => {
@@ -332,12 +337,12 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
   };
 
   return (
-    <div className="glass rounded-3xl p-8 shadow-xl">
+    <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-8">
       <div className="mb-8 text-center">
-        <h2 className="mb-3 text-3xl font-bold">
+        <h2 className="mb-3 text-2xl font-bold text-white">
           {translations.title}
         </h2>
-        <p className="text-muted-foreground">{translations.subtitle}</p>
+        <p className="text-[#888888] font-mono text-sm">{translations.subtitle}</p>
       </div>
 
       {/* Local Model Information Banner */}
@@ -346,8 +351,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
       <div className="space-y-6">
         {/* Topic Input */}
         <div>
-          <label htmlFor="topic" className="mb-2 block text-sm font-semibold">
-            {translations.topicLabel}
+          <label htmlFor="topic" className="mb-2 block text-sm font-mono tracking-widest text-[#888888]">
+            {translations.topicLabel.toUpperCase()}
           </label>
           <input
             id="topic"
@@ -362,14 +367,14 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             }}
             placeholder={translations.topicPlaceholder}
             disabled={isPending}
-            className="w-full rounded-2xl border border-border bg-background px-5 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            className="w-full border border-[#1F1F1F] bg-black/50 px-4 py-3 text-white placeholder-[#888888] focus:border-white focus:outline-none font-mono disabled:opacity-50"
           />
         </div>
 
         {/* Difficulty */}
         <div>
-          <label htmlFor="difficulty" className="mb-2 block text-sm font-semibold">
-            {translations.difficultyLabel}
+          <label htmlFor="difficulty" className="mb-2 block text-sm font-mono tracking-widest text-[#888888]">
+            {translations.difficultyLabel.toUpperCase()}
           </label>
           <select
             id="difficulty"
@@ -377,7 +382,7 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value as Difficulty)}
             disabled={isPending}
-            className="w-full rounded-2xl border border-border bg-background px-5 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            className="w-full border border-[#1F1F1F] bg-black/50 px-4 py-3 text-white focus:border-white focus:outline-none font-mono disabled:opacity-50"
           >
             <option value="beginner">{translations.difficulties.beginner}</option>
             <option value="intermediate">{translations.difficulties.intermediate}</option>
@@ -387,8 +392,8 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
         {/* Duration */}
         <div>
-          <label className="mb-3 block text-sm font-semibold">
-            {translations.durationLabel}
+          <label className="mb-3 block text-sm font-mono tracking-widest text-[#888888]">
+            {translations.durationLabel.toUpperCase()}
           </label>
           <div className="grid grid-cols-3 gap-3">
             {(['short', 'medium', 'long'] as const).map((dur) => (
@@ -399,10 +404,10 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
                 value={dur}
                 onClick={() => setDuration(dur)}
                 disabled={isPending}
-                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                className={`border px-4 py-3 text-sm font-mono ${
                   duration === dur
-                    ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-                    : 'border-border bg-background/50 hover:border-primary/50 disabled:opacity-50'
+                    ? 'border-white bg-white text-black'
+                    : 'border-[#1F1F1F] text-[#888888] hover:border-white hover:text-white disabled:opacity-50'
                 }`}
               >
                 {translations.durations[dur]}
@@ -413,29 +418,25 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
 
         {/* Generate Button */}
         <div className="flex gap-3">
-          <motion.button
+          <button
             type="button"
             onClick={handleInitiateGenerate}
             disabled={!topic.trim() || isPending}
-            whileHover={{ scale: isPending ? 1 : 1.02 }}
-            whileTap={{ scale: isPending ? 1 : 0.98 }}
-            className="flex-1 rounded-full bg-gradient-to-r from-primary to-primary/80 px-8 py-4 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/40 transition-all hover:shadow-xl hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 border border-white/20 bg-white text-black px-8 py-4 text-sm font-mono tracking-widest hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPending ? translations.generating : translations.generateButton}
-          </motion.button>
+            {isPending ? translations.generating.toUpperCase() : translations.generateButton.toUpperCase()}
+          </button>
           
           {/* Diagnostic Button */}
-          <motion.button
+          <button
             type="button"
             onClick={handleDiagnosis}
             disabled={isPending}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             title="Check which LLM providers are configured"
-            className="rounded-full border-2 border-muted-foreground/30 bg-background/50 px-4 py-4 text-sm font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary disabled:opacity-50 transition-all"
+            className="border border-[#1F1F1F] bg-black/50 px-4 py-4 text-sm font-mono text-[#888888] hover:border-white hover:text-white disabled:opacity-50"
           >
             🔧
-          </motion.button>
+          </button>
         </div>
 
         {/* Provider Selector Modal - Disabled for now */}
@@ -469,146 +470,95 @@ export function CourseGenerator({ locale, translations }: CourseGeneratorProps) 
         */}
 
         {/* Progress Indicator */}
-        <AnimatePresence>
-          {isPending && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 p-6 backdrop-blur-sm"
-            >
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-foreground">
-                    {progress.toFixed(0)}%
+        {isPending && (
+          <div className="space-y-4 border border-[#1F1F1F] bg-black/50 p-6">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm font-mono">
+                <span className="text-white">
+                  {progress.toFixed(0)}%
+                </span>
+                {estimatedTimeLeft > 0 && (
+                  <span className="text-[#888888]">
+                    ~{estimatedTimeLeft}s remaining
                   </span>
-                  {estimatedTimeLeft > 0 && (
-                    <span className="text-muted-foreground">
-                      ~{estimatedTimeLeft}s remaining
-                    </span>
-                  )}
-                </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-muted/30">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%]"
-                    initial={{ width: 0 }}
-                    animate={{ 
-                      width: `${progress}%`,
-                      backgroundPosition: ['0% 0%', '100% 0%']
-                    }}
-                    transition={{ 
-                      width: { duration: 0.5, ease: 'easeOut' },
-                      backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' }
-                    }}
-                  />
-                </div>
+                )}
               </div>
+              <div className="h-1 w-full overflow-hidden bg-[#1F1F1F]">
+                <div
+                  className="h-full bg-white"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
 
-              {/* Steps */}
-              <div className="space-y-2">
-                {progressSteps.map((step, index) => (
-                  <motion.div
-                    key={step.key}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center gap-3"
+            {/* Steps */}
+            <div className="space-y-2">
+              {progressSteps.map((step, index) => (
+                <div
+                  key={step.key}
+                  className="flex items-center gap-3"
+                >
+                  <div
+                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center text-xs font-mono ${
+                      index < currentStep
+                        ? 'bg-white text-black'
+                        : index === currentStep
+                          ? 'border border-white text-white'
+                          : 'border border-[#1F1F1F] text-[#888888]'
+                    }`}
                   >
-                    <div
-                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all ${
-                        index < currentStep
-                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/50'
-                          : index === currentStep
-                            ? 'animate-pulse bg-primary/70 text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
-                            : 'bg-muted/50 text-muted-foreground'
+                    {index < currentStep ? '✓' : index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <span
+                      className={`text-sm font-mono ${
+                        index <= currentStep ? 'text-white' : 'text-[#888888]'
                       }`}
                     >
-                      {index < currentStep ? (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        >
-                          ✓
-                        </motion.span>
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <span
-                        className={`text-sm transition-all ${
-                          index <= currentStep ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {step.key === 'analyzing' && translations.progress.analyzing}
-                        {step.key === 'outline' && translations.progress.outline}
-                        {step.key === 'content' && translations.progress.content}
-                        {step.key === 'quizzes' && translations.progress.quizzes}
-                        {step.key === 'finalizing' && translations.progress.finalizing}
-                      </span>
-                      {index === currentStep && (
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: '100%' }}
-                          className="mt-1 h-0.5 rounded-full bg-gradient-to-r from-primary to-transparent"
-                        />
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                      {step.key === 'analyzing' && translations.progress.analyzing}
+                      {step.key === 'outline' && translations.progress.outline}
+                      {step.key === 'content' && translations.progress.content}
+                      {step.key === 'quizzes' && translations.progress.quizzes}
+                      {step.key === 'finalizing' && translations.progress.finalizing}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <AnimatePresence>
-          {result && !isPending && (
-            <motion.div
-              key="generation-success"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="mt-6 rounded-3xl border border-primary/40 bg-primary/10 p-6 text-left shadow-lg"
-            >
-              <h3 className="text-xl font-bold text-primary">{translations.result.successTitle}</h3>
-              <p className="mt-2 text-sm text-primary-foreground/80 md:text-base">
-                {translations.result.successDescription}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <Link
-                  href={`/${locale}/courses/${result.course_id}`}
-                  className="rounded-full border border-primary/50 bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:shadow-lg hover:shadow-primary/40"
-                >
-                  {translations.result.viewCourse}
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {error && !isPending && (
-            <motion.div
-              key="generation-error"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="mt-6 rounded-3xl border border-destructive/40 bg-destructive/10 p-6 text-left"
-            >
-              <h3 className="text-xl font-bold text-destructive">{translations.result.errorTitle}</h3>
-              <p className="mt-2 text-sm text-destructive/90 md:text-base">{error}</p>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                className="mt-4 rounded-full border border-destructive/40 px-5 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive/10"
+        {result && !isPending && (
+          <div className="mt-6 border border-white bg-white/10 p-6 text-left">
+            <h3 className="text-xl font-bold text-white">{translations.result.successTitle}</h3>
+            <p className="mt-2 text-sm text-[#888888] font-mono">
+              {translations.result.successDescription}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Link
+                href={`/courses/${result.course_id}`}
+                className="border border-white bg-white text-black px-5 py-2 text-sm font-mono tracking-widest hover:bg-white/90"
               >
-                {translations.result.retry}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                {translations.result.viewCourse.toUpperCase()}
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {error && !isPending && (
+          <div className="mt-6 border border-red-500/50 bg-red-500/10 p-6 text-left">
+            <h3 className="text-xl font-bold text-red-400">{translations.result.errorTitle}</h3>
+            <p className="mt-2 text-sm text-red-300 font-mono">{error}</p>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="mt-4 border border-red-500/50 px-5 py-2 text-sm font-mono text-red-400 hover:bg-red-500/10"
+            >
+              {translations.result.retry.toUpperCase()}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

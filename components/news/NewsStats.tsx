@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 
 interface NewsStatsProps {
   locale: 'en' | 'es';
@@ -81,29 +80,26 @@ export function NewsStats({ locale }: NewsStatsProps) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {statsCards.map((stat, i) => (
-        <motion.div
+      {statsCards.map((stat) => (
+        <div
           key={stat.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1 }}
-          className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-4 backdrop-blur-sm"
+          className="relative overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] p-4"
         >
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-2xl">{stat.icon}</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
-              {stat.label}
+            <span className="text-xl">{stat.icon}</span>
+            <span className="text-xs font-mono tracking-widest text-[#888888]">
+              {stat.label.toUpperCase()}
             </span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-white">
+            <span className="text-2xl font-bold text-white font-mono">
               {stat.value}
             </span>
             {stat.suffix && (
-              <span className="text-sm text-white/60">{stat.suffix}</span>
+              <span className="text-sm text-[#888888] font-mono">{stat.suffix}</span>
             )}
           </div>
-        </motion.div>
+        </div>
       ))}
     </div>
   );

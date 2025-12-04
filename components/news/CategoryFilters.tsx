@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 
 interface CategoryFiltersProps {
   locale: 'en' | 'es';
@@ -63,49 +62,45 @@ export function CategoryFilters({ locale, onCategoryFilter }: CategoryFiltersPro
   };
 
   return (
-    <div className="w-full px-4 py-6 bg-gradient-to-r from-slate-900/50 via-slate-800/50 to-slate-900/50 border-y border-slate-700/50">
+    <div className="w-full px-4 py-6 bg-[#0A0A0A] border-y border-[#1F1F1F]">
       <div className="container mx-auto max-w-7xl">
-        <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white/70 text-center">
-          {locale === 'en' ? '🎯 Filter by Category' : '🎯 Filtrar por Categoría'}
+        <h3 className="mb-4 text-xs font-mono uppercase tracking-widest text-[#888888] text-center">
+          {locale === 'en' ? 'FILTER BY CATEGORY' : 'FILTRAR POR CATEGORÍA'}
         </h3>
         <div className="flex flex-wrap justify-center gap-3">
           {/* All button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => handleCategoryClick(null)}
-            className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all ${
+            className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider ${
               activeCategory === null
-                ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/50'
-                : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
+                ? 'border-[#EAEAEA] bg-[#EAEAEA] text-[#020309]'
+                : 'border-[#1F1F1F] bg-transparent text-[#888888] hover:border-[#EAEAEA] hover:text-[#EAEAEA]'
             }`}
           >
-            {locale === 'en' ? '🌟 All' : '🌟 Todas'}
-          </motion.button>
+            {locale === 'en' ? 'ALL' : 'TODAS'}
+          </button>
 
           {/* Category buttons */}
           {categories.map((category) => {
             const count = categoryCounts[category.id] || 0;
             return (
-              <motion.button
+              <button
                 key={category.id}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategoryClick(category.id)}
-                className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all relative ${
+                className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider relative ${
                   activeCategory === category.id
-                    ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/50'
-                    : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
+                    ? 'border-[#EAEAEA] bg-[#EAEAEA] text-[#020309]'
+                    : 'border-[#1F1F1F] bg-transparent text-[#888888] hover:border-[#EAEAEA] hover:text-[#EAEAEA]'
                 }`}
               >
                 <span className="mr-2">{category.icon}</span>
                 {category.label}
                 {count > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center rounded-full bg-primary/30 px-2 py-0.5 text-xs font-bold">
+                  <span className="ml-2 inline-flex items-center justify-center border border-current px-2 py-0.5 text-xs font-bold">
                     {count}
                   </span>
                 )}
-              </motion.button>
+              </button>
             );
           })}
         </div>

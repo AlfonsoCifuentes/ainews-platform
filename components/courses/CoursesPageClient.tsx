@@ -1,10 +1,6 @@
 "use client";
 
 import { ReactNode } from 'react';
-import { FadeSlideTransition } from '@/components/shared/PageTransition';
-import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
-import { ScrollAnimate } from '@/components/shared/ScrollEffects';
-import { Badge } from '@/components/shared/Badges';
 
 interface CoursesPageClientProps {
   title: string;
@@ -14,26 +10,30 @@ interface CoursesPageClientProps {
 
 export function CoursesPageClient({ title, subtitle, children }: CoursesPageClientProps) {
   return (
-    <FadeSlideTransition>
-      <main className="min-h-screen px-4 py-12">
-        <div className="container mx-auto max-w-4xl">
-          <ScrollAnimate direction="up">
-            <header className="mb-12 text-center">
-              <Badge variant="gradient" size="sm" animated className="mb-4">
-                AI-Powered Learning
-              </Badge>
-              <h1 className="mb-4 text-4xl font-bold md:text-5xl">
-                <TextGradient>{title}</TextGradient>
-              </h1>
-              <div className="mx-auto max-w-2xl text-lg text-muted-foreground">
-                <TextSplit text={subtitle} by="word" stagger={0.05} />
-              </div>
-            </header>
-          </ScrollAnimate>
-
-          {children}
+    <main className="min-h-screen bg-[#020309]">
+      {/* Brutalist Header */}
+      <section className="py-24 border-t border-[#1F1F1F] relative z-10">
+        <div className="px-6 md:px-12 max-w-4xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <div className="h-px w-12 bg-white/50" />
+            <h2 className="text-sm font-mono tracking-widest text-[#888888]">
+              AI-POWERED LEARNING
+            </h2>
+            <div className="h-px w-12 bg-white/50" />
+          </div>
+          
+          <h1 className="mt-8 text-4xl md:text-5xl font-bold text-white tracking-tight mb-4">
+            {title}
+          </h1>
+          <p className="max-w-2xl mx-auto text-lg text-[#888888] font-mono">
+            {subtitle}
+          </p>
         </div>
-      </main>
-    </FadeSlideTransition>
+      </section>
+
+      <div className="px-6 md:px-12 pb-24 max-w-4xl mx-auto">
+        {children}
+      </div>
+    </main>
   );
 }

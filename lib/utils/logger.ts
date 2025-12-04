@@ -417,7 +417,23 @@ function initializeInterceptors() {
   
   // Intercept fetch for network logging
   window.fetch = async function(...args: Parameters<typeof fetch>) {
-    const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+    // Safely extract URL - handle string, Request, or URL input
+    let url: string;
+    try {
+      const input = args[0];
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input instanceof Request) {
+        url = input.url;
+      } else if (input instanceof URL) {
+        url = input.href;
+      } else {
+        url = String(input) || '';
+      }
+    } catch {
+      url = '';
+    }
+    
     const method = (args[1]?.method || 'GET').toUpperCase();
     const startTime = performance.now();
     
@@ -438,7 +454,7 @@ function initializeInterceptors() {
       'supabase.co/storage',
       'googleapis.com/storage',
     ];
-    const shouldSkip = skipPatterns.some(pattern => url.includes(pattern));
+    const shouldSkip = !url || skipPatterns.some(pattern => url.includes(pattern));
     
     try {
       const response = await originalFetch.apply(window, args);

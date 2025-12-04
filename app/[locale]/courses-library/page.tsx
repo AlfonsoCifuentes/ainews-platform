@@ -41,7 +41,7 @@ export default async function CoursesLibraryPage({ params }: CoursesLibraryPageP
   await getTranslations('courses');
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <main className="min-h-screen bg-[#020309]">
       <CoursesLibraryPageClient locale={locale} />
     </main>
   );

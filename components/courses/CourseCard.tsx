@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { Link } from '@/i18n';
 import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
-import { ConfettiExplosion } from '@/components/effects/ConfettiExplosion';
 
 interface Course {
   id: string;
@@ -36,34 +34,6 @@ const XP_REWARDS = {
   advanced: 200
 };
 
-// Gradient backgrounds and borders based on difficulty
-const DIFFICULTY_STYLES = {
-  beginner: {
-    badge: 'bg-green-500/20 text-green-300 border-green-500/30',
-    border: 'hover:border-green-500/50',
-    progress: 'bg-green-500/20',
-    progressFill: 'bg-green-500',
-    glow: 'hover:shadow-green-500/20',
-    gradient: 'from-green-500/10 to-transparent'
-  },
-  intermediate: {
-    badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    border: 'hover:border-yellow-500/50',
-    progress: 'bg-yellow-500/20',
-    progressFill: 'bg-yellow-500',
-    glow: 'hover:shadow-yellow-500/20',
-    gradient: 'from-yellow-500/10 to-transparent'
-  },
-  advanced: {
-    badge: 'bg-red-500/20 text-red-300 border-red-500/30',
-    border: 'hover:border-red-500/50',
-    progress: 'bg-red-500/20',
-    progressFill: 'bg-red-500',
-    glow: 'hover:shadow-red-500/20',
-    gradient: 'from-red-500/10 to-transparent'
-  }
-};
-
 const DIFFICULTY_LABELS = {
   beginner: { en: 'Beginner', es: 'Principiante' },
   intermediate: { en: 'Intermediate', es: 'Intermedio' },
@@ -81,7 +51,6 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
   const [isChecking, setIsChecking] = useState(false);
 
   const xpReward = XP_REWARDS[course.difficulty];
-  const styles = DIFFICULTY_STYLES[course.difficulty];
 
   useEffect(() => {
     // Note: Enrollment status should be fetched at the parent level 
@@ -97,23 +66,10 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
     : (locale === 'es' ? 'Comenzar' : 'Start');
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      className={`group relative h-full overflow-hidden rounded-2xl backdrop-blur-xl 
-                   bg-white/5 border border-white/10 ${styles.border}
-                   transition-all duration-300 hover:shadow-2xl ${styles.glow}
-                   flex flex-col`}
-    >
-      {/* Confetti Effect */}
-      {isCompleted && !isChecking && <ConfettiExplosion trigger={isCompleted} />}
-
-      {/* Background gradient overlay */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} 
-                      opacity-0 group-hover:opacity-100 
-                      transition-opacity duration-300 pointer-events-none`} />
+    <div className="group relative h-full overflow-hidden bg-[#0A0A0A] border border-[#1F1F1F] hover:border-white/30 flex flex-col">
 
       {/* Share Button - Top Right */}
-      <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100">
         <div onClick={(e) => e.preventDefault()}>
           <ShareCourseButton
             courseId={course.id}
@@ -126,35 +82,35 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
       </div>
 
       {/* Content Section - Clickable */}
-      <Link href={`/${locale}/courses/${course.id}`} className="block p-6 flex flex-col flex-grow relative z-[1]">
-      {/* Header */}
+      <Link href={`/courses/${course.id}`} className="block p-6 flex flex-col flex-grow relative z-[1]">
+        {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex gap-2 items-center">
-            <div className={`px-3 py-1 rounded-full text-xs font-medium border ${styles.badge}`}>
-              {difficultyLabel}
+            <div className="px-3 py-1 text-xs font-mono border border-[#1F1F1F] text-[#888888]">
+              {difficultyLabel.toUpperCase()}
             </div>
             {showPopularBadge && (
-              <div className="px-2 py-1 rounded-full text-xs font-bold bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 flex items-center gap-1">
+              <div className="px-2 py-1 text-xs font-mono border border-white/20 text-white flex items-center gap-1">
                 <Zap className="w-3 h-3" />
                 Popular
               </div>
             )}
           </div>
           {course.rating_avg > 0 && (
-            <div className="flex items-center gap-1 text-yellow-400">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="text-sm font-medium">{course.rating_avg.toFixed(1)}</span>
+            <div className="flex items-center gap-1 text-white font-mono text-sm">
+              <Star className="w-4 h-4" />
+              <span>{course.rating_avg.toFixed(1)}</span>
             </div>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
+        <h3 className="text-xl font-bold text-white mb-2 group-hover:underline decoration-1 underline-offset-4 line-clamp-2">
           {title}
         </h3>
 
         {/* Description */}
-        <p className="text-muted-foreground text-sm mb-4 line-clamp-3 flex-grow">
+        <p className="text-[#888888] text-sm mb-4 line-clamp-3 flex-grow font-mono">
           {description}
         </p>
 
@@ -164,13 +120,13 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
             {course.topics.slice(0, 3).map((topic, i) => (
               <span
                 key={i}
-                className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs"
+                className="px-2 py-1 border border-[#1F1F1F] text-[#888888] text-xs font-mono"
               >
                 {topic}
               </span>
             ))}
             {course.topics.length > 3 && (
-              <span className="px-2 py-1 rounded-md bg-white/5 text-muted-foreground text-xs">
+              <span className="px-2 py-1 border border-[#1F1F1F] text-[#888888] text-xs font-mono">
                 +{course.topics.length - 3}
               </span>
             )}
@@ -178,16 +134,16 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
         )}
 
         {/* Gamification Stats - XP Reward */}
-        <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+        <div className="mb-4 p-3 border border-[#1F1F1F] bg-black/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-300">
-                +{xpReward} {locale === 'es' ? 'XP' : 'XP'}
+              <Zap className="w-4 h-4 text-white" />
+              <span className="text-sm font-mono text-white">
+                +{xpReward} XP
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {locale === 'es' ? 'Por completar' : 'To complete'}
+            <span className="text-xs font-mono text-[#888888]">
+              {locale === 'es' ? 'POR COMPLETAR' : 'TO COMPLETE'}
             </span>
           </div>
         </div>
@@ -195,25 +151,23 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
         {/* Progress Bar - Only show if enrolled and not completed */}
         {isEnrolled && !isCompleted && (
           <div className="mb-4 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                {locale === 'es' ? 'Progreso' : 'Progress'}
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-[#888888]">
+                {locale === 'es' ? 'PROGRESO' : 'PROGRESS'}
               </span>
-              <span className="font-semibold text-primary">{progress}%</span>
+              <span className="text-white">{progress}%</span>
             </div>
-            <div className={`w-full h-2 rounded-full ${styles.progress} overflow-hidden`}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                className={`h-full ${styles.progressFill} rounded-full`}
+            <div className="w-full h-1 bg-[#1F1F1F] overflow-hidden">
+              <div
+                style={{ width: `${progress}%` }}
+                className="h-full bg-white"
               />
             </div>
           </div>
         )}
 
         {/* Footer Stats */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between text-sm text-[#888888] pt-4 border-t border-[#1F1F1F] font-mono">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
             <span>{course.duration_minutes} min</span>
@@ -237,141 +191,67 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
         </div>
       </Link>
 
-      {/* Button Section - Fixed at bottom, NOT affected by hover */}
+      {/* Button Section - Fixed at bottom */}
       <div className="p-6 pt-0 mt-auto relative z-[1]">
-        <motion.button
-          whileHover={!isChecking ? { scale: 1.05 } : {}}
-          whileTap={!isChecking ? { scale: 0.95 } : {}}
+        <button
           onClick={(e) => {
             e.preventDefault();
-            // Navigate to course detail
             window.location.href = `/${locale}/courses/${course.id}`;
           }}
           disabled={isChecking}
-          className={`w-full py-3 px-4 rounded-xl font-bold text-base transition-all duration-300 
-                       flex items-center justify-center gap-2 shadow-lg
+          className={`w-full py-3 px-4 font-mono text-xs tracking-widest 
+                       flex items-center justify-center gap-2 border
                        ${isCompleted
-                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border border-green-400'
-                         : isEnrolled 
-                         ? 'bg-gradient-to-r from-primary to-cyan-400 hover:from-primary/90 hover:to-cyan-500 text-white border border-cyan-400' 
-                         : 'bg-gradient-to-r from-primary to-cyan-400 hover:from-primary/90 hover:to-cyan-500 text-white border border-cyan-400 shadow-primary/50'
+                         ? 'bg-white text-black border-white'
+                         : 'border-white/20 text-white hover:bg-white hover:text-black'
                        }
-                       disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
+                       disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {isChecking ? (
             <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">{locale === 'es' ? 'Cargando...' : 'Loading...'}</span>
+              <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+              <span>{locale === 'es' ? 'CARGANDO...' : 'LOADING...'}</span>
             </>
           ) : (
             <>
               {isCompleted ? (
                 <>
-                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                  <span>{buttonText}</span>
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{buttonText.toUpperCase()}</span>
                 </>
               ) : isEnrolled ? (
                 <>
-                  <ArrowRight className="w-5 h-5 flex-shrink-0" />
-                  <span>{buttonText}</span>
+                  <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                  <span>{buttonText.toUpperCase()}</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-5 h-5 flex-shrink-0" />
-                  <span>{buttonText}</span>
+                  <Play className="w-4 h-4 flex-shrink-0" />
+                  <span>{buttonText.toUpperCase()}</span>
                 </>
               )}
             </>
           )}
-        </motion.button>
+        </button>
       </div>
 
       {/* Status Badges - Top Left Corner */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         {isCompleted && !isChecking && (
-          <motion.div
-            initial={{ scale: 0, rotate: -180, y: -20 }}
-            animate={{ scale: 1, rotate: 0, y: 0 }}
-            transition={{ 
-              duration: 0.6, 
-              type: 'spring', 
-              stiffness: 200,
-              damping: 15,
-              delay: 0.2
-            }}
-            className="relative bg-gradient-to-r from-green-500/30 to-emerald-500/30 
-                       border border-green-500/60 text-green-200 
-                       px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2
-                       shadow-lg shadow-green-500/40"
-          >
-            {/* Animated background glow */}
-            <motion.div
-              animate={{ 
-                boxShadow: [
-                  '0 0 10px 0px rgba(34, 197, 94, 0.3)',
-                  '0 0 20px 4px rgba(34, 197, 94, 0.6)',
-                  '0 0 10px 0px rgba(34, 197, 94, 0.3)',
-                ]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="absolute inset-0 rounded-full pointer-events-none"
-            />
-
-            {/* Crown with laurel */}
-            <motion.span
-              animate={{ rotate: [0, -5, 5, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="relative z-10 text-lg"
-            >
-              👑
-            </motion.span>
-
-            {/* Laurel wreath decoration */}
-            <motion.span
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="relative z-10"
-            >
-              🏆
-            </motion.span>
-
-            {/* Text */}
-            <span className="relative z-10">
-              {locale === 'es' ? 'Completado' : 'Completed'}
-            </span>
-
-            {/* Particle effects around badge */}
-            {[...Array(4)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-green-400 rounded-full"
-                animate={{
-                  x: [0, Math.cos((i / 4) * Math.PI * 2) * 20],
-                  y: [0, Math.sin((i / 4) * Math.PI * 2) * 20],
-                  opacity: [1, 0],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  delay: i * 0.3,
-                }}
-                style={{
-                  left: '50%',
-                  top: '50%',
-                  marginLeft: '-2px',
-                  marginTop: '-2px',
-                }}
-              />
-            ))}
-          </motion.div>
+          <div className="border border-white bg-white text-black px-3 py-1 text-xs font-mono tracking-widest flex items-center gap-2">
+            <CheckCircle className="w-3 h-3" />
+            {locale === 'es' ? 'COMPLETADO' : 'COMPLETED'}
+          </div>
         )}
         {isEnrolled && !isCompleted && !isChecking && (
-          <div className="bg-primary/20 border border-primary/50 text-primary 
-                          px-3 py-1 rounded-full text-xs font-medium">
-            {locale === 'es' ? 'En Progreso' : 'In Progress'}
+          <div className="border border-[#1F1F1F] text-[#888888] px-3 py-1 text-xs font-mono">
+            {locale === 'es' ? 'EN PROGRESO' : 'IN PROGRESS'}
           </div>
         )}
       </div>
-    </motion.div>
+
+      {/* Hover border effect */}
+      <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/10 pointer-events-none z-10" />
+    </div>
   );
 }

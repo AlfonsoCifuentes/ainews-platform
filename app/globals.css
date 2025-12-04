@@ -45,7 +45,7 @@
     --border: 228 10% 26%;
     --input: 228 10% 24%;
     --ring: 0 0% 85%;
-    --radius: 1rem;
+    --radius: 0;
     --chart-1: 0 0% 90%;
     --chart-2: 0 0% 70%;
     --chart-3: 0 0% 50%;
@@ -178,17 +178,17 @@
   }
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism utilities - simplified brutalist version */
 .glass {
-  @apply backdrop-blur-2xl border border-white/10 bg-white/5 shadow-[0_25px_65px_-35px_rgba(14,15,45,0.75)] transition-all duration-300;
+  @apply backdrop-blur-lg border border-white/5 bg-[#0A0A0A]/60 transition-all duration-300;
 }
 
 .glass:hover {
-  @apply border-white/20 bg-white/10 shadow-[0_45px_120px_-45px_rgba(44,46,89,0.9)];
+  @apply border-white/10 bg-[#0A0A0A]/80;
 }
 
 .glass-dark {
-  @apply backdrop-blur-2xl border border-white/10 bg-white/5;
+  @apply backdrop-blur-lg border border-white/5 bg-black/60;
 }
 
 /* Brutalist glass panel */

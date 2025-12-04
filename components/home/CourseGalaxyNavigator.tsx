@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from '@/i18n';
+import { Link, useRouter } from '@/i18n';
 import Image from 'next/image';
 import { PlayCircle, BarChart, Clock, Plus, Loader2 } from 'lucide-react';
 
@@ -30,24 +30,44 @@ interface CourseGalaxyNavigatorProps {
  * - Grayscale images, mono fonts
  */
 export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCourseId, locale }: CourseGalaxyNavigatorProps) {
-  const [activeCourseId, setActiveCourseId] = useState<string>(courses[0]?.id || '');
+  const router = useRouter();
   const [prompt, setPrompt] = useState('');
-  const loading = false; // Static for now - could be replaced with actual loading state
+  const [loading, setLoading] = useState(false);
+  const [activeCourseId, setActiveCourseId] = useState<string>(() => {
+    if (_featuredCourseId && courses.some((course) => course.id === _featuredCourseId)) {
+      return _featuredCourseId;
+    }
+    return courses[0]?.id || '';
+  });
 
   useEffect(() => {
-    if (courses.length > 0 && !courses.find((c) => c.id === activeCourseId)) {
-      setActiveCourseId(courses[0].id);
+    if (!courses.length) {
+      setActiveCourseId('');
+      return;
     }
-  }, [courses, activeCourseId]);
+
+    if (_featuredCourseId && courses.some((course) => course.id === _featuredCourseId)) {
+      setActiveCourseId((current) => (current === _featuredCourseId ? current : _featuredCourseId));
+      return;
+    }
+
+    setActiveCourseId((current) => {
+      if (current && courses.some((course) => course.id === current)) {
+        return current;
+      }
+      return courses[0].id;
+    });
+  }, [courses, _featuredCourseId]);
 
   const activeCourse = courses.find((c) => c.id === activeCourseId) || courses[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim()) {
-      // Navigate to course generation
-      window.location.href = `/${locale}/courses?generate=${encodeURIComponent(prompt)}`;
-    }
+    const trimmed = prompt.trim();
+    if (!trimmed || loading) return;
+
+    setLoading(true);
+    router.push(`/courses?generate=${encodeURIComponent(trimmed)}`);
   };
 
   return (
@@ -118,9 +138,9 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
           </div>
 
           {/* View all link */}
-          <Link href={`/${locale}/courses`}>
+          <Link href={`/${locale}/courses-library`}>
             <div className="mt-8 flex items-center gap-2 text-sm font-mono text-[#888888] hover:text-white transition-colors">
-              <span>{locale === 'en' ? 'VIEW ALL COURSES' : 'VER TODOS LOS CURSOS'}</span>
+              <span>{locale === 'en' ? 'VIEW COURSE LIBRARY' : 'VER BIBLIOTECA DE CURSOS'}</span>
               <span>→</span>
             </div>
           </Link>
