@@ -41,16 +41,16 @@ export async function callLLMWithCascade(options: CascadeOptions): Promise<Casca
     .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
     .join('\n\n');
 
-  const client = new UnifiedLLMClient();
+  const client = new UnifiedLLMClient('groq_gemini_mistral');
 
   // Try first combination: Groq → Gemini → Mistral
   try {
-    const result = await client.generateWithFallback({
+    const result = await client.generateText({
       prompt,
       systemPrompt: systemMessage?.content,
       maxTokens,
       temperature,
-    }, 'groq_gemini_mistral');
+    });
 
     if (result.success && result.text) {
       return {
@@ -65,13 +65,14 @@ export async function callLLMWithCascade(options: CascadeOptions): Promise<Casca
   }
 
   // Try second combination: DeepSeek → OpenAI → Claude
+  const secondClient = new UnifiedLLMClient('deepseek_openai_claude');
   try {
-    const result = await client.generateWithFallback({
+    const result = await secondClient.generateText({
       prompt,
       systemPrompt: systemMessage?.content,
       maxTokens,
       temperature,
-    }, 'deepseek_openai_claude');
+    });
 
     if (result.success && result.text) {
       return {

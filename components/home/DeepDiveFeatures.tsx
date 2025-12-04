@@ -19,46 +19,33 @@ interface DeepDiveFeaturesProps {
 }
 
 /**
- * DeepDiveFeatures - Showcases key platform features
- * Reference: creativewebmanual.com - scroll-triggered animations
- * Alternating left/right layout with parallax
+ * DeepDiveFeatures - Brutalist platform features section
+ * - Monospace section labels
+ * - Minimal grayscale with border accents
  */
 export function DeepDiveFeatures({ blocks, locale }: DeepDiveFeaturesProps) {
   return (
-    <section className="relative py-16 lg:py-24 overflow-hidden">
+    <section className="py-20 border-t border-[#1F1F1F]">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        {/* Header */}
-        <div className="text-center mb-16 lg:mb-24">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="flex items-center justify-center gap-3 mb-3"
-          >
-            <span className="text-xs uppercase tracking-[0.2em] text-primary/80 font-semibold">
-              {locale === 'en' ? 'Platform Features' : 'Características'}
-            </span>
-          </motion.div>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-white"
-          >
-            {locale === 'en' ? 'Deep Dive' : 'Explora a Fondo'}
-          </motion.h2>
-        </div>
+        {/* Brutalist Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-16"
+        >
+          <span className="font-mono text-xs tracking-widest text-[#888888] uppercase">
+            05 — {locale === 'en' ? 'FEATURES' : 'CARACTERÍSTICAS'}
+          </span>
+          <h2 className="text-3xl lg:text-5xl font-bold text-[#EAEAEA] mt-2">
+            {locale === 'en' ? 'Platform' : 'Plataforma'}
+          </h2>
+        </motion.div>
 
-        {/* Feature blocks */}
-        <div className="space-y-24 lg:space-y-32">
+        {/* Feature blocks - Brutalist grid */}
+        <div className="space-y-px">
           {blocks.map((block, i) => (
-            <FeatureBlock
-              key={block.id}
-              block={block}
-              index={i}
-              reversed={i % 2 !== 0}
-            />
+            <FeatureRow key={block.id} block={block} index={i} />
           ))}
         </div>
       </div>
@@ -66,14 +53,12 @@ export function DeepDiveFeatures({ blocks, locale }: DeepDiveFeaturesProps) {
   );
 }
 
-function FeatureBlock({
+function FeatureRow({
   block,
   index,
-  reversed,
 }: {
   block: FeatureBlock;
   index: number;
-  reversed: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -81,54 +66,42 @@ function FeatureBlock({
     offset: ['start end', 'end start'],
   });
 
-  const y = useTransform(scrollYProgress, [0, 1], [50, -50]);
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
+  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.3, 1, 1, 0.3]);
 
   return (
     <motion.div
       ref={ref}
       style={{ opacity }}
-      className={`
-        grid lg:grid-cols-2 gap-8 lg:gap-16 items-center
-        ${reversed ? 'lg:grid-flow-dense' : ''}
-      `}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.1 }}
+      className="group grid lg:grid-cols-[1fr_400px] gap-8 p-8 border border-[#1F1F1F] hover:border-[#333333] hover:bg-[#0A0A0A]/50 transition-all duration-500"
     >
       {/* Text content */}
-      <motion.div
-        initial={{ opacity: 0, x: reversed ? 30 : -30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.2 }}
-        className={reversed ? 'lg:col-start-2' : ''}
-      >
+      <div className="flex flex-col justify-center">
         {/* Feature number */}
-        <div className="flex items-center gap-4 mb-4">
-          <span className="text-5xl lg:text-6xl font-black text-white/10">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          {block.icon && (
-            <span className="text-3xl">{block.icon}</span>
-          )}
-        </div>
+        <span className="font-mono text-xs text-[#666666] mb-4">
+          {String(index + 1).padStart(2, '0')}
+        </span>
 
-        <h3 className="text-2xl lg:text-3xl font-black text-white mb-4">
+        <h3 className="text-2xl lg:text-3xl font-bold text-[#EAEAEA] mb-4 group-hover:text-white transition-colors">
           {block.title}
         </h3>
         
-        <p className="text-white/60 text-lg leading-relaxed">
+        <p className="text-[#888888] text-base leading-relaxed max-w-xl group-hover:text-[#AAAAAA] transition-colors">
           {block.copy}
         </p>
-      </motion.div>
 
-      {/* Media */}
-      <motion.div
-        style={{ y }}
-        className={`
-          relative rounded-2xl overflow-hidden border border-white/10 bg-white/[0.02]
-          ${reversed ? 'lg:col-start-1' : ''}
-        `}
-      >
-        <div className="aspect-[4/3] relative">
+        {/* Brutalist line accent */}
+        <motion.div 
+          className="w-16 h-px bg-[#333333] mt-6 group-hover:w-32 group-hover:bg-[#EAEAEA] transition-all duration-500"
+        />
+      </div>
+
+      {/* Media - hidden on mobile, shown on larger screens */}
+      <div className="hidden lg:block relative overflow-hidden border border-[#1F1F1F] group-hover:border-[#333333] transition-colors">
+        <div className="aspect-[4/3] relative grayscale group-hover:grayscale-0 transition-all duration-700">
           {block.mediaType === 'image' && (
             <Image
               src={block.mediaSrc}
@@ -148,16 +121,14 @@ function FeatureBlock({
             />
           )}
           {block.mediaType === 'lottie' && (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-amber-500/10">
-              {/* Placeholder for Lottie - would integrate lottie-react here */}
-              <span className="text-6xl">{block.icon || '✨'}</span>
+            <div className="w-full h-full flex items-center justify-center bg-[#0A0A0A]">
+              <span className="font-mono text-6xl text-[#333333] group-hover:text-[#EAEAEA] transition-colors">
+                {block.icon || '→'}
+              </span>
             </div>
           )}
         </div>
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#020309]/50 to-transparent pointer-events-none" />
-      </motion.div>
+      </div>
     </motion.div>
   );
 }

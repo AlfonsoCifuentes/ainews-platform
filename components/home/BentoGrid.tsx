@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TrendingUp, BookOpen, Zap, Globe, Award, Brain } from 'lucide-react';
+import { TrendingUp, BookOpen, Zap, Globe, Award, Brain, ArrowUpRight } from 'lucide-react';
 import { Link } from '@/i18n';
 import { ReactNode } from 'react';
 
@@ -12,9 +12,10 @@ interface BentoCardProps {
   href: string;
   className?: string;
   delay?: number;
+  index: number;
 }
 
-function BentoCard({ title, description, icon, href, className = '', delay = 0 }: BentoCardProps) {
+function BentoCard({ title, description, icon, href, className = '', delay = 0, index }: BentoCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -24,32 +25,34 @@ function BentoCard({ title, description, icon, href, className = '', delay = 0 }
     >
       <Link href={href}>
         <motion.div
-          whileHover={{ scale: 1.02, rotateX: 2, rotateY: 2 }}
-          className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-8 backdrop-blur-xl transition-all hover:border-primary/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.3)] ${className}`}
-          style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
+          whileHover={{ y: -5, borderColor: '#EAEAEA' }}
+          className={`group relative overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] p-8 transition-all duration-500 hover:bg-[#0F0F0F] ${className}`}
         >
-          {/* Glassmorphism overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+          {/* Index number */}
+          <span className="absolute top-4 right-4 font-mono text-xs text-[#333333] tracking-wider">
+            {String(index + 1).padStart(2, '0')}
+          </span>
           
-          {/* Icon */}
-          <div className="relative z-10 mb-6 inline-flex rounded-2xl bg-primary/10 p-4 text-primary ring-1 ring-primary/20 transition-all group-hover:scale-110 group-hover:bg-primary/20 group-hover:ring-primary/40">
+          {/* Icon - Brutalist style */}
+          <div className="relative z-10 mb-6 inline-flex p-3 border border-[#333333] text-[#888888] transition-all duration-300 group-hover:border-[#EAEAEA] group-hover:text-[#EAEAEA]">
             {icon}
           </div>
           
           {/* Content */}
           <div className="relative z-10">
-            <h3 className="mb-2 text-2xl font-bold text-white transition-colors group-hover:text-primary">
+            <h3 className="mb-2 text-xl font-bold text-[#EAEAEA] transition-colors group-hover:text-white flex items-center gap-2">
               {title}
+              <ArrowUpRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
             </h3>
-            <p className="text-muted-foreground transition-colors group-hover:text-white/80">
+            <p className="text-sm text-[#888888] font-mono transition-colors group-hover:text-[#AAAAAA]">
               {description}
             </p>
           </div>
           
-          {/* Hover glow effect */}
-          <div className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 transition-opacity group-hover:opacity-100">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/20 to-cyan-500/20 blur-xl" />
-          </div>
+          {/* Hover line accent */}
+          <motion.div 
+            className="absolute bottom-0 left-0 h-px w-0 bg-[#EAEAEA] group-hover:w-full transition-all duration-500"
+          />
         </motion.div>
       </Link>
     </motion.div>
@@ -119,65 +122,71 @@ export function BentoGrid({ locale }: BentoGridProps) {
   const t = content[locale];
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-3">
+    <div className="grid grid-cols-1 gap-px md:grid-cols-2 lg:grid-cols-3 border border-[#1F1F1F]">
       {/* Large card - Trending (spans 2 columns) */}
       <BentoCard
         title={t.trending.title}
         description={t.trending.description}
-        icon={<TrendingUp className="h-8 w-8" />}
+        icon={<TrendingUp className="h-6 w-6" />}
         href="/trending"
-        className="md:col-span-2 lg:row-span-2"
+        className="md:col-span-2 lg:row-span-2 lg:min-h-[300px]"
         delay={0}
+        index={0}
       />
 
       {/* News */}
       <BentoCard
         title={t.news.title}
         description={t.news.description}
-        icon={<Globe className="h-8 w-8" />}
+        icon={<Globe className="h-6 w-6" />}
         href="/news"
         className="lg:row-span-1"
         delay={0.1}
+        index={1}
       />
 
       {/* Courses */}
       <BentoCard
         title={t.courses.title}
         description={t.courses.description}
-        icon={<BookOpen className="h-8 w-8" />}
+        icon={<BookOpen className="h-6 w-6" />}
         href="/courses"
         className="lg:row-span-1"
         delay={0.2}
+        index={2}
       />
 
       {/* Knowledge Graph (tall) */}
       <BentoCard
         title={t.kg.title}
         description={t.kg.description}
-        icon={<Brain className="h-8 w-8" />}
+        icon={<Brain className="h-6 w-6" />}
         href="/kg"
         className="md:col-span-1 lg:row-span-2"
         delay={0.3}
+        index={3}
       />
 
       {/* Leaderboard */}
       <BentoCard
         title={t.leaderboard.title}
         description={t.leaderboard.description}
-        icon={<Award className="h-8 w-8" />}
+        icon={<Award className="h-6 w-6" />}
         href="/leaderboard"
         className="lg:row-span-1"
         delay={0.4}
+        index={4}
       />
 
       {/* Features */}
       <BentoCard
         title={t.features.title}
         description={t.features.description}
-        icon={<Zap className="h-8 w-8" />}
+        icon={<Zap className="h-6 w-6" />}
         href="/features"
         className="lg:row-span-1"
         delay={0.5}
+        index={5}
       />
     </div>
   );

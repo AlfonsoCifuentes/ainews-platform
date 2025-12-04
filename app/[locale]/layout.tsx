@@ -5,12 +5,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
-import { MatrixRain } from '@/components/shared/MatrixRain';
 import { ToastProvider } from '@/components/shared/ToastProvider';
 import { ScrollProgress } from '@/components/shared/ScrollEffects';
 import { DailyLoginTracker } from '@/components/gamification/DailyLoginTracker';
@@ -24,9 +22,6 @@ import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { UnifiedDebugPanel } from '@/components/shared/UnifiedDebugPanel';
 import { BookModeProvider } from '@/lib/hooks/useBookMode';
 import { routing } from '@/i18n/routing';
-import '../globals.css';
-
-const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -86,28 +81,24 @@ export default async function LocaleLayout({
   const umamiScriptSrc = `${umamiBaseUrl}/script.js`;
 
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body
-        className={`${inter.className} bg-black text-white antialiased selection:bg-purple-500/40 selection:text-white`}
-        suppressHydrationWarning
-      >
-        <Analytics />
-        {umamiSiteId ? (
-          <Script
-            src={umamiScriptSrc}
-            strategy="lazyOnload"
-            data-website-id={umamiSiteId}
-            crossOrigin="anonymous"
-          />
-        ) : null}
-        
-        {/* OAuth Callback Handler component will run useEffect to detect auth state */}
-        {/* No need for inline script - use OAuthCallbackHandler.tsx instead */}
-        
-        {/* This MUST run before Supabase client library loads to prevent JSON.parse errors */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+    <>
+      <Analytics />
+      {umamiSiteId ? (
+        <Script
+          src={umamiScriptSrc}
+          strategy="lazyOnload"
+          data-website-id={umamiSiteId}
+          crossOrigin="anonymous"
+        />
+      ) : null}
+      
+      {/* OAuth Callback Handler component will run useEffect to detect auth state */}
+      {/* No need for inline script - use OAuthCallbackHandler.tsx instead */}
+      
+      {/* This MUST run before Supabase client library loads to prevent JSON.parse errors */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
 console.log('[CookieNorm] Starting normalization...');
 (function() {
   try {
@@ -198,29 +189,45 @@ console.log('[CookieNorm] Starting normalization...');
   }
 })();
             `,
-          }}
-        />
+        }}
+      />
 
-        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
-          <ToastProvider>
-            <NextIntlClientProvider messages={messages} locale={locale}>
-              <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
-                <BookModeProvider>
+      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+        <ToastProvider>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
+              <BookModeProvider>
                 <OAuthCallbackHandler />
                 <div className="relative flex min-h-screen flex-col">
-                  {/* Matrix Rain Background */}
-                  <MatrixRain />
-                  
                   {/* Scroll Progress Indicator */}
                   <ScrollProgress />
-                  
-                  {/* Gradient Overlay */}
-                  <div className="pointer-events-none fixed inset-0 opacity-40 mix-blend-screen" aria-hidden="true">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(126,74,255,0.25),transparent_60%),radial-gradient(circle_at_80%_-20%,rgba(14,255,255,0.18),transparent_50%)]" />
+
+                  {/* Structural frame */}
+                  <div
+                    className="pointer-events-none fixed inset-5 hidden lg:block rounded-[40px] border border-white/5 opacity-40"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="pointer-events-none fixed inset-x-8 top-24 hidden lg:block h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="pointer-events-none fixed left-6 top-6 z-40 hidden md:flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.35em] text-white/50"
+                    aria-hidden="true"
+                  >
+                    <span className="h-px w-8 bg-white/30" />
+                    Live Feed · ThotNet Core
                   </div>
-                  
+                  <div
+                    className="pointer-events-none fixed right-6 bottom-6 z-40 hidden md:flex flex-col items-end text-[10px] font-mono uppercase tracking-[0.35em] text-white/40"
+                    aria-hidden="true"
+                  >
+                    <span className="h-px w-12 bg-white/20 mb-2" />
+                    Systems Nominal
+                  </div>
+
                   <Header />
-                  <main className="flex-1 relative z-10">{children}</main>
+                  <main className="relative z-10 flex-1">{children}</main>
                   <Footer />
                   
                   {/* Gamification Systems */}
@@ -237,11 +244,10 @@ console.log('[CookieNorm] Starting normalization...');
                   <UnifiedDebugPanel />
                 </div>
               </BookModeProvider>
-              </BadgeNotificationProvider>
-            </NextIntlClientProvider>
-          </ToastProvider>
-        </ThemeProvider>
-      </body>
-    </html>
+            </BadgeNotificationProvider>
+          </NextIntlClientProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </>
   );
 }

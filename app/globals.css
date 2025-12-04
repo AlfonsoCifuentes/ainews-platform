@@ -2,61 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @layer base {
   :root {
     color-scheme: dark;
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    /* Brutalist color system */
+    --void: 228 47% 2%;
+    --surface: 0 0% 4%;
+    --surface-hover: 0 0% 7%;
+    --off-white: 0 0% 92%;
+    --muted: 0 0% 53%;
+    --ghost: 0 0% 27%;
+    --subtle: 0 0% 12%;
+    --highlight: 0 0% 20%;
+    
+    --mono-void: 228 22% 4%;
+    --mono-ink: 228 20% 6%;
+    --mono-carbon: 228 16% 10%;
+    --mono-iron: 228 12% 18%;
+    --mono-ash: 228 10% 45%;
+    --mono-cloud: 228 8% 62%;
+    --mono-fog: 228 6% 78%;
+    --mono-snow: 220 14% 94%;
+    --background: var(--mono-void);
+    --foreground: var(--mono-snow);
+    --card: var(--mono-carbon);
+    --card-foreground: var(--mono-snow);
+    --popover: var(--mono-carbon);
+    --popover-foreground: var(--mono-snow);
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 228 10% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 228 8% 20%;
+    --muted-foreground: 228 6% 65%;
+    --accent: 0 0% 72%;
+    --accent-foreground: 0 0% 6%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 228 10% 26%;
+    --input: 228 10% 24%;
+    --ring: 0 0% 85%;
+    --radius: 1rem;
+    --chart-1: 0 0% 90%;
+    --chart-2: 0 0% 70%;
+    --chart-3: 0 0% 50%;
+    --chart-4: 0 0% 35%;
+    --chart-5: 0 0% 20%;
   }
   .dark {
-    /* ThotNet Core Black & Blue palette */
-    --background: 222 47% 4%;       /* Deep black-blue */
-    --foreground: 0 0% 98%;          /* White foreground */
-    --card: 217 30% 8%;              /* Dark blue-gray card */
-    --card-foreground: 0 0% 98%;
-    --popover: 217 30% 10%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 217 91% 60%;          /* Vibrant blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 30% 15%;        /* Dark blue-gray */
-    --secondary-foreground: 0 0% 98%;
-    --muted: 217 30% 15%;
-    --muted-foreground: 217 20% 60%;
-    --accent: 210 100% 50%;          /* Electric blue */
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    color-scheme: dark;
+    --background: var(--mono-void);
+    --foreground: var(--mono-snow);
+    --card: var(--mono-carbon);
+    --card-foreground: var(--mono-snow);
+    --popover: var(--mono-carbon);
+    --popover-foreground: var(--mono-snow);
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 228 10% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 228 8% 20%;
+    --muted-foreground: 228 6% 65%;
+    --accent: 0 0% 72%;
+    --accent-foreground: 0 0% 6%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 98%;
-    --border: 217 30% 20%;
-    --input: 217 30% 15%;
-    --ring: 217 91% 60%;
-    --chart-1: 217 91% 60%;          /* Blue */
-    --chart-2: 210 100% 50%;         /* Electric blue */
-    --chart-3: 40 96% 53%;           /* Amber / Yellow-orange */
-    --chart-4: 199 89% 48%;          /* Cyan */
-    --chart-5: 171 77% 64%;          /* Teal */
+    --border: 228 10% 26%;
+    --input: 228 10% 24%;
+    --ring: 0 0% 85%;
   }
 }
 
@@ -64,14 +80,31 @@
   * {
     @apply border-border;
   }
+  
+  html {
+    font-family: 'Inter', sans-serif;
+  }
+  
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'rlig' 1, 'calt' 1;
-    background-image:
-      radial-gradient(circle at 15% 20%, hsla(217, 91%, 60%, 0.15), transparent 55%),
-      radial-gradient(circle at 85% 15%, hsla(210, 100%, 50%, 0.12), transparent 40%),
-      radial-gradient(circle at 50% 90%, hsla(217, 91%, 60%, 0.10), transparent 45%);
-    background-color: hsl(222 47% 4%);
+    background-color: #020309;
+    overflow-x: hidden;
+  }
+
+  /* Brutalist scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #020309;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #333;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }
 
   /* Custom scrollbar for modal */
@@ -115,6 +148,34 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .mono-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px;
+  }
+
+  .crt-scanlines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.07) 0,
+      rgba(255, 255, 255, 0.07) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: screen;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+
+  .grain-overlay {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.35"/></svg>');
+    background-size: 120px 120px;
+    mix-blend-mode: soft-light;
+    opacity: 0.2;
+    pointer-events: none;
+  }
 }
 
 /* Glassmorphism utilities */
@@ -128,6 +189,19 @@
 
 .glass-dark {
   @apply backdrop-blur-2xl border border-white/10 bg-white/5;
+}
+
+/* Brutalist glass panel */
+.glass-panel {
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Kinetic text for hover effects */
+.kinetic-text {
+  font-kerning: none;
 }
 
 /* Animation utilities */
@@ -243,12 +317,12 @@
 }
 
 .article-content li::marker {
-  @apply text-blue-400 font-bold;
+  @apply text-white/70 font-bold;
 }
 
 /* Blockquotes with border and background */
 .article-content blockquote {
-  @apply border-l-4 border-blue-500 bg-blue-500/10 pl-6 pr-4 py-4 rounded-r-lg;
+  @apply border-l-4 border-white/20 bg-white/5 pl-6 pr-4 py-4 rounded-r-lg;
   @apply italic my-8 text-gray-300 text-lg leading-[1.8];
   margin-left: 0 !important;
   margin-right: 0 !important;
@@ -270,7 +344,7 @@
 }
 
 .article-content code {
-  @apply font-mono text-blue-300;
+  @apply font-mono text-white/80;
 }
 
 .article-content p code,
@@ -281,7 +355,7 @@
 
 /* Links */
 .article-content a {
-  @apply text-blue-400 hover:text-blue-300 underline underline-offset-4;
+  @apply text-white/80 hover:text-white underline underline-offset-4;
   @apply transition-colors duration-200;
   word-break: break-word;
 }
@@ -336,12 +410,12 @@
   @apply my-8 border-white/20;
 }
 
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* Gradient text animation (used by hero) */
+@keyframes gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-gradient {
+  background-size: 200% auto;
+  animation: gradient 3s ease infinite;
 }

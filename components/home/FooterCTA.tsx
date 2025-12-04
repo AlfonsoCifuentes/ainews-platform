@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Link } from '@/i18n';
+import { ArrowRight } from 'lucide-react';
 
 interface FooterCTAProps {
   title: string;
@@ -18,35 +19,20 @@ interface FooterCTAProps {
 }
 
 /**
- * FooterCTA - Final call-to-action section before footer
- * Big bold typography with gradient background
+ * FooterCTA - Brutalist final call-to-action section
+ * - Massive typography
+ * - Minimal monochrome design
  */
 export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }: FooterCTAProps) {
   return (
-    <section className="relative py-24 lg:py-32 overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-primary/5" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/20 rounded-full blur-[120px]" />
-      </div>
-
-      {/* Grid pattern overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
-      <div className="max-w-[1000px] mx-auto px-6 lg:px-12 text-center relative">
-        {/* Title */}
+    <section className="py-32 border-t border-[#1F1F1F]">
+      <div className="max-w-[1000px] mx-auto px-6 lg:px-12">
+        {/* Brutalist Title */}
         <motion.h2
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-[1.1]"
+          className="text-4xl sm:text-5xl lg:text-7xl font-bold text-[#EAEAEA] leading-[1.1] tracking-tight"
         >
           {title}
         </motion.h2>
@@ -57,34 +43,28 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="mt-6 text-lg lg:text-xl text-white/60 max-w-xl mx-auto"
+          className="mt-6 text-lg lg:text-xl text-[#888888] max-w-xl font-mono"
         >
           {subtitle}
         </motion.p>
 
-        {/* CTAs */}
+        {/* CTAs - Brutalist buttons */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+          className="mt-12 flex flex-col sm:flex-row items-start gap-4"
         >
           {/* Primary CTA */}
           <Link href={primaryCta.href}>
             <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className="relative px-8 py-4 rounded-full bg-primary text-white font-bold text-lg overflow-hidden group"
+              whileHover={{ x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              className="group flex items-center gap-4 px-8 py-4 bg-[#EAEAEA] text-[#0A0A0A] font-mono font-semibold text-sm tracking-wider uppercase transition-all duration-300 hover:bg-white"
             >
-              <span className="relative z-10">{primaryCta.label}</span>
-              
-              {/* Shine effect */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
-                animate={{ translateX: ['0%', '200%'] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              />
+              {primaryCta.label}
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </motion.button>
           </Link>
 
@@ -92,9 +72,9 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
           {secondaryCta && (
             <Link href={secondaryCta.href}>
               <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-colors"
+                whileHover={{ borderColor: '#EAEAEA' }}
+                whileTap={{ scale: 0.98 }}
+                className="px-8 py-4 border border-[#333333] text-[#EAEAEA] font-mono text-sm tracking-wider uppercase hover:bg-[#1F1F1F] transition-all duration-300"
               >
                 {secondaryCta.label}
               </motion.button>
@@ -102,24 +82,24 @@ export function FooterCTA({ title, subtitle, primaryCta, secondaryCta, locale }:
           )}
         </motion.div>
 
-        {/* Trust indicators */}
+        {/* Trust indicators - Brutalist minimal */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.4 }}
-          className="mt-12 flex items-center justify-center gap-8 text-sm text-white/30"
+          className="mt-16 flex flex-wrap items-center gap-8 text-xs font-mono text-[#666666] tracking-wider uppercase"
         >
           <span className="flex items-center gap-2">
-            <span className="text-green-400">✓</span>
+            <span className="w-1.5 h-1.5 bg-[#EAEAEA]" />
             {locale === 'en' ? 'Free forever' : 'Gratis siempre'}
           </span>
           <span className="flex items-center gap-2">
-            <span className="text-green-400">✓</span>
+            <span className="w-1.5 h-1.5 bg-[#EAEAEA]" />
             {locale === 'en' ? 'No credit card' : 'Sin tarjeta'}
           </span>
           <span className="flex items-center gap-2">
-            <span className="text-green-400">✓</span>
+            <span className="w-1.5 h-1.5 bg-[#EAEAEA]" />
             {locale === 'en' ? 'Start instantly' : 'Comienza al instante'}
           </span>
         </motion.div>

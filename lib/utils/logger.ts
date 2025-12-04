@@ -129,6 +129,13 @@ function shouldLog(module: string, level: LogLevel, message: string): number {
   return -1; // Skip
 }
 
+// Store original console functions at module level to avoid recursion when interceptors are active
+// These get updated in initializeInterceptors but start with native console
+let _originalConsoleLog = console.log.bind(console);
+let _originalConsoleError = console.error.bind(console);
+let _originalConsoleWarn = console.warn.bind(console);
+let _originalConsoleInfo = console.info.bind(console);
+
 /**
  * Main logger instance
  * Usage: log('auth', 'info', 'User authenticated')
@@ -171,16 +178,16 @@ function logInternal(
           cnt: count,
           data: data !== undefined ? safeSerialize(data) : undefined,
         };
-        // Use console.log without color to be machine-parseable
-        console.log(JSON.stringify(compactEntry));
+        // Use original console.log to avoid recursion when interceptors are active
+        _originalConsoleLog(JSON.stringify(compactEntry));
       } catch {
-        console.log(logMessage, data);
+        _originalConsoleLog(logMessage, data);
       }
     } else {
       if (data !== undefined) {
-        console.log(`%c${logMessage}`, `color: ${color}; font-weight: bold;`, data);
+        _originalConsoleLog(`%c${logMessage}`, `color: ${color}; font-weight: bold;`, data);
       } else {
-        console.log(`%c${logMessage}`, `color: ${color}; font-weight: bold;`);
+        _originalConsoleLog(`%c${logMessage}`, `color: ${color}; font-weight: bold;`);
       }
     }
   }
@@ -396,12 +403,17 @@ function initializeInterceptors() {
   
   interceptorsInitialized = true;
   
-  // Store original functions
+  // Store original functions - update module-level vars so logInternal uses them
+  _originalConsoleLog = console.log.bind(console);
+  _originalConsoleError = console.error.bind(console);
+  _originalConsoleWarn = console.warn.bind(console);
+  _originalConsoleInfo = console.info.bind(console);
+  
   const originalFetch = window.fetch;
-  const originalConsoleError = console.error;
-  const originalConsoleWarn = console.warn;
-  const originalConsoleInfo = console.info;
-  const originalConsoleLog = console.log;
+  const originalConsoleError = _originalConsoleError;
+  const originalConsoleWarn = _originalConsoleWarn;
+  const originalConsoleInfo = _originalConsoleInfo;
+  const originalConsoleLog = _originalConsoleLog;
   
   // Intercept fetch for network logging
   window.fetch = async function(...args: Parameters<typeof fetch>) {

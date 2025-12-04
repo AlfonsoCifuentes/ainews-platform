@@ -1,8 +1,8 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Link } from '@/i18n';
 import Image from 'next/image';
+import { Trophy, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface Leader {
   id: string;
@@ -22,182 +22,106 @@ interface LeaderboardStripProps {
   locale: 'en' | 'es';
 }
 
+function getTrend(delta: number) {
+  if (delta > 0) return 'up';
+  if (delta < 0) return 'down';
+  return 'neutral';
+}
+
 /**
- * LeaderboardStrip - Gamification leaderboard preview
- * Shows top learners with XP and weekly progress
+ * LeaderboardStrip - Brutalist leaderboard section
+ * - Centered, ranked list
+ * - Trophy icon for top
+ * - Trend indicators
  */
 export function LeaderboardStrip({ leaders, summary, locale }: LeaderboardStripProps) {
   return (
-    <section className="relative py-16 lg:py-24 overflow-hidden">
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <div className="grid lg:grid-cols-[1fr_auto] gap-12 items-center">
-          {/* Left: Content */}
-          <div>
-            {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="flex items-center gap-3 mb-3"
-            >
-              <span className="text-2xl">🏆</span>
-              <span className="text-xs uppercase tracking-[0.2em] text-amber-500/80 font-semibold">
-                {locale === 'en' ? 'Leaderboard' : 'Clasificación'}
-              </span>
-            </motion.div>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4"
-            >
-              {locale === 'en' ? 'Top Learners' : 'Mejores Estudiantes'}
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-white/50 max-w-md"
-            >
-              {locale === 'en'
-                ? 'Compete with the community. Complete courses and exercises to earn XP.'
-                : 'Compite con la comunidad. Completa cursos y ejercicios para ganar XP.'
-              }
-            </motion.p>
+    <section className="py-24 border-t border-[#1F1F1F] relative z-10">
+      <div className="max-w-4xl mx-auto px-6 md:px-12 text-center">
+        <h2 className="text-sm font-mono tracking-widest text-[#888888] mb-12 uppercase">
+          {locale === 'en' ? 'LEADERBOARD' : 'CLASIFICACIÓN'}
+        </h2>
 
-            {/* Stats summary */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="flex gap-8 mt-8"
-            >
-              <div>
-                <p className="text-3xl font-black text-primary">
-                  {summary.totalUsers.toLocaleString()}
-                </p>
-                <p className="text-xs text-white/40 uppercase tracking-wider mt-1">
-                  {locale === 'en' ? 'Active Learners' : 'Estudiantes Activos'}
-                </p>
-              </div>
-              <div>
-                <p className="text-3xl font-black text-amber-500">
-                  {summary.weeklyXpAwarded.toLocaleString()}
-                </p>
-                <p className="text-xs text-white/40 uppercase tracking-wider mt-1">
-                  {locale === 'en' ? 'Weekly XP' : 'XP Semanal'}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="mt-8"
-            >
-              <Link href="/leaderboard">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
-                >
-                  {locale === 'en' ? 'View Full Leaderboard' : 'Ver Clasificación Completa'}
-                  <motion.span
-                    animate={{ x: [0, 4, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
+        <div className="space-y-4">
+          {leaders.slice(0, 5).map((leader) => {
+            const trend = getTrend(leader.weeklyDelta);
+            return (
+              <div
+                key={leader.id}
+                className={`flex items-center justify-between p-4 border ${
+                  leader.rank === 1
+                    ? 'border-white bg-white/5 scale-105'
+                    : 'border-[#1F1F1F] bg-[#0A0A0A]'
+                } rounded-sm transition-transform hover:scale-[1.02]`}
+              >
+                <div className="flex items-center gap-6">
+                  <div
+                    className={`w-10 h-10 flex items-center justify-center font-bold text-lg ${
+                      leader.rank === 1 ? 'text-white' : 'text-[#888888]'
+                    }`}
                   >
-                    →
-                  </motion.span>
-                </motion.button>
-              </Link>
-            </motion.div>
-          </div>
-
-          {/* Right: Top 5 leaders */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="w-full lg:w-[360px]"
-          >
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-              {/* Header */}
-              <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02]">
-                <h3 className="text-sm font-semibold text-white/70">
-                  {locale === 'en' ? 'This Week' : 'Esta Semana'}
-                </h3>
-              </div>
-
-              {/* Leader list */}
-              <div className="divide-y divide-white/5">
-                {leaders.slice(0, 5).map((leader, i) => (
-                  <motion.div
-                    key={leader.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 + i * 0.05 }}
-                    className="px-5 py-3 flex items-center gap-4 hover:bg-white/[0.02] transition-colors"
-                  >
-                    {/* Rank */}
-                    <div className={`
-                      w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-                      ${leader.rank === 1 
-                        ? 'bg-amber-500/20 text-amber-400' 
-                        : leader.rank === 2 
-                          ? 'bg-gray-400/20 text-gray-300'
-                          : leader.rank === 3
-                            ? 'bg-orange-700/20 text-orange-400'
-                            : 'bg-white/5 text-white/40'
-                      }
-                    `}>
-                      {leader.rank <= 3 ? ['🥇', '🥈', '🥉'][leader.rank - 1] : leader.rank}
-                    </div>
-
-                    {/* Avatar */}
-                    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                    {leader.rank === 1 ? (
+                      <Trophy size={20} className="text-white" />
+                    ) : (
+                      `#${leader.rank}`
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white/10 rounded-full overflow-hidden">
                       {leader.avatarUrl ? (
                         <Image
                           src={leader.avatarUrl}
                           alt={leader.name}
-                          fill
-                          className="object-cover"
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover grayscale"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-lg">
+                        <div className="w-full h-full flex items-center justify-center text-white text-lg font-bold">
                           {leader.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
+                    <span className="text-lg font-medium text-[#EAEAEA]">{leader.name}</span>
+                  </div>
+                </div>
 
-                    {/* Name and XP */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-white truncate">{leader.name}</p>
-                      <p className="text-xs text-white/40">
-                        {leader.xp.toLocaleString()} XP
-                      </p>
-                    </div>
-
-                    {/* Weekly delta */}
-                    <div className={`
-                      text-xs font-semibold
-                      ${leader.weeklyDelta > 0 ? 'text-green-400' : 'text-white/30'}
-                    `}>
-                      {leader.weeklyDelta > 0 ? '+' : ''}{leader.weeklyDelta.toLocaleString()}
-                    </div>
-                  </motion.div>
-                ))}
+                <div className="flex items-center gap-6">
+                  <span className="font-mono text-white tracking-widest">
+                    {leader.xp.toLocaleString()}
+                  </span>
+                  {trend === 'up' && <TrendingUp size={16} className="text-white" />}
+                  {trend === 'down' && <TrendingDown size={16} className="text-[#888888]" />}
+                  {trend === 'neutral' && <Minus size={16} className="text-[#888888]" />}
+                </div>
               </div>
-            </div>
-          </motion.div>
+            );
+          })}
         </div>
+
+        {/* Summary stats */}
+        <div className="flex justify-center gap-12 mt-12 font-mono text-sm">
+          <div>
+            <span className="text-[#888888] block text-xs uppercase tracking-widest mb-1">
+              {locale === 'en' ? 'LEARNERS' : 'ESTUDIANTES'}
+            </span>
+            <span className="text-white text-2xl font-bold">{summary.totalUsers}</span>
+          </div>
+          <div>
+            <span className="text-[#888888] block text-xs uppercase tracking-widest mb-1">
+              {locale === 'en' ? 'WEEKLY XP' : 'XP SEMANAL'}
+            </span>
+            <span className="text-white text-2xl font-bold">{summary.weeklyXpAwarded}</span>
+          </div>
+        </div>
+
+        {/* View all link */}
+        <Link href={`/${locale}/leaderboard`}>
+          <div className="mt-8 inline-flex items-center gap-2 text-sm font-mono text-[#888888] hover:text-white transition-colors border border-[#1F1F1F] px-6 py-3 hover:border-white">
+            <span>{locale === 'en' ? 'VIEW FULL LEADERBOARD' : 'VER CLASIFICACIÓN COMPLETA'}</span>
+            <span>→</span>
+          </div>
+        </Link>
       </div>
     </section>
   );

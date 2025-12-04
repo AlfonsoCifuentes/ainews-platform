@@ -50,3 +50,6 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Design examples (reference only, not part of build)
+thotnet-core-ejemplo/

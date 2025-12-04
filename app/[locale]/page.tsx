@@ -1,9 +1,9 @@
-"use client";
-
-import { useTranslations, useLocale } from 'next-intl';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { routing } from '@/i18n/routing';
+import type { Locale } from '@/i18n';
 import {
   KineticHero,
-  ThotNetOrb,
   TodayDigestRail,
   OrbitingTopicsRail,
   CourseGalaxyNavigator,
@@ -12,113 +12,63 @@ import {
   DeepDiveFeatures,
   FooterCTA,
 } from '@/components/home';
+import { fetchLatestNews } from '@/lib/db/news';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { getLocalizedString } from '@/lib/utils/i18n';
+import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
+import { getTrendingTopicsFromCache, type TrendingTopic } from '@/lib/ai/trending';
+import type { INewsArticle } from '@/lib/types/news';
 
-export default function HomePage() {
-  const t = useTranslations('home');
-  const locale = useLocale() as 'en' | 'es';
+type HomePageProps = {
+  params: Promise<{
+    locale: Locale;
+  }>;
+};
 
-  // Mock data - in production, these would come from API/database
+export const revalidate = 300;
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
+export default async function HomePage({ params }: HomePageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations({ locale, namespace: 'home' });
+
+  const articles = await fetchLatestNews({ locale, limit: 12 });
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const hasSupabase = Boolean(supabaseUrl && supabaseKey);
+  const supabase = hasSupabase ? getSupabaseServerClient() : null;
+
+  const [courseData, leaderboardData, agents, trendingRecords, _articleCount] = await Promise.all([
+    loadCourseGalaxyData(supabase, locale),
+    loadLeaderboardData(supabase, locale),
+    loadAgentTelemetry(supabase, locale),
+    loadTrendingTopicRecords(hasSupabase),
+    getArticleCount(supabase),
+  ]);
+
+  const digestArticles = buildDigestArticles(articles, locale);
+  const trendingTopics = buildTrendingTopics(trendingRecords, articles);
+
   const heroStats = {
-    sources: 50,
-    freshnessMinutes: 15,
-    courses: 12,
+    sources: AI_NEWS_SOURCES.length,
+    freshnessMinutes: getFreshnessMinutes(articles),
+    courses: courseData.totalCourses,
   };
 
-  const orbMetrics = {
-    sources: 50,
-    articles: 2847,
-    bilingual: true,
-  };
-
-  const orbitTopics = [
-    'GPT-5', 'Claude 4', 'Gemini 3', 'Open Source',
-    'Agents', 'RAG', 'Fine-tuning', 'Computer Vision',
-    'NLP', 'Robotics'
-  ];
-
-  const digestArticles = [
-    { id: '1', category: 'LLMs', title: 'OpenAI announces GPT-5 with unprecedented reasoning', relativeTime: '2h ago', href: '/news/gpt5-announcement', image: '/images/fallback/llm-neural-network.svg' },
-    { id: '2', category: 'Research', title: 'New breakthrough in efficient transformer architectures', relativeTime: '4h ago', href: '/news/transformer-breakthrough', image: '/images/fallback/research-paper.svg' },
-    { id: '3', category: 'Agents', title: 'Autonomous AI agents now capable of complex reasoning', relativeTime: '6h ago', href: '/news/autonomous-agents', image: '/images/fallback/ai-agent.svg' },
-    { id: '4', category: 'Industry', title: 'Tech giants race to deploy AI infrastructure globally', relativeTime: '8h ago', href: '/news/ai-infrastructure', image: '/images/fallback/tech-infrastructure.svg' },
-    { id: '5', category: 'Ethics', title: 'New framework proposed for responsible AI deployment', relativeTime: '12h ago', href: '/news/ai-ethics-framework', image: '/images/fallback/ai-ethics.svg' },
-    { id: '6', category: 'Open Source', title: 'Community releases powerful open-weight model', relativeTime: '1d ago', href: '/news/open-source-model', image: '/images/fallback/open-source.svg' },
-  ];
-
-  const trendingTopics = [
-    { slug: 'gpt-5', label: 'GPT-5', deltaArticles: 12 },
-    { slug: 'claude-opus', label: 'Claude Opus 4', deltaArticles: 8 },
-    { slug: 'ai-agents', label: 'AI Agents', deltaArticles: 6 },
-    { slug: 'multimodal', label: 'Multimodal AI', deltaArticles: 5 },
-    { slug: 'open-source', label: 'Open Source', deltaArticles: 4 },
-    { slug: 'rag', label: 'RAG', deltaArticles: 3 },
-    { slug: 'fine-tuning', label: 'Fine-tuning', deltaArticles: 2 },
-    { slug: 'computer-vision', label: 'Computer Vision', deltaArticles: 2 },
-  ];
-
-  const courses = [
-    { id: 'llm-fundamentals', title: 'LLM Fundamentals', level: 'beginner' as const, duration: '4h', progress: 75, description: 'Master the basics of Large Language Models', moduleCount: 8 },
-    { id: 'prompt-engineering', title: 'Prompt Engineering Mastery', level: 'intermediate' as const, duration: '6h', progress: 30, description: 'Learn advanced prompting techniques', moduleCount: 12 },
-    { id: 'ai-agents', title: 'Building AI Agents', level: 'advanced' as const, duration: '8h', description: 'Create autonomous AI agents from scratch', moduleCount: 15 },
-    { id: 'rag-systems', title: 'RAG Systems Deep Dive', level: 'intermediate' as const, duration: '5h', description: 'Implement Retrieval Augmented Generation', moduleCount: 10 },
-    { id: 'fine-tuning', title: 'Fine-tuning LLMs', level: 'advanced' as const, duration: '6h', description: 'Customize models for your use case', moduleCount: 11 },
-  ];
-
-  const agents = [
-    { id: 'curator', name: 'News Curator', cadence: 'Every 6 hours', stack: ['LLM', 'RSS', 'Embeddings'], status: 'active' as const, metrics: { processed: 12847, accuracy: 94, lastRun: '2h ago' } },
-    { id: 'translator', name: 'Bilingual Translator', cadence: 'On-demand', stack: ['GPT-5', 'DeepL'], status: 'active' as const, metrics: { processed: 5621, accuracy: 98 } },
-    { id: 'learner', name: 'Learning Agent', cadence: 'Daily', stack: ['Feedback', 'RL'], status: 'learning' as const, metrics: { processed: 847, lastRun: '4h ago' } },
-    { id: 'course-gen', name: 'Course Generator', cadence: 'On-demand', stack: ['RAG', 'LLM', 'Vision'], status: 'idle' as const, metrics: { processed: 156, accuracy: 91 } },
-    { id: 'trend-detector', name: 'Trend Detector', cadence: 'Hourly', stack: ['Clustering', 'NLP'], status: 'active' as const, metrics: { processed: 3412, lastRun: '45m ago' } },
-    { id: 'fact-checker', name: 'Fact Checker', cadence: 'Per article', stack: ['Search', 'LLM'], status: 'active' as const, metrics: { processed: 2156, accuracy: 89 } },
-  ];
-
-  const leaders = [
-    { id: '1', name: 'TechExplorer', xp: 12450, weeklyDelta: 850, rank: 1 },
-    { id: '2', name: 'AIEnthusiast', xp: 11200, weeklyDelta: 720, rank: 2 },
-    { id: '3', name: 'DataScientist99', xp: 10800, weeklyDelta: 680, rank: 3 },
-    { id: '4', name: 'MLNinja', xp: 9500, weeklyDelta: 520, rank: 4 },
-    { id: '5', name: 'NeuralNetFan', xp: 8900, weeklyDelta: 450, rank: 5 },
-  ];
-
-  const featureBlocks = [
-    {
-      id: 'curated-news',
-      title: locale === 'en' ? 'AI-Curated News' : 'Noticias Curadas por IA',
-      copy: locale === 'en'
-        ? 'Our autonomous AI agents monitor 50+ sources 24/7, filtering signal from noise to bring you only the most relevant and impactful AI news.'
-        : 'Nuestros agentes IA autónomos monitorean 50+ fuentes 24/7, filtrando señal del ruido para traerte solo las noticias más relevantes e impactantes.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/news-curation.json',
-      icon: '📰',
-    },
-    {
-      id: 'personalized-learning',
-      title: locale === 'en' ? 'Personalized Learning' : 'Aprendizaje Personalizado',
-      copy: locale === 'en'
-        ? 'Generate custom courses on any AI topic in seconds. Our RAG-powered system creates comprehensive, textbook-quality content tailored to your level.'
-        : 'Genera cursos personalizados sobre cualquier tema de IA en segundos. Nuestro sistema RAG crea contenido comprehensivo de calidad universitaria adaptado a tu nivel.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/learning-path.json',
-      icon: '🎓',
-    },
-    {
-      id: 'knowledge-graph',
-      title: locale === 'en' ? 'Interactive Knowledge Graph' : 'Grafo de Conocimiento Interactivo',
-      copy: locale === 'en'
-        ? 'Explore the interconnected world of AI through our visual knowledge graph. Discover relationships between concepts, companies, and technologies.'
-        : 'Explora el mundo interconectado de la IA a través de nuestro grafo visual. Descubre relaciones entre conceptos, empresas y tecnologías.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/knowledge-graph.json',
-      icon: '🕸️',
-    },
-  ];
+  const featureBlocks = getFeatureBlocks(locale);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#020309]">
       {/* Subtle animated background grid */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.02]">
-        <div 
+        <div
           className="absolute inset-0"
           style={{
             backgroundImage: `
@@ -130,35 +80,15 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Hero Section with Orb */}
-      <div className="relative">
-        <KineticHero
-          locale={locale}
-          headline={t('hero.title')}
-          subheadline={t('hero.subtitle')}
-          stats={heroStats}
-          primaryCta={{ label: t('hero.cta'), href: '/news' }}
-          secondaryCta={{ label: t('hero.ctaSecondary'), href: '/courses' }}
-        />
-
-        {/* Orb positioned absolutely on desktop */}
-        <div className="hidden xl:block absolute right-[5%] top-1/2 -translate-y-1/2 z-10">
-          <ThotNetOrb
-            metrics={orbMetrics}
-            orbitTopics={orbitTopics}
-            interactive={true}
-          />
-        </div>
-
-        {/* Orb below hero on mobile/tablet */}
-        <div className="xl:hidden flex justify-center pb-16">
-          <ThotNetOrb
-            metrics={orbMetrics}
-            orbitTopics={orbitTopics}
-            interactive={false}
-          />
-        </div>
-      </div>
+      {/* Hero Section */}
+      <KineticHero
+        locale={locale}
+        headline={t('hero.title')}
+        subheadline={t('hero.subtitle')}
+        stats={heroStats}
+        primaryCta={{ label: t('hero.cta'), href: `/${locale}/news` }}
+        secondaryCta={{ label: t('hero.ctaSecondary'), href: `/${locale}/courses` }}
+      />
 
       {/* Today's Digest */}
       <TodayDigestRail articles={digestArticles} locale={locale} />
@@ -168,8 +98,8 @@ export default function HomePage() {
 
       {/* Course Galaxy */}
       <CourseGalaxyNavigator
-        courses={courses}
-        featuredCourseId="llm-fundamentals"
+        courses={courseData.courses}
+        featuredCourseId={courseData.courses[0]?.id}
         locale={locale}
       />
 
@@ -178,8 +108,8 @@ export default function HomePage() {
 
       {/* Leaderboard */}
       <LeaderboardStrip
-        leaders={leaders}
-        summary={{ totalUsers: 2847, weeklyXpAwarded: 45600 }}
+        leaders={leaderboardData.leaders}
+        summary={leaderboardData.summary}
         locale={locale}
       />
 
@@ -195,25 +125,401 @@ export default function HomePage() {
         }
         primaryCta={{
           label: locale === 'en' ? 'Start Learning Free' : 'Comienza Gratis',
-          href: '/courses',
+          href: `/${locale}/courses`,
         }}
         secondaryCta={{
           label: locale === 'en' ? 'Explore News' : 'Explorar Noticias',
-          href: '/news',
+          href: `/${locale}/news`,
         }}
         locale={locale}
       />
-
-      <style jsx global>{`
-        @keyframes gradient {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        .animate-gradient {
-          background-size: 200% auto;
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
     </main>
   );
+}
+
+function buildDigestArticles(articles: INewsArticle[], locale: Locale) {
+  return articles.slice(0, 8).map((article) => {
+    const localizedTitle = getLocalizedString(article, 'title', locale);
+    const title = localizedTitle || article.title_en;
+    return {
+      id: article.id,
+      category: translateCategory(article.category, locale),
+      title,
+      relativeTime: formatRelativeTimeFromNow(article.published_at, locale),
+      href: `/${locale}/news/${article.id}`,
+      image: getImageWithFallback(article.image_url, title, article.category),
+    };
+  });
+}
+
+function translateCategory(category: string, locale: Locale) {
+  const normalized = category?.toLowerCase().replace(/\s+/g, '') || 'all';
+  const labels: Record<string, { en: string; es: string }> = {
+    all: { en: 'AI', es: 'IA' },
+    machinelearning: { en: 'Machine Learning', es: 'Aprendizaje automático' },
+    nlp: { en: 'NLP', es: 'PLN' },
+    computervision: { en: 'Computer Vision', es: 'Visión' },
+    robotics: { en: 'Robotics', es: 'Robótica' },
+    ethics: { en: 'Ethics', es: 'Ética' },
+    industry: { en: 'Industry', es: 'Industria' },
+    research: { en: 'Research', es: 'Investigación' },
+  };
+
+  return labels[normalized]?.[locale] || labels.all[locale];
+}
+
+function getFreshnessMinutes(articles: INewsArticle[]) {
+  if (!articles.length) return 0;
+  const latest = new Date(articles[0].published_at);
+  const diffMinutes = Math.max(1, Math.round((Date.now() - latest.getTime()) / 60000));
+  return diffMinutes;
+}
+
+function getFeatureBlocks(locale: Locale) {
+  return [
+    {
+      id: 'curated-news',
+      title: locale === 'en' ? 'AI-Curated News' : 'Noticias Curadas por IA',
+      copy:
+        locale === 'en'
+          ? 'Our autonomous AI agents monitor 50+ sources 24/7, filtering signal from noise to bring you only the most relevant and impactful AI news.'
+          : 'Nuestros agentes IA autónomos monitorean 50+ fuentes 24/7, filtrando señal del ruido para traerte solo las noticias más relevantes e impactantes.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/news-curation.json',
+      icon: '📰',
+    },
+    {
+      id: 'personalized-learning',
+      title: locale === 'en' ? 'Personalized Learning' : 'Aprendizaje Personalizado',
+      copy:
+        locale === 'en'
+          ? 'Generate custom courses on any AI topic in seconds. Our RAG-powered system creates comprehensive, textbook-quality content tailored to your level.'
+          : 'Genera cursos personalizados sobre cualquier tema de IA en segundos. Nuestro sistema RAG crea contenido comprehensivo de calidad universitaria adaptado a tu nivel.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/learning-path.json',
+      icon: '🎓',
+    },
+    {
+      id: 'knowledge-graph',
+      title: locale === 'en' ? 'Interactive Knowledge Graph' : 'Grafo de Conocimiento Interactivo',
+      copy:
+        locale === 'en'
+          ? 'Explore the interconnected world of AI through our visual knowledge graph. Discover relationships between concepts, companies, and technologies.'
+          : 'Explora el mundo interconectado de la IA a través de nuestro grafo visual. Descubre relaciones entre conceptos, empresas y tecnologías.',
+      mediaType: 'lottie' as const,
+      mediaSrc: '/animations/knowledge-graph.json',
+      icon: '🕸️',
+    },
+  ];
+}
+
+async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Locale) {
+  if (!supabase) {
+    return { courses: [], totalCourses: 0 };
+  }
+
+  try {
+    const [{ data }, { count }] = await Promise.all([
+      supabase
+        .from('courses')
+        .select(
+          `id, title_en, title_es, description_en, description_es, difficulty, duration_minutes, topics, completion_rate`
+        )
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(6),
+      supabase.from('courses').select('*', { count: 'exact', head: true }),
+    ]);
+
+    const courses = (data || []).map((course) => ({
+      id: course.id,
+      title: locale === 'en' ? course.title_en : course.title_es,
+      level: (course.difficulty as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+      duration: formatCourseDuration(course.duration_minutes),
+      progress:
+        typeof course.completion_rate === 'number'
+          ? Math.round(Number(course.completion_rate))
+          : undefined,
+      description: locale === 'en' ? course.description_en : course.description_es,
+      moduleCount: Array.isArray(course.topics) ? course.topics.length : undefined,
+    }));
+
+    return { courses, totalCourses: count ?? 0 };
+  } catch (error) {
+    console.error('[home] Failed to load courses:', error);
+    return { courses: [], totalCourses: 0 };
+  }
+}
+
+function formatCourseDuration(minutes?: number | null) {
+  if (!minutes || Number.isNaN(minutes)) return '—';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  return `${hours}h`;
+}
+
+async function loadLeaderboardData(supabase: SupabaseClient | null, locale: Locale) {
+  if (!supabase) {
+    return {
+      leaders: [],
+      summary: { totalUsers: 0, weeklyXpAwarded: 0 },
+    };
+  }
+
+  try {
+    const xpCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [{ data: leaderboard }, xpTransactions, userCount] = await Promise.all([
+      supabase
+        .from('leaderboard_weekly')
+        .select('id, display_name, avatar_url, total_xp, rank')
+        .order('rank', { ascending: true })
+        .limit(5),
+      supabase
+        .from('xp_transactions')
+        .select('user_id, xp_amount')
+        .gte('created_at', xpCutoff),
+      supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
+    ]);
+
+    const xpMap = new Map<string, number>();
+    let weeklyXpAwarded = 0;
+    (xpTransactions.data || []).forEach((row: { user_id: string; xp_amount: number | null }) => {
+      const amount = row.xp_amount ?? 0;
+      weeklyXpAwarded += amount;
+      xpMap.set(row.user_id, (xpMap.get(row.user_id) || 0) + amount);
+    });
+
+    const leaders = (leaderboard || []).map((entry, index) => ({
+      id: entry.id,
+      name: entry.display_name || (locale === 'en' ? 'Explorer' : 'Explorador'),
+      avatarUrl: entry.avatar_url ?? undefined,
+      xp: entry.total_xp ?? 0,
+      weeklyDelta: xpMap.get(entry.id) ?? 0,
+      rank: entry.rank ?? index + 1,
+    }));
+
+    return {
+      leaders,
+      summary: {
+        totalUsers: userCount.count ?? 0,
+        weeklyXpAwarded,
+      },
+    };
+  } catch (error) {
+    console.error('[home] Failed to load leaderboard:', error);
+    return {
+      leaders: [],
+      summary: { totalUsers: 0, weeklyXpAwarded: 0 },
+    };
+  }
+}
+
+async function loadAgentTelemetry(supabase: SupabaseClient | null, locale: Locale) {
+  const blueprints = getAgentBlueprints(locale);
+
+  if (!supabase) {
+    return blueprints.map((agent) => ({
+      ...agent,
+      metrics: { processed: 0 },
+    }));
+  }
+
+  try {
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+    const { data } = await supabase
+      .from('ai_system_logs')
+      .select('agent_type, action_type, status, success, created_at, timestamp')
+      .gte('timestamp', cutoff)
+      .order('timestamp', { ascending: false })
+      .limit(600);
+
+    const logs = data || [];
+
+    return blueprints.map((agent) => {
+      const relevant = logs.filter((log) =>
+        (agent.agentType && log.agent_type === agent.agentType) ||
+        (agent.actionType && log.action_type === agent.actionType)
+      );
+
+      const processed = relevant.length;
+      const successCount = relevant.filter(
+        (log) => log.success === true || log.status === 'success'
+      ).length;
+      const lastRunIso = relevant[0]?.created_at || relevant[0]?.timestamp;
+      const derivedStatus = relevant.length > 0 ? deriveAgentStatus(relevant[0]) : agent.status;
+
+      return {
+        ...agent,
+        status: derivedStatus,
+        metrics: {
+          processed,
+          accuracy: processed ? Math.round((successCount / processed) * 100) : undefined,
+          lastRun: lastRunIso ? formatRelativeTimeFromNow(lastRunIso, locale) : undefined,
+        },
+      };
+    });
+  } catch (error) {
+    console.error('[home] Failed to load agent telemetry:', error);
+    return blueprints.map((agent) => ({
+      ...agent,
+      metrics: { processed: 0 },
+    }));
+  }
+}
+
+function getAgentBlueprints(locale: Locale) {
+  return [
+    {
+      id: 'trend-detector',
+      name: locale === 'en' ? 'Trend Detector' : 'Detector de Tendencias',
+      cadence: locale === 'en' ? 'Every 6 hours' : 'Cada 6 horas',
+      stack: ['Embeddings', 'NLP', 'LLM'],
+      status: 'active' as const,
+      agentType: 'trend_detector',
+    },
+    {
+      id: 'fact-checker',
+      name: locale === 'en' ? 'Fact Checker' : 'Verificador',
+      cadence: locale === 'en' ? 'Per article' : 'Por artículo',
+      stack: ['Search', 'LLM'],
+      status: 'active' as const,
+      agentType: 'fact_checker',
+    },
+    {
+      id: 'multi-perspective',
+      name: locale === 'en' ? 'Multi-Perspective' : 'Perspectivas Múltiples',
+      cadence: locale === 'en' ? 'On-demand' : 'Bajo demanda',
+      stack: ['Summaries', 'LLM'],
+      status: 'learning' as const,
+      agentType: 'multi_perspective',
+    },
+    {
+      id: 'bias-auditor',
+      name: locale === 'en' ? 'Bias Auditor' : 'Auditor de Sesgos',
+      cadence: locale === 'en' ? 'Daily' : 'Diario',
+      stack: ['Sentiment', 'Analytics'],
+      status: 'idle' as const,
+      agentType: 'bias_auditor',
+    },
+    {
+      id: 'course-generator',
+      name: locale === 'en' ? 'Course Generator' : 'Generador de Cursos',
+      cadence: locale === 'en' ? 'On-demand' : 'Bajo demanda',
+      stack: ['RAG', 'LLM', 'Vision'],
+      status: 'idle' as const,
+      actionType: 'course_generation',
+    },
+    {
+      id: 'learning-agent',
+      name: locale === 'en' ? 'Learning Agent' : 'Agente Aprendiz',
+      cadence: locale === 'en' ? 'Daily' : 'Diario',
+      stack: ['Feedback', 'RL'],
+      status: 'learning' as const,
+      actionType: 'learning_cycle',
+    },
+  ];
+}
+
+type AgentStatus = 'active' | 'idle' | 'learning';
+
+function deriveAgentStatus(log?: { status?: string | null; success?: boolean | null }): AgentStatus {
+  if (!log) return 'idle';
+  if (log.status === 'running') return 'active';
+  if (log.status === 'success' || log.success) return 'active';
+  if (log.status === 'error' || log.success === false) return 'learning';
+  return 'idle';
+}
+
+async function loadTrendingTopicRecords(hasSupabase: boolean) {
+  if (!hasSupabase) return [] as TrendingTopic[];
+  try {
+    const { topics } = await getTrendingTopicsFromCache();
+    return topics ?? [];
+  } catch (error) {
+    console.error('[home] Failed to load trending topics:', error);
+    return [];
+  }
+}
+
+function buildTrendingTopics(records: TrendingTopic[], articles: INewsArticle[]) {
+  if (!records.length) {
+    return buildFallbackTrendingTopics(articles);
+  }
+
+  return records.slice(0, 12).map((topic) => ({
+    slug: slugifyTopic(topic.topic),
+    label: formatTopicLabel(topic.topic),
+    deltaArticles: Math.max(1, Math.round(topic.momentum ?? topic.count ?? 1)),
+  }));
+}
+
+function buildFallbackTrendingTopics(articles: INewsArticle[]) {
+  const topicStats = extractArticleTopicStats(articles);
+  if (!topicStats.length) {
+    return ['GPT-5', 'Claude 4.5', 'Gemini 3', 'Open Source', 'Agents', 'RAG'].map((label) => ({
+      slug: slugifyTopic(label),
+      label,
+      deltaArticles: 1,
+    }));
+  }
+
+  return topicStats.slice(0, 8).map(({ label, count }) => ({
+    slug: slugifyTopic(label),
+    label,
+    deltaArticles: count,
+  }));
+}
+
+function _deriveTopicsFromArticles(articles: INewsArticle[]) {
+  const stats = extractArticleTopicStats(articles);
+  if (!stats.length) {
+    return ['GPT-5', 'Claude 4.5', 'Gemini 3', 'Open Source', 'Agents', 'RAG'];
+  }
+
+  return stats.slice(0, 8).map(({ label }) => label);
+}
+
+function slugifyTopic(topic: string) {
+  return topic
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'topic';
+}
+
+function formatTopicLabel(topic: string) {
+  return topic
+    .replace(/[-_]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+async function getArticleCount(supabase: SupabaseClient | null) {
+  if (!supabase) return 0;
+  try {
+    const { count } = await supabase
+      .from('news_articles')
+      .select('*', { count: 'exact', head: true });
+    return count ?? 0;
+  } catch (error) {
+    console.error('[home] Failed to count articles:', error);
+    return 0;
+  }
+}
+
+function extractArticleTopicStats(articles: INewsArticle[]) {
+  const counts = new Map<string, number>();
+  articles.forEach((article) => {
+    article.tags?.forEach((tag) => {
+      const normalized = formatTopicLabel(tag);
+      counts.set(normalized, (counts.get(normalized) || 0) + 1);
+    });
+  });
+
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({ label, count }));
 }
