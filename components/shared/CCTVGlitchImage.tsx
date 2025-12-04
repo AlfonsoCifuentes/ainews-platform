@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 interface CCTVGlitchImageProps {
@@ -23,6 +23,7 @@ interface CCTVGlitchImageProps {
  * - Glitch/tearing effect on hover start
  * - Animated scanlines while hovering (arcade CRT style)
  * - VHS tracking distortion effect
+ * - Works with parent .group hover (for overlays that block pointer events)
  */
 export function CCTVGlitchImage({
   src,
@@ -37,29 +38,81 @@ export function CCTVGlitchImage({
 }: CCTVGlitchImageProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [isGlitching, setIsGlitching] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const glitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMouseEnter = useCallback(() => {
+  const triggerGlitch = useCallback(() => {
+    if (isGlitching) return; // Prevent re-triggering during glitch
     setIsHovering(true);
     setIsGlitching(true);
     
+    // Clear any existing timeout
+    if (glitchTimeoutRef.current) {
+      clearTimeout(glitchTimeoutRef.current);
+    }
+    
     // Glitch effect lasts 400ms then stops
-    setTimeout(() => {
+    glitchTimeoutRef.current = setTimeout(() => {
       setIsGlitching(false);
     }, 400);
-  }, []);
+  }, [isGlitching]);
+
+  const handleMouseEnter = useCallback(() => {
+    triggerGlitch();
+  }, [triggerGlitch]);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovering(false);
     setIsGlitching(false);
+    if (glitchTimeoutRef.current) {
+      clearTimeout(glitchTimeoutRef.current);
+      glitchTimeoutRef.current = null;
+    }
   }, []);
+
+  // Listen to parent .group hover via MutationObserver for class changes
+  // This handles cases where overlay elements block direct hover events
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Find closest .group ancestor
+    const groupParent = container.closest('.group');
+    if (!groupParent) return;
+
+    let wasHovered = false;
+
+    const checkHover = () => {
+      const isNowHovered = groupParent.matches(':hover');
+      if (isNowHovered && !wasHovered) {
+        triggerGlitch();
+      } else if (!isNowHovered && wasHovered) {
+        handleMouseLeave();
+      }
+      wasHovered = isNowHovered;
+    };
+
+    // Check on mouse events on the group parent
+    groupParent.addEventListener('mouseenter', checkHover);
+    groupParent.addEventListener('mouseleave', checkHover);
+
+    return () => {
+      groupParent.removeEventListener('mouseenter', checkHover);
+      groupParent.removeEventListener('mouseleave', checkHover);
+      if (glitchTimeoutRef.current) {
+        clearTimeout(glitchTimeoutRef.current);
+      }
+    };
+  }, [triggerGlitch, handleMouseLeave]);
 
   return (
     <div 
+      ref={containerRef}
       className="cctv-container relative w-full h-full overflow-hidden"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Main Image */}
+      {/* Main Image - uses both JS state AND CSS group-hover for maximum compatibility */}
       <Image
         src={src}
         alt={alt}
@@ -71,7 +124,8 @@ export function CCTVGlitchImage({
         unoptimized={unoptimized}
         className={`
           object-cover transition-all duration-500
-          ${isHovering ? 'grayscale-0 scale-105' : 'grayscale'}
+          grayscale group-hover:grayscale-0 group-hover:scale-105
+          ${isHovering ? 'grayscale-0 scale-105' : ''}
           ${isGlitching ? 'cctv-glitch' : ''}
           ${className}
         `}
@@ -120,26 +174,20 @@ export function CCTVGlitchImage({
         </>
       )}
 
-      {/* Scanlines - Visible while hovering */}
-      {isHovering && (
-        <div className="cctv-scanlines" />
-      )}
+      {/* Scanlines - Visible while hovering (JS or CSS group-hover) */}
+      <div className={`cctv-scanlines ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
-      {/* VHS Noise Overlay */}
-      {isHovering && (
-        <div className="cctv-noise" />
-      )}
+      {/* VHS Noise Overlay - Visible while hovering */}
+      <div className={`cctv-noise ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
       {/* CRT Vignette */}
-      <div className={`cctv-vignette ${isHovering ? 'opacity-60' : 'opacity-0'}`} />
+      <div className={`cctv-vignette transition-opacity duration-300 ${isHovering ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'}`} />
 
-      {/* Timestamp Overlay */}
-      {isHovering && (
-        <div className="absolute top-2 left-2 font-mono text-[10px] text-[#00ff00] opacity-80 z-20 mix-blend-screen">
-          <span className="cctv-blink">REC</span>
-          <span className="ml-2">{new Date().toLocaleTimeString('en-US', { hour12: false })}</span>
-        </div>
-      )}
+      {/* Timestamp Overlay - Visible while hovering */}
+      <div className={`absolute top-2 left-2 font-mono text-[10px] text-[#00ff00] z-20 mix-blend-screen transition-opacity duration-300 ${isHovering ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'}`}>
+        <span className="cctv-blink">REC</span>
+        <span className="ml-2">{new Date().toLocaleTimeString('en-US', { hour12: false })}</span>
+      </div>
 
       <style jsx>{`
         .cctv-container {

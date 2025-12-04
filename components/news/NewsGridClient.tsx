@@ -156,9 +156,9 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 sizes="100vw"
                 unoptimized={!hero.image_url}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020309] via-[#020309]/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020309] via-[#020309]/50 to-transparent pointer-events-none" />
               
-              <div className="absolute left-8 top-8 z-20">
+              <div className="absolute left-8 top-8 z-20 pointer-events-none">
                 <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-4 py-2 text-xs font-mono uppercase tracking-widest text-[#EAEAEA]">
                   {translateCategory(hero.category)}
                 </span>
@@ -216,9 +216,9 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                     sizes="(max-width: 768px) 100vw, 33vw"
                     unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#020309] to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#020309] to-transparent pointer-events-none" />
                   
-                  <div className="absolute left-4 top-4">
+                  <div className="absolute left-4 top-4 pointer-events-none">
                     <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1 text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
                       {translateCategory(article.category)}
                     </span>
@@ -278,9 +278,9 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#020309]/80 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#020309]/80 to-transparent pointer-events-none" />
                     
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
                       <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1 text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
                         {translateCategory(article.category)}
                       </span>
