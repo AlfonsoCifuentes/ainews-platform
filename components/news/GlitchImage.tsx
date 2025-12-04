@@ -13,8 +13,6 @@ interface GlitchImageProps {
   unoptimized?: boolean;
 }
 
-type GlitchState = 'idle' | 'glitching' | 'active';
-
 export function GlitchImage({
   src,
   alt,
@@ -24,132 +22,164 @@ export function GlitchImage({
   className = "",
   unoptimized = false,
 }: GlitchImageProps) {
-  const [status, setStatus] = useState<GlitchState>('idle');
-  const timeoutRef = useRef<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [showGlitch, setShowGlitch] = useState(false);
+  const glitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = () => {
-    if (status !== 'idle') return;
-    setStatus('glitching');
+    setIsHovered(true);
+    setShowGlitch(true);
     
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
-      setStatus('active');
-    }, 600);
+    // Clear any existing timeout
+    if (glitchTimeoutRef.current) {
+      clearTimeout(glitchTimeoutRef.current);
+    }
+    
+    // Stop glitch animation after 500ms, keep color
+    glitchTimeoutRef.current = setTimeout(() => {
+      setShowGlitch(false);
+    }, 500);
   };
 
   const handleMouseLeave = () => {
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    setStatus('idle');
+    setIsHovered(false);
+    setShowGlitch(false);
+    
+    if (glitchTimeoutRef.current) {
+      clearTimeout(glitchTimeoutRef.current);
+      glitchTimeoutRef.current = null;
+    }
   };
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      if (glitchTimeoutRef.current) {
+        clearTimeout(glitchTimeoutRef.current);
+      }
     };
   }, []);
 
   return (
     <div 
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden group/glitch"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Keyframes for glitch animation */}
-      <style>{`
-        @keyframes news-glitch-1 {
-          0% { clip-path: inset(20% 0 80% 0); transform: translate(-3px, 1px); }
-          20% { clip-path: inset(60% 0 10% 0); transform: translate(3px, -1px); }
-          40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 2px); }
-          60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -2px); }
-          80% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 1px); }
-          100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
+      {/* Global styles for the component */}
+      <style jsx global>{`
+        @keyframes glitch-anim-1 {
+          0%, 100% { clip-path: inset(20% 0 60% 0); transform: translate(-4px, 2px); }
+          25% { clip-path: inset(50% 0 30% 0); transform: translate(4px, -2px); }
+          50% { clip-path: inset(70% 0 10% 0); transform: translate(-2px, 3px); }
+          75% { clip-path: inset(10% 0 80% 0); transform: translate(3px, -3px); }
         }
-        @keyframes news-glitch-2 {
-          0% { clip-path: inset(10% 0 60% 0); transform: translate(3px, -1px); }
-          20% { clip-path: inset(80% 0 5% 0); transform: translate(-3px, 2px); }
-          40% { clip-path: inset(30% 0 20% 0); transform: translate(2px, 1px); }
-          60% { clip-path: inset(15% 0 80% 0); transform: translate(-1px, -2px); }
-          80% { clip-path: inset(55% 0 10% 0); transform: translate(1px, 2px); }
-          100% { clip-path: inset(40% 0 30% 0); transform: translate(-2px, 1px); }
+        @keyframes glitch-anim-2 {
+          0%, 100% { clip-path: inset(40% 0 40% 0); transform: translate(4px, -2px); }
+          25% { clip-path: inset(10% 0 70% 0); transform: translate(-4px, 3px); }
+          50% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -1px); }
+          75% { clip-path: inset(30% 0 50% 0); transform: translate(-3px, 2px); }
         }
-        @keyframes news-scanline {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 100%; }
+        @keyframes glitch-flash {
+          0%, 100% { opacity: 0; }
+          50% { opacity: 0.15; }
         }
-        .news-glitch-red {
-          animation: news-glitch-1 0.3s infinite linear alternate-reverse;
-        }
-        .news-glitch-blue {
-          animation: news-glitch-2 0.3s infinite linear alternate-reverse;
-        }
-        .news-scanlines {
-          background: linear-gradient(
-            to bottom,
-            rgba(255,255,255,0),
-            rgba(255,255,255,0) 50%,
-            rgba(0,0,0,0.15) 50%,
-            rgba(0,0,0,0.15)
-          );
-          background-size: 100% 4px;
-          animation: news-scanline 15s linear infinite;
+        @keyframes scanline-move {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
         }
       `}</style>
 
-      {/* Base image - grayscale when idle, color when active */}
-      <div 
-        className={`
-          relative w-full h-full transition-all duration-300
-          ${status === 'idle' ? 'grayscale contrast-110 brightness-90' : 'grayscale-0 contrast-100 brightness-100'}
-        `}
-      >
+      {/* Base image layer - grayscale by default, color on hover */}
+      <div className="relative w-full h-full">
         <Image
           src={src}
           alt={alt}
           fill={fill}
           priority={priority}
           sizes={sizes}
-          className={`object-cover ${className}`}
+          className={`
+            object-cover transition-all duration-500 ease-out
+            ${isHovered ? '' : 'grayscale brightness-90 contrast-110'}
+            ${className}
+          `}
           unoptimized={unoptimized}
         />
       </div>
 
-      {/* Glitch layers - only during glitching state */}
-      {status === 'glitching' && (
+      {/* Glitch effect layers - only visible during glitch animation */}
+      {showGlitch && (
         <>
-          {/* Red channel shift */}
+          {/* Red/magenta channel shift */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-60 news-glitch-red pointer-events-none"
+            className="absolute inset-0 pointer-events-none mix-blend-screen"
             style={{
-              backgroundImage: `url(${src})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(-50deg) saturate(400%)',
+              animation: 'glitch-anim-1 0.15s infinite linear',
+            }}
+          >
+            <Image
+              src={src}
+              alt=""
+              fill
+              sizes={sizes}
+              className="object-cover opacity-70"
+              style={{
+                filter: 'sepia(100%) hue-rotate(-50deg) saturate(300%) brightness(130%)',
+              }}
+              unoptimized={unoptimized}
+            />
+          </div>
+
+          {/* Cyan/blue channel shift */}
+          <div 
+            className="absolute inset-0 pointer-events-none mix-blend-screen"
+            style={{
+              animation: 'glitch-anim-2 0.15s infinite linear',
+            }}
+          >
+            <Image
+              src={src}
+              alt=""
+              fill
+              sizes={sizes}
+              className="object-cover opacity-70"
+              style={{
+                filter: 'sepia(100%) hue-rotate(150deg) saturate(300%) brightness(130%)',
+              }}
+              unoptimized={unoptimized}
+            />
+          </div>
+
+          {/* White flash overlay */}
+          <div 
+            className="absolute inset-0 bg-white pointer-events-none"
+            style={{
+              animation: 'glitch-flash 0.1s infinite',
             }}
           />
-          {/* Blue/Cyan channel shift */}
-          <div 
-            className="absolute inset-0 mix-blend-screen opacity-60 news-glitch-blue pointer-events-none"
-            style={{
-              backgroundImage: `url(${src})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(160deg) saturate(400%)',
-            }}
-          />
-          {/* Noise flash */}
-          <div className="absolute inset-0 bg-white/20 mix-blend-overlay animate-pulse pointer-events-none" />
         </>
       )}
 
-      {/* CRT monitor effects - visible during glitching and active */}
-      {(status === 'active' || status === 'glitching') && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {/* Scanlines */}
-          <div className="absolute inset-0 news-scanlines opacity-20" />
-          {/* Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.4)_100%)]" />
+      {/* Scanline effect - visible on hover */}
+      {isHovered && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent"
+            style={{
+              height: '200%',
+              animation: 'scanline-move 2s linear infinite',
+            }}
+          />
         </div>
       )}
+
+      {/* CRT vignette effect - always visible, stronger on hover */}
+      <div 
+        className={`
+          absolute inset-0 pointer-events-none transition-opacity duration-300
+          bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.5)_100%)]
+          ${isHovered ? 'opacity-60' : 'opacity-30'}
+        `}
+      />
     </div>
   );
 }
