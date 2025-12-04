@@ -98,44 +98,86 @@ export function CCTVGlitchImage({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Keyframes matching glitchcard.tsx exactly */}
+      {/* AGGRESSIVE GLITCH KEYFRAMES - 3 RGB channels, 10-15px translations, 0.1s speed */}
       <style jsx global>{`
         @keyframes glitch-anim-1 {
-          0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 1px); }
-          20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
-          40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 2px); }
-          60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -2px); }
-          80% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 1px); }
-          100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
+          0% { clip-path: inset(8% 0 85% 0); transform: translate(-12px, 2px) skewX(-2deg); }
+          10% { clip-path: inset(75% 0 5% 0); transform: translate(10px, -3px) skewX(1deg); }
+          20% { clip-path: inset(35% 0 45% 0); transform: translate(-15px, 4px) skewX(-1deg); }
+          30% { clip-path: inset(90% 0 2% 0); transform: translate(8px, -2px) skewX(2deg); }
+          40% { clip-path: inset(15% 0 70% 0); transform: translate(-10px, 5px) skewX(-2deg); }
+          50% { clip-path: inset(50% 0 30% 0); transform: translate(14px, -4px) skewX(1deg); }
+          60% { clip-path: inset(5% 0 92% 0); transform: translate(-8px, 3px) skewX(-1deg); }
+          70% { clip-path: inset(65% 0 15% 0); transform: translate(12px, -5px) skewX(2deg); }
+          80% { clip-path: inset(25% 0 55% 0); transform: translate(-14px, 2px) skewX(-2deg); }
+          90% { clip-path: inset(80% 0 8% 0); transform: translate(10px, -3px) skewX(1deg); }
+          100% { clip-path: inset(40% 0 40% 0); transform: translate(-12px, 4px) skewX(-1deg); }
         }
         @keyframes glitch-anim-2 {
-          0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
-          20% { clip-path: inset(80% 0 5% 0); transform: translate(-2px, 2px); }
-          40% { clip-path: inset(30% 0 20% 0); transform: translate(2px, 1px); }
-          60% { clip-path: inset(15% 0 80% 0); transform: translate(-1px, -2px); }
-          80% { clip-path: inset(55% 0 10% 0); transform: translate(1px, 2px); }
-          100% { clip-path: inset(40% 0 30% 0); transform: translate(-2px, 1px); }
+          0% { clip-path: inset(45% 0 35% 0); transform: translate(14px, -3px) skewX(2deg); }
+          10% { clip-path: inset(10% 0 75% 0); transform: translate(-10px, 4px) skewX(-1deg); }
+          20% { clip-path: inset(70% 0 15% 0); transform: translate(12px, -2px) skewX(1deg); }
+          30% { clip-path: inset(25% 0 60% 0); transform: translate(-15px, 5px) skewX(-2deg); }
+          40% { clip-path: inset(85% 0 5% 0); transform: translate(8px, -4px) skewX(2deg); }
+          50% { clip-path: inset(5% 0 88% 0); transform: translate(-12px, 3px) skewX(-1deg); }
+          60% { clip-path: inset(55% 0 25% 0); transform: translate(14px, -5px) skewX(1deg); }
+          70% { clip-path: inset(30% 0 50% 0); transform: translate(-10px, 2px) skewX(-2deg); }
+          80% { clip-path: inset(95% 0 2% 0); transform: translate(15px, -3px) skewX(2deg); }
+          90% { clip-path: inset(18% 0 65% 0); transform: translate(-8px, 4px) skewX(-1deg); }
+          100% { clip-path: inset(60% 0 20% 0); transform: translate(12px, -2px) skewX(1deg); }
+        }
+        @keyframes glitch-anim-3 {
+          0% { clip-path: inset(50% 0 30% 0); transform: translate(8px, 0) skewX(1deg); }
+          15% { clip-path: inset(20% 0 60% 0); transform: translate(-10px, 2px) skewX(-2deg); }
+          30% { clip-path: inset(70% 0 10% 0); transform: translate(12px, -1px) skewX(2deg); }
+          45% { clip-path: inset(35% 0 45% 0); transform: translate(-8px, 3px) skewX(-1deg); }
+          60% { clip-path: inset(85% 0 5% 0); transform: translate(10px, -2px) skewX(1deg); }
+          75% { clip-path: inset(15% 0 70% 0); transform: translate(-12px, 1px) skewX(-2deg); }
+          90% { clip-path: inset(60% 0 25% 0); transform: translate(8px, -3px) skewX(2deg); }
+          100% { clip-path: inset(40% 0 40% 0); transform: translate(-10px, 2px) skewX(-1deg); }
+        }
+        @keyframes white-flash {
+          0%, 40%, 100% { opacity: 0; }
+          10%, 30% { opacity: 0.5; }
+          20% { opacity: 0.8; }
+          50%, 70% { opacity: 0.3; }
+          60% { opacity: 0.6; }
+          80% { opacity: 0.1; }
+          90% { opacity: 0.4; }
         }
         @keyframes scanline-scroll {
           0% { background-position: 0 0; }
           100% { background-position: 0 100%; }
         }
+        @keyframes tear-scroll {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
         .animate-glitch-1 {
-          animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+          animation: glitch-anim-1 0.12s infinite steps(2) alternate-reverse;
         }
         .animate-glitch-2 {
-          animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+          animation: glitch-anim-2 0.1s infinite steps(3) alternate-reverse;
+        }
+        .animate-glitch-3 {
+          animation: glitch-anim-3 0.15s infinite steps(4);
+        }
+        .animate-white-flash {
+          animation: white-flash 0.08s infinite steps(1);
         }
         .animate-scanlines {
           background: linear-gradient(
             to bottom,
             rgba(255,255,255,0),
             rgba(255,255,255,0) 50%,
-            rgba(0,0,0,0.2) 50%,
-            rgba(0,0,0,0.2)
+            rgba(0,0,0,0.3) 50%,
+            rgba(0,0,0,0.3)
           );
           background-size: 100% 4px;
-          animation: scanline-scroll 20s linear infinite;
+          animation: scanline-scroll 15s linear infinite;
+        }
+        .animate-tear {
+          animation: tear-scroll 0.3s infinite linear;
         }
       `}</style>
 
@@ -154,12 +196,12 @@ export function CCTVGlitchImage({
         />
       </div>
 
-      {/* --- GLITCH LAYERS (Only visible during 'glitching') --- */}
+      {/* --- AGGRESSIVE GLITCH LAYERS - 3 RGB channels + white flash + tear lines --- */}
       {isGlitching && (
         <>
-          {/* Red Channel Shift - clip-path animation */}
+          {/* Red Channel Shift - aggressive 10-15px displacement */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-1 pointer-events-none"
+            className="absolute inset-0 mix-blend-screen opacity-90 animate-glitch-1 pointer-events-none z-10"
             aria-hidden="true"
           >
             <Image
@@ -169,12 +211,12 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(-50deg) saturate(300%)' }}
+              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(-50deg) saturate(500%)' }}
             />
           </div>
-          {/* Blue Channel Shift - clip-path animation */}
+          {/* Green Channel Shift - full RGB split */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-2 pointer-events-none"
+            className="absolute inset-0 mix-blend-screen opacity-85 animate-glitch-3 pointer-events-none z-20"
             aria-hidden="true"
           >
             <Image
@@ -184,23 +226,48 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(180deg) saturate(300%)' }}
+              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(90deg) saturate(500%)' }}
             />
           </div>
-          {/* White Noise Overlay for glitch moment */}
-          <div className="absolute inset-0 bg-white/10 mix-blend-overlay animate-pulse pointer-events-none" />
+          {/* Cyan/Blue Channel Shift */}
+          <div 
+            className="absolute inset-0 mix-blend-screen opacity-90 animate-glitch-2 pointer-events-none z-30"
+            aria-hidden="true"
+          >
+            <Image
+              src={src}
+              alt=""
+              fill
+              className="object-cover"
+              sizes={sizes}
+              unoptimized={unoptimized}
+              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(180deg) saturate(500%)' }}
+            />
+          </div>
+          {/* White Flash Overlay - aggressive flicker */}
+          <div className="absolute inset-0 bg-white/40 mix-blend-overlay animate-white-flash pointer-events-none z-40" />
+          {/* Horizontal Tear Lines */}
+          <div 
+            className="absolute inset-0 pointer-events-none z-50 animate-tear"
+            style={{
+              background: `
+                linear-gradient(transparent 0%, transparent 45%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.2) 46%, transparent 46%),
+                linear-gradient(transparent 0%, transparent 78%, rgba(0,255,255,0.25) 78%, rgba(0,255,255,0.25) 79%, transparent 79%)
+              `
+            }}
+          />
         </>
       )}
 
       {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
       {isHovering && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {/* Scanlines */}
-          <div className="absolute inset-0 animate-scanlines opacity-30" />
+        <div className="absolute inset-0 pointer-events-none z-50">
+          {/* Scanlines - more visible */}
+          <div className="absolute inset-0 animate-scanlines opacity-40" />
           {/* Vignette */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6)_100%)]" />
-          {/* Slight tube glow */}
-          <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,255,0,0.1)]" />
+          {/* Enhanced tube glow */}
+          <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,255,0,0.15)]" />
         </div>
       )}
     </div>
