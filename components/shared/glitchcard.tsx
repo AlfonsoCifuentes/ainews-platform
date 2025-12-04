@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import React, { useState, useEffect, useRef } from 'react';
 
 interface CCTVGlitchCardProps {
@@ -46,7 +45,7 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
       onMouseLeave={handleMouseLeave}
     >
       {/* Internal Styles for keyframes that are hard to do with pure Tailwind arbitrary values */}
-      <style jsx global>{`
+      <style>{`
         @keyframes glitch-anim-1 {
           0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 1px); }
           20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
@@ -90,13 +89,11 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
       <div className="relative aspect-square bg-black overflow-hidden">
         
         {/* --- BASE IMAGE (Changes state) --- */}
-        <div className={`relative w-full h-full transition-all duration-150 ${status === 'idle' ? 'filter grayscale contrast-125 brightness-75 blur-[0.5px]' : 'filter-none'}`}>
-          <Image
-            src={src}
-            alt={alt}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+        <div className={`w-full h-full transition-all duration-100 ${status === 'idle' ? 'filter grayscale contrast-125 brightness-75 blur-[0.5px]' : 'filter-none'}`}>
+          <img 
+            src={src} 
+            alt={alt} 
+            className="w-full h-full object-cover"
           />
         </div>
 
@@ -106,31 +103,23 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
             {/* Red Channel Shift */}
             <div 
               className="absolute inset-0 bg-transparent mix-blend-screen opacity-70 animate-glitch-1 pointer-events-none"
-              aria-hidden="true"
-            >
-              <Image
-                src={src}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
-                style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(-50deg) saturate(300%)' }}
-              />
-            </div>
+              style={{ 
+                backgroundImage: `url(${src})`, 
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(-50deg) saturate(300%)' // Simulated Red
+              }}
+            />
             {/* Blue Channel Shift */}
             <div 
               className="absolute inset-0 bg-transparent mix-blend-screen opacity-70 animate-glitch-2 pointer-events-none"
-              aria-hidden="true"
-            >
-              <Image
-                src={src}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
-                style={{ filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(180deg) saturate(300%)' }}
-              />
-            </div>
+              style={{ 
+                backgroundImage: `url(${src})`, 
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'grayscale(100%) brightness(150%) sepia(100%) hue-rotate(180deg) saturate(300%)' // Simulated Blue
+              }}
+            />
             {/* Random White Noise Overlay for glitch moment */}
             <div className="absolute inset-0 bg-white/10 mix-blend-overlay animate-pulse" />
           </>

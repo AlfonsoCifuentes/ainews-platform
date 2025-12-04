@@ -199,9 +199,9 @@ export function CCTVGlitchImage({
       {/* --- AGGRESSIVE GLITCH LAYERS - 3 RGB channels + white flash + tear lines --- */}
       {isGlitching && (
         <>
-          {/* Red Channel Shift - aggressive 10-15px displacement */}
+          {/* Red Channel Shift - visible displacement without burn */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-90 animate-glitch-1 pointer-events-none z-10"
+            className="absolute inset-0 mix-blend-screen opacity-75 animate-glitch-1 pointer-events-none z-10"
             aria-hidden="true"
           >
             <Image
@@ -211,12 +211,12 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(-50deg) saturate(500%)' }}
+              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(-50deg) saturate(250%)' }}
             />
           </div>
           {/* Green Channel Shift - full RGB split */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-85 animate-glitch-3 pointer-events-none z-20"
+            className="absolute inset-0 mix-blend-screen opacity-70 animate-glitch-3 pointer-events-none z-20"
             aria-hidden="true"
           >
             <Image
@@ -226,12 +226,12 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(90deg) saturate(500%)' }}
+              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(90deg) saturate(250%)' }}
             />
           </div>
           {/* Cyan/Blue Channel Shift */}
           <div 
-            className="absolute inset-0 mix-blend-screen opacity-90 animate-glitch-2 pointer-events-none z-30"
+            className="absolute inset-0 mix-blend-screen opacity-75 animate-glitch-2 pointer-events-none z-30"
             aria-hidden="true"
           >
             <Image
@@ -241,11 +241,11 @@ export function CCTVGlitchImage({
               className="object-cover"
               sizes={sizes}
               unoptimized={unoptimized}
-              style={{ filter: 'grayscale(100%) brightness(200%) sepia(100%) hue-rotate(180deg) saturate(500%)' }}
+              style={{ filter: 'grayscale(100%) brightness(140%) sepia(100%) hue-rotate(180deg) saturate(250%)' }}
             />
           </div>
-          {/* White Flash Overlay - aggressive flicker */}
-          <div className="absolute inset-0 bg-white/40 mix-blend-overlay animate-white-flash pointer-events-none z-40" />
+          {/* White Flash Overlay - reduced intensity */}
+          <div className="absolute inset-0 bg-white/25 mix-blend-overlay animate-white-flash pointer-events-none z-40" />
           {/* Horizontal Tear Lines */}
           <div 
             className="absolute inset-0 pointer-events-none z-50 animate-tear"
@@ -262,12 +262,12 @@ export function CCTVGlitchImage({
       {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
       {isHovering && (
         <div className="absolute inset-0 pointer-events-none z-50">
-          {/* Scanlines - more visible */}
-          <div className="absolute inset-0 animate-scanlines opacity-40" />
-          {/* Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6)_100%)]" />
-          {/* Enhanced tube glow */}
-          <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,255,0,0.15)]" />
+          {/* Scanlines - subtle */}
+          <div className="absolute inset-0 animate-scanlines opacity-20" />
+          {/* Vignette - lighter */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,0,0,0.4)_100%)]" />
+          {/* Subtle tube glow */}
+          <div className="absolute inset-0 shadow-[inset_0_0_15px_rgba(0,255,0,0.08)]" />
         </div>
       )}
     </div>
