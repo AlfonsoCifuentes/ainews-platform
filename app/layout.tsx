@@ -31,6 +31,12 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
         `}
         suppressHydrationWarning
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-black focus:shadow-lg focus:ring-2 focus:ring-primary"
+        >
+          Skip to main content
+        </a>
         <div
           className="pointer-events-none fixed inset-0 mono-grid opacity-30"
           aria-hidden="true"

@@ -199,7 +199,9 @@ console.log('[CookieNorm] Starting normalization...');
                 <OAuthCallbackHandler />
                 <div className="relative flex min-h-screen flex-col bg-[#020309]">
                   <Header />
-                  <main className="relative z-10 flex-1">{children}</main>
+                  <main id="main-content" className="relative z-10 flex-1">
+                    {children}
+                  </main>
                   <Footer />
                   
                   {/* Gamification Systems */}

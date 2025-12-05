@@ -1,10 +1,9 @@
 import path from 'node:path';
 import * as dotenv from 'dotenv';
 import { createClient, type PostgrestError } from '@supabase/supabase-js';
-import { generateIllustrationWithCascade } from '../lib/ai/image-cascade';
+import { generateIllustrationWithCascade, type ImageProviderName, type IllustrationCascadeResult } from '../lib/ai/image-cascade';
 import { computeIllustrationChecksum } from '../lib/ai/illustration-utils';
 import { persistModuleIllustration } from '../lib/db/module-illustrations';
-import { generateFallbackImage } from '../lib/utils/generate-fallback-image';
 import type { VisualStyle } from '../lib/types/illustrations';
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
@@ -36,6 +35,27 @@ interface HeaderSlotRow {
   block_index: number | null;
   confidence: number | null;
 }
+
+interface VisualSlotRow {
+  id: string;
+  slot_type: 'header' | 'diagram' | 'inline';
+  density: string | null;
+  suggested_visual_style: VisualStyle | null;
+  block_index: number | null;
+  heading: string | null;
+  summary: string | null;
+  reason: string | null;
+  confidence: number | null;
+}
+
+function isMissingVisualSlotsTable(error: unknown): boolean {
+  if (!error) return false;
+  const message = error instanceof Error ? error.message : JSON.stringify(error);
+  return message.toLowerCase().includes('module_visual_slots');
+}
+
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+const PROVIDER_ORDER: ImageProviderName[] = ['gemini'];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -89,10 +109,33 @@ async function fetchHeaderSlot(moduleId: string, locale: Locale): Promise<Header
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
+    if (isMissingVisualSlotsTable(error)) {
+      console.warn('⚠️ module_visual_slots table missing; skipping header slot enrichment');
+      return null;
+    }
     throw error;
   }
 
   return (data as HeaderSlotRow | null) ?? null;
+}
+
+async function fetchSupportingSlots(moduleId: string, locale: Locale): Promise<VisualSlotRow[]> {
+  const { data, error } = await supabase
+    .from('module_visual_slots')
+    .select('id, slot_type, density, suggested_visual_style, block_index, heading, summary, reason, confidence')
+    .eq('module_id', moduleId)
+    .eq('locale', locale)
+    .neq('slot_type', 'header');
+
+  if (error && error.code !== 'PGRST116') {
+    if (isMissingVisualSlotsTable(error)) {
+      console.warn('⚠️ module_visual_slots table missing; skipping supporting slots');
+      return [];
+    }
+    throw error;
+  }
+
+  return (data as VisualSlotRow[] | null) ?? [];
 }
 
 async function fetchCandidateModules(limitHint: number): Promise<ModuleRow[]> {
@@ -148,22 +191,60 @@ function buildPromptContext(module: ModuleRow, locale: Locale, slot: HeaderSlotR
   return payload.join('\n\n').trim() || `${moduleTitle} — ${courseTitle}`;
 }
 
-function buildFallbackAsset(title: string) {
-  const dataUrl = generateFallbackImage({
-    title: title.slice(0, 160),
-    category: 'research',
-    width: 1920,
-    height: 1080,
-  });
-  const [prefix, data] = dataUrl.split(',', 2);
-  const mimeMatch = prefix.match(/^data:(.*?);base64$/);
-  return {
-    base64: data ?? '',
-    mime: mimeMatch?.[1] ?? 'image/svg+xml',
-  };
+function buildSlotPromptContext(module: ModuleRow, locale: Locale, slot: VisualSlotRow): string {
+  const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
+  const moduleContent = locale === 'en' ? module.content_en : module.content_es;
+  const parts = [moduleTitle];
+  if (slot.heading) parts.push(slot.heading);
+  if (slot.summary) parts.push(slot.summary);
+  if (slot.reason) parts.push(slot.reason);
+  if (moduleContent) parts.push(moduleContent.slice(0, 4000));
+  return parts.filter(Boolean).join('\n\n');
 }
 
-async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'generated' | 'fallback' | 'skipped' | 'dry-run'> {
+async function generateWithRateLimitRetry(
+  options: Parameters<typeof generateIllustrationWithCascade>[0],
+  contextLabel: string,
+  maxRetries = 3
+): Promise<IllustrationCascadeResult> {
+  let attempt = 0;
+  let lastResult: IllustrationCascadeResult | null = null;
+
+  while (attempt < maxRetries) {
+    const result = await generateIllustrationWithCascade(options);
+    lastResult = result;
+    if (result.success && result.images.length) return result;
+
+    if (!isRateLimitError(result.error)) {
+      return result;
+    }
+
+    const delayMs = parseRetryDelayMs(result.error) ?? 32000;
+    console.warn(`⏳ Rate limit hit (${contextLabel}), waiting ${Math.round(delayMs / 1000)}s before retry ${attempt + 1}/${maxRetries}`);
+    await sleep(delayMs);
+    attempt += 1;
+  }
+
+  return lastResult as IllustrationCascadeResult;
+}
+
+function isRateLimitError(error?: string): boolean {
+  if (!error) return false;
+  const lower = error.toLowerCase();
+  return lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota');
+}
+
+function parseRetryDelayMs(error?: string): number | null {
+  if (!error) return null;
+  const match = error.match(/retry in\s+([0-9]+(?:\.[0-9]+)?)s/i);
+  if (match) {
+    const seconds = Number(match[1]);
+    if (!Number.isNaN(seconds) && seconds > 0) return Math.min(seconds * 1000, 60000);
+  }
+  return null;
+}
+
+async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'generated' | 'skipped' | 'dry-run'> {
   const slot = await fetchHeaderSlot(module.id, locale);
   const visualStyle = slot?.suggested_visual_style ?? 'photorealistic';
   const promptContext = buildPromptContext(module, locale, slot);
@@ -174,36 +255,43 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
     return 'dry-run';
   }
 
-  const cascade = await generateIllustrationWithCascade({
-    moduleContent: promptContext,
-    locale,
-    style: 'header',
-    visualStyle,
-  });
+  let generatedAny = false;
+  for (const variant of VARIANT_STYLES) {
+    const cascade = await generateWithRateLimitRetry({
+      moduleContent: promptContext,
+      locale,
+      style: 'header',
+      visualStyle: variant,
+      providerOrder: PROVIDER_ORDER,
+    }, `${moduleTitle} (${locale}) header ${variant}`);
 
-  const checksum = computeIllustrationChecksum({
-    moduleId: module.id,
-    content: promptContext,
-    locale,
-    style: 'header',
-    visualStyle,
-    slotId: slot?.id ?? null,
-    anchor: slot
-      ? {
-          slotType: 'header',
-          blockIndex: slot.block_index,
-          heading: slot.heading,
-        }
-      : null,
-  });
+    const checksum = computeIllustrationChecksum({
+      moduleId: module.id,
+      content: promptContext,
+      locale,
+      style: 'header',
+      visualStyle: variant,
+      slotId: slot?.id ?? null,
+      anchor: slot
+        ? {
+            slotType: 'header',
+            blockIndex: slot.block_index,
+            heading: slot.heading,
+          }
+        : null,
+    });
 
-  if (cascade.success && cascade.images.length) {
+    if (!cascade.success || !cascade.images.length) {
+      console.warn(`⚠️ Gemini failed for variant ${variant} in ${moduleTitle} (${locale}). Attempts:`, cascade.attempts);
+      continue;
+    }
+
     const image = cascade.images[0];
     const persisted = await persistModuleIllustration({
       moduleId: module.id,
       locale,
       style: 'header',
-      visualStyle,
+      visualStyle: variant,
       model: cascade.model,
       provider: cascade.provider,
       base64Data: image.base64Data,
@@ -225,55 +313,110 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
         moduleOrder: module.order_index,
         script: 'backfill-module-illustrations',
         locale,
+        variant,
       },
     });
 
-    if (!persisted) {
-      console.warn(`⚠️ Persist failed for ${moduleTitle} (${locale}).`);
-      return 'skipped';
+    if (persisted) {
+      generatedAny = true;
+      console.log(`✅ Stored header (${variant}) for ${moduleTitle} [${locale.toUpperCase()}] via ${cascade.provider}/${cascade.model}`);
+    } else {
+      console.warn(`⚠️ Persist failed for ${moduleTitle} (${locale}) variant ${variant}.`);
     }
 
-    console.log(`✅ Stored header for ${moduleTitle} [${locale.toUpperCase()}] via ${cascade.provider}/${cascade.model}`);
-    return 'generated';
+    await sleep(800);
   }
 
-  console.warn(`⚠️ Cascade failed for ${moduleTitle} (${locale}). Using fallback.`);
-  const fallback = buildFallbackAsset(moduleTitle);
-  const persistedFallback = await persistModuleIllustration({
-    moduleId: module.id,
-    locale,
-    style: 'header',
-    visualStyle,
-    model: 'svg-fallback',
-    provider: 'fallback',
-    base64Data: fallback.base64,
-    mimeType: fallback.mime,
-    prompt: promptContext,
-    source: 'fallback-script',
-    slotId: slot?.id ?? null,
-    anchor: slot
-      ? {
-          slotType: 'header',
+  return generatedAny ? 'generated' : 'skipped';
+}
+
+async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promise<void> {
+  const slots = await fetchSupportingSlots(module.id, locale);
+  if (!slots.length) return;
+
+  if (dryRun) {
+    console.log(`🌀 [DRY RUN] Would generate ${slots.length} supporting slots for ${moduleTitleForLog(module, locale)} (${locale.toUpperCase()}).`);
+    return;
+  }
+
+  for (const slot of slots) {
+    const style = slot.slot_type === 'diagram' ? 'diagram' : 'conceptual';
+    const variants = style === 'diagram' ? ['photorealistic'] : VARIANT_STYLES;
+    const prompt = buildSlotPromptContext(module, locale, slot);
+
+    for (const variant of variants) {
+      const cascade = await generateWithRateLimitRetry({
+        moduleContent: prompt,
+        locale,
+        style: style as 'conceptual' | 'diagram',
+        visualStyle: variant as VisualStyle,
+        providerOrder: PROVIDER_ORDER,
+      }, `${moduleTitleForLog(module, locale)} slot ${slot.id} ${variant}`);
+
+      const checksum = computeIllustrationChecksum({
+        moduleId: module.id,
+        content: prompt,
+        locale,
+        style,
+        visualStyle: variant as VisualStyle,
+        slotId: slot.id,
+        anchor: {
+          slotType: slot.slot_type,
           blockIndex: slot.block_index,
           heading: slot.heading,
+        },
+      });
+
+      if (!cascade.success || !cascade.images.length) {
+        console.warn(`⚠️ Gemini failed for slot ${slot.id} (${slot.slot_type}) variant ${variant} in module ${moduleTitleForLog(module, locale)}:`, cascade.error);
+        continue;
+      }
+
+      const image = cascade.images[0];
+      try {
+        const persisted = await persistModuleIllustration({
+          moduleId: module.id,
+          locale,
+          style,
+          visualStyle: variant as VisualStyle,
+          model: cascade.model,
+          provider: cascade.provider,
+          base64Data: image.base64Data,
+          mimeType: image.mimeType,
+          prompt: cascade.prompt,
+          source: 'script',
+          slotId: slot.id,
+          anchor: {
+            slotType: slot.slot_type,
+            blockIndex: slot.block_index,
+            heading: slot.heading,
+            confidence: slot.confidence,
+          },
+          checksum,
+          metadata: {
+            moduleId: module.id,
+            slotType: slot.slot_type,
+            variant,
+            script: 'backfill-module-illustrations',
+          },
+        });
+
+        if (persisted) {
+          console.log(`✅ Stored ${style} (${variant}) for slot ${slot.id} [${locale.toUpperCase()}]`);
+        } else {
+          console.warn(`⚠️ Persist failed for slot ${slot.id} (${variant}) in module ${moduleTitleForLog(module, locale)}`);
         }
-      : null,
-    checksum,
-    metadata: {
-      courseId: module.course_id,
-      fallback: true,
-      script: 'backfill-module-illustrations',
-      locale,
-    },
-  });
+      } catch (error) {
+        console.error(`❌ Persist error for slot ${slot.id}:`, error);
+      }
 
-  if (!persistedFallback) {
-    console.error(`❌ Failed to persist fallback for ${moduleTitle} (${locale}).`);
-    return 'skipped';
+      await sleep(600);
+    }
   }
+}
 
-  console.log(`🛡️ Stored fallback header for ${moduleTitle} [${locale.toUpperCase()}].`);
-  return 'fallback';
+function moduleTitleForLog(module: ModuleRow, locale: Locale) {
+  return locale === 'en' ? module.title_en : module.title_es;
 }
 
 async function findTargets(limitToProcess: number, locales: Locale[]): Promise<Array<{ module: ModuleRow; locales: Locale[] }>> {
@@ -324,7 +467,6 @@ async function main() {
   console.log(`📝 Selected ${targets.length} module(s) for processing.`);
 
   let generated = 0;
-  let fallback = 0;
   let skipped = 0;
   let dry = 0;
 
@@ -334,13 +476,13 @@ async function main() {
     for (const locale of target.locales) {
       try {
         const result = await generateForLocale(target.module, locale);
+        await generateSupportingSlots(target.module, locale);
         if (result === 'generated') generated += 1;
-        else if (result === 'fallback') fallback += 1;
         else if (result === 'dry-run') dry += 1;
         else skipped += 1;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Failed to process ${target.module.id} (${locale}): ${message}`);
+        const message = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error(`❌ Failed to process ${target.module.id} (${locale}): ${message}`, error);
         skipped += 1;
       }
       await sleep(1500);
@@ -349,7 +491,6 @@ async function main() {
 
   console.log('\n════════════ SUMMARY ════════════');
   console.log(`✅ Generated: ${generated}`);
-  console.log(`🛡️  Fallbacks: ${fallback}`);
   if (dryRun) {
     console.log(`🌀 Dry-run slots: ${dry}`);
   }

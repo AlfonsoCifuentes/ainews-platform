@@ -3,7 +3,7 @@ import { getGeminiImageClient, buildEducationalIllustrationPrompt, type Illustra
 import { GEMINI_MODELS } from './model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
-export type ImageProviderName = 'moonshot' | 'gemini' | 'huggingface';
+export type ImageProviderName = 'gemini' | 'huggingface';
 
 export interface IllustrationCascadeOptions {
   moduleContent: string;
@@ -26,8 +26,8 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
   prompt: string;
 }
 
-export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['moonshot', 'gemini', 'huggingface'];
-const DEFAULT_HF_MODEL = process.env.HUGGINGFACE_IMAGE_MODEL ?? 'black-forest-labs/flux-schnell';
+// Default to Gemini only; fallback providers can be re-enabled via providerOrder when explicitly passed.
+export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['gemini'];
 
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions
@@ -50,15 +50,9 @@ export async function generateIllustrationWithCascade(
 
   for (const provider of providerOrder) {
     try {
-      let result: ImageGenerationResult;
-
-      if (provider === 'moonshot') {
-        result = await generateWithMoonshot(prompt, dimensions);
-      } else if (provider === 'gemini') {
-        result = await generateWithGemini(prompt, dimensions);
-      } else {
-        result = await generateWithHuggingFace(prompt, dimensions);
-      }
+      const result = provider === 'gemini'
+        ? await generateWithGemini(prompt, dimensions)
+        : await generateWithHuggingFace(prompt, dimensions);
 
       attempts.push({ provider, success: result.success, error: result.error });
 
@@ -79,69 +73,10 @@ export async function generateIllustrationWithCascade(
   return {
     success: false,
     images: [],
-    model: 'unavailable',
+    model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
     error: 'All image providers failed',
     attempts,
     prompt,
-  };
-}
-
-async function generateWithMoonshot(
-  prompt: string,
-  dimensions: ReturnType<typeof resolveDimensionsForStyle>
-): Promise<ImageGenerationResult> {
-  const apiKey = process.env.MOONSHOT_API_KEY;
-  if (!apiKey) {
-    throw new Error('MOONSHOT_API_KEY not configured');
-  }
-
-  const endpoint = process.env.MOONSHOT_IMAGE_ENDPOINT ?? 'https://api.moonshot.cn/v1/images/generations';
-  const payload = {
-    prompt,
-    model: process.env.MOONSHOT_IMAGE_MODEL ?? 'moonshot-image-v1',
-    size: `${dimensions.width}x${dimensions.height}`,
-  };
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Moonshot error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json() as {
-    data?: Array<{ b64_json?: string; base64_data?: string; mime_type?: string }>;
-    model?: string;
-    error?: string;
-  };
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  const images = (data.data ?? [])
-    .map((entry) => {
-      const base64 = entry.b64_json || entry.base64_data;
-      if (!base64) return null;
-      return {
-        base64Data: base64,
-        mimeType: entry.mime_type ?? 'image/png',
-      };
-    })
-    .filter(Boolean) as ImageGenerationResult['images'];
-
-  return {
-    success: images.length > 0,
-    images,
-    model: data.model ?? 'moonshot-image-v1',
-    error: images.length === 0 ? 'Moonshot returned no images' : undefined,
   };
 }
 
@@ -162,52 +97,87 @@ async function generateWithHuggingFace(
   dimensions: ReturnType<typeof resolveDimensionsForStyle>
 ): Promise<ImageGenerationResult> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
+  const model = process.env.HUGGINGFACE_IMAGE_MODEL;
+
   if (!apiKey) {
-    throw new Error('HUGGINGFACE_API_KEY not configured');
+    return {
+      success: false,
+      images: [],
+      model: 'huggingface-missing-key',
+      error: 'HUGGINGFACE_API_KEY not configured',
+    };
   }
 
-  const endpoint = `https://api-inference.huggingface.co/models/${DEFAULT_HF_MODEL}`;
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        width: dimensions.width,
-        height: dimensions.height,
-        num_inference_steps: 35,
-        guidance_scale: 4.5,
+  if (!model) {
+    return {
+      success: false,
+      images: [],
+      model: 'huggingface-missing-model',
+      error: 'HUGGINGFACE_IMAGE_MODEL not configured (expected Flux2 GGUF repo id)',
+    };
+  }
+
+  const endpoint = `https://router.huggingface.co/models/${model}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          width: dimensions.width,
+          height: dimensions.height,
+          guidance_scale: 4.5,
+          num_inference_steps: 28,
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Hugging Face error ${response.status}: ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        images: [],
+        model,
+        error: `HuggingFace error ${response.status}: ${errorText.slice(0, 300)}`,
+      };
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const json = await response.json() as { error?: string };
+      return {
+        success: false,
+        images: [],
+        model,
+        error: json.error || 'HuggingFace returned JSON payload without image data',
+      };
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    return {
+      success: true,
+      images: [
+        {
+          base64Data: buffer.toString('base64'),
+          mimeType: contentType || 'image/png',
+        },
+      ],
+      model,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      images: [],
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
-
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    const json = await response.json() as { error?: string };
-    throw new Error(json.error || 'Hugging Face returned JSON payload without image data');
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  return {
-    success: true,
-    images: [
-      {
-        base64Data: buffer.toString('base64'),
-        mimeType: contentType || 'image/png',
-      },
-    ],
-    model: DEFAULT_HF_MODEL,
-  };
 }
 
 function resolveDimensionsForStyle(style: IllustrationStyle) {

@@ -31,16 +31,38 @@ const BodySchema = z.object({
   slots: z.array(SlotSchema),
 });
 
+function shouldFallbackToEmpty(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  const message = ((error as { message?: string } | null)?.message || '').toLowerCase();
+
+  // Gracefully degrade when the table is missing or RLS blocks access (seen in early deploys)
+  return (
+    code === '42P01' || // table does not exist
+    code === '42501' || // insufficient_privilege
+    message.includes('permission denied') ||
+    message.includes('does not exist')
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const params = QuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
+    let slots;
 
-    const slots = await fetchModuleVisualSlots({
-      moduleId: params.moduleId,
-      locale: params.locale,
-      slotType: params.slotType as ModuleVisualSlotType | undefined,
-      limit: params.limit,
-    });
+    try {
+      slots = await fetchModuleVisualSlots({
+        moduleId: params.moduleId,
+        locale: params.locale,
+        slotType: params.slotType as ModuleVisualSlotType | undefined,
+        limit: params.limit,
+      });
+    } catch (fetchError) {
+      console.warn('[API/visual-slots] GET fallback to empty', fetchError);
+      if (!shouldFallbackToEmpty(fetchError)) {
+        throw fetchError;
+      }
+      slots = [];
+    }
 
     return NextResponse.json({ success: true, slots });
   } catch (error) {

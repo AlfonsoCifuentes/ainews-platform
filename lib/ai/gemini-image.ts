@@ -83,8 +83,12 @@ const VISUAL_STYLE_PROMPTS: Record<VisualStyle, Record<'en' | 'es', string>> = {
     es: 'Adopta un estilo anime premium inspirado en largometrajes modernos: líneas limpias, personajes expresivos, iluminación cel shading, composición dinámica y efectos cinéticos luminosos.'
   },
   comic: {
-    en: 'Use a neo-noir graphic novel style with bold inks, halftone textures, strong perspective, and accent colors in electric blues. Think elevated comic art, not clipart.',
-    es: 'Usa un estilo de novela gráfica neo-noir con trazos gruesos, texturas de semitono, perspectiva marcada y colores de acento azul eléctrico. Piensa en arte de cómic premium, no clipart.'
+    en: 'Use a premium American comic / graphic novel style with bold inks, halftone textures, strong perspective, dynamic poses, and electric blue accents. Think elevated DC/Marvel-level art, not clipart.',
+    es: 'Usa un estilo de cómic americano/novela gráfica premium con trazos marcados, texturas de semitono, perspectiva fuerte, poses dinámicas y acentos azul eléctrico. Piensa en arte de cómic de alto nivel, no clipart.'
+  },
+  'pixel-art': {
+    en: 'Render in LucasArts 90s adventure-game pixel art: crisp pixels, rich dithered gradients, cinematic framing, subtle parallax depth, and moody blue/teal highlights. Maintain readable silhouettes and clear UI-friendly contrast.',
+    es: 'Renderiza en pixel art estilo aventuras gráficas de LucasArts de los 90: píxeles nítidos, degradados con dithering, encuadre cinematográfico, profundidad con paralaje sutil y acentos azul/teal. Mantén siluetas legibles y contraste claro apto para UI.'
   }
 };
 
@@ -130,9 +134,10 @@ export class GeminiImageClient {
   private baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.GEMINI_API_KEY || '';
+    // Allow a secondary Nano Banana key to bypass quota exhaustion on the primary Gemini key
+    this.apiKey = apiKey || process.env.GEMINI_API_KEY || process.env.NANOBANANA_API_KEY || '';
     if (!this.apiKey) {
-      console.warn('[GeminiImage] No GEMINI_API_KEY found. Image generation will fail.');
+      console.warn('[GeminiImage] No GEMINI_API_KEY or NANOBANANA_API_KEY found. Image generation will fail.');
     }
   }
 

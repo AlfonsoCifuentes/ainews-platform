@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateIllustrationWithCascade, DEFAULT_PROVIDER_ORDER, type ImageProviderName } from '@/lib/ai/image-cascade';
+import { generateIllustrationWithCascade } from '@/lib/ai/image-cascade';
 import { computeIllustrationChecksum } from '@/lib/ai/illustration-utils';
 import { persistModuleIllustration } from '@/lib/db/module-illustrations';
-import { generateFallbackImage } from '@/lib/utils/generate-fallback-image';
 import { VISUAL_STYLES } from '@/lib/types/illustrations';
 import { z } from 'zod';
 
@@ -15,10 +14,23 @@ const RequestSchema = z.object({
   slotId: z.string().uuid().optional(),
   anchor: z.record(z.any()).optional(),
   checksum: z.string().optional(),
-  providerOrder: z.array(z.enum(['moonshot', 'gemini', 'huggingface'] as const)).min(1).max(3).optional(),
   promptOverride: z.string().min(10).max(4000).optional(),
+  variants: z.array(z.enum(VISUAL_STYLES)).min(1).max(10).optional(),
   metadata: z.record(z.any()).optional(),
+  providerOrder: z.array(z.enum(['gemini', 'huggingface'])).optional(),
 });
+
+type GenerateIllustrationRequest = z.infer<typeof RequestSchema>;
+
+const DEFAULT_VARIANTS: GenerateIllustrationRequest['visualStyle'][] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+
+function resolveVariantList(style: GenerateIllustrationRequest['style'], requested?: (typeof VISUAL_STYLES)[number][]) {
+  const base = style === 'diagram' ? ['photorealistic'] : DEFAULT_VARIANTS;
+  if (!requested || !requested.length) return base;
+  const filtered = requested.filter((variant) => (style === 'diagram' ? variant === 'photorealistic' : true));
+  const unique = Array.from(new Set(filtered.length ? filtered : base));
+  return unique;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,95 +44,60 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, providerOrder, promptOverride, metadata } = validated.data;
+    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, promptOverride, metadata, variants, providerOrder } = validated.data;
 
-    console.log(`[API/generate-illustration] Generating ${style} illustration with cascade (${providerOrder?.join(' -> ') ?? DEFAULT_PROVIDER_ORDER.join(' -> ')})`);
+    const variantList = resolveVariantList(style, variants);
+    const order = providerOrder && providerOrder.length ? providerOrder : ['gemini', 'huggingface'];
+    console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);
 
-    const cascadeResult = await generateIllustrationWithCascade({
-      moduleContent: content,
-      locale,
-      style,
-      visualStyle,
-      providerOrder: providerOrder as ImageProviderName[] | undefined,
-      promptOverride,
-    });
+    const generatedResults: Array<{
+      visualStyle: GenerateIllustrationRequest['visualStyle'];
+      url: string | null;
+      mimeType: string;
+      model: string | null;
+      provider: string | null;
+      checksum: string;
+      persisted: unknown;
+      attempts: unknown;
+      thoughtProcess: unknown;
+      text?: string | undefined;
+    }> = [];
+    const errors: string[] = [];
 
-    const resolvedChecksum = checksum ?? computeIllustrationChecksum({
-      moduleId,
-      content,
-      locale,
-      style,
-      visualStyle,
-      slotId: slotId ?? null,
-      anchor: anchor ?? null,
-    });
-
-    if (!cascadeResult.success || cascadeResult.images.length === 0) {
-      console.error('[API/generate-illustration] All providers failed', cascadeResult.attempts);
-      const fallback = buildFallbackIllustration({
-        content,
-        style,
+    for (const variant of variantList) {
+      const cascadeResult = await generateIllustrationWithCascade({
+        moduleContent: content,
         locale,
-        metadata,
+        style,
+        visualStyle: variant,
+        providerOrder: order,
+        promptOverride,
       });
 
-      let persistedFallback = null;
-      if (moduleId) {
-        try {
-          persistedFallback = await persistModuleIllustration({
-            moduleId,
-            locale,
-            style,
-            visualStyle,
-            model: 'svg-fallback',
-            provider: 'fallback',
-            base64Data: fallback.base64Data,
-            mimeType: fallback.mimeType,
-            prompt: fallback.title,
-            source: 'fallback',
-            slotId: slotId ?? null,
-            anchor: anchor ?? null,
-            checksum: resolvedChecksum,
-            metadata: {
-              ...(metadata ?? {}),
-              fallback: true,
-              cascadeError: cascadeResult.error ?? 'All providers failed',
-              attempts: cascadeResult.attempts,
-            },
-          });
-        } catch (persistError) {
-          console.error('[API/generate-illustration] Fallback persist failed:', persistError);
-        }
+      const variantChecksum = checksum ?? computeIllustrationChecksum({
+        moduleId,
+        content,
+        locale,
+        style,
+        visualStyle: variant,
+        slotId: slotId ?? null,
+        anchor: anchor ?? null,
+      });
+
+      if (!cascadeResult.success || !cascadeResult.images.length) {
+        errors.push(`variant ${variant}: ${cascadeResult.error ?? 'Gemini failed'}`);
+        continue;
       }
 
-      return NextResponse.json({
-        success: true,
-        fallback: true,
-        reason: cascadeResult.error ?? 'No providers were able to generate an image',
-        image: {
-          data: fallback.base64Data,
-          mimeType: fallback.mimeType,
-          url: persistedFallback?.image_url ?? fallback.dataUrl,
-        },
-        provider: 'fallback',
-        model: 'svg-fallback',
-        attempts: cascadeResult.attempts,
-        thoughtProcess: null,
-        checksum: resolvedChecksum,
-        persisted: persistedFallback,
-      });
-    }
+      const image = cascadeResult.images[0];
+      let persisted = null;
 
-    const image = cascadeResult.images[0];
-
-    let persisted = null;
-    if (moduleId) {
-      try {
+      if (moduleId) {
         persisted = await persistModuleIllustration({
           moduleId,
           locale,
           style,
-          visualStyle,
+          visualStyle: variant,
           model: cascadeResult.model,
           provider: cascadeResult.provider,
           base64Data: image.base64Data,
@@ -129,34 +106,46 @@ export async function POST(req: NextRequest) {
           source: 'api',
           slotId: slotId ?? null,
           anchor: anchor ?? null,
-          checksum: resolvedChecksum,
+          checksum: variantChecksum,
           metadata: {
             ...(metadata ?? {}),
             cascadeAttempts: cascadeResult.attempts,
             locale,
             style,
-            visualStyle,
+            visualStyle: variant,
           },
         });
-      } catch (persistError) {
-        console.error('[API/generate-illustration] Persist failed:', persistError);
       }
+
+      generatedResults.push({
+        visualStyle: variant,
+        url: persisted?.image_url ?? null,
+        mimeType: image.mimeType,
+        model: cascadeResult.model,
+        provider: cascadeResult.provider,
+        checksum: variantChecksum,
+        persisted,
+        attempts: cascadeResult.attempts,
+        thoughtProcess: cascadeResult.thoughtProcess,
+        text: image.text,
+      });
     }
+
+    if (!generatedResults.length) {
+      return NextResponse.json(
+        { success: false, error: errors.join(' | ') || 'Gemini image generation failed' },
+        { status: 502 }
+      );
+    }
+
+    const primary = generatedResults.find((entry) => entry.visualStyle === visualStyle) ?? generatedResults[0];
 
     return NextResponse.json({
       success: true,
-      image: {
-        data: image.base64Data,
-        mimeType: image.mimeType,
-        text: image.text,
-        url: persisted?.image_url ?? null,
-      },
-      model: cascadeResult.model,
-      provider: cascadeResult.provider,
-      attempts: cascadeResult.attempts,
-      thoughtProcess: cascadeResult.thoughtProcess,
-      checksum: resolvedChecksum,
-      persisted,
+      provider: primary.provider ?? 'gemini',
+      model: primary.model,
+      primary,
+      variants: generatedResults,
     });
   } catch (error) {
     console.error('[API/generate-illustration] Error:', error);
@@ -165,66 +154,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-const FALLBACK_CATEGORY_MAP: Record<string, string> = {
-  header: 'research',
-  diagram: 'machine-learning',
-  schema: 'machine-learning',
-  infographic: 'tools',
-  conceptual: 'models',
-  textbook: 'models',
-};
-
-interface FallbackInput {
-  content: string;
-  style: string;
-  locale: 'en' | 'es';
-  metadata?: Record<string, unknown>;
-}
-
-function buildFallbackIllustration(input: FallbackInput) {
-  const fallbackTitle = deriveFallbackTitle(input.content, input.metadata);
-  const category = FALLBACK_CATEGORY_MAP[input.style] ?? 'default';
-  const isHeader = input.style === 'header';
-  const dataUrl = generateFallbackImage({
-    title: fallbackTitle,
-    category,
-    width: isHeader ? 1920 : 1400,
-    height: isHeader ? 1080 : 840,
-  });
-
-  const [prefix, base64Data] = dataUrl.split(',', 2);
-  const mimeMatch = prefix.match(/^data:(.*?);base64$/);
-  return {
-    dataUrl,
-    base64Data: base64Data ?? '',
-    mimeType: mimeMatch?.[1] ?? 'image/svg+xml',
-    title: fallbackTitle,
-    category,
-  };
-}
-
-function deriveFallbackTitle(content: string, metadata?: Record<string, unknown>) {
-  const candidates = [
-    typeof metadata?.summary === 'string' ? metadata.summary : null,
-    typeof metadata?.reason === 'string' ? metadata.reason : null,
-  ];
-
-  const normalized = content
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (normalized) {
-    const firstSentenceMatch = normalized.match(/[^.!?]+[.!?]?/);
-    if (firstSentenceMatch) {
-      candidates.push(firstSentenceMatch[0]);
-    } else {
-      candidates.push(normalized);
-    }
-  }
-
-  const fallback = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
-  const finalTitle = fallback ? fallback.trim() : 'AI-powered course illustration';
-  return finalTitle.length > 160 ? `${finalTitle.slice(0, 157)}...` : finalTitle;
 }

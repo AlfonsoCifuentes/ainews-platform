@@ -8,6 +8,8 @@ import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { useUser } from '@/lib/hooks/useUser';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+
 interface ModuleHeaderIllustrationProps {
   moduleId: string;
   courseTitle: string;
@@ -154,6 +156,7 @@ export function ModuleHeaderIllustration({
             style: 'header',
             moduleId,
             visualStyle: resolvedVisualStyle,
+            variants: VARIANT_STYLES,
             slotId: headerSlot?.id,
             anchor: headerSlot
               ? {
@@ -177,11 +180,9 @@ export function ModuleHeaderIllustration({
           throw new Error(data.error || 'Generation failed');
         }
 
-        const imageUrl =
-          data.image?.url ||
-          (data.image?.mimeType && data.image?.data
-            ? `data:${data.image.mimeType};base64,${data.image.data}`
-            : data.persisted?.image_url);
+        const variants = (data.variants ?? []) as Array<{ visualStyle: string; url?: string | null }>;
+        const preferred = variants.find((entry) => entry.visualStyle === resolvedVisualStyle) ?? variants[0] ?? data.primary;
+        const imageUrl = preferred?.url ?? data.primary?.url ?? null;
 
         if (!imageUrl) {
           throw new Error('No image returned by cascade');

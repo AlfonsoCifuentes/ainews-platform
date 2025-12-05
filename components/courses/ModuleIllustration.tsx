@@ -11,6 +11,8 @@ import type { IllustrationStyle } from '@/lib/ai/gemini-image';
 import type { VisualStyle } from '@/lib/types/illustrations';
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+
 interface ModuleIllustrationProps {
   moduleId: string;
   content: string;
@@ -47,7 +49,7 @@ export function ModuleIllustration({
   const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
   const [autoAttempts, setAutoAttempts] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const maxAutoAttempts = autoGenerate ? 3 : 0;
+  const maxAutoAttempts = autoGenerate ? 1 : 0;
 
   const slotSuggestedStyle = slot?.suggestedVisualStyle;
 
@@ -211,6 +213,7 @@ export function ModuleIllustration({
           style,
           moduleId,
           visualStyle: resolvedVisualStyle,
+          variants: VARIANT_STYLES,
           slotId: slot?.id,
           anchor: slot
             ? {
@@ -237,12 +240,19 @@ export function ModuleIllustration({
         throw new Error(data.error || 'Generation failed');
       }
 
-      const finalUrl = data.image?.url ?? `data:${data.image?.mimeType};base64,${data.image?.data}`;
-      setImageSource(finalUrl);
+      const variants = (data.variants ?? []) as Array<{ visualStyle: string; url?: string | null; mimeType?: string; model?: string | null; provider?: string | null; persisted?: { created_at?: string | null } }>;
+      const preferred = variants.find((entry) => entry.visualStyle === resolvedVisualStyle) ?? variants[0];
+
+      if (!preferred?.url && !data.primary?.url) {
+        throw new Error('No image returned');
+      }
+
+      const finalUrl = preferred?.url ?? data.primary?.url;
+      setImageSource(finalUrl ?? null);
       setMeta({
-        provider: data.provider ?? data.persisted?.provider ?? null,
-        model: data.model ?? data.persisted?.model ?? null,
-        updatedAt: data.persisted?.created_at ?? new Date().toISOString(),
+        provider: preferred?.provider ?? data.provider ?? null,
+        model: preferred?.model ?? data.model ?? null,
+        updatedAt: preferred?.persisted?.created_at ?? data.primary?.persisted?.created_at ?? new Date().toISOString(),
       });
     } catch (err) {
       console.error('[ModuleIllustration] Generation failed:', err);

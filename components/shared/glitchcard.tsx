@@ -20,11 +20,11 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
 
     setStatus('glitching');
 
-    // Transition from glitch to active (color view) after 800ms
+    // Transition from glitch to active (color view) after 1000ms to cap glitch/tearing duration
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => {
       setStatus('active');
-    }, 800); // Duration of the glitch effect
+    }, 1000); // Fixed 1s glitch window
   };
 
   const handleMouseLeave = () => {
@@ -125,15 +125,10 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
           </>
         )}
 
-        {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
+        {/* --- ACTIVE MONITOR EFFECTS (Scanlines only, keeps final state natural color) --- */}
         {(status === 'active' || status === 'glitching') && (
           <div className="absolute inset-0 pointer-events-none z-10">
-            {/* Scanlines */}
             <div className="absolute inset-0 animate-scanlines opacity-30" />
-            {/* Vignette */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6)_100%)]" />
-            {/* Slight tube glow */}
-            <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,255,0,0.1)]" />
           </div>
         )}
       </div>

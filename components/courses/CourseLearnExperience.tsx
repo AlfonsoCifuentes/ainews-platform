@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, BookOpenCheck, ListTree, Lock, X } from 'lucide-react';
 import type { NormalizedModule } from '@/lib/courses/normalize';
@@ -9,6 +9,8 @@ import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModulePlayer } from '@/components/courses/ModulePlayer';
 import { ModuleHeaderIllustration } from '@/components/courses/ModuleHeaderIllustration';
 import { useBookMode } from '@/lib/hooks/useBookMode';
+import { BookModuleView } from '@/components/courses/BookModuleView';
+import { useToast } from '@/components/shared/ToastProvider';
 
 // Brutalist design tokens
 const BRUTALIST = {
@@ -59,14 +61,68 @@ export function CourseLearnExperience({
 }: CourseLearnExperienceProps) {
 	const [bookMode, setBookMode] = useState(true);
 	const [indexOpen, setIndexOpen] = useState(false);
+	const [bookContent, setBookContent] = useState(() => (locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
+	const [isGeneratingBookContent, setIsGeneratingBookContent] = useState(false);
+	const [isCompletingBook, setIsCompletingBook] = useState(false);
 	const router = useRouter();
 	const { setBookMode: setGlobalBookMode } = useBookMode();
+	const { showToast } = useToast();
 
 	// Sync local bookMode with global context (for hiding header/footer)
 	useEffect(() => {
-		setGlobalBookMode(bookMode);
+		setGlobalBookMode(true);
 		return () => setGlobalBookMode(false);
-	}, [bookMode, setGlobalBookMode]);
+	}, [setGlobalBookMode]);
+
+	// Keep localized content in sync when switching modules/locales
+	useEffect(() => {
+		setBookContent((locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
+	}, [currentModule.id, currentModule.content_en, currentModule.content_es, locale]);
+
+	const isPlaceholderContent = useCallback((text?: string | null) => {
+		const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
+		if (!text) return true;
+		const trimmed = text.trim();
+		if (!trimmed) return true;
+		if (trimmed.length < 60 && placeholderRegex.test(trimmed)) return true;
+		return false;
+	}, []);
+
+	// Auto-generate longform content when book mode is active and module text is missing/placeholder
+	useEffect(() => {
+		if (!bookMode) return;
+		if (isGeneratingBookContent) return;
+		if (!isPlaceholderContent(bookContent)) return;
+
+		const generateContent = async () => {
+			setIsGeneratingBookContent(true);
+			try {
+				const response = await fetch('/api/courses/modules/generate-content', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ moduleId: currentModule.id, courseId, locale }),
+				});
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(errorText || 'Failed to generate content');
+				}
+
+				const data = await response.json();
+				if (data?.success && data?.data?.content) {
+					setBookContent(data.data.content);
+					showToast(locale === 'en' ? 'Module content generated' : 'Contenido del módulo generado', 'success');
+				}
+			} catch (error) {
+				console.error('[CourseLearnExperience] Failed to generate book content', error);
+				showToast(locale === 'en' ? 'Failed to generate content' : 'Error al generar contenido', 'error');
+			} finally {
+				setIsGeneratingBookContent(false);
+			}
+		};
+
+		generateContent();
+	}, [bookContent, bookMode, courseId, currentModule.id, isGeneratingBookContent, locale, showToast, isPlaceholderContent]);
 
 	const navigationState = useMemo(() => {
 		const completionMap: Record<string, boolean> = {};
@@ -126,6 +182,44 @@ export function CourseLearnExperience({
 	const localizedCourseTitle = locale === 'en' ? course.title_en : course.title_es;
 	const localizedModuleTitle = locale === 'en' ? currentModule.title_en : currentModule.title_es;
 	const readingMinutes = currentModule.duration_minutes || 10;
+	const localizedBookContent = bookContent || '';
+
+	const handleBookComplete = async () => {
+		if (currentProgress?.completed || isCompletingBook) {
+			return;
+		}
+
+		setIsCompletingBook(true);
+		try {
+			const res = await fetch('/api/courses/progress', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ courseId, moduleId: currentModule.id, completed: true, timeSpent: 0 }),
+				credentials: 'include',
+			});
+
+			if (!res.ok) {
+				const errorText = await res.text();
+				throw new Error(errorText || 'Failed to save progress');
+			}
+
+			showToast(locale === 'en' ? 'Module completed! +100 XP' : '¡Módulo completado! +100 XP', 'success');
+			router.refresh();
+		} catch (error) {
+			console.error('[CourseLearnExperience] Failed to complete module from book view', error);
+			showToast(locale === 'en' ? 'Failed to save progress' : 'Error al guardar progreso', 'error');
+		} finally {
+			setIsCompletingBook(false);
+		}
+	};
+
+	const handleBookNavigate = (direction: 'prev' | 'next') => {
+		if (direction === 'next') {
+			if (isNextLocked) return;
+			return handleNavigate(nextModule);
+		}
+		return handleNavigate(prevModule);
+	};
 
 	const isModuleAccessible = (module: NormalizedModule, index: number) => {
 		if (module.is_free) return true;
@@ -238,6 +332,16 @@ export function CourseLearnExperience({
 			</div>
 		</div>
 	) : null;
+
+	const normalizedContentType = (currentModule.content_type || 'article').toLowerCase().trim();
+	const useBookReader = bookMode && normalizedContentType !== 'quiz' && normalizedContentType !== 'video';
+	const resolvedBookContent = localizedBookContent.trim()
+		? localizedBookContent
+		: isGeneratingBookContent
+			? (locale === 'en' ? 'Generating module content...' : 'Generando contenido del módulo...')
+			: (locale === 'en'
+				? 'Module content is being prepared. Please check back soon.'
+				: 'El contenido del módulo se está preparando. Por favor, vuelve pronto.');
 
 	const BookSpread = (
 		<section className="relative z-10 pb-24" style={{ backgroundColor: BRUTALIST.bg }}>
@@ -353,13 +457,26 @@ export function CourseLearnExperience({
 					</aside>
 					{/* Content area */}
 					<div className="border p-4 sm:p-6 lg:p-8" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
-						<ModulePlayer
-							locale={locale}
-							module={currentModule}
-							courseId={courseId}
-							enrollmentId={enrollmentId}
-							currentProgress={currentProgress}
-						/>
+						{useBookReader ? (
+							<BookModuleView
+								content={resolvedBookContent}
+								title={localizedModuleTitle}
+								moduleNumber={currentIndex + 1}
+								totalModules={modules.length}
+								moduleId={currentModule.id}
+								onComplete={handleBookComplete}
+								onNavigate={handleBookNavigate}
+								locale={locale}
+							/>
+						) : (
+							<ModulePlayer
+								locale={locale}
+								module={currentModule}
+								courseId={courseId}
+								enrollmentId={enrollmentId}
+								currentProgress={currentProgress}
+							/>
+						)}
 					</div>
 				</div>
 				{/* Bottom navigation */}

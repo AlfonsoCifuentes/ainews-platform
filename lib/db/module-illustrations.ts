@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createClient, type SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
+import { GEMINI_MODELS } from '@/lib/ai/model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
 const BUCKET_NAME = 'module-illustrations';
@@ -133,8 +134,7 @@ function detectProvider(model?: string | null): string {
   if (!model) return 'gemini';
   const normalized = model.toLowerCase();
   if (normalized.includes('gemini')) return 'gemini';
-  if (normalized.includes('gpt')) return 'openai';
-  if (normalized.includes('claude')) return 'anthropic';
+  if (normalized.includes('flux') || normalized.includes('huggingface')) return 'huggingface';
   return 'unknown';
 }
 
@@ -152,6 +152,12 @@ function buildMetadata(input: PersistModuleIllustrationInput) {
 export async function persistModuleIllustration(
   input: PersistModuleIllustrationInput
 ): Promise<ModuleIllustrationRecord | null> {
+  const provider = input.provider ?? detectProvider(input.model);
+  if (!['gemini', 'huggingface'].includes(provider)) {
+    throw new Error('Unsupported illustration provider');
+  }
+
+  const model = input.model ?? GEMINI_MODELS.GEMINI_3_PRO_IMAGE;
   const client = getSupabaseAdminClient();
   await ensureBucketExists(client);
 
@@ -206,8 +212,8 @@ export async function persistModuleIllustration(
     locale: input.locale,
     style: input.style,
     visual_style: visualStyle,
-    model: input.model ?? null,
-    provider: input.provider ?? detectProvider(input.model),
+    model,
+    provider,
     prompt_summary: promptSummary,
     image_url: publicUrlData?.publicUrl ?? '',
     storage_path: filePath,
