@@ -12,8 +12,8 @@ export interface FallbackImageConfig {
 
 const categoryGradients: Record<string, { from: string; to: string; icon: string }> = {
   'machine-learning': {
-    from: '#6366f1', // Indigo
-    to: '#8b5cf6', // Purple
+    from: '#2563eb', // Blue
+    to: '#0ea5e9', // Cyan
     icon: '🤖',
   },
   'nlp': {
@@ -32,8 +32,8 @@ const categoryGradients: Record<string, { from: string; to: string; icon: string
     icon: '🦾',
   },
   'research': {
-    from: '#8b5cf6', // Purple
-    to: '#ec4899', // Pink
+    from: '#2563eb', // Blue
+    to: '#22d3ee', // Cyan
     icon: '🔬',
   },
   'ethics': {
@@ -57,8 +57,8 @@ const categoryGradients: Record<string, { from: string; to: string; icon: string
     icon: '🧠',
   },
   'default': {
-    from: '#4f46e5', // Indigo-600
-    to: '#7c3aed', // Violet-600
+    from: '#2563eb', // Blue
+    to: '#0ea5e9', // Cyan
     icon: '✨',
   },
 };

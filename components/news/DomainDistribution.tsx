@@ -9,19 +9,19 @@ interface DomainDistributionProps {
 
 const DOMAIN_CONFIG = {
   cv: {
-    emoji: '👁️',
+    glyph: '▢',
   },
   nlp: {
-    emoji: '🧠',
+    glyph: '▢',
   },
   robotics: {
-    emoji: '🤖',
+    glyph: '▢',
   },
   ethics: {
-    emoji: '🛡️',
+    glyph: '▢',
   },
   tools: {
-    emoji: '🔧',
+    glyph: '▢',
   },
 };
 
@@ -79,7 +79,7 @@ export function DomainDistribution({ distribution, locale }: DomainDistributionP
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{config.emoji}</span>
+                  <span className="text-lg text-[#EAEAEA]">{config.glyph}</span>
                   <span className="text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
                     {label}
                   </span>

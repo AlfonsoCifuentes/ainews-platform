@@ -98,7 +98,7 @@ export class EmailService {
           <li>🏆 Earn badges and level up as you learn</li>
           <li>🔥 Build learning streaks and compete on leaderboards</li>
         </ul>
-        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Start Learning
         </a>
         <p style="margin-top: 32px; color: #666;">
@@ -117,7 +117,7 @@ export class EmailService {
           <li>🏆 Gana insignias y sube de nivel mientras aprendes</li>
           <li>🔥 Construye rachas de aprendizaje y compite en tablas de clasificación</li>
         </ul>
-        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Empezar a Aprender
         </a>
         <p style="margin-top: 32px; color: #666;">
@@ -204,7 +204,7 @@ export class EmailService {
             : ''
         }
 
-        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
           Continue Learning
         </a>
 
@@ -246,7 +246,7 @@ export class EmailService {
             : ''
         }
 
-        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
+        <a href="https://thotnet-core.vercel.app" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 32px;">
           Continuar Aprendiendo
         </a>
 
@@ -300,7 +300,7 @@ export class EmailService {
         }
 
         <p style="margin-top: 32px;">Keep up the great work! 🚀</p>
-        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Start Another Course
         </a>
       </div>
@@ -324,7 +324,7 @@ export class EmailService {
         }
 
         <p style="margin-top: 32px;">¡Sigue con el excelente trabajo! 🚀</p>
-        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #6366f1, #a855f7); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+        <a href="https://thotnet-core.vercel.app/courses" style="display: inline-block; padding: 12px 24px; background: linear-gradient(to right, #2563eb, #0ea5e9); color: white; text-decoration: none; border-radius: 8px; margin-top: 16px;">
           Comenzar Otro Curso
         </a>
       </div>

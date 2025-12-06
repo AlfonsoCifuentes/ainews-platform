@@ -123,7 +123,7 @@ function Scene() {
       <FloatingShape
         position={[-3, -3, -7]}
         scale={1}
-        color="#7c3aed"
+        color="#2563eb"
         speed={1}
       />
 

@@ -24,8 +24,8 @@ export function Logo({ size = 40, className = '' }: LogoProps) {
       <defs>
         <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#3b82f6" />
-          <stop offset="50%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="50%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#0ea5e9" />
         </linearGradient>
         <filter id="glow">
           <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
