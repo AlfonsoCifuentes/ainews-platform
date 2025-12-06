@@ -189,116 +189,73 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
 
   if (!modelReady) {
     return (
-      <div className="max-w-4xl mx-auto p-8">
-        <Card className="border border-white/15 bg-[#050505] p-8 shadow-none">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Lock className="w-10 h-10 text-white" />
-              <div>
-                <h2 className="text-3xl font-semibold tracking-tight">
-                  {locale === 'es' ? 'Función premium bloqueada' : 'Premium feature locked'}
-                </h2>
-                <p className="text-white/70 mt-2">
-                  {locale === 'es'
-                    ? 'El Chat IA estilo ChatGPT se desbloquea al descargar el modelo local'
-                    : 'ChatGPT-style AI Chat unlocks when you download the local model'}
-                </p>
+      <div className="max-w-5xl mx-auto p-6 md:p-10">
+        <Card className="border border-white/18 bg-[#050505] p-8 md:p-10 shadow-none rounded-none">
+          <div className="space-y-8">
+            <div className="flex flex-col gap-4 border-b border-white/10 pb-6">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 border border-white/30 bg-[#0A0A0A] flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-white" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-mono uppercase tracking-[0.18em] text-white/60">{locale === 'es' ? 'Bloqueo' : 'Locked'}</p>
+                  <h2 className="text-3xl font-bold tracking-tight text-white leading-tight">
+                    {locale === 'es' ? 'Función premium bloqueada' : 'Premium feature locked'}
+                  </h2>
+                  <p className="text-white/70 text-sm max-w-2xl">
+                    {locale === 'es'
+                      ? 'El chat brutalista se desbloquea al descargar el modelo local. Todo se queda en tu equipo.'
+                      : 'The brutalist chat unlocks once you download the local model. Everything stays on your device.'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-white" />
-                {locale === 'es' ? 'Funciones Exclusivas del Chat IA:' : 'Exclusive AI Chat Features:'}
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <span className="text-white text-xl mt-1">●</span>
-                  <div>
-                    <strong className="text-base">
-                      {locale === 'es' ? 'Interfaz Familiar Tipo ChatGPT' : 'Familiar ChatGPT-Like Interface'}
-                    </strong>
-                    <p className="text-sm text-white/70">
-                      {locale === 'es'
-                        ? 'Misma experiencia que ChatGPT, pero 100% gratis y privado'
-                        : 'Same experience as ChatGPT, but 100% free and private'}
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-white text-xl mt-1">●</span>
-                  <div>
-                    <strong className="text-base">
-                      {locale === 'es' ? 'Conversaciones Múltiples' : 'Multiple Conversations'}
-                    </strong>
-                    <p className="text-sm text-white/70">
-                      {locale === 'es'
-                        ? 'Gestiona múltiples chats simultáneos con contexto independiente'
-                        : 'Manage multiple simultaneous chats with independent context'}
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-white text-xl mt-1">●</span>
-                  <div>
-                    <strong className="text-base">
-                      {locale === 'es' ? 'Sin Límites de Uso' : 'Unlimited Usage'}
-                    </strong>
-                    <p className="text-sm text-white/70">
-                      {locale === 'es'
-                        ? 'Chatea todo lo que quieras, sin restricciones de tokens o mensajes'
-                        : 'Chat as much as you want, no token or message restrictions'}
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-white text-xl mt-1">●</span>
-                  <div>
-                    <strong className="text-base">
-                      {locale === 'es' ? 'Memoria de Contexto' : 'Context Memory'}
-                    </strong>
-                    <p className="text-sm text-white/70">
-                      {locale === 'es'
-                        ? 'La IA recuerda las últimas 4 interacciones para conversaciones coherentes'
-                        : 'AI remembers last 4 interactions for coherent conversations'}
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-white text-xl mt-1">●</span>
-                  <div>
-                    <strong className="text-base">
-                      {locale === 'es' ? 'Privacidad Total' : 'Complete Privacy'}
-                    </strong>
-                    <p className="text-sm text-white/70">
-                      {locale === 'es'
-                        ? 'Tus conversaciones NUNCA se envían a servidores externos'
-                        : 'Your conversations are NEVER sent to external servers'}
-                    </p>
-                  </div>
-                </li>
-              </ul>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="text-sm font-mono uppercase tracking-[0.2em] text-white">{locale === 'es' ? 'Funciones exclusivas' : 'Exclusive features'}</h3>
+                <ul className="space-y-3">
+                  {[
+                    locale === 'es' ? 'Interfaz estilo ChatGPT, pero 100% local y privada' : 'ChatGPT-like interface, but 100% local and private',
+                    locale === 'es' ? 'Múltiples conversaciones con contexto independiente' : 'Multiple conversations with independent context',
+                    locale === 'es' ? 'Uso ilimitado sin cuotas ni límites de tokens' : 'Unlimited usage with no token caps',
+                    locale === 'es' ? 'Memoria de las últimas interacciones para coherencia' : 'Memory of last interactions for coherence',
+                    locale === 'es' ? 'Privacidad total: nada sale de tu máquina' : 'Total privacy: nothing leaves your machine',
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <span className="mt-1 h-3 w-3 border border-white bg-transparent" />
+                      <span className="text-sm text-white leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            <div className="border border-white/12 p-4">
-              <p className="text-sm text-white/80">
-                <strong className="text-white">
-                  {locale === 'es' ? 'Valor Premium:' : 'Premium value:'}
-                </strong>{' '}
-                {locale === 'es'
-                  ? 'ChatGPT Plus cuesta $20/mes. Aquí lo tienes gratis descargando el modelo una sola vez.'
-                  : 'ChatGPT Plus costs $20/month. Here you get it free by downloading the model once.'}
-              </p>
+              <div className="space-y-3 border border-white/12 bg-[#0A0A0A] p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase tracking-[0.18em] text-white/60">{locale === 'es' ? 'Valor' : 'Value'}</span>
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <p className="text-white text-base leading-relaxed">
+                  {locale === 'es'
+                    ? 'ChatGPT Plus cuesta $20/mes. Aquí lo tienes gratis descargando el modelo una sola vez.'
+                    : 'ChatGPT Plus costs $20/month. Here it is free after a one-time local download.'}
+                </p>
+                <div className="grid grid-cols-1 gap-2 pt-2 text-sm text-white/70">
+                  <div className="flex items-center justify-between border border-white/10 px-3 py-2">{locale === 'es' ? <><span>Sesiones privadas</span><span>∞</span></> : <><span>Private sessions</span><span>∞</span></>}</div>
+                  <div className="flex items-center justify-between border border-white/10 px-3 py-2">{locale === 'es' ? <><span>Mensajes</span><span>Sin límite</span></> : <><span>Messages</span><span>No limit</span></>}</div>
+                  <div className="flex items-center justify-between border border-white/10 px-3 py-2">{locale === 'es' ? <><span>Privacidad</span><span>Local</span></> : <><span>Privacy</span><span>Local</span></>}</div>
+                </div>
+              </div>
             </div>
 
             <Button
               onClick={() => setShowDownloader(true)}
-              className="w-full gap-2 uppercase tracking-[0.14em]"
+              className="w-full gap-2 uppercase tracking-[0.18em] border border-white/60 bg-transparent text-white rounded-none hover:bg-white/10"
               size="lg"
               variant="outline"
             >
               <Download className="w-5 h-5" />
-              {locale === 'es' ? 'Descargar Modelo y Desbloquear Chat IA' : 'Download Model & Unlock AI Chat'}
+              {locale === 'es' ? 'Descargar modelo y desbloquear chat IA' : 'Download model & unlock AI chat'}
             </Button>
           </div>
         </Card>

@@ -37,14 +37,14 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
   ];
 
   return (
-    <div className="relative group z-50">
+    <div className="relative group z-50 h-full">
       {/* Avatar Button - Compact */}
       <motion.button
         whileTap={{ scale: 0.98 }}
-        className="relative flex items-center gap-2 border border-white/15 bg-[#050505] px-3 py-2 transition-all hover:border-white/40"
+        className="relative my-[2px] flex h-full min-h-[48px] items-center gap-2 border border-white/15 bg-[#050505] px-4 py-0 transition-all hover:border-white/40 rounded-none"
       >
         {/* Avatar */}
-        <div className="relative h-8 w-8 overflow-hidden bg-white/10">
+        <div className="relative h-10 w-10 overflow-hidden bg-white/10 border border-white/12">
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
