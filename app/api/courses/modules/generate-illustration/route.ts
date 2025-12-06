@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, promptOverride, metadata, variants, providerOrder } = validated.data;
 
     const variantList = resolveVariantList(style, variants);
-    const order = providerOrder && providerOrder.length ? providerOrder : ['gemini', 'huggingface'];
+    const order: ('gemini' | 'huggingface')[] = providerOrder && providerOrder.length ? providerOrder : ['gemini', 'huggingface'];
     console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);
 
     const generatedResults: Array<{
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         moduleContent: content,
         locale,
         style,
-        visualStyle: variant,
+        visualStyle: variant as GenerateIllustrationRequest['visualStyle'],
         providerOrder: order,
         promptOverride,
       });
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         content,
         locale,
         style,
-        visualStyle: variant,
+        visualStyle: variant as GenerateIllustrationRequest['visualStyle'],
         slotId: slotId ?? null,
         anchor: anchor ?? null,
       });
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
           moduleId,
           locale,
           style,
-          visualStyle: variant,
+          visualStyle: variant as GenerateIllustrationRequest['visualStyle'],
           model: cascadeResult.model,
           provider: cascadeResult.provider,
           base64Data: image.base64Data,
@@ -118,11 +118,11 @@ export async function POST(req: NextRequest) {
       }
 
       generatedResults.push({
-        visualStyle: variant,
+        visualStyle: variant as GenerateIllustrationRequest['visualStyle'],
         url: persisted?.image_url ?? null,
         mimeType: image.mimeType,
         model: cascadeResult.model,
-        provider: cascadeResult.provider,
+        provider: cascadeResult.provider ?? null,
         checksum: variantChecksum,
         persisted,
         attempts: cascadeResult.attempts,

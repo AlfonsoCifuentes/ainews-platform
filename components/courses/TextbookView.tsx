@@ -9,8 +9,6 @@ import {
   List,
   Maximize2,
   Minimize2,
-  Moon,
-  Sun,
   Settings,
   Bookmark,
   BookmarkCheck,
@@ -254,25 +252,25 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
   switch (block.type) {
     case 'heading1':
       return (
-        <h1 className={`text-2xl md:text-3xl lg:text-4xl font-serif font-bold mb-6 mt-2 ${isDark ? 'text-foreground' : 'text-stone-800'}`}>
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold mb-6 mt-2 text-foreground">
           {block.content}
         </h1>
       );
     case 'heading2':
       return (
-        <h2 className={`text-xl md:text-2xl font-serif font-semibold mb-4 mt-10 pb-2 border-b ${isDark ? 'text-foreground border-border/50' : 'text-stone-700 border-stone-300'}`}>
+        <h2 className="text-xl md:text-2xl font-serif font-semibold mb-4 mt-10 pb-2 border-b text-foreground border-border/50">
           {block.content}
         </h2>
       );
     case 'heading3':
       return (
-        <h3 className={`text-lg md:text-xl font-serif font-medium mb-3 mt-6 ${isDark ? 'text-foreground' : 'text-stone-700'}`}>
+        <h3 className="text-lg md:text-xl font-serif font-medium mb-3 mt-6 text-foreground">
           {block.content}
         </h3>
       );
     case 'paragraph':
       return (
-        <p className={`leading-[1.8] text-justify ${isDark ? 'text-muted-foreground' : 'text-stone-600'}`} style={{ textIndent: '2em' }}>
+        <p className="leading-[1.8] text-justify text-muted-foreground" style={{ textIndent: '2em' }}>
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -297,7 +295,7 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
       return <CalloutBox type={block.type} content={block.content} isDark={isDark} />;
     default:
       return (
-        <p className={isDark ? 'text-muted-foreground' : 'text-stone-600'}>
+        <p className="text-muted-foreground">
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -326,7 +324,7 @@ export function TextbookView({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const isDarkMode = true;
   const [fontSize, setFontSize] = useState(16);
   const [bookmarkedPages, setBookmarkedPages] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -476,25 +474,25 @@ export function TextbookView({
   const isLastPage = currentPage >= totalPages - (isTwoPageView ? 1 : 0);
 
   const renderPage = (page: TextbookPage, isLeft: boolean) => (
-    <div className={`relative flex-1 h-full overflow-y-auto ${isLeft && isTwoPageView ? 'border-r' : ''} ${isDarkMode ? 'border-border/20' : 'border-stone-200'}`} style={{ fontSize: `${fontSize}px` }}>
-      <div className={`min-h-full ${isDarkMode ? 'bg-gradient-to-br from-card via-card to-secondary/20' : 'bg-gradient-to-br from-[#FFFEF9] via-[#FDF6E3] to-[#F5ECD7]'}`}>
+    <div className={`relative flex-1 h-full overflow-y-auto ${isLeft && isTwoPageView ? 'border-r' : ''} border-border/20`} style={{ fontSize: `${fontSize}px` }}>
+      <div className="min-h-full bg-gradient-to-br from-background via-card to-secondary/20">
         <div className={`px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-4 md:pl-8' : 'pr-4 md:pr-8'}`}>
           {page.isChapterStart && (
             <div className="relative mb-10">
               <ChapterDecorator number={moduleNumber} isDark={isDarkMode} />
               <div className="text-center pt-14 pb-6">
-                <div className={`text-xs uppercase tracking-[0.3em] mb-3 ${isDarkMode ? 'text-muted-foreground' : 'text-stone-500'}`}>
+                <div className="text-xs uppercase tracking-[0.3em] mb-3 text-muted-foreground">
                   {t.chapter} {moduleNumber}
                 </div>
-                <div className={`w-12 h-px mx-auto ${isDarkMode ? 'bg-primary/50' : 'bg-primary/50'}`} />
+                <div className="w-12 h-px mx-auto bg-primary/50" />
               </div>
             </div>
           )}
           <div className="space-y-5">
             {page.content.map((block, i) => <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />)}
           </div>
-          <div className={`mt-10 pt-4 border-t text-center ${isDarkMode ? 'border-border/30' : 'border-stone-300'}`}>
-            <span className={`font-serif italic text-sm ${isDarkMode ? 'text-muted-foreground' : 'text-stone-500'}`}>{page.pageNumber}</span>
+          <div className="mt-10 pt-4 border-t text-center border-border/30">
+            <span className="font-serif italic text-sm text-muted-foreground">{page.pageNumber}</span>
           </div>
         </div>
       </div>
@@ -502,10 +500,10 @@ export function TextbookView({
   );
 
   const renderEmptyPage = () => (
-    <div className={`flex-1 h-full flex items-center justify-center ${isDarkMode ? 'bg-card' : 'bg-[#FDF6E3]'}`}>
+    <div className="flex-1 h-full flex items-center justify-center bg-card">
       <div className="text-center">
-        <BookOpen className={`h-12 w-12 mx-auto mb-3 ${isDarkMode ? 'text-muted-foreground/30' : 'text-stone-300'}`} />
-        <p className={`font-serif italic text-sm ${isDarkMode ? 'text-muted-foreground' : 'text-stone-500'}`}>{t.endOfChapter}</p>
+        <BookOpen className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
+        <p className="font-serif italic text-sm text-muted-foreground">{t.endOfChapter}</p>
       </div>
     </div>
   );
@@ -515,7 +513,7 @@ export function TextbookView({
       {canRenderVisualGallery && moduleId && (
         <div
           className={`mb-6 rounded-3xl border p-5 ${
-            isDarkMode ? 'bg-card/70 border-white/10' : 'bg-white/80 border-stone-200'
+            'bg-card/70 border-white/10'
           }`}
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -555,17 +553,15 @@ export function TextbookView({
 
       <div
         ref={bookRef}
-        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] ${
-          isDarkMode ? 'bg-background' : 'bg-stone-300'
-        } ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-xl overflow-hidden shadow-2xl'}`}
+        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-background ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-xl overflow-hidden shadow-2xl'}`}
       >
       {/* Top bar */}
-      <div className={`absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 ${isDarkMode ? 'bg-card/95' : 'bg-stone-100/95'} backdrop-blur-sm border-b ${isDarkMode ? 'border-border/30' : 'border-stone-300'}`}>
+      <div className="absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 bg-card/95 backdrop-blur-sm border-b border-border/30">
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => setShowToc(true)} className="h-8 w-8 p-0"><List className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => setShowSearch(true)} className="h-8 w-8 p-0"><Search className="h-4 w-4" /></Button>
           <div className="hidden md:block ml-3 text-xs truncate max-w-[180px]">
-            <span className={isDarkMode ? 'text-muted-foreground' : 'text-stone-500'}>{t.chapter} {moduleNumber}:</span>{' '}
+            <span className="text-muted-foreground">{t.chapter} {moduleNumber}:</span>{' '}
             <span className="font-medium">{title}</span>
           </div>
         </div>
@@ -583,7 +579,7 @@ export function TextbookView({
       {/* Content */}
       <div className="absolute top-11 bottom-14 left-0 right-0 flex">
         <button onClick={() => goToPage(currentPage - (isTwoPageView ? 2 : 1))} disabled={currentPage <= 1}
-          className={`w-10 md:w-14 flex items-center justify-center ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-black/5'} disabled:opacity-20 transition-colors`}>
+          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/5 disabled:opacity-20 transition-colors">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="flex-1 flex overflow-hidden">
@@ -596,15 +592,15 @@ export function TextbookView({
           </AnimatePresence>
         </div>
         <button onClick={() => goToPage(currentPage + (isTwoPageView ? 2 : 1))} disabled={isLastPage}
-          className={`w-10 md:w-14 flex items-center justify-center ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-black/5'} disabled:opacity-20 transition-colors`}>
+          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/5 disabled:opacity-20 transition-colors">
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
       {/* Bottom bar */}
-      <div className={`absolute bottom-0 left-0 right-0 z-30 h-14 flex flex-col items-center justify-center px-3 ${isDarkMode ? 'bg-card/95' : 'bg-stone-100/95'} backdrop-blur-sm border-t ${isDarkMode ? 'border-border/30' : 'border-stone-300'}`}>
+      <div className="absolute bottom-0 left-0 right-0 z-30 h-14 flex flex-col items-center justify-center px-3 bg-card/95 backdrop-blur-sm border-t border-border/30">
         <div className="w-full max-w-sm mb-1.5">
-          <div className={`h-1 rounded-full ${isDarkMode ? 'bg-secondary' : 'bg-stone-300'}`}>
+          <div className="h-1 rounded-full bg-secondary/60">
             <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
@@ -615,7 +611,7 @@ export function TextbookView({
           <div className="text-xs font-serif">
             {t.page}{' '}
             <input type="number" value={currentPage} onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
-              className={`w-8 text-center bg-transparent border-b ${isDarkMode ? 'border-border' : 'border-stone-400'}`} min={1} max={totalPages} />
+              className="w-8 text-center bg-transparent border-b border-border" min={1} max={totalPages} />
             {' '}{t.of} {totalPages}
           </div>
           {isLastPage ? (
@@ -634,7 +630,7 @@ export function TextbookView({
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black z-40" onClick={() => setShowToc(false)} />
             <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 25 }}
-              className={`fixed top-0 left-0 bottom-0 w-72 z-50 ${isDarkMode ? 'bg-card' : 'bg-white'} shadow-2xl overflow-y-auto`}>
+              className="fixed top-0 left-0 bottom-0 w-72 z-50 bg-card shadow-2xl overflow-y-auto">
               <div className="sticky top-0 flex items-center justify-between p-3 border-b border-border bg-inherit">
                 <h2 className="font-serif font-bold text-sm">{t.tableOfContents}</h2>
                 <Button variant="ghost" size="sm" onClick={() => setShowToc(false)} className="h-7 w-7 p-0"><X className="h-4 w-4" /></Button>
@@ -661,7 +657,7 @@ export function TextbookView({
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black z-40" onClick={() => setShowSettings(false)} />
             <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }}
-              className={`fixed top-0 right-0 bottom-0 w-72 z-50 ${isDarkMode ? 'bg-card' : 'bg-white'} shadow-2xl`}>
+              className="fixed top-0 right-0 bottom-0 w-72 z-50 bg-card shadow-2xl">
               <div className="sticky top-0 flex items-center justify-between p-3 border-b border-border bg-inherit">
                 <h2 className="font-serif font-bold text-sm">{t.settings}</h2>
                 <Button variant="ghost" size="sm" onClick={() => setShowSettings(false)} className="h-7 w-7 p-0"><X className="h-4 w-4" /></Button>
@@ -675,12 +671,6 @@ export function TextbookView({
                     <span className="text-base">A</span>
                   </div>
                   <div className="text-center text-xs text-muted-foreground mt-1">{fontSize}px</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium">{isDarkMode ? t.darkMode : t.lightMode}</label>
-                  <Button variant="outline" size="sm" onClick={() => setIsDarkMode(!isDarkMode)} className="h-8 w-8 p-0">
-                    {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                  </Button>
                 </div>
                 {bookmarkedPages.length > 0 && (
                   <div>
@@ -704,12 +694,12 @@ export function TextbookView({
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black z-40" onClick={() => setShowSearch(false)} />
             <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }}
-              className={`fixed top-16 left-1/2 -translate-x-1/2 w-full max-w-md z-50 ${isDarkMode ? 'bg-card' : 'bg-white'} rounded-xl shadow-2xl overflow-hidden`}>
+              className="fixed top-16 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-card rounded-xl shadow-2xl overflow-hidden">
               <div className="p-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input type="text" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder={t.searchPlaceholder} autoFocus
-                    className={`w-full pl-9 pr-9 py-2.5 rounded-lg text-sm ${isDarkMode ? 'bg-secondary' : 'bg-stone-100'} border-none focus:ring-2 focus:ring-primary`} />
+                    className="w-full pl-9 pr-9 py-2.5 rounded-lg text-sm bg-secondary border-none focus:ring-2 focus:ring-primary" />
                   {searchQuery && <button onClick={() => handleSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
                 </div>
               </div>

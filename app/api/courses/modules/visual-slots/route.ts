@@ -47,7 +47,7 @@ function shouldFallbackToEmpty(error: unknown): boolean {
 export async function GET(request: NextRequest) {
   try {
     const params = QuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
-    let slots;
+    let slots: Awaited<ReturnType<typeof fetchModuleVisualSlots>> = [];
 
     try {
       slots = await fetchModuleVisualSlots({
