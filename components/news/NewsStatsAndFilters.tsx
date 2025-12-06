@@ -30,38 +30,28 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
   const categories = [
     { 
       id: 'machinelearning', 
-      icon: '🤖', 
-      label: locale === 'en' ? 'Machine Learning' : 'Aprendizaje Automático',
-      color: 'from-blue-500/20 to-cyan-500/20',
-      hoverColor: 'hover:from-blue-500/30 hover:to-cyan-500/30'
+      icon: '▢', 
+      label: locale === 'en' ? 'Machine Learning' : 'Aprendizaje Automático'
     },
     { 
       id: 'nlp', 
-      icon: '💬', 
-      label: locale === 'en' ? 'NLP' : 'PLN',
-      color: 'from-purple-500/20 to-pink-500/20',
-      hoverColor: 'hover:from-purple-500/30 hover:to-pink-500/30'
+      icon: '▢', 
+      label: locale === 'en' ? 'NLP' : 'PLN'
     },
     { 
       id: 'computervision', 
-      icon: '👁️', 
-      label: locale === 'en' ? 'Computer Vision' : 'Visión Artificial',
-      color: 'from-green-500/20 to-emerald-500/20',
-      hoverColor: 'hover:from-green-500/30 hover:to-emerald-500/30'
+      icon: '▢', 
+      label: locale === 'en' ? 'Computer Vision' : 'Visión Artificial'
     },
     { 
       id: 'robotics', 
-      icon: '🦾', 
-      label: locale === 'en' ? 'Robotics' : 'Robótica',
-      color: 'from-orange-500/20 to-yellow-500/20',
-      hoverColor: 'hover:from-orange-500/30 hover:to-yellow-500/30'
+      icon: '▢', 
+      label: locale === 'en' ? 'Robotics' : 'Robótica'
     },
     { 
       id: 'ethics', 
-      icon: '⚖️', 
-      label: locale === 'en' ? 'Ethics' : 'Ética',
-      color: 'from-violet-500/20 to-purple-500/20',
-      hoverColor: 'hover:from-violet-500/30 hover:to-purple-500/30'
+      icon: '▢', 
+      label: locale === 'en' ? 'Ethics' : 'Ética'
     },
   ];
 
@@ -108,25 +98,25 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
     {
       label: locale === 'en' ? 'Today' : 'Hoy',
       value: loading ? '...' : stats.todayCount,
-      icon: '📰',
+      icon: '■',
       suffix: locale === 'en' ? 'articles' : 'artículos'
     },
     {
       label: locale === 'en' ? 'Sources' : 'Fuentes',
       value: stats.totalSources,
-      icon: '🌐',
+      icon: '◎',
       suffix: '+'
     },
     {
       label: locale === 'en' ? 'Quality' : 'Calidad',
       value: loading ? '...' : stats.avgQualityScore,
-      icon: '⭐',
+      icon: '★',
       suffix: '%'
     },
     {
       label: locale === 'en' ? 'Updated' : 'Actualizado',
       value: stats.lastUpdated,
-      icon: '🕐',
+      icon: '◔',
       suffix: ''
     }
   ];
@@ -141,7 +131,7 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-4 backdrop-blur-sm"
+            className="relative overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] p-4"
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="text-2xl">{stat.icon}</span>
@@ -172,13 +162,13 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => handleCategoryClick('')}
-            className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all ${
+            className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider transition-all ${
               activeCategory === null
-                ? 'border-primary bg-primary/20 text-white'
-                : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
+                ? 'border-white bg-white/10 text-white'
+                : 'border-[#1F1F1F] bg-[#0A0A0A] text-white/70 hover:border-white/40 hover:bg-white/5'
             }`}
           >
-            {locale === 'en' ? '🌟 All' : '🌟 Todas'}
+            {locale === 'en' ? '▣ All' : '▣ Todas'}
           </motion.button>
 
           {/* Category buttons */}
@@ -190,10 +180,10 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategoryClick(category.id)}
-                className={`rounded-full border px-6 py-3 text-sm font-semibold transition-all ${
+                className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider transition-all ${
                   activeCategory === category.id
-                    ? 'border-primary bg-primary/20 text-white'
-                    : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10'
+                    ? 'border-white bg-white/10 text-white'
+                    : 'border-[#1F1F1F] bg-[#0A0A0A] text-white/70 hover:border-white/40 hover:bg-white/5'
                 }`}
               >
                 <span className="mr-2">{category.icon}</span>
@@ -215,11 +205,11 @@ export function NewsStatsAndFilters({ locale, onCategoryFilter }: NewsStatsAndFi
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3"
+          className="flex items-center gap-2 border border-white/40 bg-[#0A0A0A] px-4 py-3"
         >
-          <span className="text-sm text-white/80">
+          <span className="text-sm text-white/80 font-mono">
             {locale === 'en' ? 'Filtering by:' : 'Filtrando por:'}{' '}
-            <span className="font-bold text-primary">
+            <span className="font-bold text-white">
               {categories.find(c => c.id === activeCategory)?.label}
             </span>
           </span>

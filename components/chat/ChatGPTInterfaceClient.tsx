@@ -189,7 +189,7 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
 
   if (!modelReady) {
     return (
-      <div className="max-w-5xl mx-auto p-6 md:p-10">
+      <div className="max-w-5xl mx-auto p-6 md:p-10 pt-24 md:pt-28">
         <Card className="border border-white/18 bg-[#050505] p-8 md:p-10 shadow-none rounded-none">
           <div className="space-y-8">
             <div className="flex flex-col gap-4 border-b border-white/10 pb-6">

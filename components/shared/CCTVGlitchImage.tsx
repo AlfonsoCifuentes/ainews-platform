@@ -47,7 +47,7 @@ export function CCTVGlitchImage({
 
     setStatus('glitching');
 
-    // Transition from glitch to clean (no scanlines) after 1s
+    // Transition from glitch to clean (full color, no effects) after 1s
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setStatus('clean');
@@ -182,7 +182,7 @@ export function CCTVGlitchImage({
       `}</style>
 
       {/* --- BASE IMAGE (Changes based on state) --- */}
-      <div className={`relative w-full h-full transition-all duration-150 ${status === 'idle' ? 'grayscale contrast-125 brightness-75 blur-[0.5px]' : ''}`}>
+      <div className={`relative w-full h-full transition-all duration-300 ${status === 'idle' ? 'grayscale contrast-125 brightness-75 blur-[0.5px]' : ''}`}>
         <Image
           src={src}
           alt={alt}
@@ -244,17 +244,7 @@ export function CCTVGlitchImage({
         </>
       )}
 
-      {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
-      {isGlitching && (
-        <div className="absolute inset-0 pointer-events-none z-50">
-          {/* Scanlines - very subtle */}
-          <div className="absolute inset-0 animate-scanlines opacity-15" />
-          {/* Vignette - subtle */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_70%,rgba(0,0,0,0.3)_100%)]" />
-        </div>
-      )}
-
-      {/* Clean state: restore natural image, no overlays */}
+      {/* Clean state: full color image with no overlays or effects */}
       {isClean && (
         <div className="absolute inset-0 pointer-events-none z-40" />
       )}

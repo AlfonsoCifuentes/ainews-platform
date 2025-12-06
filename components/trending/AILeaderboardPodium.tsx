@@ -139,7 +139,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
             <div className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto">
               {/* Card */}
               <div className="w-full md:w-24 lg:w-28 border border-[#1F1F1F] bg-[#020309] p-2 md:p-3 text-center">
-                <p className="text-2xl md:text-3xl mb-1">🥈</p>
+                <p className="text-2xl md:text-3xl mb-1 font-mono text-[#888888]">②</p>
                 <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center border border-[#1F1F1F] bg-[#0A0A0A] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[1].provider)}
@@ -164,12 +164,12 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
             <div className="flex flex-col items-center w-full md:w-auto flex-shrink-0 md:z-10">
               {/* Crown */}
               <div className="relative w-20 h-6 md:w-24 md:h-8 flex items-center justify-center -mb-1 md:-mb-2 z-10">
-                <p className="text-3xl md:text-4xl">👑</p>
+                <p className="text-3xl md:text-4xl font-mono text-[#EAEAEA]">▲</p>
               </div>
               
               {/* Larger card */}
               <div className="w-full md:w-28 lg:w-32 border-2 border-[#EAEAEA] bg-[#0A0A0A] p-3 md:p-4 text-center relative">
-                <p className="text-4xl md:text-5xl mb-2">🥇</p>
+                <p className="text-4xl md:text-5xl mb-2 font-mono text-white">①</p>
                 <div className="relative w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 flex items-center justify-center border border-[#1F1F1F] bg-[#020309] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[0].provider)}
@@ -194,7 +194,7 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
             <div className="hidden md:flex flex-col items-center flex-shrink-0 w-full md:w-auto">
               {/* Card */}
               <div className="w-full md:w-24 lg:w-28 border border-[#1F1F1F] bg-[#020309] p-2 md:p-3 text-center">
-                <p className="text-2xl md:text-3xl mb-1">🥉</p>
+                <p className="text-2xl md:text-3xl mb-1 font-mono text-[#666666]">③</p>
                 <div className="relative w-12 h-12 md:w-14 md:h-14 mx-auto mb-1 flex items-center justify-center border border-[#1F1F1F] bg-[#0A0A0A] overflow-hidden">
                   <Image
                     src={getCompanyLogo(models[2].provider)}
@@ -222,8 +222,8 @@ export function AILeaderboardPodium({ locale }: AILeaderboardPodiumProps) {
               key={idx}
               className="w-full border border-[#1F1F1F] bg-[#020309] p-3 flex items-center gap-3"
             >
-              <div className="text-2xl">
-                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+              <div className="text-2xl font-mono text-[#EAEAEA]">
+                {idx === 0 ? '①' : idx === 1 ? '②' : '③'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

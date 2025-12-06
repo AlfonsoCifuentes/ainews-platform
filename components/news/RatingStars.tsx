@@ -116,8 +116,8 @@ export function RatingStars({
             <Star
               className={`${sizeClasses[size]} transition-all ${
                 star <= displayRating
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'fill-transparent text-gray-400'
+                  ? 'fill-white text-white'
+                  : 'fill-transparent text-[#444444]'
               }`}
             />
           </motion.button>
