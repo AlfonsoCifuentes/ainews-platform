@@ -1,11 +1,14 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface CCTVGlitchCardProps {
   src: string;
   alt?: string;
 }
 
-type GlitchState = 'idle' | 'glitching' | 'active';
+type GlitchState = 'idle' | 'glitching' | 'clean';
 
 export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({ 
   src, 
@@ -20,10 +23,10 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
 
     setStatus('glitching');
 
-    // Transition from glitch to active (color view) after 1000ms to cap glitch/tearing duration
+    // Transition from glitch to clean (normal color) after 1000ms to cap glitch/tearing duration
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => {
-      setStatus('active');
+      setStatus('clean');
     }, 1000); // Fixed 1s glitch window
   };
 
@@ -37,6 +40,8 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  const isClean = status === 'clean';
 
   return (
     <div 
@@ -89,11 +94,14 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
       <div className="relative aspect-square bg-black overflow-hidden">
         
         {/* --- BASE IMAGE (Changes state) --- */}
-        <div className={`w-full h-full transition-all duration-100 ${status === 'idle' ? 'filter grayscale contrast-125 brightness-75 blur-[0.5px]' : 'filter-none'}`}>
-          <img 
-            src={src} 
-            alt={alt} 
-            className="w-full h-full object-cover"
+        <div className={`relative w-full h-full transition-all duration-100 ${status === 'idle' ? 'filter grayscale contrast-125 brightness-75 blur-[0.5px]' : 'filter-none'}`}>
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes="(max-width: 768px) 100vw, 400px"
+            className="object-cover"
+            priority={false}
           />
         </div>
 
@@ -126,11 +134,13 @@ export const CCTVGlitchCard: React.FC<CCTVGlitchCardProps> = ({
         )}
 
         {/* --- ACTIVE MONITOR EFFECTS (Scanlines only, keeps final state natural color) --- */}
-        {(status === 'active' || status === 'glitching') && (
+        {status === 'glitching' && (
           <div className="absolute inset-0 pointer-events-none z-10">
             <div className="absolute inset-0 animate-scanlines opacity-30" />
           </div>
         )}
+
+        {isClean && <div className="absolute inset-0 pointer-events-none z-10" />}
       </div>
     </div>
   );

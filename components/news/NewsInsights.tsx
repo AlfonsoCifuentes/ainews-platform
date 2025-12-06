@@ -44,11 +44,11 @@ export function NewsInsights({ locale }: NewsInsightsProps) {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="w-full h-[400px] bg-[#0A0A0A] border border-[#1F1F1F] animate-pulse"
+            className="w-full h-[400px] bg-transparent border border-white/12 animate-pulse"
           >
             <div className="h-full flex flex-col">
-              <div className="h-8 bg-[#1F1F1F] m-4" />
-              <div className="flex-1 bg-[#1F1F1F] mx-4 mb-4" />
+              <div className="h-8 bg-white/10 m-4" />
+              <div className="flex-1 bg-white/10 mx-4 mb-4" />
             </div>
           </div>
         ))}

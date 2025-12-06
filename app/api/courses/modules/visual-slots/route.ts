@@ -59,7 +59,10 @@ export async function GET(request: NextRequest) {
     } catch (fetchError) {
       console.warn('[API/visual-slots] GET fallback to empty', fetchError);
       if (!shouldFallbackToEmpty(fetchError)) {
-        throw fetchError;
+        return NextResponse.json(
+          { success: true, slots: [], warning: 'visual slots unavailable', error: String(fetchError) },
+          { status: 200 }
+        );
       }
       slots = [];
     }

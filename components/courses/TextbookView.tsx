@@ -474,25 +474,51 @@ export function TextbookView({
   const isLastPage = currentPage >= totalPages - (isTwoPageView ? 1 : 0);
 
   const renderPage = (page: TextbookPage, isLeft: boolean) => (
-    <div className={`relative flex-1 h-full overflow-y-auto ${isLeft && isTwoPageView ? 'border-r' : ''} border-border/20`} style={{ fontSize: `${fontSize}px` }}>
-      <div className="min-h-full bg-gradient-to-br from-background via-card to-secondary/20">
-        <div className={`px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-4 md:pl-8' : 'pr-4 md:pr-8'}`}>
+    <div
+      className={`relative flex-1 h-full overflow-hidden ${isLeft && isTwoPageView ? 'border-r border-white/5' : ''}`}
+      style={{ fontSize: `${fontSize}px` }}
+    >
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(72,163,255,0.05),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(59,161,255,0.06),transparent_32%)]" />
+        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+      </div>
+
+      <div className="relative m-4 h-[calc(100%-2rem)] overflow-hidden rounded-[28px] border border-white/10 bg-[#0a0d14] shadow-[0_25px_90px_-50px_rgba(0,0,0,0.9)]">
+        <div
+          className="absolute inset-0 pointer-events-none opacity-60"
+          style={{
+            background:
+              'repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 6px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 32px)',
+          }}
+        />
+
+        <div className={`relative px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-5 md:pl-10' : 'pr-5 md:pr-10'}`}>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 mb-6 font-mono">
+            <span>{t.chapter} {moduleNumber}</span>
+            <span className="truncate max-w-[45%] text-right">{title}</span>
+          </div>
+
           {page.isChapterStart && (
-            <div className="relative mb-10">
+            <div className="relative mb-8">
               <ChapterDecorator number={moduleNumber} isDark={isDarkMode} />
-              <div className="text-center pt-14 pb-6">
-                <div className="text-xs uppercase tracking-[0.3em] mb-3 text-muted-foreground">
+              <div className="text-center pt-12 pb-4">
+                <div className="text-[10px] uppercase tracking-[0.4em] mb-3 text-white/50">
                   {t.chapter} {moduleNumber}
                 </div>
-                <div className="w-12 h-px mx-auto bg-primary/50" />
+                <div className="w-14 h-[1px] mx-auto bg-white/25" />
               </div>
             </div>
           )}
-          <div className="space-y-5">
-            {page.content.map((block, i) => <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />)}
+
+          <div className="space-y-6 text-white">
+            {page.content.map((block, i) => (
+              <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />
+            ))}
           </div>
-          <div className="mt-10 pt-4 border-t text-center border-border/30">
-            <span className="font-serif italic text-sm text-muted-foreground">{page.pageNumber}</span>
+
+          <div className="mt-10 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">
+            <span>{page.section || title}</span>
+            <span className="font-semibold text-white/80">{page.pageNumber}</span>
           </div>
         </div>
       </div>
@@ -553,16 +579,16 @@ export function TextbookView({
 
       <div
         ref={bookRef}
-        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-background ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-xl overflow-hidden shadow-2xl'}`}
+        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-[#05060c] bg-[radial-gradient(circle_at_15%_20%,rgba(72,163,255,0.08),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(24,119,255,0.06),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(72,163,255,0.04),transparent_35%)] ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-[32px] overflow-hidden shadow-[0_40px_120px_-60px_rgba(0,0,0,0.8)] border border-white/10'}`}
       >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 bg-card/95 backdrop-blur-sm border-b border-border/30">
+      <div className="absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 bg-[#0b0f19]/90 backdrop-blur-md border-b border-white/10 text-white">
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => setShowToc(true)} className="h-8 w-8 p-0"><List className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => setShowSearch(true)} className="h-8 w-8 p-0"><Search className="h-4 w-4" /></Button>
           <div className="hidden md:block ml-3 text-xs truncate max-w-[180px]">
-            <span className="text-muted-foreground">{t.chapter} {moduleNumber}:</span>{' '}
-            <span className="font-medium">{title}</span>
+            <span className="text-white/60 font-mono uppercase tracking-[0.2em]">{t.chapter} {moduleNumber}:</span>{' '}
+            <span className="font-semibold">{title}</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -579,7 +605,7 @@ export function TextbookView({
       {/* Content */}
       <div className="absolute top-11 bottom-14 left-0 right-0 flex">
         <button onClick={() => goToPage(currentPage - (isTwoPageView ? 2 : 1))} disabled={currentPage <= 1}
-          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/5 disabled:opacity-20 transition-colors">
+          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/10 disabled:opacity-20 transition-colors text-white">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="flex-1 flex overflow-hidden">
@@ -592,32 +618,32 @@ export function TextbookView({
           </AnimatePresence>
         </div>
         <button onClick={() => goToPage(currentPage + (isTwoPageView ? 2 : 1))} disabled={isLastPage}
-          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/5 disabled:opacity-20 transition-colors">
+          className="w-10 md:w-14 flex items-center justify-center hover:bg-white/10 disabled:opacity-20 transition-colors text-white">
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
       {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-30 h-14 flex flex-col items-center justify-center px-3 bg-card/95 backdrop-blur-sm border-t border-border/30">
-        <div className="w-full max-w-sm mb-1.5">
-          <div className="h-1 rounded-full bg-secondary/60">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+      <div className="absolute bottom-0 left-0 right-0 z-30 h-16 flex flex-col items-center justify-center px-3 bg-[#0b0f19]/90 backdrop-blur-md border-t border-white/10 text-white">
+        <div className="w-full max-w-sm mb-2">
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full bg-[#3ba1ff] rounded-full transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
         <div className="flex items-center justify-between w-full max-w-sm">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate?.('prev')} disabled={moduleNumber <= 1} className="text-xs h-7 px-2">
+          <Button variant="ghost" size="sm" onClick={() => onNavigate?.('prev')} disabled={moduleNumber <= 1} className="text-xs h-7 px-2 text-white">
             <ChevronLeft className="h-3 w-3" /><span className="hidden sm:inline ml-1">{t.previousChapter}</span>
           </Button>
-          <div className="text-xs font-serif">
+          <div className="text-xs font-mono uppercase tracking-[0.2em]">
             {t.page}{' '}
             <input type="number" value={currentPage} onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
-              className="w-8 text-center bg-transparent border-b border-border" min={1} max={totalPages} />
+              className="w-10 text-center bg-transparent border-b border-white/30 focus:border-primary outline-none" min={1} max={totalPages} />
             {' '}{t.of} {totalPages}
           </div>
           {isLastPage ? (
-            <Button variant="default" size="sm" onClick={onComplete} className="text-xs h-7 px-2">{t.completeChapter}</Button>
+            <Button variant="default" size="sm" onClick={onComplete} className="text-xs h-8 px-3 font-semibold bg-[#3ba1ff] text-black hover:bg-[#62b3ff]">{t.completeChapter}</Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => onNavigate?.('next')} disabled={moduleNumber >= totalModules} className="text-xs h-7 px-2">
+            <Button variant="ghost" size="sm" onClick={() => onNavigate?.('next')} disabled={moduleNumber >= totalModules} className="text-xs h-7 px-2 text-white">
               <span className="hidden sm:inline mr-1">{t.nextChapter}</span><ChevronRight className="h-3 w-3" />
             </Button>
           )}

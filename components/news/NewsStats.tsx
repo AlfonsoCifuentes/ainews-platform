@@ -83,7 +83,7 @@ export function NewsStats({ locale }: NewsStatsProps) {
       {statsCards.map((stat) => (
         <div
           key={stat.label}
-          className="relative overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] p-4"
+          className="relative overflow-hidden border border-white/10 bg-transparent p-4 transition-colors hover:border-white/30"
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xl">{stat.icon}</span>

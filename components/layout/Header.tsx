@@ -16,10 +16,11 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Primary navigation items
-const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'chat'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'analytics' | 'chat'; href: string }> = [
   { key: 'news', href: '/news' },
   { key: 'courses', href: '/courses' },
   { key: 'coursesLibrary', href: '/courses-library' },
+  { key: 'analytics', href: '/analytics' },
   { key: 'chat', href: '/chat' },
 ];
 
@@ -71,14 +72,14 @@ export function Header() {
 
   return (
     <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-3 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 px-3 md:px-6 py-3 transition-all duration-500 ${
         scrolled ? 'bg-black/90 backdrop-blur-lg border-b border-white/5 py-2' : 'bg-transparent'
       }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.8 }}
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
         {/* Left: Logo */}
         <Link 
           href="/" 

@@ -37,20 +37,20 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
   ];
 
   return (
-    <div className="relative group">
+    <div className="relative group z-50">
       {/* Avatar Button - Compact */}
       <motion.button
         whileTap={{ scale: 0.98 }}
-        className="relative flex items-center gap-1.5 border border-white/10 bg-black/40 px-2 py-1 backdrop-blur-xl transition-all hover:border-white/20"
+        className="relative flex items-center gap-2 border border-white/15 bg-[#050505] px-3 py-2 transition-all hover:border-white/40"
       >
         {/* Avatar */}
-        <div className="relative h-6 w-6 overflow-hidden bg-white/10">
+        <div className="relative h-8 w-8 overflow-hidden bg-white/10">
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
               alt={profile.display_name || 'User'}
-              width={24}
-              height={24}
+              width={32}
+              height={32}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -63,14 +63,14 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
         <div className="user-avatar-target absolute inset-0 pointer-events-none" aria-hidden />
 
         {/* Compact info */}
-        <div className="hidden lg:flex items-center gap-1 text-[10px] font-mono text-[#888]">
+        <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/70">
           <span className="text-white">{profile.display_name?.split(' ')[0] || 'User'}</span>
           <span>L{currentLevel}</span>
         </div>
 
         {/* Dropdown Icon */}
         <svg
-          className="h-3 w-3 text-[#888] transition-transform group-hover:rotate-180"
+          className="h-3 w-3 text-white/60 transition-transform group-hover:rotate-180"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -86,19 +86,19 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
 
       {/* Dropdown Menu */}
       <div className="absolute right-0 top-full mt-2 w-56 origin-top-right scale-0 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
-        <div className="glass rounded-xl border border-white/10 p-2 shadow-xl max-h-[80vh] overflow-y-auto">
+        <div className="rounded-xl border border-white/12 bg-[#050505] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all hover:bg-primary/10 ${
-                  isActive ? 'bg-primary/20 text-primary' : ''
+                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all uppercase tracking-[0.12em] text-[12px] ${
+                  isActive ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
                 }`}
               >
-                <span className="text-xl">{item.icon}</span>
-                <span className="font-medium text-sm">{item.label}</span>
+                <span className="text-base">{item.icon}</span>
+                <span className="font-medium">{item.label}</span>
               </Link>
             );
           })}
@@ -110,9 +110,9 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
           <form action="/api/auth/signout" method="POST">
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-red-400 transition-all hover:bg-red-500/10"
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-white transition-all hover:bg-white/5 uppercase tracking-[0.12em] text-[12px]"
             >
-              <span className="text-xl">🚪</span>
+              <span className="text-base">⟶</span>
               <span className="font-medium">
                 {locale === 'en' ? 'Sign Out' : 'Cerrar Sesión'}
               </span>

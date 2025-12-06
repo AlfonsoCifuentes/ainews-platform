@@ -67,10 +67,10 @@ const config: Config = {
   				'5': 'hsl(var(--chart-5))'
   			}
   		},
-  		fontFamily: {
-  			sans: ['Inter', 'sans-serif'],
-  			mono: ['JetBrains Mono', 'monospace'],
-  		},
+			fontFamily: {
+				sans: ['Space Grotesk', 'Inter', 'sans-serif'],
+				mono: ['IBM Plex Mono', 'JetBrains Mono', 'monospace'],
+			},
   		borderRadius: {
   			lg: '0',
   			md: '0',

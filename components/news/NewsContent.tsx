@@ -20,7 +20,7 @@ export function NewsContent({ initialArticles, locale }: NewsContentProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   return (
-    <main className="min-h-screen bg-[#020309]">
+    <main className="min-h-screen bg-[#020309] pt-28">
       {/* Brutalist Header */}
       <section className="py-24 border-t border-[#1F1F1F] relative z-10">
         <div className="px-6 md:px-12 max-w-7xl mx-auto">

@@ -15,7 +15,7 @@ interface CCTVGlitchImageProps {
   className?: string;
 }
 
-type GlitchState = 'idle' | 'glitching' | 'active';
+type GlitchState = 'idle' | 'glitching' | 'clean';
 
 /**
  * CCTVGlitchImage - Image component with aggressive glitch effect on hover
@@ -47,11 +47,11 @@ export function CCTVGlitchImage({
 
     setStatus('glitching');
 
-    // Transition from glitch to active (color view) after 800ms
+    // Transition from glitch to clean (no scanlines) after 1s
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      setStatus('active');
-    }, 800); // Duration of the glitch effect - matches glitchcard.tsx
+      setStatus('clean');
+    }, 1000);
   }, [status]);
 
   const handleMouseLeave = useCallback(() => {
@@ -88,8 +88,8 @@ export function CCTVGlitchImage({
     };
   }, []);
 
-  const isHovering = status !== 'idle';
   const isGlitching = status === 'glitching';
+  const isClean = status === 'clean';
 
   return (
     <div 
@@ -245,13 +245,18 @@ export function CCTVGlitchImage({
       )}
 
       {/* --- ACTIVE MONITOR EFFECTS (Visible during 'active' & 'glitching') --- */}
-      {isHovering && (
+      {isGlitching && (
         <div className="absolute inset-0 pointer-events-none z-50">
           {/* Scanlines - very subtle */}
           <div className="absolute inset-0 animate-scanlines opacity-15" />
           {/* Vignette - subtle */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_70%,rgba(0,0,0,0.3)_100%)]" />
         </div>
+      )}
+
+      {/* Clean state: restore natural image, no overlays */}
+      {isClean && (
+        <div className="absolute inset-0 pointer-events-none z-40" />
       )}
     </div>
   );

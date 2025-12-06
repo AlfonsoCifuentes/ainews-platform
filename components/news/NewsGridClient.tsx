@@ -147,7 +147,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
           onClick={() => setSelectedArticle(hero)}
           className="group mb-12 block w-full cursor-pointer text-left"
         >
-          <article className="relative border border-[#1F1F1F] bg-[#0A0A0A]">
+          <article className="relative border border-white/12 bg-[#050505] transition-colors duration-200 hover:border-white/40">
             <div className="relative w-full" style={{ aspectRatio: '16 / 9', minHeight: '500px', overflow: 'hidden' }}>
               <CCTVGlitchImage
                 src={hero.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"%3E%3Crect fill="%23111827" width="1200" height="630"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="48" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
@@ -156,10 +156,10 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 sizes="100vw"
                 unoptimized={!hero.image_url}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020309] via-[#020309]/50 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
               
               <div className="absolute left-8 top-8 z-20 pointer-events-none">
-                <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-4 py-2 text-xs font-mono uppercase tracking-widest text-[#EAEAEA]">
+                <span className="border border-white/30 bg-transparent px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/90">
                   {translateCategory(hero.category)}
                 </span>
               </div>
@@ -174,18 +174,18 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 z-40">
-                <div className="mb-4 flex items-center gap-4 text-xs font-mono tracking-wider text-[#888888]">
+                <div className="mb-4 flex items-center gap-4 text-xs font-mono tracking-[0.18em] text-white/60">
                   <span>{formatRelativeTimeFromNow(hero.published_at, locale)}</span>
                   <span>•</span>
                   <span>{hero.reading_time_minutes || 5} min {locale === 'en' ? 'read' : 'lectura'}</span>
                 </div>
-                <h2 className="mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
+                <h2 className="mb-6 text-4xl font-semibold leading-tight text-white md:text-6xl">
                   {getLocalizedString(hero, 'title', locale)}
                 </h2>
-                <p className="mb-8 max-w-3xl text-lg leading-relaxed text-[#EAEAEA]">
+                <p className="mb-8 max-w-3xl text-lg leading-relaxed text-white/70">
                   {getLocalizedString(hero, 'summary', locale)}
                 </p>
-                <button className="inline-flex items-center gap-3 border border-[#1F1F1F] bg-[#EAEAEA] px-8 py-4 text-sm font-mono uppercase tracking-widest text-[#020309] hover:bg-white">
+                <button className="inline-flex items-center gap-3 border border-white/40 bg-transparent px-8 py-3 text-xs font-mono uppercase tracking-[0.22em] text-white hover:bg-white hover:text-black transition-colors">
                   {tCommon('buttons.readMore')}
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -204,7 +204,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
               onClick={() => setSelectedArticle(article)}
               className="group w-full cursor-pointer text-left"
             >
-              <article className="relative h-full overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] hover:border-[#EAEAEA]">
+              <article className="relative h-full overflow-hidden border border-white/12 bg-[#050505] transition-colors duration-200 hover:border-white/40">
                 <div className="relative h-56 overflow-hidden">
                   <CCTVGlitchImage
                     src={getImageWithFallback(
@@ -216,10 +216,10 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                     sizes="(max-width: 768px) 100vw, 33vw"
                     unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#020309] to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                   
                   <div className="absolute left-4 top-4 pointer-events-none">
-                    <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1 text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
+                    <span className="border border-white/25 bg-transparent px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-white/80">
                       {translateCategory(article.category)}
                     </span>
                   </div>
@@ -235,15 +235,15 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 </div>
 
                 <div className="p-6">
-                  <div className="mb-3 flex items-center gap-2 text-xs font-mono tracking-wider text-[#888888]">
+                  <div className="mb-3 flex items-center gap-2 text-[11px] font-mono tracking-[0.18em] text-white/60">
                     <span>{formatRelativeTimeFromNow(article.published_at, locale)}</span>
                     <span>•</span>
                     <span>{article.reading_time_minutes || 5} min</span>
                   </div>
-                  <h3 className="mb-3 line-clamp-2 text-xl font-bold text-[#EAEAEA] group-hover:text-white">
+                  <h3 className="mb-3 line-clamp-2 text-xl font-semibold text-white group-hover:text-white">
                     {getLocalizedString(article, 'title', locale)}
                   </h3>
-                  <p className="line-clamp-3 text-sm text-[#888888]">
+                  <p className="line-clamp-3 text-sm text-white/60">
                     {getLocalizedString(article, 'summary', locale)}
                   </p>
                 </div>
@@ -266,7 +266,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 onClick={() => setSelectedArticle(article)}
                 className={`group w-full cursor-pointer text-left ${colSpan} ${rowSpan}`}
               >
-                <article className="relative flex h-full flex-col overflow-hidden border border-[#1F1F1F] bg-[#0A0A0A] hover:border-[#EAEAEA]">
+                <article className="relative flex h-full flex-col overflow-hidden border border-white/12 bg-[#050505] transition-colors duration-200 hover:border-white/40">
                   <div className={`relative overflow-hidden ${isLarge ? 'flex-[2] min-h-0' : 'h-48'}`}>
                     <CCTVGlitchImage
                       src={getImageWithFallback(
@@ -278,13 +278,13 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       unoptimized={!article.image_url || article.image_url.startsWith('data:')}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#020309]/80 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                     
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-                      <span className="border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1 text-xs font-mono uppercase tracking-wider text-[#EAEAEA]">
+                      <span className="border border-white/25 bg-transparent px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-white/80">
                         {translateCategory(article.category)}
                       </span>
-                      <span className="text-xs font-mono text-[#888888]">
+                      <span className="text-[11px] font-mono text-white/60">
                         {formatRelativeTimeFromNow(article.published_at, locale)}
                       </span>
                     </div>
@@ -300,16 +300,16 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                   </div>
 
                   <div className={`flex flex-col p-5 ${isLarge ? 'flex-[1]' : 'flex-1'}`}>
-                    <h3 className={`mb-2 font-bold text-[#EAEAEA] group-hover:text-white ${isLarge ? 'text-2xl' : 'text-lg'}`}>
+                    <h3 className={`mb-2 font-semibold text-white group-hover:text-white ${isLarge ? 'text-2xl' : 'text-lg'}`}>
                       {getLocalizedString(article, 'title', locale)}
                     </h3>
-                    <p className={`mb-4 flex-1 text-sm text-[#888888] ${isLarge ? 'line-clamp-4' : 'line-clamp-2'}`}>
+                    <p className={`mb-4 flex-1 text-sm text-white/60 ${isLarge ? 'line-clamp-4' : 'line-clamp-2'}`}>
                       {getLocalizedString(article, 'summary', locale)}
                     </p>
                     
-                    <div className="flex items-center justify-between border-t border-[#1F1F1F] pt-3 text-xs font-mono text-[#888888]">
+                    <div className="flex items-center justify-between border-t border-white/12 pt-3 text-[11px] font-mono text-white/60">
                       <span>{article.reading_time_minutes || 5} min</span>
-                      <div className="flex items-center gap-2 font-mono uppercase tracking-wider text-[#EAEAEA] group-hover:text-white">
+                      <div className="flex items-center gap-2 font-mono uppercase tracking-[0.18em] text-white group-hover:text-white">
                         {locale === 'en' ? 'Read' : 'Leer'}
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -326,9 +326,9 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
         {/* Load More Trigger */}
         <div ref={loadMoreRef} className="mt-12 flex justify-center">
           {loading && (
-            <div className="flex items-center gap-3 border border-[#1F1F1F] bg-[#0A0A0A] px-8 py-4">
-              <div className="h-5 w-5 animate-spin border-2 border-[#EAEAEA] border-t-transparent" />
-              <span className="text-sm font-mono uppercase tracking-wider text-[#EAEAEA]">
+            <div className="flex items-center gap-3 border border-white/15 bg-transparent px-8 py-4">
+              <div className="h-5 w-5 animate-spin border-2 border-white border-t-transparent" />
+              <span className="text-sm font-mono uppercase tracking-[0.18em] text-white/80">
                 {locale === 'en' ? 'Loading more articles...' : 'Cargando más artículos...'}
               </span>
             </div>

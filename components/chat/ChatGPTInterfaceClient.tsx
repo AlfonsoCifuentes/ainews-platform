@@ -190,15 +190,15 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
   if (!modelReady) {
     return (
       <div className="max-w-4xl mx-auto p-8">
-        <Card className="border-2 border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 p-8">
+        <Card className="border border-white/15 bg-[#050505] p-8 shadow-none">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <Lock className="w-10 h-10 text-yellow-500" />
+              <Lock className="w-10 h-10 text-white" />
               <div>
-                <h2 className="text-3xl font-bold">
-                  {locale === 'es' ? '🔒 Función Premium Bloqueada' : '🔒 Premium Feature Locked'}
+                <h2 className="text-3xl font-semibold tracking-tight">
+                  {locale === 'es' ? 'Función premium bloqueada' : 'Premium feature locked'}
                 </h2>
-                <p className="text-muted-foreground mt-2">
+                <p className="text-white/70 mt-2">
                   {locale === 'es'
                     ? 'El Chat IA estilo ChatGPT se desbloquea al descargar el modelo local'
                     : 'ChatGPT-style AI Chat unlocks when you download the local model'}
@@ -208,17 +208,17 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
 
             <div className="space-y-4">
               <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-yellow-500" />
+                <Sparkles className="w-6 h-6 text-white" />
                 {locale === 'es' ? 'Funciones Exclusivas del Chat IA:' : 'Exclusive AI Chat Features:'}
               </h3>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-white text-xl mt-1">●</span>
                   <div>
                     <strong className="text-base">
                       {locale === 'es' ? 'Interfaz Familiar Tipo ChatGPT' : 'Familiar ChatGPT-Like Interface'}
                     </strong>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                       {locale === 'es'
                         ? 'Misma experiencia que ChatGPT, pero 100% gratis y privado'
                         : 'Same experience as ChatGPT, but 100% free and private'}
@@ -226,12 +226,12 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-white text-xl mt-1">●</span>
                   <div>
                     <strong className="text-base">
                       {locale === 'es' ? 'Conversaciones Múltiples' : 'Multiple Conversations'}
                     </strong>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                       {locale === 'es'
                         ? 'Gestiona múltiples chats simultáneos con contexto independiente'
                         : 'Manage multiple simultaneous chats with independent context'}
@@ -239,12 +239,12 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-white text-xl mt-1">●</span>
                   <div>
                     <strong className="text-base">
                       {locale === 'es' ? 'Sin Límites de Uso' : 'Unlimited Usage'}
                     </strong>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                       {locale === 'es'
                         ? 'Chatea todo lo que quieras, sin restricciones de tokens o mensajes'
                         : 'Chat as much as you want, no token or message restrictions'}
@@ -252,12 +252,12 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-white text-xl mt-1">●</span>
                   <div>
                     <strong className="text-base">
                       {locale === 'es' ? 'Memoria de Contexto' : 'Context Memory'}
                     </strong>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                       {locale === 'es'
                         ? 'La IA recuerda las últimas 4 interacciones para conversaciones coherentes'
                         : 'AI remembers last 4 interactions for coherent conversations'}
@@ -265,12 +265,12 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-white text-xl mt-1">●</span>
                   <div>
                     <strong className="text-base">
                       {locale === 'es' ? 'Privacidad Total' : 'Complete Privacy'}
                     </strong>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white/70">
                       {locale === 'es'
                         ? 'Tus conversaciones NUNCA se envían a servidores externos'
                         : 'Your conversations are NEVER sent to external servers'}
@@ -280,21 +280,22 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
               </ul>
             </div>
 
-            <div className="bg-blue-500/10 border-2 border-blue-500/20 rounded-xl p-4">
-              <p className="text-sm">
-                <strong className="text-blue-300">
-                  {locale === 'es' ? '💎 Valor Premium:' : '💎 Premium Value:'}
+            <div className="border border-white/12 p-4">
+              <p className="text-sm text-white/80">
+                <strong className="text-white">
+                  {locale === 'es' ? 'Valor Premium:' : 'Premium value:'}
                 </strong>{' '}
                 {locale === 'es'
-                  ? 'ChatGPT Plus cuesta $20/mes. Aquí lo tienes GRATIS descargando el modelo una sola vez.'
-                  : 'ChatGPT Plus costs $20/month. Here you get it FREE by downloading the model just once.'}
+                  ? 'ChatGPT Plus cuesta $20/mes. Aquí lo tienes gratis descargando el modelo una sola vez.'
+                  : 'ChatGPT Plus costs $20/month. Here you get it free by downloading the model once.'}
               </p>
             </div>
 
             <Button
               onClick={() => setShowDownloader(true)}
-              className="w-full gap-2"
+              className="w-full gap-2 uppercase tracking-[0.14em]"
               size="lg"
+              variant="outline"
             >
               <Download className="w-5 h-5" />
               {locale === 'es' ? 'Descargar Modelo y Desbloquear Chat IA' : 'Download Model & Unlock AI Chat'}
@@ -317,7 +318,7 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-[#020309]">
       {/* Sidebar */}
       <AnimatePresence>
         {showSidebar && (
@@ -325,11 +326,11 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
             initial={{ x: -300 }}
             animate={{ x: 0 }}
             exit={{ x: -300 }}
-            className="w-64 border-r border-border/50 bg-card/30 backdrop-blur-xl p-4 space-y-4 overflow-y-auto"
+            className="w-64 border-r border-white/12 bg-[#050505] p-4 space-y-4 overflow-y-auto"
           >
             <Button
               onClick={createNewConversation}
-              className="w-full gap-2"
+              className="w-full gap-2 uppercase tracking-[0.14em]"
               variant="outline"
             >
               <Plus className="w-4 h-4" />
@@ -340,15 +341,15 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
               {conversations.map(conv => (
                 <div
                   key={conv.id}
-                  className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
+                  className={`group relative p-3 cursor-pointer border text-white transition-colors ${
                     conv.id === currentConversationId
-                      ? 'bg-primary/20 border border-primary/50'
-                      : 'hover:bg-muted border border-transparent'
+                      ? 'border-white/60 bg-white/5'
+                      : 'border-white/10 bg-transparent hover:border-white/40'
                   }`}
                   onClick={() => setCurrentConversationId(conv.id)}
                 >
                   <p className="text-sm font-medium truncate pr-8">{conv.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/60">
                     {conv.messages.length} {locale === 'es' ? 'mensajes' : 'messages'}
                   </p>
                   {conversations.length > 1 && (
@@ -359,7 +360,7 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                       }}
                       className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500 hover:text-red-400" />
+                      <Trash2 className="w-4 h-4 text-white hover:text-white/70" />
                     </button>
                   )}
                 </div>
@@ -372,24 +373,24 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-purple-500/5 p-4">
+        <div className="border-b border-white/10 bg-[#050505] p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 border border-white/20 flex items-center justify-center">
+                <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold">
+                <h1 className="text-lg font-semibold tracking-tight">
                   {locale === 'es' ? 'Chat IA Local' : 'Local AI Chat'}
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/60">
                   {locale === 'es' ? 'Estilo ChatGPT - 100% Privado' : 'ChatGPT Style - 100% Private'}
                 </p>
               </div>
             </div>
             <Button
               onClick={() => setShowSidebar(!showSidebar)}
-              variant="ghost"
+              variant="outline"
               size="sm"
             >
               {showSidebar ? '←' : '→'}
@@ -401,12 +402,12 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {currentConversation && currentConversation.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-              <Bot className="w-20 h-20 text-primary/20" />
+              <Bot className="w-20 h-20 text-white/20" />
               <div>
-                <h2 className="text-2xl font-bold mb-2">
+                <h2 className="text-2xl font-semibold mb-2">
                   {locale === 'es' ? '¡Hola! ¿En qué puedo ayudarte?' : 'Hello! How can I help you?'}
                 </h2>
-                <p className="text-muted-foreground">
+                <p className="text-white/60">
                   {locale === 'es'
                     ? 'Pregunta lo que quieras sobre IA, tecnología o cualquier tema.'
                     : 'Ask me anything about AI, technology, or any topic.'}
@@ -424,16 +425,16 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-6 h-6 text-primary" />
+                    <div className="w-10 h-10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-6 h-6 text-white" />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[70%] rounded-2xl px-5 py-3 ${
+                    className={`max-w-[70%] rounded-xl px-5 py-3 border ${
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                        ? 'bg-white text-black border-white'
+                        : 'bg-transparent text-white border-white/20'
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
@@ -446,8 +447,8 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                   </div>
 
                   {message.role === 'user' && (
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-primary-foreground" />
+                    <div className="w-10 h-10 border border-white bg-white text-black flex items-center justify-center flex-shrink-0">
+                      <User className="w-6 h-6" />
                     </div>
                   )}
                 </motion.div>
@@ -461,14 +462,14 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
               animate={{ opacity: 1 }}
               className="flex gap-4"
             >
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-primary animate-pulse" />
+              <div className="w-10 h-10 border border-white/20 flex items-center justify-center">
+                <Bot className="w-6 h-6 text-white animate-pulse" />
               </div>
-              <div className="bg-muted rounded-2xl px-5 py-3">
+              <div className="border border-white/15 rounded-xl px-5 py-3">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" />
-                  <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:0.4s]" />
+                  <span className="w-2 h-2 bg-white/70 rounded-full animate-bounce" />
+                  <span className="w-2 h-2 bg-white/70 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-2 h-2 bg-white/70 rounded-full animate-bounce [animation-delay:0.4s]" />
                 </div>
               </div>
             </motion.div>
@@ -478,7 +479,7 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
         </div>
 
         {/* Input */}
-        <div className="border-t border-border/50 p-4 bg-card/50 backdrop-blur-xl">
+        <div className="border-t border-white/10 p-4 bg-[#050505]">
           <div className="max-w-4xl mx-auto">
             <div className="flex gap-3">
               <textarea
@@ -486,7 +487,7 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={locale === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
-                className="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary max-h-32"
+                className="flex-1 resize-none rounded-none border border-white/15 bg-transparent px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white max-h-32"
                 rows={1}
                 disabled={isLoading}
               />
@@ -494,12 +495,13 @@ export function ChatGPTInterfaceClient({ locale }: ChatGPTInterfaceClientProps) 
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 size="lg"
-                className="px-6"
+                className="px-6 uppercase tracking-[0.12em]"
+                variant="outline"
               >
                 <Send className="w-5 h-5" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
+            <p className="text-xs text-white/60 mt-2 text-center">
               {locale === 'es'
                 ? '🔒 Procesamiento 100% local - Tus conversaciones son privadas'
                 : '🔒 100% local processing - Your conversations are private'}

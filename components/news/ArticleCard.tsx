@@ -59,7 +59,7 @@ export function ArticleCard({
       variants={cardVariants}
       initial="rest"
       whileHover="hover"
-      className="group relative flex flex-col overflow-hidden rounded-3xl backdrop-blur-xl bg-white/5 dark:bg-black/20 border border-white/10 dark:border-white/5 shadow-[0_25px_65px_-35px_rgba(14,15,45,0.75)] transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_45px_120px_-45px_rgba(104,58,255,0.3)]"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505] transition-all duration-300 hover:border-white/40"
       style={{
         transformStyle: 'preserve-3d',
         perspective: 1000,
@@ -75,31 +75,28 @@ export function ArticleCard({
           unoptimized={imageUrl.startsWith('data:')}
         />
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-20" />
-
         {/* Category + Time badge */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/90 z-20 pointer-events-none">
-          <span className="rounded-full bg-white/10 px-3 py-1 backdrop-blur-sm">
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.18em] text-white z-20 pointer-events-none">
+          <span className="border border-white/30 bg-black/40 px-3 py-1">
             {translations.category}
           </span>
-          <span>{relativeTime}</span>
+          <span className="text-white/70">{relativeTime}</span>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <h3 className="text-xl font-bold leading-tight text-foreground transition-colors group-hover:text-primary">
+        <h3 className="text-xl font-semibold leading-tight text-white transition-colors">
           {title}
         </h3>
 
-        <p className="flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-3">
+        <p className="flex-1 text-sm leading-relaxed text-white/65 line-clamp-3">
           {summary}
         </p>
 
         {/* Meta + CTA */}
-        <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
-          <div className="flex items-center gap-3 text-muted-foreground">
+        <div className="flex items-center justify-between border-t border-white/12 pt-4 text-sm text-white/70">
+          <div className="flex items-center gap-3">
             <span>
               {translations.readTime.replace(
                 '{{minutes}}',
@@ -109,7 +106,7 @@ export function ArticleCard({
             {article.ai_generated && (
               <>
                 <span>•</span>
-                <span className="text-primary">{translations.aiGenerated}</span>
+                <span className="text-white">{translations.aiGenerated}</span>
               </>
             )}
           </div>
@@ -118,14 +115,14 @@ export function ArticleCard({
             href={article.source_url || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-primary transition-colors hover:text-primary/80"
+            className="font-semibold text-white tracking-[0.12em] uppercase text-xs border-b border-transparent hover:border-white"
             onClick={(e) => {
               if (!article.source_url) {
                 e.preventDefault();
               }
             }}
           >
-            {translations.readMore} →
+            {translations.readMore}
           </a>
         </div>
       </div>
