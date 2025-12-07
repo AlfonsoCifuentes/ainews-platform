@@ -20,23 +20,6 @@ type ArticleCardProps = {
   };
 };
 
-const cardVariants = {
-  rest: {
-    scale: 1,
-    rotateX: 0,
-    rotateY: 0,
-  },
-  hover: {
-    scale: 1.02,
-    rotateX: 2,
-    rotateY: 2,
-    transition: {
-      duration: 0.3,
-      ease: 'easeOut',
-    },
-  },
-};
-
 export function ArticleCard({
   article,
   locale,
@@ -56,14 +39,7 @@ export function ArticleCard({
 
   return (
     <motion.article
-      variants={cardVariants}
-      initial="rest"
-      whileHover="hover"
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505] transition-all duration-300 hover:border-white/40"
-      style={{
-        transformStyle: 'preserve-3d',
-        perspective: 1000,
-      }}
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505] transition-all duration-300"
     >
       {/* Image with Glitch Effect */}
       <div className="relative h-48 w-full overflow-hidden">

@@ -173,7 +173,7 @@ export default async function CourseDetailPage({
   const learningObjectives = locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: BRUTALIST.bg }}>
+    <div className="min-h-screen pt-24 md:pt-28" style={{ backgroundColor: BRUTALIST.bg }}>
       {/* Hero Section */}
       <div className="border-b" style={{ borderColor: BRUTALIST.border }}>
         <div className="container mx-auto px-4 py-12 md:py-16">

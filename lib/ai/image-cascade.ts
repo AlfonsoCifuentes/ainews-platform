@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer';
 import { getGeminiImageClient, buildEducationalIllustrationPrompt, type IllustrationStyle, type ImageGenerationResult } from './gemini-image';
-import { GEMINI_MODELS } from './model-versions';
+import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS } from './model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
-export type ImageProviderName = 'gemini' | 'huggingface';
+export type ImageProviderName = 'huggingface' | 'qwen' | 'gemini';
 
 export interface IllustrationCascadeOptions {
   moduleContent: string;
@@ -26,8 +26,8 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
   prompt: string;
 }
 
-// Default to Gemini only; fallback providers can be re-enabled via providerOrder when explicitly passed.
-export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['gemini'];
+// Prefer Flux (HF Inference) first, then Qwen-Image fallback. Gemini stays opt-in.
+export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['huggingface', 'qwen'];
 
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions
@@ -52,6 +52,8 @@ export async function generateIllustrationWithCascade(
     try {
       const result = provider === 'gemini'
         ? await generateWithGemini(prompt, dimensions)
+        : provider === 'qwen'
+        ? await generateWithQwen(prompt, dimensions)
         : await generateWithHuggingFace(prompt, dimensions);
 
       attempts.push({ provider, success: result.success, error: result.error });
@@ -73,7 +75,7 @@ export async function generateIllustrationWithCascade(
   return {
     success: false,
     images: [],
-    model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
+    model: HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF,
     error: 'All image providers failed',
     attempts,
     prompt,
@@ -97,7 +99,12 @@ async function generateWithHuggingFace(
   dimensions: ReturnType<typeof resolveDimensionsForStyle>
 ): Promise<ImageGenerationResult> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
-  const model = process.env.HUGGINGFACE_IMAGE_MODEL;
+  const configuredModel = process.env.HUGGINGFACE_IMAGE_MODEL;
+  const model = HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF;
+
+  if (configuredModel && configuredModel !== model) {
+    console.warn(`[ImageCascade] Forcing Flux model over configured ${configuredModel}`);
+  }
 
   if (!apiKey) {
     return {
@@ -166,6 +173,106 @@ async function generateWithHuggingFace(
         {
           base64Data: buffer.toString('base64'),
           mimeType: contentType || 'image/png',
+        },
+      ],
+      model,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      images: [],
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function generateWithQwen(
+  prompt: string,
+  dimensions: ReturnType<typeof resolveDimensionsForStyle>
+): Promise<ImageGenerationResult> {
+  const apiKey = process.env.QWEN_IMAGE_API_KEY;
+  const model = process.env.QWEN_IMAGE_MODEL || QWEN_IMAGE_MODELS.QWEN_IMAGE_V1;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      images: [],
+      model,
+      error: 'QWEN_IMAGE_API_KEY not configured',
+    };
+  }
+
+  try {
+    const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/text2image', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        input: { prompt },
+        parameters: {
+          size: `${dimensions.width}*${dimensions.height}`,
+          n: 1,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        images: [],
+        model,
+        error: `Qwen-Image error ${response.status}: ${errorText.slice(0, 300)}`,
+      };
+    }
+
+    const data = await response.json() as {
+      output?: {
+        results?: Array<{ image_base64?: string; url?: string; mime_type?: string }>;
+      };
+      code?: string;
+      message?: string;
+    };
+
+    const first = data.output?.results?.[0];
+    const base64 = first?.image_base64;
+    const url = first?.url;
+
+    if (!base64 && !url) {
+      return {
+        success: false,
+        images: [],
+        model,
+        error: data.message || 'Qwen-Image returned no image',
+      };
+    }
+
+    if (url && !base64) {
+      // If only URL returned, fetch and convert to base64 to keep interface consistent
+      const imgResponse = await fetch(url);
+      const buffer = Buffer.from(await imgResponse.arrayBuffer());
+      return {
+        success: true,
+        images: [
+          {
+            base64Data: buffer.toString('base64'),
+            mimeType: imgResponse.headers.get('content-type') || 'image/png',
+          },
+        ],
+        model,
+      };
+    }
+
+    return {
+      success: true,
+      images: [
+        {
+          base64Data: base64 as string,
+          mimeType: first?.mime_type || 'image/png',
         },
       ],
       model,

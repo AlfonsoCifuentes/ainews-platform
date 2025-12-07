@@ -55,7 +55,8 @@ function isMissingVisualSlotsTable(error: unknown): boolean {
 }
 
 const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
-const PROVIDER_ORDER: ImageProviderName[] = ['gemini'];
+// Prefer Flux/Flux2 (HuggingFace) before falling back to Gemini (Nano Banana Pro)
+const PROVIDER_ORDER: ImageProviderName[] = ['huggingface', 'gemini'];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';

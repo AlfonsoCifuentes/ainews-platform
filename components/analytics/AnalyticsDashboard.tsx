@@ -143,42 +143,36 @@ export default function AnalyticsDashboard() {
           value: data.total_users.toLocaleString(),
           change: `+${data.active_users_week} active this week`,
           icon: Users,
-          color: 'from-blue-500 to-cyan-500'
         },
         {
           label: 'Articles Published',
           value: data.total_articles.toLocaleString(),
           change: `+${data.articles_week} this week`,
           icon: BookOpen,
-          color: 'from-sky-500 to-cyan-500'
         },
         {
           label: 'Course Enrollments',
           value: data.total_enrollments.toLocaleString(),
           change: `${Math.round((data.completed_enrollments / data.total_enrollments) * 100)}% completed`,
           icon: Trophy,
-          color: 'from-amber-500 to-orange-500'
         },
         {
           label: 'Search Queries',
           value: data.searches_week.toLocaleString(),
           change: 'Last 7 days',
           icon: Search,
-          color: 'from-green-500 to-emerald-500'
         },
         {
           label: 'Average Quiz Score',
           value: `${Math.round(data.avg_quiz_score)}%`,
           change: 'Across all courses',
           icon: Award,
-          color: 'from-indigo-500 to-blue-500'
         },
         {
           label: 'Average Streak',
           value: `${Math.round(data.avg_streak_days)} days`,
           change: 'User engagement',
           icon: Zap,
-          color: 'from-rose-500 to-red-500'
         }
       ]
     : [];
@@ -211,7 +205,7 @@ export default function AnalyticsDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 pt-28 pb-12">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -220,7 +214,7 @@ export default function AnalyticsDashboard() {
       >
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <BarChart3 className="w-8 h-8 text-primary" />
+            <BarChart3 className="w-8 h-8 text-white" />
             <h1 className="text-4xl font-bold">Analytics Dashboard</h1>
           </div>
           <p className="text-muted-foreground text-lg">Platform performance and user engagement metrics</p>
@@ -246,21 +240,21 @@ export default function AnalyticsDashboard() {
 
       {/* Token Gate */}
       {needsToken && (
-        <div className="mb-6 rounded-2xl border border-amber-400/50 bg-amber-500/10 p-4 text-sm">
-          <div className="flex items-center gap-2 font-semibold text-amber-200">
+        <div className="mb-6 rounded-2xl border border-amber-200/40 bg-transparent p-4 text-sm">
+          <div className="flex items-center gap-2 font-semibold text-amber-100">
             <ShieldCheck className="w-4 h-4" /> Admin token required
           </div>
-          <p className="text-amber-100/80 mt-2">Enter the analytics access token to view data.</p>
+          <p className="text-amber-50/80 mt-2">Enter the analytics access token to view data.</p>
           <form onSubmit={handleTokenSubmit} className="mt-3 flex gap-2 flex-col sm:flex-row">
             <input
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+              className="flex-1 rounded-lg border border-amber-200/40 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/50"
               placeholder="Enter token"
             />
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold"
+              className="px-4 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm font-semibold hover:bg-white/15"
             >
               Unlock
             </button>
@@ -280,25 +274,19 @@ export default function AnalyticsDashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="relative overflow-hidden rounded-3xl backdrop-blur-xl bg-white/5 border border-white/15 p-6 group hover:scale-105 transition-transform duration-300"
+                  className="relative overflow-hidden rounded-3xl backdrop-blur-xl bg-[#0A0A0A]/80 border border-white/12 p-6 group"
                 >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
-                  />
-
                   <div className="relative">
                     <div className="flex items-start justify-between mb-4">
-                      <div
-                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}
-                      >
+                      <div className="w-12 h-12 rounded-xl border border-white/15 bg-white/5 flex items-center justify-center">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
-                      <TrendingUp className="w-5 h-5 text-green-400" />
+                      <TrendingUp className="w-5 h-5 text-white/70" />
                     </div>
 
-                    <h3 className="text-3xl font-bold mb-2">{stat.value}</h3>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                    <p className="text-xs text-primary">{stat.change}</p>
+                    <h3 className="text-3xl font-bold mb-2 text-white">{stat.value}</h3>
+                    <p className="text-sm text-white/70 mb-1">{stat.label}</p>
+                    <p className="text-xs text-white/60">{stat.change}</p>
                   </div>
                 </motion.div>
               );

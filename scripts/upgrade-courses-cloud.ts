@@ -28,7 +28,7 @@ import {
   type ProviderCombination,
   type UnifiedLLMClient,
 } from '../lib/ai/unified-llm-client';
-import { generateEducationalImage } from '../lib/ai/gemini-image';
+import { generateIllustrationWithCascade } from '../lib/ai/image-cascade';
 import { persistModuleIllustration } from '../lib/db/module-illustrations';
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
@@ -544,7 +544,12 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
         const illustrationStyle = 'textbook' as const;
         const visualStyle = 'photorealistic' as const;
         const promptPreview = contentEn.slice(0, 4000);
-        const imageResult = await generateEducationalImage(promptPreview, 'en', illustrationStyle, visualStyle);
+        const imageResult = await generateIllustrationWithCascade({
+          moduleContent: promptPreview,
+          locale: 'en',
+          style: illustrationStyle,
+          visualStyle,
+        });
         if (imageResult.success) {
           let persistedCount = 0;
           for (const [index, image] of imageResult.images.entries()) {
@@ -555,14 +560,16 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
                 style: illustrationStyle,
                 visualStyle,
                 model: imageResult.model,
+                provider: imageResult.provider,
                 base64Data: image.base64Data,
                 mimeType: image.mimeType,
-                prompt: promptPreview,
+                prompt: imageResult.prompt.slice(0, 2000),
                 source: 'script',
                 metadata: {
                   moduleTitle: module.title_en,
                   courseId: course.id,
                   imageIndex: index,
+                  attempts: imageResult.attempts,
                 },
               });
               if (stored) {
@@ -574,7 +581,7 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
           }
           result.imagesGenerated += persistedCount;
           console.log(
-            `   🖼️ Generated ${imageResult.images.length} illustration(s) with ${imageResult.model}. Persisted: ${persistedCount}.`
+            `   🖼️ Generated ${imageResult.images.length} illustration(s) with ${imageResult.provider ?? 'unknown'}/${imageResult.model}. Persisted: ${persistedCount}.`
           );
         } else {
           console.log(`   ⚠️ Illustration skipped: ${imageResult.error}`);

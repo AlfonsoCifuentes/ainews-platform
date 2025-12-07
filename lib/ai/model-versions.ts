@@ -21,7 +21,7 @@
 // ============================================================================
 
 export const MODEL_VERSION_METADATA = {
-  lastUpdated: '2025-12-02',
+  lastUpdated: '2025-12-08',
   lastCheckedSources: {
     openai: 'https://openai.com/api/pricing/',
     google: 'https://ai.google.dev/gemini-api/docs/models',
@@ -328,6 +328,20 @@ export const OLLAMA_MODELS = {
 } as const;
 
 // ============================================================================
+// IMAGE MODELS (Flux primary, Qwen fallback)
+// ============================================================================
+
+export const HUGGINGFACE_IMAGE_MODELS = {
+  /** Flux 1 Dev GGUF - HuggingFace Inference (city96) */
+  FLUX_1_DEV_GGUF: 'city96/FLUX.1-dev-gguf',
+} as const;
+
+export const QWEN_IMAGE_MODELS = {
+  /** Qwen-Image (DashScope) - Text-to-image */
+  QWEN_IMAGE_V1: 'qwen-vl-plus',
+} as const;
+
+// ============================================================================
 // RECOMMENDED MODELS BY USE CASE (Updated December 2025)
 // ============================================================================
 
@@ -366,9 +380,9 @@ export const RECOMMENDED_MODELS = {
   
   /** For image generation (Nano Banana Pro) */
   imageGeneration: {
-    primary: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,    // "Nano Banana Pro"
-    fast: GEMINI_MODELS.GEMINI_2_5_FLASH_IMAGE,   // "Nano Banana"
-    openai: OPENAI_MODELS.GPT_IMAGE_1,
+    primary: HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF, // Flux (GGUF) via HF Inference
+    fallback: QWEN_IMAGE_MODELS.QWEN_IMAGE_V1,          // Qwen-Image via DashScope
+    legacy: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,           // Prior Nano Banana Pro
   },
   
   /** For multilingual/translation */
@@ -399,7 +413,7 @@ export const RECOMMENDED_MODELS = {
     /** Translations */
     translation: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1,
     /** Images */
-    images: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
+    images: HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF,
   },
   
   /** For agentic workflows */
@@ -638,6 +652,8 @@ export type GroqModel = typeof GROQ_MODELS[keyof typeof GROQ_MODELS];
 export type DeepSeekModel = typeof DEEPSEEK_MODELS[keyof typeof DEEPSEEK_MODELS];
 export type MistralModel = typeof MISTRAL_MODELS[keyof typeof MISTRAL_MODELS];
 export type OllamaModel = typeof OLLAMA_MODELS[keyof typeof OLLAMA_MODELS];
+export type HuggingFaceImageModel = typeof HUGGINGFACE_IMAGE_MODELS[keyof typeof HUGGINGFACE_IMAGE_MODELS];
+export type QwenImageModel = typeof QWEN_IMAGE_MODELS[keyof typeof QWEN_IMAGE_MODELS];
 
 // Union type for all cloud models
 export type CloudModel = OpenAIModel | GeminiModel | ClaudeModel | GroqModel | DeepSeekModel | MistralModel;
@@ -681,9 +697,9 @@ export const COURSE_UPGRADE_WORKFLOW = {
   
   /** Step 5: Generate educational diagrams and illustrations */
   images: {
-    model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
-    provider: 'google',
-    reason: 'Nano Banana Pro - best for educational visuals',
+    model: HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF,
+    provider: 'huggingface',
+    reason: 'Flux 1 Dev GGUF (HF router) - best visual fidelity, free-tier friendly',
   },
   
   /** Step 6: Translate content to second language */

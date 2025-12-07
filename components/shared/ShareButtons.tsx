@@ -43,34 +43,10 @@ export function ShareButtons({ article, locale, className = '' }: ShareButtonsPr
   };
 
   const shareOptions = [
-    { 
-      name: 'Twitter', 
-      icon: Twitter, 
-      href: shareLinks.twitter, 
-      color: 'hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2]',
-      bgColor: 'bg-[#1DA1F2]'
-    },
-    { 
-      name: 'LinkedIn', 
-      icon: Linkedin, 
-      href: shareLinks.linkedin, 
-      color: 'hover:bg-[#0A66C2]/10 hover:text-[#0A66C2]',
-      bgColor: 'bg-[#0A66C2]'
-    },
-    { 
-      name: 'Facebook', 
-      icon: Facebook, 
-      href: shareLinks.facebook, 
-      color: 'hover:bg-[#1877F2]/10 hover:text-[#1877F2]',
-      bgColor: 'bg-[#1877F2]'
-    },
-    { 
-      name: 'WhatsApp', 
-      icon: MessageCircle, 
-      href: shareLinks.whatsapp, 
-      color: 'hover:bg-[#25D366]/10 hover:text-[#25D366]',
-      bgColor: 'bg-[#25D366]'
-    },
+    { name: 'Twitter', icon: Twitter, href: shareLinks.twitter },
+    { name: 'LinkedIn', icon: Linkedin, href: shareLinks.linkedin },
+    { name: 'Facebook', icon: Facebook, href: shareLinks.facebook },
+    { name: 'WhatsApp', icon: MessageCircle, href: shareLinks.whatsapp },
   ];
 
   return (
@@ -80,7 +56,7 @@ export function ShareButtons({ article, locale, className = '' }: ShareButtonsPr
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-black/30 hover:bg-white/5 transition-colors text-sm font-medium"
       >
         <Share2 className="w-4 h-4" />
         <span>{locale === 'en' ? 'Share' : 'Compartir'}</span>
@@ -94,7 +70,7 @@ export function ShareButtons({ article, locale, className = '' }: ShareButtonsPr
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full mt-2 right-0 z-50 min-w-[200px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden"
+            className="absolute top-full mt-2 right-0 z-50 min-w-[220px] rounded-2xl bg-[#0A0A0A]/95 border border-white/12 shadow-2xl overflow-hidden"
           >
             <div className="p-2 space-y-1">
               {/* Social Media Options */}
@@ -105,9 +81,9 @@ export function ShareButtons({ article, locale, className = '' }: ShareButtonsPr
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${option.color}`}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-white/5 text-white"
                 >
-                  <div className={`w-8 h-8 rounded-full ${option.bgColor} flex items-center justify-center`}>
+                  <div className="w-8 h-8 rounded-full border border-white/15 bg-white/5 flex items-center justify-center">
                     <option.icon className="w-4 h-4 text-white" />
                   </div>
                   <span className="font-medium">{option.name}</span>
@@ -117,13 +93,13 @@ export function ShareButtons({ article, locale, className = '' }: ShareButtonsPr
               {/* Copy Link */}
               <button
                 onClick={handleCopyLink}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-primary/10 hover:text-primary"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-white/5 text-white"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border border-white/15 bg-white/5 flex items-center justify-center">
                   {copied ? (
-                    <Check className="w-4 h-4 text-primary" />
+                    <Check className="w-4 h-4 text-green-300" />
                   ) : (
-                    <Link2 className="w-4 h-4 text-primary" />
+                    <Link2 className="w-4 h-4 text-white" />
                   )}
                 </div>
                 <span className="font-medium">
@@ -188,9 +164,9 @@ export function MiniShareButtons({ article, locale }: ShareButtonsProps) {
   return (
     <motion.button
       onClick={handleQuickShare}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
-      className="p-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="p-2 rounded-full border border-white/15 bg-black/30 hover:bg-white/5 transition-colors"
       title={locale === 'en' ? 'Share' : 'Compartir'}
     >
       {copied ? (
