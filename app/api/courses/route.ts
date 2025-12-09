@@ -127,7 +127,6 @@ export async function GET(req: NextRequest) {
     logger.info('Query executed', {
       coursesCount: courses?.length || 0,
       hasError: !!error,
-      allCourses: JSON.stringify(courses || []).substring(0, 1000),
       timestamp: new Date().toISOString()
     });
     
@@ -144,6 +143,32 @@ export async function GET(req: NextRequest) {
       );
     }
     
+    // Fetch covers for all courses
+    const courseIds = (courses || []).map(c => c.id);
+    let coversMap: Record<string, string> = {};
+    
+    if (courseIds.length > 0) {
+      const { data: covers } = await db
+        .from('course_covers')
+        .select('course_id, image_url')
+        .in('course_id', courseIds)
+        .eq('locale', locale);
+      
+      if (covers) {
+        coversMap = covers.reduce((acc, c) => {
+          acc[c.course_id] = c.image_url;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+      logger.info('Covers fetched', { coversCount: Object.keys(coversMap).length });
+    }
+    
+    // Merge covers into courses
+    const coursesWithCovers = (courses || []).map(c => ({
+      ...c,
+      thumbnail_url: coversMap[c.id] || null,
+    }));
+    
     // Get total count for pagination
     logger.info('Fetching total count', { timestamp: new Date().toISOString() });
     const { count: totalCount } = await db
@@ -158,7 +183,8 @@ export async function GET(req: NextRequest) {
     
     const responseData = {
       success: true,
-      data: courses || [],
+      data: coursesWithCovers,
+      courses: coursesWithCovers, // Backwards compatible
       pagination: {
         total: totalCount || 0,
         limit,

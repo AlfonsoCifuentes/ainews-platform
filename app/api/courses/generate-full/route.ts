@@ -16,6 +16,7 @@ import {
   generateTextbookChapter, 
   assembleChapterMarkdown
 } from '@/lib/ai/course-generator-textbook';
+import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
 
 export const maxDuration = 300; // Extended for textbook quality
 export const dynamic = 'force-dynamic';
@@ -802,7 +803,7 @@ async function saveCourseToDatabase(
   courseData: CourseData,
   params: z.infer<typeof schema>,
   courseId: string
-): Promise<{ success: boolean; courseId: string; error?: string }> {
+): Promise<{ success: boolean; courseId: string; error?: string; moduleIds?: Array<{ id: string; title: string; content: string }> }> {
   const supabase = getSupabaseServerClient();
 
   try {
@@ -867,9 +868,10 @@ async function saveCourseToDatabase(
 
     console.log(`[Database] Inserting ${modulesToInsert.length} modules...`);
 
-    const { error: modulesError } = await supabase
+    const { data: insertedModules, error: modulesError } = await supabase
       .from('course_modules')
-      .insert(modulesToInsert);
+      .insert(modulesToInsert)
+      .select('id, title_en, content_en');
 
     if (modulesError) {
       console.error('[Database] ⚠️ Modules insert error (course still saved):', modulesError);
@@ -883,9 +885,17 @@ async function saveCourseToDatabase(
 
     console.log(`[Database] ✅ All ${modulesToInsert.length} modules saved successfully`);
 
+    // Return module IDs for image generation
+    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; content_en: string }) => ({
+      id: m.id,
+      title: m.title_en,
+      content: m.content_en || '',
+    }));
+
     return {
       success: true,
-      courseId
+      courseId,
+      moduleIds
     };
 
   } catch (error) {
@@ -955,7 +965,19 @@ export async function POST(req: NextRequest) {
       throw new Error(dbResult.error || 'Database save failed');
     }
 
-    // 5. Return response
+    // 5. Generate course images in background (fire-and-forget)
+    if (dbResult.moduleIds?.length) {
+      console.log('[API] 🎨 Triggering background image generation...');
+      generateCourseImagesAsync({
+        courseId,
+        title: courseData.title,
+        description: courseData.description,
+        locale: params.locale,
+        modules: dbResult.moduleIds,
+      });
+    }
+
+    // 6. Return response
     const duration = Date.now() - startTime;
     console.log(`[API] ✅ Success! Generated in ${duration}ms`);
     console.log(`[API] Quality: ${params.quality}, Modules: ${courseData.modules?.length || 0}`);

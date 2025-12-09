@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
+import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
 
 // Vercel serverless has strict timeout limits (60s max)
 export const maxDuration = 50;
@@ -424,11 +425,17 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
 }
 
 // Save to database
+interface SaveResult {
+  success: boolean;
+  error?: string;
+  moduleIds?: Array<{ id: string; title: string; content: string }>;
+}
+
 async function saveCourseToDB(
   course: CourseData,
   params: z.infer<typeof schema>,
   courseId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<SaveResult> {
   const supabase = getSupabaseServerClient();
 
   try {
@@ -461,7 +468,7 @@ async function saveCourseToDB(
 
     // Insert modules
     if (!course.modules?.length) {
-      return { success: true };
+      return { success: true, moduleIds: [] };
     }
 
     const modules = course.modules.map((m, i) => ({
@@ -480,14 +487,26 @@ async function saveCourseToDB(
       }
     }));
 
-    const { error: modulesErr } = await supabase.from('course_modules').insert(modules);
+    const { data: insertedModules, error: modulesErr } = await supabase
+      .from('course_modules')
+      .insert(modules)
+      .select('id, title_en, content_en');
+    
     if (modulesErr) {
       console.error('[DB] Modules insert error:', modulesErr.message, modulesErr.details, modulesErr.hint);
       throw modulesErr;
     }
 
     console.log('[DB] ✅ All saved');
-    return { success: true };
+    
+    // Return module IDs for image generation
+    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; content_en: string }) => ({
+      id: m.id,
+      title: m.title_en,
+      content: m.content_en || '',
+    }));
+    
+    return { success: true, moduleIds };
   } catch (error) {
     // Extract a readable message from errors (Supabase errors have .message and .details)
     let msg: string;
@@ -526,6 +545,19 @@ export async function POST(req: NextRequest) {
         success: false,
         error: `Database error: ${dbResult.error}`
       }, { status: 500 });
+    }
+
+    // Generate course images in background (fire-and-forget)
+    // This doesn't block the response - images will be available shortly after
+    if (dbResult.moduleIds?.length) {
+      console.log('[API] Triggering background image generation...');
+      generateCourseImagesAsync({
+        courseId,
+        title: courseData.title,
+        description: courseData.description,
+        locale: params.locale,
+        modules: dbResult.moduleIds,
+      });
     }
 
     const elapsed = Date.now() - startTime;

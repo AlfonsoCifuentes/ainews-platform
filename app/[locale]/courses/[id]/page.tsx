@@ -43,16 +43,24 @@ export default async function CourseDetailPage({
 
   // Fetch course details
   console.log('Fetching course with ID:', id, 'for locale:', locale);
-  const { data: rawCourse, error } = await db
-    .from('courses')
-    .select(`
-      *,
-      course_modules (*)
-    `)
-    .eq('id', id)
-    .single();
+  const [courseResult, coverResult] = await Promise.all([
+    db.from('courses')
+      .select(`*, course_modules (*)`)
+      .eq('id', id)
+      .single(),
+    db.from('course_covers')
+      .select('image_url')
+      .eq('course_id', id)
+      .eq('locale', locale)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  ]);
 
-  console.log('Course query result:', { course: !!rawCourse, error });
+  const { data: rawCourse, error } = courseResult;
+  const coverUrl = coverResult.data?.image_url;
+
+  console.log('Course query result:', { course: !!rawCourse, error, hasCover: !!coverUrl });
 
   if (error || !rawCourse) {
     console.log('Course not found, calling notFound()');
@@ -60,6 +68,11 @@ export default async function CourseDetailPage({
   }
 
   const course = normalizeCourseRecord(rawCourse);
+  
+  // Override thumbnail_url with generated cover if available
+  if (coverUrl) {
+    course.thumbnail_url = coverUrl;
+  }
   
   // Debug: log course modules
   if (!course.course_modules || course.course_modules.length === 0) {

@@ -371,6 +371,30 @@ export function TextbookView({
     refreshVisuals: 'Actualizar visuales'
   }, [locale]);
 
+  const totalPages = pages.length;
+  const progress = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
+  const isLastPage = currentPage >= totalPages - (isTwoPageView ? 1 : 0);
+
+  const goToPage = useCallback((page: number) => {
+    const newPage = Math.max(1, Math.min(page, pages.length));
+    setCurrentPage(newPage);
+    onPageChange?.(newPage);
+  }, [pages.length, onPageChange]);
+
+  const step = isTwoPageView ? 2 : 1;
+
+  const handleNextPage = useCallback(() => {
+    if (isLastPage) {
+      onComplete?.();
+      return;
+    }
+    goToPage(currentPage + step);
+  }, [currentPage, goToPage, isLastPage, onComplete, step]);
+
+  const handlePrevPage = useCallback(() => {
+    goToPage(currentPage - step);
+  }, [currentPage, goToPage, step]);
+
   // Parse content
   useEffect(() => {
     const blocks = parseContentIntoBlocks(content);
@@ -431,10 +455,10 @@ export function TextbookView({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
         e.preventDefault();
-        setCurrentPage(prev => Math.min(pages.length, prev + (isTwoPageView ? 2 : 1)));
+        handleNextPage();
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
-        setCurrentPage(prev => Math.max(1, prev - (isTwoPageView ? 2 : 1)));
+        handlePrevPage();
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         scrollPagesBy(220);
@@ -450,7 +474,7 @@ export function TextbookView({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTwoPageView, pages.length, scrollPagesBy]);
+  }, [handleNextPage, handlePrevPage, scrollPagesBy]);
 
   useEffect(() => {
     if (isFullscreen && bookRef.current) bookRef.current.requestFullscreen?.();
@@ -463,12 +487,6 @@ export function TextbookView({
     window.addEventListener('resize', checkWidth);
     return () => window.removeEventListener('resize', checkWidth);
   }, []);
-
-  const goToPage = useCallback((page: number) => {
-    const newPage = Math.max(1, Math.min(page, pages.length));
-    setCurrentPage(newPage);
-    onPageChange?.(newPage);
-  }, [pages.length, onPageChange]);
 
   const toggleBookmark = useCallback(() => {
     setBookmarkedPages(prev => prev.includes(currentPage) ? prev.filter(p => p !== currentPage) : [...prev, currentPage]);
@@ -488,47 +506,42 @@ export function TextbookView({
   const isBookmarked = bookmarkedPages.includes(currentPage);
   const currentPageData = pages[currentPage - 1];
   const nextPageData = isTwoPageView ? pages[currentPage] : null;
-  const totalPages = pages.length;
-  const progress = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
-  const isLastPage = currentPage >= totalPages - (isTwoPageView ? 1 : 0);
 
   const renderPage = (page: TextbookPage, isLeft: boolean) => (
     <div
-      className={`relative flex-1 h-full ${isLeft && isTwoPageView ? 'border-r border-white/5' : ''}`}
+      className={`relative flex-1 h-full ${isLeft && isTwoPageView ? 'border-r border-white/10' : ''}`}
       style={{ fontSize: `${fontSize}px` }}
     >
-      <div className="relative m-4 h-[calc(100%-2rem)] rounded-[28px] border border-white/10 bg-[#0a0d14] shadow-[0_25px_90px_-50px_rgba(0,0,0,0.9)] overflow-hidden">
-        <div
-          ref={setPageRef(page.pageNumber)}
-          className={`relative h-full overflow-y-auto scroll-smooth px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-5 md:pl-10' : 'pr-5 md:pr-10'}`}
-        >
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 mb-6 font-mono">
-            <span>{t.chapter} {moduleNumber}</span>
-            <span className="truncate max-w-[45%] text-right">{title}</span>
-          </div>
+      <div
+        ref={setPageRef(page.pageNumber)}
+        className={`relative h-full w-full overflow-y-auto scroll-smooth px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-6 md:pl-10' : 'pr-6 md:pr-10'}`}
+      >
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 mb-6 font-mono">
+          <span>{t.chapter} {moduleNumber}</span>
+          <span className="truncate max-w-[45%] text-right">{title}</span>
+        </div>
 
-          {page.isChapterStart && (
-            <div className="relative mb-8">
-              <ChapterDecorator number={moduleNumber} isDark={isDarkMode} />
-              <div className="text-center pt-12 pb-4">
-                <div className="text-[10px] uppercase tracking-[0.4em] mb-3 text-white/50">
-                  {t.chapter} {moduleNumber}
-                </div>
-                <div className="w-14 h-[1px] mx-auto bg-white/25" />
+        {page.isChapterStart && (
+          <div className="relative mb-8">
+            <ChapterDecorator number={moduleNumber} isDark={isDarkMode} />
+            <div className="text-center pt-12 pb-4">
+              <div className="text-[10px] uppercase tracking-[0.4em] mb-3 text-white/50">
+                {t.chapter} {moduleNumber}
               </div>
+              <div className="w-14 h-[1px] mx-auto bg-white/25" />
             </div>
-          )}
-
-          <div className="space-y-6 text-white pb-6">
-            {page.content.map((block, i) => (
-              <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />
-            ))}
           </div>
+        )}
 
-          <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">
-            <span>{page.section || title}</span>
-            <span className="font-semibold text-white/80">{page.pageNumber}</span>
-          </div>
+        <div className="space-y-6 text-white pb-6">
+          {page.content.map((block, i) => (
+            <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />
+          ))}
+        </div>
+
+        <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">
+          <span>{page.section || title}</span>
+          <span className="font-semibold text-white/80">{page.pageNumber}</span>
         </div>
       </div>
     </div>
@@ -613,20 +626,23 @@ export function TextbookView({
 
       {/* Content */}
       <div className="absolute top-11 bottom-14 left-0 right-0 flex">
-        <button onClick={() => goToPage(currentPage - (isTwoPageView ? 2 : 1))} disabled={currentPage <= 1}
+        <button onClick={handlePrevPage} disabled={currentPage <= 1}
           className="w-10 md:w-14 flex items-center justify-center hover:bg-white/10 disabled:opacity-20 transition-colors text-white">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="flex-1 flex overflow-hidden">
           <AnimatePresence mode="wait">
-            <motion.div key={currentPage} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="flex w-full h-full">
+            <motion.div key={currentPage} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="relative flex w-full h-full">
+              {isTwoPageView && (
+                <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 w-px bg-white/10" />
+              )}
               {currentPageData && renderPage(currentPageData, true)}
               {isTwoPageView && nextPageData && renderPage(nextPageData, false)}
               {isTwoPageView && !nextPageData && currentPageData && renderEmptyPage()}
             </motion.div>
           </AnimatePresence>
         </div>
-        <button onClick={() => goToPage(currentPage + (isTwoPageView ? 2 : 1))} disabled={isLastPage}
+        <button onClick={handleNextPage}
           className="w-10 md:w-14 flex items-center justify-center hover:bg-white/10 disabled:opacity-20 transition-colors text-white">
           <ChevronRight className="h-5 w-5" />
         </button>

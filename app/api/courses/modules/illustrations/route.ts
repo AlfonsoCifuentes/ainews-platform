@@ -6,7 +6,7 @@ import { VISUAL_STYLES } from '@/lib/types/illustrations';
 const QuerySchema = z.object({
   moduleId: z.string().uuid(),
   locale: z.enum(['en', 'es']).default('en'),
-  style: z.string().default('header'),
+  style: z.string().default('textbook'),
   visualStyle: z.enum(VISUAL_STYLES).default('photorealistic'),
   slotId: z.string().uuid().optional(),
 });
@@ -24,13 +24,25 @@ export async function GET(req: NextRequest) {
   const { moduleId, locale, style, visualStyle, slotId } = parsed.data;
 
   try {
-    const record = await fetchLatestModuleIllustration({
+    // Try exact style first, then fall back to 'textbook' if not found
+    let record = await fetchLatestModuleIllustration({
       moduleId,
       locale,
       style,
       visualStyle,
       slotId: slotId ?? null,
     });
+    
+    // If no result and style is 'header', try 'textbook' as fallback
+    if (!record && style === 'header') {
+      record = await fetchLatestModuleIllustration({
+        moduleId,
+        locale,
+        style: 'textbook',
+        visualStyle,
+        slotId: null, // textbook illustrations don't have slots
+      });
+    }
 
     if (!record) {
       return NextResponse.json({ success: true, illustration: null }, { status: 200 });
