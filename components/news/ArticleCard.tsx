@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
@@ -27,7 +28,13 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const title = getLocalizedString(article, 'title', locale);
   const summary = getLocalizedString(article, 'summary', locale);
-  const relativeTime = formatRelativeTimeFromNow(article.published_at, locale);
+  const [relativeTimeClient, setRelativeTimeClient] = useState('');
+
+  useEffect(() => {
+    setRelativeTimeClient(formatRelativeTimeFromNow(article.published_at, locale));
+  }, [article.published_at, locale]);
+
+  const publishedDateLabel = new Date(article.published_at).toISOString().slice(0, 10);
   
   // Generar imagen con fallback automático si no hay imagen
   const imageUrl = getImageWithFallback(
@@ -73,7 +80,9 @@ export function ArticleCard({
           <span className="border border-white/30 bg-black/40 px-3 py-1">
             {translations.category}
           </span>
-          <span className="text-white/70">{relativeTime}</span>
+          <span className="text-white/70" suppressHydrationWarning>
+            {relativeTimeClient || publishedDateLabel}
+          </span>
         </div>
       </div>
 
