@@ -311,13 +311,21 @@ export function useImagePerformance(elementRef: React.RefObject<HTMLElement>) {
           
           // Send to analytics (optional)
           if (typeof window !== 'undefined' && 'sendBeacon' in navigator) {
-            navigator.sendBeacon('/api/analytics', JSON.stringify({
-              event: 'image_lcp',
-              properties: {
-                loadTime: lastEntry.startTime,
-                url: window.location.pathname,
-              },
-            }));
+            // Avoid 401s for anonymous users; only send when a Supabase auth cookie exists
+            const hasSession = typeof document !== 'undefined' && document.cookie.includes('sb-');
+            if (hasSession) {
+              try {
+                navigator.sendBeacon('/api/analytics', JSON.stringify({
+                  event: 'image_lcp',
+                  properties: {
+                    loadTime: lastEntry.startTime,
+                    url: window.location.pathname,
+                  },
+                }));
+              } catch (err) {
+                console.warn('[useImagePerformance] sendBeacon failed', err);
+              }
+            }
           }
         }
       });
