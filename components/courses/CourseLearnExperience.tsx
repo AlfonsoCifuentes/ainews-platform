@@ -238,10 +238,10 @@ export function CourseLearnExperience({
 	};
 
 	const BookModeHUD = (
-		<div className="sticky top-4 z-40 flex justify-end gap-3 px-4 pt-4">
+		<div className="fixed bottom-6 right-4 sm:right-6 z-[95] flex flex-col items-end gap-3 px-4">
 			<button
 				onClick={() => setBookMode((value) => !value)}
-				className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors"
+				className="flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-xs uppercase tracking-wider shadow-lg transition-colors"
 				style={{
 					backgroundColor: bookMode ? BRUTALIST.bgCard : BRUTALIST.bg,
 					borderColor: BRUTALIST.border,
@@ -255,7 +255,7 @@ export function CourseLearnExperience({
 			{bookMode && (
 				<button
 					onClick={() => setIndexOpen((open) => !open)}
-					className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors"
+					className="flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-xs uppercase tracking-wider shadow-lg transition-colors"
 					style={{
 						backgroundColor: BRUTALIST.bgCard,
 						borderColor: BRUTALIST.border,
