@@ -4,8 +4,6 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, BookOpenCheck, ListTree, Lock, X, FlaskConical } from 'lucide-react';
 import type { NormalizedModule } from '@/lib/courses/normalize';
-import { ModuleSidebar } from '@/components/courses/ModuleSidebar';
-import { ModuleNavigation } from '@/components/courses/ModuleNavigation';
 import { ModulePlayer } from '@/components/courses/ModulePlayer';
 import { ModuleHeaderIllustration } from '@/components/courses/ModuleHeaderIllustration';
 import { useBookMode } from '@/lib/hooks/useBookMode';
@@ -59,7 +57,7 @@ export function CourseLearnExperience({
 	enrollmentId,
 	currentProgress,
 }: CourseLearnExperienceProps) {
-	const [bookMode, setBookMode] = useState(true);
+	const [bookMode, setBookMode] = useState(false);
 	const [indexOpen, setIndexOpen] = useState(false);
 	const [bookContent, setBookContent] = useState(() => (locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
 	const [isGeneratingBookContent, setIsGeneratingBookContent] = useState(false);
@@ -68,11 +66,11 @@ export function CourseLearnExperience({
 	const { setBookMode: setGlobalBookMode } = useBookMode();
 	const { showToast } = useToast();
 
-	// Sync local bookMode with global context (for hiding header/footer)
+	// Sync local bookMode with global context (controls header/footer visibility)
 	useEffect(() => {
-		setGlobalBookMode(true);
+		setGlobalBookMode(bookMode);
 		return () => setGlobalBookMode(false);
-	}, [setGlobalBookMode]);
+	}, [bookMode, setGlobalBookMode]);
 
 	// Keep localized content in sync when switching modules/locales
 	useEffect(() => {
@@ -333,8 +331,6 @@ export function CourseLearnExperience({
 		</div>
 	) : null;
 
-	const normalizedContentType = (currentModule.content_type || 'article').toLowerCase().trim();
-	const useBookReader = bookMode && normalizedContentType !== 'quiz' && normalizedContentType !== 'video';
 	const resolvedBookContent = localizedBookContent.trim()
 		? localizedBookContent
 		: isGeneratingBookContent
@@ -463,26 +459,13 @@ export function CourseLearnExperience({
 					</aside>
 					{/* Content area */}
 					<div className="border p-4 sm:p-6 lg:p-8" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
-						{useBookReader ? (
-							<BookModuleView
-								content={resolvedBookContent}
-								title={localizedModuleTitle}
-								moduleNumber={currentIndex + 1}
-								totalModules={modules.length}
-								moduleId={currentModule.id}
-								onComplete={handleBookComplete}
-								onNavigate={handleBookNavigate}
-								locale={locale}
-							/>
-						) : (
-							<ModulePlayer
-								locale={locale}
-								module={currentModule}
-								courseId={courseId}
-								enrollmentId={enrollmentId}
-								currentProgress={currentProgress}
-							/>
-						)}
+						<ModulePlayer
+							locale={locale}
+							module={currentModule}
+							courseId={courseId}
+							enrollmentId={enrollmentId}
+							currentProgress={currentProgress}
+						/>
 					</div>
 				</div>
 				{/* Bottom navigation */}
@@ -514,37 +497,32 @@ export function CourseLearnExperience({
 		</section>
 	);
 
-	const ClassicLayout = (
-		<div className="flex" style={{ backgroundColor: BRUTALIST.bg }}>
-			<ModuleSidebar
-				locale={locale}
-				courseId={courseId}
-				course={course}
-				modules={modules}
-				currentModuleId={currentModule.id}
-				userProgress={userProgress}
-			/>
-
-			<div className="flex-1 lg:ml-80">
-				<div className="mx-auto max-w-5xl p-6">
-					<ModulePlayer
+	const FullBookOverlay = bookMode ? (
+		<div className="fixed inset-0 z-[120] bg-black">
+			<div className="absolute inset-0 overflow-auto">
+				<div className="sticky top-0 z-10 flex justify-end bg-gradient-to-b from-black via-black/70 to-transparent px-4 py-3">
+					<button
+						onClick={() => setBookMode(false)}
+						className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white hover:bg-white/10 transition-colors"
+					>
+						{locale === 'en' ? 'Exit book mode' : 'Salir de modo libro'}
+					</button>
+				</div>
+				<div className="mx-auto max-w-6xl px-4 pb-16">
+					<BookModuleView
+						content={resolvedBookContent}
+						title={localizedModuleTitle}
+						moduleNumber={currentIndex + 1}
+						totalModules={modules.length}
+						moduleId={currentModule.id}
+						onComplete={handleBookComplete}
+						onNavigate={handleBookNavigate}
 						locale={locale}
-						module={currentModule}
-						courseId={courseId}
-						enrollmentId={enrollmentId}
-						currentProgress={currentProgress}
-					/>
-					<ModuleNavigation
-						locale={locale}
-						courseId={courseId}
-						currentModule={currentModule}
-						modules={modules}
-						userProgress={userProgress}
 					/>
 				</div>
 			</div>
 		</div>
-	);
+	) : null;
 
 	return (
 		<div
@@ -553,8 +531,9 @@ export function CourseLearnExperience({
 		>
 			<div className="relative z-10">
 				{BookModeHUD}
-				{bookMode ? BookSpread : ClassicLayout}
+				{BookSpread}
 				{MiniIndex}
+				{FullBookOverlay}
 			</div>
 		</div>
 	);
