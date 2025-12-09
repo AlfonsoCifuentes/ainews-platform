@@ -362,7 +362,7 @@ export function CourseLearnExperience({
 					/>
 				</div>
 				{/* Dark gradient overlay for text readability */}
-				<div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-[#020309]" aria-hidden />
+				<div className="absolute inset-0 bg-gradient-to-b from-[#010203]/60 via-[#010203]/80 to-[#010203]" aria-hidden />
 				<div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
 					<div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
 						<FlaskConical className="h-4 w-4 text-white" strokeWidth={1.5} />

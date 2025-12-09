@@ -70,6 +70,12 @@ export function ModuleHeaderIllustration({
 
   useEffect(() => {
     if (!moduleId) return;
+    // If we already have a reliable fallback (course cover), prefer it and skip generation entirely.
+    if (fallbackImageUrl) {
+      setState({ loading: false, error: null, imageUrl: null });
+      return;
+    }
+
     if (slotsLoading && !headerSlot) return;
 
     let cancelled = false;
@@ -213,6 +219,7 @@ export function ModuleHeaderIllustration({
     headerSlot,
     slotsLoading,
     requestNonce,
+    fallbackImageUrl,
   ]);
 
   const handleRetry = () => {
@@ -234,7 +241,7 @@ export function ModuleHeaderIllustration({
     .join(' ');
 
   // Determine which image to show: module illustration, fallback, or none
-  const displayImageUrl = state.imageUrl || fallbackImageUrl;
+  const displayImageUrl = fallbackImageUrl || state.imageUrl;
 
   return (
     <div className={wrapperClassName} style={{ backgroundColor: '#020309' }}>
