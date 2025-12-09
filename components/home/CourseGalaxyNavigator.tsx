@@ -118,7 +118,7 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
                     : 'border-[#1F1F1F] opacity-40 hover:opacity-70'
                 }`}
               >
-                <Link href={`/${locale}/courses/${course.id}`} className="flex items-baseline gap-6 flex-1">
+                <Link href={`/courses/${course.id}`} className="flex items-baseline gap-6 flex-1">
                   <span className="font-mono text-xs text-[#888888]">
                     {(index + 1).toString().padStart(2, '0')}
                   </span>
@@ -138,7 +138,7 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
           </div>
 
           {/* View all link */}
-          <Link href={`/${locale}/courses-library`}>
+          <Link href="/courses-library">
             <div className="mt-8 flex items-center gap-2 text-sm font-mono text-[#888888] hover:text-white transition-colors">
               <span>{locale === 'en' ? 'VIEW COURSE LIBRARY' : 'VER BIBLIOTECA DE CURSOS'}</span>
               <span>→</span>
@@ -159,7 +159,7 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
                   transition={{ duration: 0.4 }}
                   className="relative w-full aspect-[3/4] max-h-[600px] bg-black border border-[#1F1F1F] overflow-hidden cursor-pointer shadow-2xl shadow-black/50"
                 >
-                  <Link href={`/${locale}/courses/${activeCourse.id}`}>
+                  <Link href={`/courses/${activeCourse.id}`}>
                     {activeCourse.heroImage ? (
                       <Image
                         src={activeCourse.heroImage}
