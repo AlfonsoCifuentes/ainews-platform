@@ -340,9 +340,9 @@ export const QWEN_IMAGE_MODELS = {
   QWEN_IMAGE_V1: 'qwen-vl-plus',
 } as const;
 
-export const RUNWAY_IMAGE_MODELS = {
+export const RUNWARE_IMAGE_MODELS = {
   /** Runware Gen (cheap default for course images) */
-  RUNWAY_GEN_97: 'runware:97@3',
+  RUNWARE_GEN_97: 'runware:97@3',
 } as const;
 
 // ============================================================================
@@ -384,7 +384,7 @@ export const RECOMMENDED_MODELS = {
   
   /** For image generation (Nano Banana Pro) */
   imageGeneration: {
-    primary: RUNWAY_IMAGE_MODELS.RUNWAY_GEN_97,         // Runware (cheaper default)
+    primary: RUNWARE_IMAGE_MODELS.RUNWARE_GEN_97,       // Runware (cheaper default)
     fallback: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,         // Gemini 3 Pro Image for diagrams/backup
     legacy: HUGGINGFACE_IMAGE_MODELS.FLUX_1_DEV_GGUF,   // Legacy Flux via HF Inference
   },
@@ -417,7 +417,7 @@ export const RECOMMENDED_MODELS = {
     /** Translations */
     translation: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1,
     /** Images */
-    images: RUNWAY_IMAGE_MODELS.RUNWAY_GEN_97,
+    images: RUNWARE_IMAGE_MODELS.RUNWARE_GEN_97,
   },
   
   /** For agentic workflows */
@@ -658,7 +658,7 @@ export type MistralModel = typeof MISTRAL_MODELS[keyof typeof MISTRAL_MODELS];
 export type OllamaModel = typeof OLLAMA_MODELS[keyof typeof OLLAMA_MODELS];
 export type HuggingFaceImageModel = typeof HUGGINGFACE_IMAGE_MODELS[keyof typeof HUGGINGFACE_IMAGE_MODELS];
 export type QwenImageModel = typeof QWEN_IMAGE_MODELS[keyof typeof QWEN_IMAGE_MODELS];
-export type RunwayImageModel = typeof RUNWAY_IMAGE_MODELS[keyof typeof RUNWAY_IMAGE_MODELS];
+export type RunwareImageModel = typeof RUNWARE_IMAGE_MODELS[keyof typeof RUNWARE_IMAGE_MODELS];
 
 // Union type for all cloud models
 export type CloudModel = OpenAIModel | GeminiModel | ClaudeModel | GroqModel | DeepSeekModel | MistralModel;

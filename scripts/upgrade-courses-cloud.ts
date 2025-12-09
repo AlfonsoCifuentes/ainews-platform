@@ -549,7 +549,7 @@ async function upgradeCourse(course: Course, llm: UnifiedLLMClient, dryRun: bool
           locale: 'en',
           style: illustrationStyle,
           visualStyle,
-          providerOrder: ['runway', 'gemini'],
+          providerOrder: ['runware', 'gemini'],
         });
         if (imageResult.success) {
           let persistedCount = 0;

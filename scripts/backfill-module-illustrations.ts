@@ -55,8 +55,8 @@ function isMissingVisualSlotsTable(error: unknown): boolean {
 }
 
 const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
-// Cost-aware defaults: Runway for most images, Gemini only when needed/fallback.
-const PROVIDER_ORDER_DEFAULT: ImageProviderName[] = ['runway', 'gemini'];
+// Cost-aware defaults: Runware for most images, Gemini only when needed/fallback.
+const PROVIDER_ORDER_DEFAULT: ImageProviderName[] = ['runware', 'gemini'];
 const PROVIDER_ORDER_DIAGRAM: ImageProviderName[] = ['gemini'];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';

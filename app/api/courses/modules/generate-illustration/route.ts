@@ -17,7 +17,7 @@ const RequestSchema = z.object({
   promptOverride: z.string().min(10).max(4000).optional(),
   variants: z.array(z.enum(VISUAL_STYLES)).min(1).max(10).optional(),
   metadata: z.record(z.any()).optional(),
-  providerOrder: z.array(z.enum(['runway', 'gemini', 'huggingface', 'qwen'])).optional(),
+  providerOrder: z.array(z.enum(['runware', 'gemini', 'huggingface', 'qwen'])).optional(),
 });
 
 type GenerateIllustrationRequest = z.infer<typeof RequestSchema>;
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     const variantList = resolveVariantList(style, variants);
     const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
-      style === 'diagram' || style === 'schema' ? ['gemini'] : ['runway', 'gemini'];
+      style === 'diagram' || style === 'schema' ? ['gemini'] : ['runware', 'gemini'];
     const order: NonNullable<GenerateIllustrationRequest['providerOrder']> =
       providerOrder && providerOrder.length ? providerOrder : defaultOrder;
     console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);

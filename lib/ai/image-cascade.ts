@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer';
 import { getGeminiImageClient, buildEducationalIllustrationPrompt, type IllustrationStyle, type ImageGenerationResult } from './gemini-image';
-import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS, RUNWAY_IMAGE_MODELS } from './model-versions';
+import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS, RUNWARE_IMAGE_MODELS } from './model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
-export type ImageProviderName = 'runway' | 'gemini' | 'huggingface' | 'qwen';
+export type ImageProviderName = 'runware' | 'gemini' | 'huggingface' | 'qwen';
 
 export interface IllustrationCascadeOptions {
   moduleContent: string;
@@ -27,7 +27,7 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
 }
 
 // Prefer Runware as the cheap default, then Gemini as precision fallback.
-export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runway', 'gemini'];
+export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runware', 'gemini'];
 
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions
@@ -54,8 +54,8 @@ export async function generateIllustrationWithCascade(
     try {
       const result = provider === 'gemini'
         ? await generateWithGemini(prompt, dimensions)
-        : provider === 'runway'
-        ? await generateWithRunway(prompt, dimensions)
+        : provider === 'runware'
+        ? await generateWithRunware(prompt, dimensions)
         : provider === 'qwen'
         ? await generateWithQwen(prompt, dimensions)
         : await generateWithHuggingFace(prompt, dimensions);
@@ -98,12 +98,12 @@ async function generateWithGemini(
   });
 }
 
-async function generateWithRunway(
+async function generateWithRunware(
   prompt: string,
   dimensions: ReturnType<typeof resolveDimensionsForStyle>
 ): Promise<ImageGenerationResult> {
   const apiKey = process.env.RUNWARE_API_KEY;
-  const model = process.env.RUNWARE_IMAGE_MODEL || RUNWAY_IMAGE_MODELS.RUNWAY_GEN_97;
+  const model = process.env.RUNWARE_IMAGE_MODEL || RUNWARE_IMAGE_MODELS.RUNWARE_GEN_97;
 
   if (!apiKey) {
     return {
@@ -165,7 +165,7 @@ async function generateWithRunway(
         success: false,
         images: [],
         model,
-        error: 'Runway returned no image payload',
+        error: 'Runware returned no image payload',
       };
     }
 
