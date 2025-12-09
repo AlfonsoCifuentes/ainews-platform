@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { CourseModulesList } from '@/components/courses/CourseModulesList';
@@ -16,11 +17,8 @@ import {
   Users, 
   Star,
   BarChart3,
-  CheckCircle2,
-  PlayCircle
+  CheckCircle2
 } from 'lucide-react';
-// Use client-side lazy image for robust load & fallback handling
-import { CourseThumbnail } from '@/components/courses/CourseThumbnail';
 import { normalizeCourseRecord } from '@/lib/courses/normalize';
 
 // Brutalist design tokens
@@ -187,97 +185,94 @@ export default async function CourseDetailPage({
 
   return (
     <div className="min-h-screen pt-24 md:pt-28" style={{ backgroundColor: BRUTALIST.bg }}>
-      {/* Hero Section */}
-      <div className="border-b" style={{ borderColor: BRUTALIST.border }}>
-        <div className="container mx-auto px-4 py-12 md:py-16">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            {/* Left: Course Info */}
-            <div className="space-y-6">
-              <div 
-                className="inline-flex items-center gap-2 px-4 py-2 border font-mono text-sm uppercase tracking-wider"
-                style={{ borderColor: BRUTALIST.border, color: BRUTALIST.text }}
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>{categoryLabel}</span>
+      {/* Hero Section with Background Image */}
+      <div className="relative border-b" style={{ borderColor: BRUTALIST.border }}>
+        {/* Background Image */}
+        {course.thumbnail_url && (
+          <div className="absolute inset-0 overflow-hidden">
+            <Image
+              src={course.thumbnail_url}
+              alt={title}
+              fill
+              className="object-cover opacity-30"
+              priority
+            />
+            {/* Gradient overlays for readability */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#020309] via-[#020309]/90 to-[#020309]/70" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020309] via-transparent to-[#020309]/50" />
+          </div>
+        )}
+        
+        <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
+          <div className="max-w-3xl space-y-6">
+            <div 
+              className="inline-flex items-center gap-2 px-4 py-2 border font-mono text-sm uppercase tracking-wider backdrop-blur-sm bg-black/30"
+              style={{ borderColor: BRUTALIST.border, color: BRUTALIST.text }}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>{categoryLabel}</span>
+            </div>
+
+            <h1 
+              className="font-mono text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight leading-tight drop-shadow-lg"
+              style={{ color: BRUTALIST.text }}
+            >
+              {title}
+            </h1>
+
+            <p className="font-mono text-base md:text-lg max-w-2xl" style={{ color: BRUTALIST.textMuted }}>
+              {description}
+            </p>
+
+            {/* Stats */}
+            <div className="flex flex-wrap gap-6 font-mono text-sm">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5" style={{ color: BRUTALIST.text }} />
+                <span style={{ color: BRUTALIST.text }}>{avgRating.toFixed(1)}</span>
+                <span style={{ color: BRUTALIST.textMuted }}>({reviews?.length || 0})</span>
               </div>
-
-              <h1 
-                className="font-mono text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight leading-tight"
-                style={{ color: BRUTALIST.text }}
-              >
-                {title}
-              </h1>
-
-              <p className="font-mono text-base" style={{ color: BRUTALIST.textMuted }}>
-                {description}
-              </p>
-
-              {/* Stats */}
-              <div className="flex flex-wrap gap-6 font-mono text-sm">
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5" style={{ color: BRUTALIST.text }} />
-                  <span style={{ color: BRUTALIST.text }}>{avgRating.toFixed(1)}</span>
-                  <span style={{ color: BRUTALIST.textMuted }}>({reviews?.length || 0})</span>
-                </div>
-                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
-                  <Users className="w-5 h-5" />
-                  <span>{course.enrollment_count || 0} {t.students}</span>
-                </div>
-                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
-                  <Clock className="w-5 h-5" />
-                  <span>{durationLabel}</span>
-                </div>
-                <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
-                  <BookOpen className="w-5 h-5" />
-                  <span>{totalModules} {t.modules_count}</span>
-                </div>
+              <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                <Users className="w-5 h-5" />
+                <span>{course.enrollment_count || 0} {t.students}</span>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Progress or Enroll */}
-                <div className="flex-1 min-w-[200px]">
-                  {enrollment ? (
-                    <CourseProgress
-                      locale={locale}
-                      progress={progressPercentage}
-                      completedModules={completedModules}
-                      totalModules={totalModules}
-                      courseId={id}
-                    />
-                  ) : (
-                    <CourseEnrollButton
-                      locale={locale}
-                      courseId={id}
-                      userId={user?.id}
-                    />
-                  )}
-                </div>
-
-                {/* Share Button */}
-                <ShareCourseButton
-                  courseId={id}
-                  courseTitle={title}
-                  courseDescription={description}
-                  locale={locale}
-                />
+              <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                <Clock className="w-5 h-5" />
+                <span>{durationLabel}</span>
+              </div>
+              <div className="flex items-center gap-2" style={{ color: BRUTALIST.textMuted }}>
+                <BookOpen className="w-5 h-5" />
+                <span>{totalModules} {t.modules_count}</span>
               </div>
             </div>
 
-            {/* Right: Course Image */}
-            <div className="relative overflow-hidden border group" style={{ borderColor: BRUTALIST.border }}>
-                <CourseThumbnail
-                  src={course.thumbnail_url}
-                  alt={title}
-                  width={800}
-                  height={450}
-                  className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              {enrollment && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <PlayCircle className="w-20 h-20" style={{ color: BRUTALIST.text }} />
-                </div>
-              )}
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-4 pt-4">
+              {/* Progress or Enroll */}
+              <div className="flex-1 min-w-[200px] max-w-xs">
+                {enrollment ? (
+                  <CourseProgress
+                    locale={locale}
+                    progress={progressPercentage}
+                    completedModules={completedModules}
+                    totalModules={totalModules}
+                    courseId={id}
+                  />
+                ) : (
+                  <CourseEnrollButton
+                    locale={locale}
+                    courseId={id}
+                    userId={user?.id}
+                  />
+                )}
+              </div>
+
+              {/* Share Button */}
+              <ShareCourseButton
+                courseId={id}
+                courseTitle={title}
+                courseDescription={description}
+                locale={locale}
+              />
             </div>
           </div>
         </div>

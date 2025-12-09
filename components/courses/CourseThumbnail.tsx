@@ -38,9 +38,6 @@ export function CourseThumbnail({ src, alt, width, height, className }: Props) {
         <span style={{ fontFamily: 'monospace', fontSize: '12px', letterSpacing: '0.08em' }}>
           Image unavailable
         </span>
-        <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#7A7A7A' }}>
-          Flux / Qwen failed for {alt}
-        </span>
       </div>
     );
   }
