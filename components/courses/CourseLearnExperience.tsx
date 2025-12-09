@@ -387,7 +387,7 @@ export function CourseLearnExperience({
 				</div>
 				{/* Dark gradient overlay for text readability */}
 				<div className="absolute inset-0 bg-gradient-to-b from-[#010203]/60 via-[#010203]/80 to-[#010203]" aria-hidden />
-				<div className="relative z-10 mx-auto flex h-full max-w-[1400px] flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
+				<div className="relative z-10 mx-auto flex h-full max-w-[1600px] flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
 					<div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
 						<FlaskConical className="h-4 w-4 text-white" strokeWidth={1.5} />
 						<span>{localization.courseLabel}</span>
@@ -406,7 +406,7 @@ export function CourseLearnExperience({
 			</div>
 
 			{/* Stats row - separated from header to avoid overlap */}
-			<div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+			<div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
 				<div className="grid gap-4 sm:grid-cols-3">
 					<div className="border p-4" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
 						<p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>{localization.progress}</p>
@@ -430,7 +430,7 @@ export function CourseLearnExperience({
 
 			{/* Main content grid */}
 			<div className="px-4 sm:px-6 lg:px-8">
-				<div className="mx-auto grid max-w-[1400px] gap-6 lg:grid-cols-[280px_1fr]">
+				<div className="mx-auto grid max-w-[1600px] gap-6 lg:grid-cols-[300px_1fr]">
 					{/* Sidebar */}
 					<aside className="border p-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
 						<div className="space-y-6">
@@ -497,7 +497,7 @@ export function CourseLearnExperience({
 					</div>
 				</div>
 				{/* Bottom navigation */}
-				<div className="mx-auto mt-8 flex max-w-[1400px] items-center justify-between">
+				<div className="mx-auto mt-8 flex max-w-[1600px] items-center justify-between">
 					<button
 						onClick={() => handleNavigate(prevModule)}
 						disabled={!prevModule}
