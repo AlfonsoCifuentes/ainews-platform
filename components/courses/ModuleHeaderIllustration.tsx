@@ -240,13 +240,13 @@ export function ModuleHeaderIllustration({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-gradient-to-br from-blue-950/50 to-slate-950/70"
+            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-[#020309]"
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-full border-3 border-blue-500/30 border-t-blue-500 animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto w-5 h-5 text-blue-400 animate-pulse" />
+              <div className="w-12 h-12 rounded-full border-3 border-white/20 border-t-white/60 animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto w-5 h-5 text-white/60 animate-pulse" />
             </div>
-            <p className="mt-3 text-xs text-blue-300/70 uppercase tracking-wider">
+            <p className="mt-3 text-xs text-white/50 uppercase tracking-wider">
               {locale === 'en' ? 'Generating illustration...' : 'Generando ilustración...'}
             </p>
           </motion.div>
@@ -258,12 +258,12 @@ export function ModuleHeaderIllustration({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-gradient-to-br from-slate-900/80 to-slate-950/90"
+            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-[#020309]"
           >
-            <ImageOff className="w-10 h-10 text-slate-500 mb-3" />
+            <ImageOff className="w-10 h-10 text-white/30 mb-3" />
             <button
               onClick={handleRetry}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/20 text-blue-400 text-sm hover:bg-blue-600/30 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/60 text-sm hover:bg-white/20 transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
               {locale === 'en' ? 'Retry' : 'Reintentar'}

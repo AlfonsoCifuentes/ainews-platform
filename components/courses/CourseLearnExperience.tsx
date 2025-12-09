@@ -347,7 +347,9 @@ export function CourseLearnExperience({
 		<section className="relative z-10 pb-24" style={{ backgroundColor: BRUTALIST.bg }}>
 			{/* Hero header with illustration */}
 			<div className="relative h-[320px] sm:h-[380px]">
-				<div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(72,163,255,0.08),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(24,119,255,0.06),transparent_30%),linear-gradient(135deg,rgba(9,12,20,0.9),rgba(4,6,12,0.95))]" aria-hidden />
+				{/* Plain black background - only shows if no image loads */}
+				<div className="absolute inset-0 bg-[#020309]" aria-hidden />
+				{/* Module illustration as background */}
 				<div className="absolute inset-0">
 					<ModuleHeaderIllustration
 						moduleId={currentModule.id}
@@ -355,10 +357,11 @@ export function CourseLearnExperience({
 						moduleTitle={localizedModuleTitle}
 						locale={locale}
 						frameless
-						className="h-full w-full object-cover mix-blend-screen opacity-90"
+						className="h-full w-full object-cover"
 					/>
 				</div>
-				<div className="absolute inset-0 bg-gradient-to-b from-[#05060c]/30 via-[#05060c]/75 to-[#05060c]" aria-hidden />
+				{/* Dark gradient overlay for text readability */}
+				<div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-[#020309]" aria-hidden />
 				<div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
 					<div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
 						<FlaskConical className="h-4 w-4 text-white" strokeWidth={1.5} />
