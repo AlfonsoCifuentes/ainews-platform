@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Bell, Globe, Save, Palette } from 'lucide-react';
-import type { VisualStyle, VisualDensity } from '@/lib/types/illustrations';
+import { normalizeVisualStyle, type VisualStyle, type VisualDensity } from '@/lib/types/illustrations';
 
 interface UserProfile {
   display_name: string;
@@ -83,7 +83,7 @@ export function SettingsPageClient({
     profile?.course_reminders ?? true
   );
   const [visualStyle, setVisualStyle] = useState<VisualStyle>(
-    profile?.preferred_visual_style ?? 'photorealistic'
+    normalizeVisualStyle(profile?.preferred_visual_style)
   );
   const [visualDensity, setVisualDensity] = useState<VisualDensity>(
     profile?.preferred_visual_density ?? 'balanced'
@@ -229,11 +229,10 @@ export function SettingsPageClient({
             <div className="grid gap-6 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold">{translations.visualStyle}</label>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {[
                     { value: 'photorealistic', label: translations.stylePhotorealistic },
                     { value: 'anime', label: translations.styleAnime },
-                    { value: 'comic', label: translations.styleComic },
                   ].map((option) => (
                     <button
                       key={option.value}

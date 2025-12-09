@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
 import type { UserProfile } from '@/lib/types/user';
+import { normalizeVisualStyle } from '@/lib/types/illustrations';
 import { loggers } from '@/lib/utils/logger';
 
 const FALLBACK_THEME: UserProfile['theme'] = 'dark';
@@ -57,7 +58,7 @@ function buildFallbackProfile(user: MinimalAuthUser): UserProfile {
 function ensureVisualPreferences(profile: UserProfile): UserProfile {
   return {
     ...profile,
-    preferred_visual_style: profile.preferred_visual_style ?? 'photorealistic',
+    preferred_visual_style: normalizeVisualStyle(profile.preferred_visual_style),
     preferred_visual_density: profile.preferred_visual_density ?? 'balanced',
     auto_diagramming: typeof profile.auto_diagramming === 'boolean' ? profile.auto_diagramming : true,
   };

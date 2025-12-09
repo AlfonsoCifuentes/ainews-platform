@@ -6,9 +6,9 @@ import { ImageOff, RefreshCw, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { useUser } from '@/lib/hooks/useUser';
-import type { VisualStyle } from '@/lib/types/illustrations';
+import { normalizeVisualStyle, type VisualStyle } from '@/lib/types/illustrations';
 
-const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
 
 interface ModuleHeaderIllustrationProps {
   moduleId: string;
@@ -45,11 +45,8 @@ export function ModuleHeaderIllustration({
   const [requestNonce, setRequestNonce] = useState(0);
 
   const resolvedVisualStyle: VisualStyle = useMemo(() => {
-    return (
-      visualStyleOverride ??
-      headerSlot?.suggestedVisualStyle ??
-      profile?.preferred_visual_style ??
-      'photorealistic'
+    return normalizeVisualStyle(
+      visualStyleOverride ?? headerSlot?.suggestedVisualStyle ?? profile?.preferred_visual_style ?? null
     );
   }, [visualStyleOverride, headerSlot?.suggestedVisualStyle, profile?.preferred_visual_style]);
 

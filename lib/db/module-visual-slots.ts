@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from './supabase';
+import { normalizeVisualStyle } from '@/lib/types/illustrations';
 import type { ModuleVisualSlot, ModuleVisualSlotInput, ModuleVisualSlotType } from '@/lib/types/visual-slots';
 
 function mapSlotToDb(slot: ModuleVisualSlotInput) {
@@ -7,7 +8,7 @@ function mapSlotToDb(slot: ModuleVisualSlotInput) {
     locale: slot.locale,
     slot_type: slot.slotType,
     density: slot.density ?? 'balanced',
-    suggested_visual_style: slot.suggestedVisualStyle ?? 'photorealistic',
+    suggested_visual_style: normalizeVisualStyle(slot.suggestedVisualStyle),
     block_index: slot.blockIndex ?? null,
     heading: slot.heading ?? null,
     summary: slot.summary ?? null,
@@ -53,7 +54,7 @@ export async function replaceModuleVisualSlots(
     locale: row.locale,
     slotType: row.slot_type,
     density: row.density,
-    suggestedVisualStyle: row.suggested_visual_style,
+    suggestedVisualStyle: normalizeVisualStyle(row.suggested_visual_style),
     blockIndex: row.block_index,
     heading: row.heading,
     summary: row.summary,
@@ -99,7 +100,7 @@ export async function fetchModuleVisualSlots(params: {
     locale: row.locale,
     slotType: row.slot_type,
     density: row.density,
-    suggestedVisualStyle: row.suggested_visual_style,
+    suggestedVisualStyle: normalizeVisualStyle(row.suggested_visual_style),
     blockIndex: row.block_index,
     heading: row.heading,
     summary: row.summary,

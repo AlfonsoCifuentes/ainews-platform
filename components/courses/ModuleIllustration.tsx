@@ -8,10 +8,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils/cn';
 import type { IllustrationStyle } from '@/lib/ai/gemini-image';
-import type { VisualStyle } from '@/lib/types/illustrations';
+import { normalizeVisualStyle, type VisualStyle } from '@/lib/types/illustrations';
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 
-const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
 
 interface ModuleIllustrationProps {
   moduleId: string;
@@ -54,7 +54,7 @@ export function ModuleIllustration({
   const slotSuggestedStyle = slot?.suggestedVisualStyle;
 
   const resolvedVisualStyle = useMemo<VisualStyle>(
-    () => visualStyle ?? slotSuggestedStyle ?? 'photorealistic',
+    () => normalizeVisualStyle(visualStyle ?? slotSuggestedStyle ?? null),
     [visualStyle, slotSuggestedStyle]
   );
 

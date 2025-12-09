@@ -131,12 +131,13 @@ function mimeToExtension(mimeType: string): string {
 }
 
 function detectProvider(model?: string | null): string {
-  if (!model) return 'gemini';
+  if (!model) return 'runway';
   const normalized = model.toLowerCase();
+  if (normalized.includes('runware')) return 'runway';
   if (normalized.includes('gemini')) return 'gemini';
   if (normalized.includes('flux') || normalized.includes('huggingface')) return 'huggingface';
   if (normalized.includes('qwen') || normalized.includes('dashscope')) return 'qwen';
-  return 'unknown';
+  return 'runway';
 }
 
 function buildMetadata(input: PersistModuleIllustrationInput) {
@@ -154,7 +155,7 @@ export async function persistModuleIllustration(
   input: PersistModuleIllustrationInput
 ): Promise<ModuleIllustrationRecord | null> {
   const provider = input.provider ?? detectProvider(input.model);
-  if (!['gemini', 'huggingface', 'qwen'].includes(provider)) {
+  if (!['gemini', 'huggingface', 'qwen', 'runway'].includes(provider)) {
     throw new Error('Unsupported illustration provider');
   }
 

@@ -4,7 +4,7 @@ import { createClient, type PostgrestError } from '@supabase/supabase-js';
 import { generateIllustrationWithCascade, type ImageProviderName, type IllustrationCascadeResult } from '../lib/ai/image-cascade';
 import { computeIllustrationChecksum } from '../lib/ai/illustration-utils';
 import { persistModuleIllustration } from '../lib/db/module-illustrations';
-import type { VisualStyle } from '../lib/types/illustrations';
+import { normalizeVisualStyle, type VisualStyle } from '../lib/types/illustrations';
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 
@@ -54,9 +54,10 @@ function isMissingVisualSlotsTable(error: unknown): boolean {
   return message.toLowerCase().includes('module_visual_slots');
 }
 
-const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime', 'comic', 'pixel-art'];
-// Prefer Flux/Flux2 (HuggingFace) before falling back to Gemini (Nano Banana Pro)
-const PROVIDER_ORDER: ImageProviderName[] = ['huggingface', 'gemini'];
+const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
+// Cost-aware defaults: Runway for most images, Gemini only when needed/fallback.
+const PROVIDER_ORDER_DEFAULT: ImageProviderName[] = ['runway', 'gemini'];
+const PROVIDER_ORDER_DIAGRAM: ImageProviderName[] = ['gemini'];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -247,7 +248,7 @@ function parseRetryDelayMs(error?: string): number | null {
 
 async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'generated' | 'skipped' | 'dry-run'> {
   const slot = await fetchHeaderSlot(module.id, locale);
-  const visualStyle = slot?.suggested_visual_style ?? 'photorealistic';
+  const visualStyle = normalizeVisualStyle(slot?.suggested_visual_style);
   const promptContext = buildPromptContext(module, locale, slot);
   const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
 
@@ -263,7 +264,7 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
       locale,
       style: 'header',
       visualStyle: variant,
-      providerOrder: PROVIDER_ORDER,
+      providerOrder: PROVIDER_ORDER_DEFAULT,
     }, `${moduleTitle} (${locale}) header ${variant}`);
 
     const checksum = computeIllustrationChecksum({
@@ -283,7 +284,7 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
     });
 
     if (!cascade.success || !cascade.images.length) {
-      console.warn(`⚠️ Gemini failed for variant ${variant} in ${moduleTitle} (${locale}). Attempts:`, cascade.attempts);
+      console.warn(`⚠️ Illustration failed for variant ${variant} in ${moduleTitle} (${locale}). Attempts:`, cascade.attempts);
       continue;
     }
 
@@ -344,6 +345,7 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
     const style = slot.slot_type === 'diagram' ? 'diagram' : 'conceptual';
     const variants = style === 'diagram' ? ['photorealistic'] : VARIANT_STYLES;
     const prompt = buildSlotPromptContext(module, locale, slot);
+    const providerOrder = style === 'diagram' ? PROVIDER_ORDER_DIAGRAM : PROVIDER_ORDER_DEFAULT;
 
     for (const variant of variants) {
       const cascade = await generateWithRateLimitRetry({
@@ -351,7 +353,7 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
         locale,
         style: style as 'conceptual' | 'diagram',
         visualStyle: variant as VisualStyle,
-        providerOrder: PROVIDER_ORDER,
+        providerOrder,
       }, `${moduleTitleForLog(module, locale)} slot ${slot.id} ${variant}`);
 
       const checksum = computeIllustrationChecksum({
@@ -369,7 +371,7 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
       });
 
       if (!cascade.success || !cascade.images.length) {
-        console.warn(`⚠️ Gemini failed for slot ${slot.id} (${slot.slot_type}) variant ${variant} in module ${moduleTitleForLog(module, locale)}:`, cascade.error);
+        console.warn(`⚠️ Illustration failed for slot ${slot.id} (${slot.slot_type}) variant ${variant} in module ${moduleTitleForLog(module, locale)}:`, cascade.error);
         continue;
       }
 

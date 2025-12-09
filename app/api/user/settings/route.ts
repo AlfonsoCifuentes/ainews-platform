@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { z } from 'zod';
-import { VISUAL_STYLES, VISUAL_DENSITIES } from '@/lib/types/illustrations';
+import { VISUAL_STYLES, VISUAL_DENSITIES, normalizeVisualStyle } from '@/lib/types/illustrations';
 
 const SettingsSchema = z.object({
   displayName: z.string().min(3).max(30).optional(),
@@ -37,7 +37,14 @@ export async function GET(_req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    return NextResponse.json({ settings: profile || {} });
+    const settings = profile
+      ? {
+          ...profile,
+          preferred_visual_style: normalizeVisualStyle(profile.preferred_visual_style),
+        }
+      : {};
+
+    return NextResponse.json({ settings });
   } catch (error) {
     console.error('Get settings error:', error);
     return NextResponse.json(

@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer';
 import { getGeminiImageClient, buildEducationalIllustrationPrompt, type IllustrationStyle, type ImageGenerationResult } from './gemini-image';
-import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS } from './model-versions';
+import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS, RUNWAY_IMAGE_MODELS } from './model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
 
-export type ImageProviderName = 'huggingface' | 'qwen' | 'gemini';
+export type ImageProviderName = 'runway' | 'gemini' | 'huggingface' | 'qwen';
 
 export interface IllustrationCascadeOptions {
   moduleContent: string;
@@ -26,8 +26,8 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
   prompt: string;
 }
 
-// Prefer Flux (HF Inference) first, then Qwen-Image fallback. Gemini stays opt-in.
-export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['huggingface', 'qwen'];
+// Prefer Runware as the cheap default, then Gemini as precision fallback.
+export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runway', 'gemini'];
 
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions
@@ -41,9 +41,11 @@ export async function generateIllustrationWithCascade(
         options.visualStyle ?? 'photorealistic'
       );
 
-  const providerOrder = options.providerOrder && options.providerOrder.length > 0
+  const providerOrder: ImageProviderName[] = options.providerOrder && options.providerOrder.length > 0
     ? options.providerOrder
-    : DEFAULT_PROVIDER_ORDER;
+    : options.style === 'diagram' || options.style === 'schema'
+      ? ['gemini']
+      : DEFAULT_PROVIDER_ORDER;
 
   const attempts: CascadeAttempt[] = [];
   const dimensions = resolveDimensionsForStyle(options.style);
@@ -52,6 +54,8 @@ export async function generateIllustrationWithCascade(
     try {
       const result = provider === 'gemini'
         ? await generateWithGemini(prompt, dimensions)
+        : provider === 'runway'
+        ? await generateWithRunway(prompt, dimensions)
         : provider === 'qwen'
         ? await generateWithQwen(prompt, dimensions)
         : await generateWithHuggingFace(prompt, dimensions);
@@ -92,6 +96,112 @@ async function generateWithGemini(
     aspectRatio: dimensions.aspectRatio,
     imageSize: dimensions.height >= 1080 ? '2K' : '1K',
   });
+}
+
+async function generateWithRunway(
+  prompt: string,
+  dimensions: ReturnType<typeof resolveDimensionsForStyle>
+): Promise<ImageGenerationResult> {
+  const apiKey = process.env.RUNWARE_API_KEY;
+  const model = process.env.RUNWARE_IMAGE_MODEL || RUNWAY_IMAGE_MODELS.RUNWAY_GEN_97;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      images: [],
+      model,
+      error: 'RUNWARE_API_KEY not configured',
+    };
+  }
+
+  try {
+    const response = await fetch('https://api.runware.ai/v1/runs', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        input: {
+          prompt,
+          num_images: 1,
+          width: dimensions.width,
+          height: dimensions.height,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        images: [],
+        model,
+        error: `Runware error ${response.status}: ${errorText.slice(0, 300)}`,
+      };
+    }
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const output = data.output as Record<string, unknown> | undefined;
+    const nestedOutput = (data.data as Record<string, unknown> | undefined)?.output as
+      | Record<string, unknown>
+      | undefined;
+    const resultOutput = data.result as Record<string, unknown> | undefined;
+    const imagesRaw =
+      (output?.images as unknown) ||
+      (nestedOutput?.images as unknown) ||
+      (data.images as unknown) ||
+      (resultOutput?.images as unknown) ||
+      [];
+    const images = Array.isArray(imagesRaw) ? imagesRaw : [];
+
+    const first = Array.isArray(images) ? images[0] : null;
+    const base64 = first?.image_base64 || first?.base64 || first?.b64_json || first?.data;
+    const url = first?.url || first?.image_url;
+
+    if (!base64 && !url) {
+      return {
+        success: false,
+        images: [],
+        model,
+        error: 'Runway returned no image payload',
+      };
+    }
+
+    if (url && !base64) {
+      const imgResponse = await fetch(url);
+      const buffer = Buffer.from(await imgResponse.arrayBuffer());
+      return {
+        success: true,
+        images: [
+          {
+            base64Data: buffer.toString('base64'),
+            mimeType: imgResponse.headers.get('content-type') || 'image/png',
+          },
+        ],
+        model,
+      };
+    }
+
+    return {
+      success: true,
+      images: [
+        {
+          base64Data: base64 as string,
+          mimeType: 'image/png',
+        },
+      ],
+      model,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      images: [],
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 async function generateWithHuggingFace(
@@ -288,14 +398,17 @@ async function generateWithQwen(
 }
 
 function resolveDimensionsForStyle(style: IllustrationStyle) {
+  // Lower resolutions to reduce storage and cost
   switch (style) {
     case 'header':
-      return { width: 1920, height: 1080, aspectRatio: '16:9' as const };
+      return { width: 1280, height: 720, aspectRatio: '16:9' as const };
     case 'diagram':
-      return { width: 1600, height: 1200, aspectRatio: '4:3' as const };
+      return { width: 1200, height: 900, aspectRatio: '4:3' as const };
     case 'infographic':
-      return { width: 1536, height: 1024, aspectRatio: '3:2' as const };
+      return { width: 1024, height: 683, aspectRatio: '3:2' as const };
+    case 'schema':
+      return { width: 1200, height: 900, aspectRatio: '4:3' as const };
     default:
-      return { width: 1536, height: 864, aspectRatio: '16:9' as const };
+      return { width: 1024, height: 576, aspectRatio: '16:9' as const };
   }
 }
