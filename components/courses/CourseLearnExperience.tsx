@@ -57,14 +57,20 @@ export function CourseLearnExperience({
 	enrollmentId,
 	currentProgress,
 }: CourseLearnExperienceProps) {
+	const [hydrated, setHydrated] = useState(false);
 	const [bookMode, setBookMode] = useState(false);
 	const [indexOpen, setIndexOpen] = useState(false);
 	const [bookContent, setBookContent] = useState(() => (locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
 	const [isGeneratingBookContent, setIsGeneratingBookContent] = useState(false);
 	const [isCompletingBook, setIsCompletingBook] = useState(false);
+	const [localCompletion, setLocalCompletion] = useState<Record<string, boolean>>({});
 	const router = useRouter();
 	const { setBookMode: setGlobalBookMode } = useBookMode();
 	const { showToast } = useToast();
+
+	useEffect(() => {
+		setHydrated(true);
+	}, []);
 
 	// Sync local bookMode with global context (controls header/footer visibility)
 	useEffect(() => {
@@ -129,6 +135,9 @@ export function CourseLearnExperience({
 				completionMap[progress.module_id] = true;
 			}
 		});
+		Object.entries(localCompletion).forEach(([moduleId, done]) => {
+			if (done) completionMap[moduleId] = true;
+		});
 
 		const currentIndex = modules.findIndex((m) => m.id === currentModule.id);
 		const prevModule = currentIndex > 0 ? modules[currentIndex - 1] : null;
@@ -137,7 +146,7 @@ export function CourseLearnExperience({
 		const isNextLocked = nextModule ? (!nextModule.is_free && !completionMap[currentModule.id]) : false;
 
 		return { completionMap, currentIndex, prevModule, nextModule, completedCount, isNextLocked };
-	}, [currentModule.id, modules, userProgress]);
+	}, [currentModule.id, modules, userProgress, localCompletion]);
 
 	const { completionMap, currentIndex, prevModule, nextModule, completedCount, isNextLocked } = navigationState;
 	const progressPercent = modules.length ? Math.round((completedCount / modules.length) * 100) : 0;
@@ -201,8 +210,13 @@ export function CourseLearnExperience({
 				throw new Error(errorText || 'Failed to save progress');
 			}
 
+			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
 			showToast(locale === 'en' ? 'Module completed! +100 XP' : '¡Módulo completado! +100 XP', 'success');
-			router.refresh();
+			if (nextModule) {
+				handleNavigate(nextModule);
+			} else {
+				router.refresh();
+			}
 		} catch (error) {
 			console.error('[CourseLearnExperience] Failed to complete module from book view', error);
 			showToast(locale === 'en' ? 'Failed to save progress' : 'Error al guardar progreso', 'error');
@@ -236,6 +250,20 @@ export function CourseLearnExperience({
 		if (!isModuleAccessible(module, index)) return;
 		handleNavigate(module);
 	};
+
+	// Mirror server completion into local state to unlock navigation immediately
+	useEffect(() => {
+		if (currentProgress?.completed) {
+			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
+		}
+	}, [currentModule.id, currentProgress?.completed]);
+
+	// If server says module already completed, mirror it locally to avoid lock flickers
+	useEffect(() => {
+		if (currentProgress?.completed) {
+			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
+		}
+	}, [currentModule.id, currentProgress?.completed]);
 
 	const BookModeHUD = (
 		<div className="fixed bottom-6 right-4 sm:right-6 z-[95] flex flex-col items-end gap-3 px-4">
@@ -508,7 +536,7 @@ export function CourseLearnExperience({
 						{locale === 'en' ? 'Exit book mode' : 'Salir de modo libro'}
 					</button>
 				</div>
-				<div className="mx-auto max-w-6xl px-4 pb-16">
+				<div className="w-full pb-16">
 					<BookModuleView
 						content={resolvedBookContent}
 						title={localizedModuleTitle}
@@ -525,6 +553,7 @@ export function CourseLearnExperience({
 	) : null;
 
 	return (
+		!hydrated ? null :
 		<div
 			className="relative min-h-screen overflow-x-hidden"
 			style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
