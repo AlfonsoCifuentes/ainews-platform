@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ImageOff, RefreshCw, Sparkles } from 'lucide-react';
+import { ImageOff, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { useUser } from '@/lib/hooks/useUser';
@@ -18,6 +18,7 @@ interface ModuleHeaderIllustrationProps {
   className?: string;
   visualStyleOverride?: VisualStyle;
   frameless?: boolean;
+  fallbackImageUrl?: string | null;
 }
 
 interface IllustrationState {
@@ -34,6 +35,7 @@ export function ModuleHeaderIllustration({
   className = '',
   visualStyleOverride,
   frameless = false,
+  fallbackImageUrl,
 }: ModuleHeaderIllustrationProps) {
   const { profile } = useUser();
   const { slots: headerSlots, loading: slotsLoading, refresh } = useModuleVisualSlots(moduleId, locale, {
@@ -231,39 +233,57 @@ export function ModuleHeaderIllustration({
     .filter(Boolean)
     .join(' ');
 
+  // Determine which image to show: module illustration, fallback, or none
+  const displayImageUrl = state.imageUrl || fallbackImageUrl;
+
   return (
-    <div className={wrapperClassName}>
+    <div className={wrapperClassName} style={{ backgroundColor: '#020309' }}>
+      {/* Always show image if available (either module illustration or fallback) */}
+      {displayImageUrl && (
+        <div className="absolute inset-0">
+          <Image
+            src={displayImageUrl}
+            alt={moduleTitle}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 100vw"
+            priority
+          />
+        </div>
+      )}
+      
       <AnimatePresence mode="wait">
-        {state.loading && (
+        {state.loading && !displayImageUrl && (
           <motion.div
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-[#020309]"
+            className="absolute inset-0 flex flex-col items-center justify-center h-full min-h-[200px]"
+            style={{ backgroundColor: '#020309' }}
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-full border-3 border-white/20 border-t-white/60 animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto w-5 h-5 text-white/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
             </div>
-            <p className="mt-3 text-xs text-white/50 uppercase tracking-wider">
-              {locale === 'en' ? 'Generating illustration...' : 'Generando ilustración...'}
+            <p className="mt-3 text-xs text-white/40 uppercase tracking-wider">
+              {locale === 'en' ? 'Loading...' : 'Cargando...'}
             </p>
           </motion.div>
         )}
 
-        {state.error && !state.loading && (
+        {state.error && !state.loading && !displayImageUrl && (
           <motion.div
             key="error"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center h-full min-h-[200px] bg-[#020309]"
+            className="absolute inset-0 flex flex-col items-center justify-center h-full min-h-[200px]"
+            style={{ backgroundColor: '#020309' }}
           >
-            <ImageOff className="w-10 h-10 text-white/30 mb-3" />
+            <ImageOff className="w-10 h-10 text-white/20 mb-3" />
             <button
               onClick={handleRetry}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/60 text-sm hover:bg-white/20 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/50 text-sm hover:bg-white/20 transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
               {locale === 'en' ? 'Retry' : 'Reintentar'}
@@ -271,32 +291,6 @@ export function ModuleHeaderIllustration({
           </motion.div>
         )}
 
-        {state.imageUrl && !state.loading && (
-          <motion.div
-            key="image"
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative w-full h-full min-h-[200px]"
-          >
-            <Image
-              src={state.imageUrl}
-              alt={moduleTitle}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 400px"
-              unoptimized // Since it's a data URL
-            />
-            {/* Overlay gradient for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-            
-            {/* AI Generated badge */}
-            <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm text-[10px] text-white/70">
-              <Sparkles className="w-3 h-3" />
-              <span>AI Generated</span>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );

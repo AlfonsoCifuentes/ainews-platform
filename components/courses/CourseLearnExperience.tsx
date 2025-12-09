@@ -357,7 +357,8 @@ export function CourseLearnExperience({
 						moduleTitle={localizedModuleTitle}
 						locale={locale}
 						frameless
-						className="h-full w-full object-cover"
+						fallbackImageUrl={course.thumbnail_url}
+						className="h-full w-full"
 					/>
 				</div>
 				{/* Dark gradient overlay for text readability */}
