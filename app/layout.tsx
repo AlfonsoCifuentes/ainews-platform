@@ -46,10 +46,6 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none fixed inset-0 crt-scanlines"
-          aria-hidden="true"
-        />
-        <div
           className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-40"
           aria-hidden="true"
         />

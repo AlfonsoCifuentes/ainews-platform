@@ -180,11 +180,7 @@
 
 /* Glassmorphism utilities - simplified brutalist version */
 .glass {
-  @apply backdrop-blur-lg border border-white/5 bg-[#0A0A0A]/60 transition-all duration-300;
-}
-
-.glass:hover {
-  @apply border-white/10 bg-[#0A0A0A]/80;
+  @apply backdrop-blur-lg border border-white/5 bg-[#0A0A0A]/60;
 }
 
 .glass-dark {

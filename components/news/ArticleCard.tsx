@@ -1,12 +1,11 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import Image from 'next/image';
 import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
-import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
@@ -38,17 +37,18 @@ export function ArticleCard({
   );
 
   return (
-    <motion.article
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505] transition-all duration-300"
+    <article
+      className="relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505]"
     >
-      {/* Image with Glitch Effect */}
       <div className="relative h-48 w-full overflow-hidden">
-        <CCTVGlitchImage
+        <Image
           src={imageUrl}
           alt={title}
+          fill
           priority={priority}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           unoptimized={imageUrl.startsWith('data:')}
+          className="object-cover"
         />
 
         {/* Category + Time badge */}
@@ -62,7 +62,7 @@ export function ArticleCard({
 
       {/* Content */}
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <h3 className="text-xl font-semibold leading-tight text-white transition-colors">
+        <h3 className="text-xl font-semibold leading-tight text-white">
           {title}
         </h3>
 
@@ -91,7 +91,7 @@ export function ArticleCard({
             href={article.source_url || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-white tracking-[0.12em] uppercase text-xs border-b border-transparent hover:border-white"
+            className="font-semibold text-white tracking-[0.12em] uppercase text-xs border-b border-white/30"
             onClick={(e) => {
               if (!article.source_url) {
                 e.preventDefault();
@@ -102,6 +102,6 @@ export function ArticleCard({
           </a>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
