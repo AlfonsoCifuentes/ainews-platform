@@ -343,6 +343,7 @@ export function TextbookView({
   const gallerySlots = useMemo(() => supportingSlots.slice(0, 4), [supportingSlots]);
   const canRenderVisualGallery = Boolean(moduleId && gallerySlots.length > 0);
   const bookRef = useRef<HTMLDivElement>(null);
+  const pageScrollRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const t = useMemo(() => locale === 'en' ? {
     chapter: 'Chapter', of: 'of', page: 'Page',
@@ -413,6 +414,18 @@ export function TextbookView({
     setTableOfContents(toc);
   }, [content]);
 
+  const scrollPagesBy = useCallback((delta: number) => {
+    const targets: Array<HTMLDivElement | null | undefined> = [];
+    targets.push(pageScrollRefs.current.get(currentPage));
+    if (isTwoPageView) targets.push(pageScrollRefs.current.get(currentPage + 1));
+    targets.forEach((el) => el?.scrollBy({ top: delta, behavior: 'smooth' }));
+  }, [currentPage, isTwoPageView]);
+
+  const setPageRef = useCallback((pageNumber: number) => (el: HTMLDivElement | null) => {
+    if (el) pageScrollRefs.current.set(pageNumber, el);
+    else pageScrollRefs.current.delete(pageNumber);
+  }, []);
+
   // Keyboard nav
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -422,6 +435,12 @@ export function TextbookView({
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         setCurrentPage(prev => Math.max(1, prev - (isTwoPageView ? 2 : 1)));
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        scrollPagesBy(220);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        scrollPagesBy(-220);
       } else if (e.key === 'Escape') {
         setIsFullscreen(false); setShowToc(false); setShowSettings(false); setShowSearch(false);
       } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
@@ -431,7 +450,7 @@ export function TextbookView({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTwoPageView, pages.length]);
+  }, [isTwoPageView, pages.length, scrollPagesBy]);
 
   useEffect(() => {
     if (isFullscreen && bookRef.current) bookRef.current.requestFullscreen?.();
@@ -475,24 +494,14 @@ export function TextbookView({
 
   const renderPage = (page: TextbookPage, isLeft: boolean) => (
     <div
-      className={`relative flex-1 h-full overflow-hidden ${isLeft && isTwoPageView ? 'border-r border-white/5' : ''}`}
+      className={`relative flex-1 h-full ${isLeft && isTwoPageView ? 'border-r border-white/5' : ''}`}
       style={{ fontSize: `${fontSize}px` }}
     >
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(72,163,255,0.05),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(59,161,255,0.06),transparent_32%)]" />
-        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-      </div>
-
-      <div className="relative m-4 h-[calc(100%-2rem)] overflow-hidden rounded-[28px] border border-white/10 bg-[#0a0d14] shadow-[0_25px_90px_-50px_rgba(0,0,0,0.9)]">
+      <div className="relative m-4 h-[calc(100%-2rem)] rounded-[28px] border border-white/10 bg-[#0a0d14] shadow-[0_25px_90px_-50px_rgba(0,0,0,0.9)] overflow-hidden">
         <div
-          className="absolute inset-0 pointer-events-none opacity-60"
-          style={{
-            background:
-              'repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 6px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 32px)',
-          }}
-        />
-
-        <div className={`relative px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-5 md:pl-10' : 'pr-5 md:pr-10'}`}>
+          ref={setPageRef(page.pageNumber)}
+          className={`relative h-full overflow-y-auto scroll-smooth px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-5 md:pl-10' : 'pr-5 md:pr-10'}`}
+        >
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 mb-6 font-mono">
             <span>{t.chapter} {moduleNumber}</span>
             <span className="truncate max-w-[45%] text-right">{title}</span>
@@ -510,13 +519,13 @@ export function TextbookView({
             </div>
           )}
 
-          <div className="space-y-6 text-white">
+          <div className="space-y-6 text-white pb-6">
             {page.content.map((block, i) => (
               <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />
             ))}
           </div>
 
-          <div className="mt-10 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">
+          <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">
             <span>{page.section || title}</span>
             <span className="font-semibold text-white/80">{page.pageNumber}</span>
           </div>
@@ -579,7 +588,7 @@ export function TextbookView({
 
       <div
         ref={bookRef}
-        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-[#05060c] bg-[radial-gradient(circle_at_15%_20%,rgba(72,163,255,0.08),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(24,119,255,0.06),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(72,163,255,0.04),transparent_35%)] ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-[32px] overflow-hidden shadow-[0_40px_120px_-60px_rgba(0,0,0,0.8)] border border-white/10'}`}
+        className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-[32px] overflow-hidden shadow-[0_40px_120px_-60px_rgba(0,0,0,0.8)] border border-white/10'}`}
       >
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-30 h-11 flex items-center justify-between px-3 bg-[#0b0f19]/90 backdrop-blur-md border-b border-white/10 text-white">
