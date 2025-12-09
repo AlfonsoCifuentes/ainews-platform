@@ -41,22 +41,31 @@ export default async function CourseDetailPage({
 
   // Fetch course details
   console.log('Fetching course with ID:', id, 'for locale:', locale);
-  const [courseResult, coverResult] = await Promise.all([
+  const [courseResult, coverResult, fallbackCoverResult] = await Promise.all([
     db.from('courses')
       .select(`*, course_modules (*)`)
       .eq('id', id)
       .single(),
+    // Try to get cover for current locale first
     db.from('course_covers')
       .select('image_url')
       .eq('course_id', id)
       .eq('locale', locale)
       .order('created_at', { ascending: false })
       .limit(1)
+      .maybeSingle(),
+    // Fallback: get any cover for this course
+    db.from('course_covers')
+      .select('image_url')
+      .eq('course_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
   ]);
 
   const { data: rawCourse, error } = courseResult;
-  const coverUrl = coverResult.data?.image_url;
+  // Use locale-specific cover if available, otherwise fallback to any cover
+  const coverUrl = coverResult.data?.image_url || fallbackCoverResult.data?.image_url;
 
   console.log('Course query result:', { course: !!rawCourse, error, hasCover: !!coverUrl });
 
