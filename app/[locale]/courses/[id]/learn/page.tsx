@@ -57,7 +57,31 @@ export default async function CourseLearnPage({
     moduleCount: rawCourse.course_modules?.length || 0
   });
 
+  // Fetch course cover for current locale, fallback to any locale
+  console.log('🖼️ Fetching course cover...');
+  const { data: coverForLocale } = await db
+    .from('course_covers')
+    .select('image_url')
+    .eq('course_id', id)
+    .eq('locale', locale)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: coverAnyLocale } = await db
+    .from('course_covers')
+    .select('image_url')
+    .eq('course_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const course = normalizeCourseRecord(rawCourse);
+  const thumbnailUrl =
+    course.thumbnail_url ||
+    coverForLocale?.image_url ||
+    coverAnyLocale?.image_url ||
+    null;
   const sortedModules = course.course_modules;
   
   // Get current module (first module if not specified)
@@ -211,7 +235,7 @@ export default async function CourseLearnPage({
       course={{
         title_en: course.title_en,
         title_es: course.title_es,
-        thumbnail_url: course.thumbnail_url ?? null,
+        thumbnail_url: thumbnailUrl,
       }}
       modules={sortedModules}
       currentModule={currentModule}
