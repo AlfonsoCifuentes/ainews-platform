@@ -203,12 +203,12 @@ export default async function CourseDetailPage({
               src={course.thumbnail_url}
               alt={title}
               fill
-              className="object-cover opacity-30"
+              className="object-cover opacity-80"
               priority
             />
             {/* Gradient overlays for readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#020309] via-[#020309]/90 to-[#020309]/70" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#020309] via-transparent to-[#020309]/50" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#020309]/60 via-[#020309]/35 to-[#020309]/15" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020309]/30 via-transparent to-[#020309]/10" />
           </div>
         )}
         

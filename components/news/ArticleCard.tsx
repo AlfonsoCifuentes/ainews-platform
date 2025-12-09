@@ -38,7 +38,7 @@ export function ArticleCard({
 
   return (
     <article
-      className="relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505]"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/12 bg-[#050505]"
     >
       <div className="relative h-48 w-full overflow-hidden">
         <Image
@@ -48,7 +48,24 @@ export function ArticleCard({
           priority={priority}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           unoptimized={imageUrl.startsWith('data:')}
-          className="object-cover"
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02] group-hover:rotate-0.25"
+        />
+
+        {/* Old-TV hover interference */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-60"
+          style={{
+            mixBlendMode: 'screen',
+            backgroundImage: `
+              repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 3px),
+              repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 4px),
+              radial-gradient(circle at 10% 20%, rgba(255,255,255,0.08) 0 10%, transparent 20%),
+              radial-gradient(circle at 80% 0%, rgba(0,150,255,0.12) 0 14%, transparent 26%)
+            `,
+            backgroundSize: '120% 100%, 100% 120%, 120% 120%, 140% 140%',
+            animation: 'tvNoise 1.2s steps(6) infinite, tvShift 3s ease-in-out infinite',
+          }}
         />
 
         {/* Category + Time badge */}
@@ -102,6 +119,23 @@ export function ArticleCard({
           </a>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes tvNoise {
+          0% { background-position: 0 0, 0 0, 0 0, 0 0; filter: hue-rotate(0deg) contrast(1); }
+          25% { background-position: 5% 10%, 0 2%, 10% 5%, -4% 3%; filter: hue-rotate(3deg) contrast(1.05); }
+          50% { background-position: -6% -8%, 0 -3%, -8% -6%, 6% -4%; filter: hue-rotate(-2deg) contrast(1.08); }
+          75% { background-position: 3% -4%, 0 1%, 6% -2%, -2% 5%; filter: hue-rotate(2deg) contrast(1.02); }
+          100% { background-position: 0 0, 0 0, 0 0, 0 0; filter: hue-rotate(0deg) contrast(1); }
+        }
+
+        @keyframes tvShift {
+          0% { transform: translate3d(0, 0, 0) skewX(0deg); }
+          35% { transform: translate3d(0, -1px, 0) skewX(-0.2deg); }
+          60% { transform: translate3d(0, 1px, 0) skewX(0.25deg); }
+          100% { transform: translate3d(0, 0, 0) skewX(0deg); }
+        }
+      `}</style>
     </article>
   );
 }
