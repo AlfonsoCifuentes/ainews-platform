@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { createClient } from '@/lib/db/supabase-server';
+import { OPENAI_MODELS } from '@/lib/ai/model-versions';
 
 const GenerateSchema = z.object({
   contentId: z.string().uuid(),
@@ -13,14 +14,23 @@ const GenerateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON body' },
+        { status: 400 },
+      );
+    }
+
     const { contentId, contentType, locale, voice } = GenerateSchema.parse(body);
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: 'OPENAI_API_KEY is not configured' },
-        { status: 500 }
+        { status: 503 }
       );
     }
 
@@ -43,11 +53,15 @@ export async function POST(req: NextRequest) {
     // Fetch content
     let text = '';
     if (contentType === 'article') {
-      const { data: article } = await supabase
+      const { data: article, error: articleError } = await supabase
         .from('news_articles')
         .select('title_en, title_es, content_en, content_es')
         .eq('id', contentId)
-        .single();
+        .maybeSingle();
+
+      if (articleError) {
+        console.warn('[tts] Article fetch failed', articleError.message);
+      }
 
       if (article) {
         const title = locale === 'en' ? article.title_en : article.title_es;
@@ -55,11 +69,15 @@ export async function POST(req: NextRequest) {
         text = `${title}\n\n${content}`;
       }
     } else {
-      const { data: course } = await supabase
+      const { data: course, error: courseError } = await supabase
         .from('courses')
         .select('title_en, title_es, description_en, description_es')
         .eq('id', contentId)
-        .single();
+        .maybeSingle();
+
+      if (courseError) {
+        console.warn('[tts] Course fetch failed', courseError.message);
+      }
 
       if (course) {
         const title = locale === 'en' ? course.title_en : course.title_es;
@@ -87,11 +105,25 @@ export async function POST(req: NextRequest) {
       shimmer: 'shimmer',
     };
 
-    const speech = await openai.audio.speech.create({
-      model: 'gpt-4o-mini-tts',
-      voice: voiceMap[voice] ?? 'alloy',
-      input,
-    });
+    const model = process.env.OPENAI_TTS_MODEL || OPENAI_MODELS.GPT_5_1;
+
+    const speech = await (async () => {
+      try {
+        return await openai.audio.speech.create({
+          model,
+          voice: voiceMap[voice] ?? 'alloy',
+          input,
+        });
+      } catch (ttsError) {
+        console.warn('[tts] OpenAI TTS generation failed', ttsError);
+        return NextResponse.json(
+          { error: 'TTS generation failed' },
+          { status: 502 }
+        );
+      }
+    })();
+
+    if (speech instanceof NextResponse) return speech;
 
     const audioBuffer = Buffer.from(await speech.arrayBuffer());
 
@@ -111,7 +143,11 @@ export async function POST(req: NextRequest) {
         console.warn('[tts] Storage upload failed, using data URL fallback', uploadError.message);
       } else {
         const { data: publicUrlData } = supabase.storage.from('audio').getPublicUrl(fileName);
-        audioUrl = publicUrlData.publicUrl;
+        if (publicUrlData?.publicUrl) {
+          audioUrl = publicUrlData.publicUrl;
+        } else {
+          console.warn('[tts] Public URL generation missing, using data URL fallback');
+        }
       }
     } catch (storageError) {
       console.warn('[tts] Storage error, using data URL fallback', storageError);
@@ -122,7 +158,7 @@ export async function POST(req: NextRequest) {
       audioUrl = `data:audio/mpeg;base64,${base64}`;
     }
 
-    await supabase.from('audio_files').upsert({
+    const { error: upsertError } = await supabase.from('audio_files').upsert({
       content_id: contentId,
       content_type: contentType,
       locale,
@@ -131,6 +167,9 @@ export async function POST(req: NextRequest) {
       duration_seconds: Math.round((speech as { duration?: number }).duration ?? 0),
       created_at: new Date().toISOString(),
     });
+    if (upsertError) {
+      console.warn('[tts] Upsert audio_files failed', upsertError.message);
+    }
 
     return NextResponse.json({ audioUrl });
   } catch (error) {
@@ -140,6 +179,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    console.error('[tts] Unhandled error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
