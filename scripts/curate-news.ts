@@ -119,6 +119,7 @@ const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
 const IMAGE_RETRY_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
 const IMAGE_RETRY_BATCH_LIMIT = 12;
+const REWRITE_MAX_CHARS = 5200;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -158,6 +159,51 @@ function cleanContent(html: string | undefined | null): string {
 	cleaned = cleaned.replace(/\+\s*Noticias[\s\S]*?$/i, '');
 	
 	return cleaned.trim();
+}
+
+const ArticleRewriteSchema = z.object({
+	title: z.string().min(8).max(180),
+	summary: z.string().min(60).max(520),
+	content: z.string().min(200).max(3200),
+});
+
+type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
+
+function truncateForRewrite(text: string, maxChars: number = REWRITE_MAX_CHARS): string {
+	if (text.length <= maxChars) return text;
+
+	const truncated = text.slice(0, maxChars);
+	const lastSentence = truncated.lastIndexOf('.');
+	if (lastSentence > maxChars * 0.75) {
+		return truncated.slice(0, lastSentence + 1).trim();
+	}
+
+	return truncated.trim();
+}
+
+async function rewriteArticleContent(
+	title: string,
+	summary: string,
+	content: string,
+	language: 'en' | 'es',
+	llmClient: LLMClient,
+): Promise<ArticleRewrite | null> {
+	const workingContent = truncateForRewrite(content);
+
+	const systemPrompt = `You are a concise, trustworthy AI news editor. You rewrite articles into a confident, warm expert voice that feels helpful and personable. NEVER name or impersonate specific people or brands. Keep facts, figures, links, and quotes faithful. Avoid hype, clickbait, and speculation. Write in ${language === 'en' ? 'English' : 'Spanish'} only.`;
+
+	const prompt = `Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'} with a friendly expert tone. Goals: (1) keep it factual, (2) add a quick "why it matters" feel, (3) avoid first-person unless clarifying. Keep paragraphs short (2-4 sentences). Return ONLY JSON with keys title, summary, content.
+
+Original title: ${title}
+Original summary: ${summary}
+Original content: ${workingContent}`;
+
+	try {
+		return await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);
+	} catch (error) {
+		console.warn('[LLM Rewrite] Failed to rewrite article:', error instanceof Error ? error.message : error);
+		return null;
+	}
 }
 
 function sanitizeSummary(summary: string): string {
@@ -579,11 +625,12 @@ async function updateQueueEntryFailure(
 async function determineBilingualContent(
 	entry: ClassifiedArticleRecord,
 	imageData: ResolvedImageData,
+	llm: LLMClient,
 ): Promise<{
 	originalLanguage: 'en' | 'es';
-	contentOriginal: string;
-	summaryOriginal: string;
-	titleOriginal: string;
+	contentPrimary: string;
+	summaryPrimary: string;
+	titlePrimary: string;
 	translation?: ArticleTranslation;
 	altTextEn: string;
 	altTextEs: string;
@@ -599,14 +646,27 @@ async function determineBilingualContent(
 		}
 	}
 
+	let titlePrimary = entry.article.title;
+	let summaryPrimary = summaryOriginal;
+	let contentPrimary = contentOriginal;
+
+	const rewrite = await rewriteArticleContent(titlePrimary, summaryPrimary, contentPrimary, originalLanguage, llm);
+	if (rewrite) {
+		titlePrimary = rewrite.title;
+		summaryPrimary = rewrite.summary;
+		contentPrimary = rewrite.content;
+		entry.translation = undefined;
+		entry.translationLanguage = undefined;
+	}
+
 	const translationTarget: 'en' | 'es' = originalLanguage === 'en' ? 'es' : 'en';
 	let translation = entry.translation;
 	if (!translation || entry.translationLanguage !== translationTarget) {
 		try {
 			translation = await translateArticle(
-				entry.article.title,
-				summaryOriginal,
-				contentOriginal,
+				titlePrimary,
+				summaryPrimary,
+				contentPrimary,
 				originalLanguage,
 				translationTarget,
 			);
@@ -634,9 +694,9 @@ async function determineBilingualContent(
 
 	return {
 		originalLanguage,
-		contentOriginal,
-		summaryOriginal,
-		titleOriginal: entry.article.title,
+		contentPrimary,
+		summaryPrimary,
+		titlePrimary,
 		translation,
 		altTextEn,
 		altTextEs,
@@ -648,9 +708,9 @@ async function persistArticle(
 	imageData: ResolvedImageData,
 	bilingual: {
 		originalLanguage: 'en' | 'es';
-		contentOriginal: string;
-		summaryOriginal: string;
-		titleOriginal: string;
+		contentPrimary: string;
+		summaryPrimary: string;
+		titlePrimary: string;
 		translation?: ArticleTranslation;
 		altTextEn: string;
 		altTextEs: string;
@@ -658,13 +718,13 @@ async function persistArticle(
 	db: SupabaseClient,
 ): Promise<ArticleProcessingResult> {
 	try {
-		const { originalLanguage, contentOriginal, summaryOriginal, translation, altTextEn, altTextEs } = bilingual;
-		const titleEn = originalLanguage === 'en' ? entry.article.title : translation?.title || entry.article.title;
-		const titleEs = originalLanguage === 'es' ? entry.article.title : translation?.title || entry.article.title;
-		const summaryEn = originalLanguage === 'en' ? summaryOriginal : translation?.summary || summaryOriginal;
-		const summaryEs = originalLanguage === 'es' ? summaryOriginal : translation?.summary || summaryOriginal;
-		const contentEn = originalLanguage === 'en' ? contentOriginal : translation?.content || contentOriginal;
-		const contentEs = originalLanguage === 'es' ? contentOriginal : translation?.content || contentOriginal;
+		const { originalLanguage, contentPrimary, summaryPrimary, titlePrimary, translation, altTextEn, altTextEs } = bilingual;
+		const titleEn = originalLanguage === 'en' ? titlePrimary : translation?.title || titlePrimary;
+		const titleEs = originalLanguage === 'es' ? titlePrimary : translation?.title || titlePrimary;
+		const summaryEn = originalLanguage === 'en' ? summaryPrimary : translation?.summary || summaryPrimary;
+		const summaryEs = originalLanguage === 'es' ? summaryPrimary : translation?.summary || summaryPrimary;
+		const contentEn = originalLanguage === 'en' ? contentPrimary : translation?.content || contentPrimary;
+		const contentEs = originalLanguage === 'es' ? contentPrimary : translation?.content || contentPrimary;
 
 		const baseTags = new Set<string>([
 			entry.classification.category,
@@ -685,7 +745,7 @@ async function persistArticle(
 			source_url: entry.article.link,
 			image_url: imageData.url,
 			published_at: new Date(entry.article.pubDate).toISOString(),
-			ai_generated: false,
+			ai_generated: true,
 			quality_score: entry.classification.quality_score,
 			reading_time_minutes: Math.max(1, Math.ceil(contentEn.split(' ').length / 200)),
 			image_width: imageData.validation.width ?? null,
@@ -749,7 +809,7 @@ async function persistArticle(
 	}
 }
 
-async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient): Promise<ArticleProcessingResult> {
+async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient, llm: LLMClient): Promise<ArticleProcessingResult> {
 	let imageData: ResolvedImageData | null = entry.cachedImage ?? null;
 	let attempt = 0;
 
@@ -773,11 +833,11 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 
 	entry.cachedImage = imageData;
 
-	const bilingual = await determineBilingualContent(entry, imageData);
+	const bilingual = await determineBilingualContent(entry, imageData, llm);
 	return persistArticle(entry, imageData, bilingual, db);
 }
 
-async function processImageRetryQueue(db: SupabaseClient): Promise<void> {
+async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promise<void> {
 	if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 		return;
 	}
@@ -820,7 +880,7 @@ async function processImageRetryQueue(db: SupabaseClient): Promise<void> {
 			queueAttempts: item.attempts ?? 0,
 		};
 
-		const result = await processArticle(entry, db);
+		const result = await processArticle(entry, db, llm);
 
 		if (result.success) {
 			successIds.push(item.id);
@@ -838,7 +898,6 @@ async function main(): Promise<void> {
 	console.log('[News Curator] Starting curation workflow...');
 	const db = getSupabaseServerClient();
 	await initializeImageHashCache();
-	await processImageRetryQueue(db);
 
 	let llm: LLMClient;
 	try {
@@ -847,6 +906,8 @@ async function main(): Promise<void> {
 		console.error('[LLM] Failed to initialize:', error);
 		return;
 	}
+
+	await processImageRetryQueue(db, llm);
 
 	const articles = await fetchRSSFeeds();
 	if (articles.length === 0) {
@@ -871,7 +932,7 @@ async function main(): Promise<void> {
 	let skipped = 0;
 
 	for (const entry of freshEntries) {
-		const result = await processArticle(entry, db);
+		const result = await processArticle(entry, db, llm);
 		if (result.success) {
 			stored += 1;
 			if (entry.queueId) {
@@ -886,7 +947,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	await processImageRetryQueue(db);
+	await processImageRetryQueue(db, llm);
 
 	console.log(
 		`[News Curator] Completed. Stored: ${stored}, queued for retry: ${queued}, skipped: ${skipped}`,
