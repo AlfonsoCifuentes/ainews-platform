@@ -69,7 +69,8 @@ export async function GET(req: NextRequest) {
         view_count,
         status,
         created_at,
-        published_at
+        published_at,
+        thumbnail_url
       `);
     
     // Apply filters

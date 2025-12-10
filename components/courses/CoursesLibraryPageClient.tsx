@@ -24,6 +24,7 @@ interface Course {
   modules_count?: number;
   rating?: number;
   popularity?: number;
+  thumbnail_url?: string | null;
 }
 
 interface CoursesLibraryPageClientProps {

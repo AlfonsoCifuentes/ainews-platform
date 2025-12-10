@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
           category,
           difficulty,
           estimated_hours,
-          created_at
+          created_at,
+          thumbnail_url
         )
       `)
       .eq('user_id', user.id);
