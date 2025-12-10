@@ -49,7 +49,7 @@ export function ModuleIllustration({
   const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
   const [autoAttempts, setAutoAttempts] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const maxAutoAttempts = autoGenerate ? 1 : 0;
+  const maxAutoAttempts = autoGenerate ? 2 : 0;
 
   const slotSuggestedStyle = slot?.suggestedVisualStyle;
 

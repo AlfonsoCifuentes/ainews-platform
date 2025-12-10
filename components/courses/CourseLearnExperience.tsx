@@ -192,26 +192,32 @@ export function CourseLearnExperience({
 	const localizedBookContent = bookContent || '';
 
 	const handleBookComplete = async () => {
-		if (currentProgress?.completed || isCompletingBook) {
-			return;
-		}
+		if (isCompletingBook) return;
 
 		setIsCompletingBook(true);
-		try {
-			const res = await fetch('/api/courses/progress', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ courseId, moduleId: currentModule.id, completed: true, timeSpent: 0 }),
-				credentials: 'include',
-			});
+		const alreadyCompleted = !!currentProgress?.completed;
 
-			if (!res.ok) {
-				const errorText = await res.text();
-				throw new Error(errorText || 'Failed to save progress');
+		try {
+			if (!alreadyCompleted) {
+				const res = await fetch('/api/courses/progress', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ courseId, moduleId: currentModule.id, completed: true, timeSpent: 0 }),
+					credentials: 'include',
+				});
+
+				if (!res.ok) {
+					const errorText = await res.text();
+					throw new Error(errorText || 'Failed to save progress');
+				}
 			}
 
 			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
-			showToast(locale === 'en' ? 'Module completed! +100 XP' : '¡Módulo completado! +100 XP', 'success');
+
+			if (!alreadyCompleted) {
+				showToast(locale === 'en' ? 'Module completed! +100 XP' : '¡Módulo completado! +100 XP', 'success');
+			}
+
 			if (nextModule) {
 				handleNavigate(nextModule);
 			} else {
@@ -252,13 +258,6 @@ export function CourseLearnExperience({
 	};
 
 	// Mirror server completion into local state to unlock navigation immediately
-	useEffect(() => {
-		if (currentProgress?.completed) {
-			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
-		}
-	}, [currentModule.id, currentProgress?.completed]);
-
-	// If server says module already completed, mirror it locally to avoid lock flickers
 	useEffect(() => {
 		if (currentProgress?.completed) {
 			setLocalCompletion((prev) => ({ ...prev, [currentModule.id]: true }));
