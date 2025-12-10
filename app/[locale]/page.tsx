@@ -86,8 +86,8 @@ export default async function HomePage({ params }: HomePageProps) {
         headline={t('hero.title')}
         subheadline={t('hero.subtitle')}
         stats={heroStats}
-        primaryCta={{ label: t('hero.cta'), href: `/${locale}/news` }}
-        secondaryCta={{ label: t('hero.ctaSecondary'), href: `/${locale}/courses` }}
+        primaryCta={{ label: t('hero.cta'), href: '/news' }}
+        secondaryCta={{ label: t('hero.ctaSecondary'), href: '/courses' }}
       />
 
       {/* Today's Digest */}
@@ -125,11 +125,11 @@ export default async function HomePage({ params }: HomePageProps) {
         }
         primaryCta={{
           label: locale === 'en' ? 'Start Learning Free' : 'Comienza Gratis',
-          href: `/${locale}/courses`,
+          href: '/courses',
         }}
         secondaryCta={{
           label: locale === 'en' ? 'Explore News' : 'Explorar Noticias',
-          href: `/${locale}/news`,
+          href: '/news',
         }}
         locale={locale}
       />
