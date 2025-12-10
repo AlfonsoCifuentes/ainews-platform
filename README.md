@@ -75,6 +75,11 @@
 - **JWT Tokens** — Secure API authentication
 - **Rate Limiting** — Protection against abuse
 
+#### Secret hygiene (CI)
+- Run `scripts/run-gitleaks.sh` locally or use the `Repository Secret Scan (gitleaks)` GitHub Action (push/PR/manual) to scan working tree and full history.
+- If any secret is found: revoke/rotate at the provider immediately, then clean history (example helper: `scripts/remove-secrets-git-filter-repo.sh`) and force-push rewritten history; have all collaborators reclone.
+- Do not commit `.env*` files—already ignored. Store deployment secrets in GitHub/Vercel secrets.
+
 ### 📊 **Analytics & Insights**
 - **User Behavior** — Reading patterns and engagement metrics
 - **Content Performance** — Article popularity and effectiveness

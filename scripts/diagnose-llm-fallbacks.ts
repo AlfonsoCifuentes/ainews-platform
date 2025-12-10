@@ -52,24 +52,21 @@ console.log('\n2️⃣  CLOUD PROVIDERS (API Keys)');
 console.log('─'.repeat(60));
 
 const providers = [
-  { name: 'Anthropic Claude', env: 'ANTHROPIC_API_KEY', prefix: 'sk-ant-' },
-  { name: 'Groq', env: 'GROQ_API_KEY', prefix: 'gsk_' },
-  { name: 'Google Gemini', env: 'GEMINI_API_KEY', prefix: 'AIza' },
-  { name: 'DeepSeek', env: 'DEEPSEEK_API_KEY', prefix: 'sk-' },
-  { name: 'Mistral AI', env: 'MISTRAL_API_KEY', prefix: '' },
-  { name: 'OpenRouter', env: 'OPENROUTER_API_KEY', prefix: 'sk-or-' },
-  { name: 'Together AI', env: 'TOGETHER_API_KEY', prefix: '' },
+  { name: 'Anthropic Claude', env: 'ANTHROPIC_API_KEY' },
+  { name: 'Groq', env: 'GROQ_API_KEY' },
+  { name: 'Google Gemini', env: 'GEMINI_API_KEY' },
+  { name: 'DeepSeek', env: 'DEEPSEEK_API_KEY' },
+  { name: 'Mistral AI', env: 'MISTRAL_API_KEY' },
+  { name: 'OpenRouter', env: 'OPENROUTER_API_KEY' },
+  { name: 'Together AI', env: 'TOGETHER_API_KEY' },
 ];
 
 let _configuredCount = 0;
 
-providers.forEach(({ name, env, prefix }) => {
+providers.forEach(({ name, env }) => {
   const apiKey = process.env[env];
   if (apiKey) {
-    const preview = prefix 
-      ? `${prefix}...${apiKey.slice(-4)}`
-      : `${apiKey.substring(0, 10)}...${apiKey.slice(-4)}`;
-    console.log(`   ✅ ${name.padEnd(20)} ${preview}`);
+    console.log(`   ✅ ${name.padEnd(20)} Configured`);
     _configuredCount++;
   } else {
     console.log(`   ❌ ${name.padEnd(20)} Not configured`);

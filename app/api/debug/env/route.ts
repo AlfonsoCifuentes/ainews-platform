@@ -12,15 +12,6 @@ export async function GET() {
       hasMistral: !!process.env.MISTRAL_API_KEY,
       nodeEnv: process.env.NODE_ENV,
       vercelEnv: process.env.VERCEL_ENV,
-    },
-    keys: {
-      anthropic: process.env.ANTHROPIC_API_KEY?.substring(0, 10) + '...',
-      gemini: process.env.GEMINI_API_KEY?.substring(0, 10) + '...',
-      openRouter: process.env.OPENROUTER_API_KEY?.substring(0, 10) + '...',
-      groq: process.env.GROQ_API_KEY?.substring(0, 10) + '...',
-      together: process.env.TOGETHER_API_KEY?.substring(0, 10) + '...',
-      deepSeek: process.env.DEEPSEEK_API_KEY?.substring(0, 10) + '...',
-      mistral: process.env.MISTRAL_API_KEY?.substring(0, 10) + '...',
     }
   });
 }
