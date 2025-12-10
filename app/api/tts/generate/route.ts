@@ -1,5 +1,7 @@
+import { Buffer } from 'node:buffer';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import OpenAI from 'openai';
 import { createClient } from '@/lib/db/supabase-server';
 
 const GenerateSchema = z.object({
@@ -14,6 +16,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { contentId, contentType, locale, voice } = GenerateSchema.parse(body);
 
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'OPENAI_API_KEY is not configured' },
+        { status: 500 }
+      );
+    }
+
+    const openai = new OpenAI({ apiKey });
     const supabase = await createClient();
 
     // Check if audio already exists
@@ -64,50 +75,60 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate audio using OpenAI TTS (or alternative)
-    // For now, we'll use a placeholder implementation
-    // In production, you would call OpenAI TTS API or ElevenLabs
-    
-    // PLACEHOLDER: In real implementation, call OpenAI TTS:
-    // const response = await fetch('https://api.openai.com/v1/audio/speech', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'tts-1',
-    //     voice: voice === 'default' ? 'alloy' : voice,
-    //     input: text.slice(0, 4096), // TTS has character limits
-    //   }),
-    // });
-    // 
-    // const audioBuffer = await response.arrayBuffer();
-    // 
-    // // Upload to Supabase Storage
-    // const fileName = `audio/${contentId}-${locale}-${voice}.mp3`;
-    // const { data: upload, error: uploadError } = await supabase.storage
-    //   .from('audio')
-    //   .upload(fileName, audioBuffer, {
-    //     contentType: 'audio/mpeg',
-    //     upsert: true,
-    //   });
-    //
-    // const { data: { publicUrl } } = supabase.storage
-    //   .from('audio')
-    //   .getPublicUrl(fileName);
+    // Generate audio using OpenAI TTS (streamed)
+    const input = text.slice(0, 4800);
+    const voiceMap: Record<string, string> = {
+      default: 'alloy',
+      alloy: 'alloy',
+      echo: 'echo',
+      fable: 'fable',
+      onyx: 'onyx',
+      nova: 'nova',
+      shimmer: 'shimmer',
+    };
 
-    // For demo purposes, return a placeholder
-    const audioUrl = `https://demo.thotnetcore.com/audio/${contentId}.mp3`;
+    const speech = await openai.audio.speech.create({
+      model: 'gpt-4o-mini-tts',
+      voice: voiceMap[voice] ?? 'alloy',
+      input,
+    });
 
-    // Store in database
-    await supabase.from('audio_files').insert({
+    const audioBuffer = Buffer.from(await speech.arrayBuffer());
+
+    let audioUrl: string | null = null;
+
+    // Try to persist to Supabase Storage; fall back to data URL on failure
+    try {
+      const fileName = `audio/${contentId}-${locale}-${voice}.mp3`;
+      const { error: uploadError } = await supabase.storage
+        .from('audio')
+        .upload(fileName, audioBuffer, {
+          contentType: 'audio/mpeg',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.warn('[tts] Storage upload failed, using data URL fallback', uploadError.message);
+      } else {
+        const { data: publicUrlData } = supabase.storage.from('audio').getPublicUrl(fileName);
+        audioUrl = publicUrlData.publicUrl;
+      }
+    } catch (storageError) {
+      console.warn('[tts] Storage error, using data URL fallback', storageError);
+    }
+
+    if (!audioUrl) {
+      const base64 = audioBuffer.toString('base64');
+      audioUrl = `data:audio/mpeg;base64,${base64}`;
+    }
+
+    await supabase.from('audio_files').upsert({
       content_id: contentId,
       content_type: contentType,
       locale,
       voice,
       audio_url: audioUrl,
-      duration_seconds: 0, // Would be calculated from actual audio
+      duration_seconds: Math.round((speech as { duration?: number }).duration ?? 0),
       created_at: new Date().toISOString(),
     });
 

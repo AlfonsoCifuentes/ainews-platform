@@ -306,7 +306,11 @@ export function FlashcardDeck({ contentId, contentType, locale }: FlashcardDeckP
             animate={{ opacity: 1 }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2"
           >
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFlipped((prev) => !prev)}
+            >
               <RotateCw className="mr-2 h-4 w-4" />
               {t.flip}
             </Button>
