@@ -108,16 +108,20 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     
     if (!line) { i++; continue; }
 
-    if (line.startsWith('# ')) {
-      blocks.push({ type: 'heading1', content: line.slice(2) });
+    // Match headings with or without space after hash marks
+    const h1Match = line.match(/^#\s*(.+)$/);
+    if (h1Match && !line.startsWith('##')) {
+      blocks.push({ type: 'heading1', content: h1Match[1].trim() });
       i++; continue;
     }
-    if (line.startsWith('## ')) {
-      blocks.push({ type: 'heading2', content: line.slice(3) });
+    const h2Match = line.match(/^##\s*(.+)$/);
+    if (h2Match && !line.startsWith('###')) {
+      blocks.push({ type: 'heading2', content: h2Match[1].trim() });
       i++; continue;
     }
-    if (line.startsWith('### ')) {
-      blocks.push({ type: 'heading3', content: line.slice(4) });
+    const h3Match = line.match(/^###\s*(.+)$/);
+    if (h3Match) {
+      blocks.push({ type: 'heading3', content: h3Match[1].trim() });
       i++; continue;
     }
 

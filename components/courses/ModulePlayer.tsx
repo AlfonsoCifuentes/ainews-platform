@@ -693,21 +693,21 @@ export function ModulePlayer({
                   // Headings - brutalist uppercase monospace
                   h1: ({ ...props }) => (
                     <h1 
-                      className="font-mono text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 uppercase tracking-tight" 
+                      className="font-mono text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 tracking-tight" 
                       style={{ color: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
                   h2: ({ ...props }) => (
                     <h2 
-                      className="font-mono text-xl md:text-2xl font-bold mb-4 mt-8 uppercase border-l-4 pl-4" 
+                      className="font-mono text-xl md:text-2xl font-bold mb-4 mt-8 border-l-4 pl-4" 
                       style={{ color: BRUTALIST.text, borderColor: BRUTALIST.text }}
                       {...props} 
                     />
                   ),
                   h3: ({ ...props }) => (
                     <h3 
-                      className="font-mono text-lg md:text-xl font-bold mb-3 mt-6 uppercase" 
+                      className="font-mono text-lg md:text-xl font-bold mb-3 mt-6" 
                       style={{ color: BRUTALIST.text }}
                       {...props} 
                     />

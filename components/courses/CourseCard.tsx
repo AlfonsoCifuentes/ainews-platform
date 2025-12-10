@@ -71,18 +71,28 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
     <div className="group relative h-full overflow-hidden bg-[#0A0A0A] border border-[#1F1F1F] hover:border-white/30 flex flex-col">
 
       {/* Course Cover Image */}
-      {course.thumbnail_url && (
-        <Link href={`/courses/${course.id}`} className="block relative w-full aspect-video overflow-hidden">
-          <Image
-            src={course.thumbnail_url}
-            alt={title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
-        </Link>
-      )}
+      <Link href={`/courses/${course.id}`} className="block relative w-full aspect-video overflow-hidden">
+        {course.thumbnail_url ? (
+          <>
+            <Image
+              src={course.thumbnail_url}
+              alt={title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] group-hover:scale-105 transition-transform duration-500">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(59,161,255,0.15)_0%,_transparent_70%)]" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <BookOpen className="w-12 h-12 text-white/20" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
+          </div>
+        )}
+      </Link>
 
       {/* Share Button - Top Right */}
       <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100">
