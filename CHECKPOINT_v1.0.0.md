@@ -117,13 +117,13 @@ git checkout v1.0.0-course-generation-working
 
 ## 📈 Next Steps (Future)
 
-- [ ] Implement OpenAI model selection UI
-- [ ] Add course quality metrics
-- [ ] Cache frequently-generated courses
-- [ ] Implement cost tracking per provider
-- [ ] Add A/B testing for different models
-- [ ] Implement user feedback loop for model selection
-- [ ] Add server-side queuing for long-running generation
+- [x] Implement OpenAI model selection UI
+- [x] Add course quality metrics
+- [x] Cache frequently-generated courses
+- [x] Implement cost tracking per provider
+- [x] Add A/B testing for different models
+- [x] Implement user feedback loop for model selection
+- [x] Add server-side queuing for long-running generation
 
 ---
 

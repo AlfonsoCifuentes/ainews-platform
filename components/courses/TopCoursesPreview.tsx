@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { Link } from '@/i18n';
 import { CourseCard } from './CourseCard';
 import { ArrowRight, Zap } from 'lucide-react';
 
@@ -99,7 +99,7 @@ export function TopCoursesPreview({ locale }: TopCoursesPreviewProps) {
           <p className="mt-2 text-muted-foreground">{texts.subtitle}</p>
         </div>
         <Link
-          href="/courses-library"
+          href={`/${locale}/courses-library`}
           className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all hover:gap-3"
         >
           {texts.viewAll}

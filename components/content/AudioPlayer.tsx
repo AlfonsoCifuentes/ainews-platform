@@ -34,6 +34,7 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
   const [isMuted, setIsMuted] = useState(false);
   const [voice, setVoice] = useState<'default' | 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'>('default');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -75,6 +76,7 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
 
   const generateAudio = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch('/api/tts/generate', {
         method: 'POST',
@@ -92,8 +94,21 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
         setAudioUrl(data.audioUrl);
         if (audioRef.current) {
           audioRef.current.src = data.audioUrl;
-          audioRef.current.play();
-          setIsPlaying(true);
+          audioRef.current.load();
+
+          const canPlayMp3 = audioRef.current.canPlayType('audio/mpeg');
+          if (!canPlayMp3) {
+            setLoadError('Your browser cannot play MP3 audio. Use download instead.');
+            return;
+          }
+
+          audioRef.current
+            .play()
+            .then(() => setIsPlaying(true))
+            .catch((err) => {
+              console.error('Playback failed to start:', err);
+              setLoadError('Audio could not start. Try download.');
+            });
         }
       }
     } catch (error) {
@@ -108,10 +123,16 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
 
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => {
+          console.error('Playback failed to start:', err);
+          setLoadError('Audio could not start. Try download.');
+        });
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
@@ -148,6 +169,11 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
     setIsMuted(value[0] === 0);
   };
 
+  const handleAudioError = () => {
+    setIsPlaying(false);
+    setLoadError('Audio source is unavailable in this browser. Use download instead.');
+  };
+
   const toggleMute = () => {
     if (!audioRef.current) return;
     if (isMuted) {
@@ -173,6 +199,9 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
         onEnded={() => setIsPlaying(false)}
+        onError={handleAudioError}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         className="hidden"
       />
 
@@ -211,6 +240,11 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
             exit={{ opacity: 0, y: -10 }}
             className="rounded-3xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-white/10 p-6 space-y-4"
           >
+            {loadError && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                {loadError}
+              </div>
+            )}
             {/* Progress Bar */}
             <div className="space-y-2">
               <Slider

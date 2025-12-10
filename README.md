@@ -1,8 +1,6 @@
-<div align="center">
-
 # 🤖 ThotNet Core
 
-### *The Ultimate AI News & Learning Hub*
+## The Ultimate AI News & Learning Hub
 
 [![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -12,57 +10,63 @@
 
 **[Live Demo](https://thotnet-core.vercel.app)** • **[Documentation](#-documentation)** • **[Contributing](#-contributing)**
 
-*La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma, cursos tipo libro y gamificación puntera sobre un stack $0.*
-
-</div>
+La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma, cursos tipo libro y gamificación puntera sobre un stack $0.
 
 ---
 
 ## ✨ Features
 
 ### 🗞️ **Intelligent News Curation**
+
 - **50+ Premium Sources** — Automated aggregation from top AI publications
 - **AI-Powered Filtering** — LLM-based relevance scoring and quality assessment
 - **Dual Language** — Complete English/Spanish content with automatic translation
 - **Real-time Updates** — Scheduled curation every 6 hours via GitHub Actions
 
 ### 🎓 **AI Course Generator**
+
 - **On-Demand Courses** — Generate structured curricula on any AI topic instantly
 - **RAG-Enhanced** — Context-aware content using pgvector embeddings
 - **Interactive Quizzes** — Automated assessment generation
 - **Progress Tracking** — Gamified learning experience with XP rewards
 
 ### 🧠 **Knowledge Graph**
+
 - **Entity Recognition** — Automatic extraction of people, companies, concepts
 - **Relationship Mapping** — Visual exploration of AI ecosystem connections
 - **Fact-Checking** — Multi-source validation with confidence scoring
 - **Citations** — Full source attribution with timestamps and quotes
 
 ### 🎮 **Gamification System**
+
 - **16 Achievement Badges** — Learning, streak, engagement, and mastery categories
 - **XP & Leveling** — Exponential progression system (1.15x multiplier)
 - **Leaderboards** — Real-time ranking with materialized views
 - **Daily Streaks** — Consistency rewards with longest streak tracking
 
 ### 📚 **Flashcard SRS**
+
 - **Spaced Repetition** — SM-2 algorithm implementation
 - **Due Date Scheduling** — Optimized review intervals
 - **Performance Analytics** — Ease factor and repetition tracking
 - **Auto-Generation** — Create flashcards from articles with AI
 
 ### 🔍 **Advanced Search**
+
 - **Semantic Search** — pgvector similarity matching
 - **Multi-Language** — Search across EN/ES content simultaneously
 - **Trend Detection** — Discover emerging topics and bursty keywords
 - **Global Search** — Unified search across articles, courses, and entities
 
 ### 🖼️ **Visual Similarity Detection**
+
 - **Perceptual Hashing** — dHash algorithm for duplicate image detection
 - **Hamming Distance** — Configurable similarity thresholds
 - **Duplicate Prevention** — Automatic rejection of visually identical images
 - **Content Quality** — Ensures diverse visual content in news feeds
 
 ### 🎨 **Revolutionary Design**
+
 - **Mobile-First** — Optimized for all screen sizes
 - **Brutalist Minimalism** — Bold typography with kinetic elements
 - **3D Interactions** — Perspective transforms and tilt effects
@@ -70,23 +74,27 @@
 - **Dark Mode** — Eye-friendly reading experience
 
 ### 🔐 **Authentication & Security**
+
 - **Supabase Auth** — Email, OAuth providers
 - **Row-Level Security** — PostgreSQL RLS policies on all tables
 - **JWT Tokens** — Secure API authentication
 - **Rate Limiting** — Protection against abuse
 
 #### Secret hygiene (CI)
+
 - Run `scripts/run-gitleaks.sh` locally or use the `Repository Secret Scan (gitleaks)` GitHub Action (push/PR/manual) to scan working tree and full history.
 - If any secret is found: revoke/rotate at the provider immediately, then clean history (example helper: `scripts/remove-secrets-git-filter-repo.sh`) and force-push rewritten history; have all collaborators reclone.
 - Do not commit `.env*` files—already ignored. Store deployment secrets in GitHub/Vercel secrets.
 
 ### 📊 **Analytics & Insights**
+
 - **User Behavior** — Reading patterns and engagement metrics
 - **Content Performance** — Article popularity and effectiveness
 - **Learning Analytics** — Course completion and quiz scores
 - **Trend Analysis** — Topic momentum and emerging themes
 
 ### 🌐 **PWA Support**
+
 - **Offline Access** — Service worker with cache-first strategy
 - **Installable** — Add to home screen on mobile devices
 - **Background Sync** — Queue actions for later submission
@@ -97,6 +105,7 @@
 ## 🚀 Tech Stack
 
 ### **Frontend**
+
 - **[Next.js 14+](https://nextjs.org/)** — React framework with App Router
 - **[TypeScript 5.0+](https://www.typescriptlang.org/)** — Type-safe development
 - **[Tailwind CSS 4.0](https://tailwindcss.com/)** — Utility-first styling
@@ -105,23 +114,27 @@
 - **[Radix UI](https://www.radix-ui.com/)** — Accessible component primitives
 
 ### **Backend**
+
 - **[Supabase](https://supabase.com/)** — PostgreSQL database + Auth + Storage
 - **[tRPC](https://trpc.io/)** — Type-safe API routes
 - **[Zod](https://zod.dev/)** — Schema validation
 - **Next.js API Routes** — Serverless functions
 
 ### **AI/LLM**
+
 - **[OpenRouter](https://openrouter.ai/)** — Multi-model LLM access
 - **[Groq](https://groq.com/)** — Ultra-fast inference
 - **[pgvector](https://github.com/pgvector/pgvector)** — Vector embeddings for RAG
 - **[LangChain](https://www.langchain.com/)** — AI orchestration framework
 
 ### **Deployment**
+
 - **[Vercel](https://vercel.com/)** — Zero-config Next.js hosting
 - **[GitHub Actions](https://github.com/features/actions)** — CI/CD automation
 - **[Cloudflare](https://www.cloudflare.com/)** — CDN and DNS
 
 ### **Monitoring**
+
 - **[Sentry](https://sentry.io/)** — Error tracking (optional)
 - **[Umami](https://umami.is/)** — Privacy-focused analytics (optional)
 
@@ -129,7 +142,7 @@
 
 ## 📁 Project Structure
 
-```
+```text
 thotnet-core/
 ├── app/
 │   ├── [locale]/              # Internationalized routes
@@ -190,6 +203,7 @@ thotnet-core/
 ## 🛠️ Getting Started
 
 ### **Prerequisites**
+
 - **Node.js 18+** — [Download](https://nodejs.org/)
 - **npm/yarn/pnpm** — Package manager
 - **Supabase Account** — [Sign up](https://supabase.com/)
@@ -266,6 +280,7 @@ npm start
 ## 🗄️ Database Schema
 
 ### **Core Tables**
+
 - `news_articles` — Bilingual content with embeddings
 - `courses` — Generated curricula with modules
 - `entities` — Knowledge graph nodes (people, companies, concepts)
@@ -277,6 +292,7 @@ npm start
 - `leaderboard` — Materialized view for performance
 
 ### **Key Features**
+
 - **pgvector extension** — Semantic search and RAG
 - **RLS policies** — Row-level security on all tables
 - **Materialized views** — Optimized leaderboard queries
@@ -288,41 +304,37 @@ npm start
 ## 🤖 AI Agents
 
 ### **News Curator Agent**
-```typescript
-// Runs every 6 hours via GitHub Actions
+
+- Runs every 6 hours via GitHub Actions
 - Scrapes 50+ RSS feeds
 - Filters with LLM (relevance + quality)
 - Translates EN ↔ ES
 - Generates embeddings
 - Stores in Supabase
-```
 
 ### **Course Generator Agent**
-```typescript
-// On-demand user requests
+
+- On-demand user requests
 - Uses RAG for context
 - Creates structured curriculum
 - Generates quizzes
 - Tracks user progress
-```
 
 ### **Learning Agent**
-```typescript
-// Daily self-improvement
+
+- Daily self-improvement
 - Analyzes user feedback
 - Updates prompt templates
 - Logs performance metrics
 - Self-optimizes strategies
-```
 
 ### **Fact Checker Agent**
-```typescript
-// Real-time validation
+
+- Real-time validation
 - Cross-source verification
 - Confidence scoring
 - Citation extraction
 - Bias detection
-```
 
 ---
 
@@ -405,6 +417,7 @@ Contributions are welcome! Please follow these steps:
 5. Open a Pull Request
 
 ### **Development Guidelines**
+
 - Follow TypeScript strict mode
 - Use conventional commits
 - Write tests for new features
@@ -446,10 +459,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-<div align="center">
-
 ### ⭐ If you find this project useful, please give it a star! ⭐
 
-**Built with ❤️ using AI-first principles**
-
-</div>
+Built with ❤️ using AI-first principles

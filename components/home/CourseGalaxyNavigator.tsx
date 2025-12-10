@@ -138,7 +138,7 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
           </div>
 
           {/* View all link */}
-          <Link href="/courses-library">
+          <Link href={`/${locale}/courses-library`}>
             <div className="mt-8 flex items-center gap-2 text-sm font-mono text-[#888888] hover:text-white transition-colors">
               <span>{locale === 'en' ? 'VIEW COURSE LIBRARY' : 'VER BIBLIOTECA DE CURSOS'}</span>
               <span>→</span>

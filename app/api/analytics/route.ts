@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { createClient as createServerSupabaseClient } from '@/lib/db/supabase-server';
 
 let cachedClient: SupabaseClient | null = null;
 
@@ -14,7 +15,7 @@ function getSupabaseAdminClient(): SupabaseClient | null {
     return null;
   }
 
-  cachedClient = createClient(url, serviceKey);
+  cachedClient = createSupabaseClient(url, serviceKey);
   return cachedClient;
 }
 
@@ -32,14 +33,46 @@ function aggregateByDay<T extends Record<string, string | number | Date>>(rows: 
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+async function getRequestUser(req: NextRequest): Promise<User | null> {
+  try {
+    const supabaseAuth = await createServerSupabaseClient();
+    const { data: userData } = await supabaseAuth.auth.getUser();
+    if (userData?.user) return userData.user;
+  } catch (error) {
+    console.warn('[Analytics API] Cookie-based auth lookup failed', error);
+  }
+
+  const authHeader = req.headers.get('authorization');
+  const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch?.[1];
+
+  if (bearerToken) {
+    const supabase = getSupabaseAdminClient();
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getUser(bearerToken);
+        if (data.user) return data.user;
+      } catch (error) {
+        console.warn('[Analytics API] Bearer token auth lookup failed', error);
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const isPublic = process.env.NEXT_PUBLIC_ANALYTICS_PUBLIC === 'true';
     const adminToken = process.env.ANALYTICS_ACCESS_TOKEN;
+    const user = await getRequestUser(req);
+    const hasUser = Boolean(user);
 
     if (!isPublic) {
       const token = req.headers.get('x-analytics-token') ?? req.nextUrl.searchParams.get('token');
-      if (!adminToken || token !== adminToken) {
+      const hasValidAdminToken = Boolean(adminToken && token === adminToken);
+
+      if (!hasValidAdminToken && !hasUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }

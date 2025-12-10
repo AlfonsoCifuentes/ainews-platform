@@ -32,6 +32,13 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  const currentLocale = locale ?? 'en';
+
+  const navItems = useMemo(
+    () => NAV_ITEMS.map((item) => ({ ...item, href: `/${currentLocale}${item.href}` })),
+    [currentLocale]
+  );
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
@@ -101,7 +108,7 @@ export function Header() {
 
         {/* Center: Navigation */}
         <nav className="hidden md:flex items-center gap-6 text-xs font-mono uppercase tracking-wider text-[#888]">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive = mapSegmentToKey(activeSegment) === item.key;
             return (
               <Link
@@ -165,7 +172,7 @@ export function Header() {
             className="md:hidden mt-4 border-t border-white/10 bg-black/95 backdrop-blur-xl overflow-hidden"
           >
             <nav className="py-4 flex flex-col gap-2">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const isActive = mapSegmentToKey(activeSegment) === item.key;
                 return (
                   <Link

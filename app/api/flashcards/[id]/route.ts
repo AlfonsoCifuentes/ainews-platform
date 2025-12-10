@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { createClient } from '@/lib/db/supabase-server';
 
 const UpdateSchema = z.object({
-  interval: z.number().min(0),
+  interval: z.number().min(0).optional(),
+  intervalDays: z.number().min(0).optional(),
   repetitions: z.number().min(0),
-  easeFactor: z.number().min(1.3).max(2.5),
+  easeFactor: z.number().min(1.3).max(2.6),
   dueAt: z.string().datetime(),
   lastReviewedAt: z.string().datetime(),
 });
@@ -18,20 +19,28 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
     const validated = UpdateSchema.parse(body);
+    const intervalDays = Math.max(0, validated.interval ?? validated.intervalDays ?? 0);
+    const easeFactor = Math.min(2.5, validated.easeFactor);
 
     const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { data, error } = await supabase
       .from('flashcards')
       .update({
-        interval: validated.interval,
+        interval_days: intervalDays,
         repetitions: validated.repetitions,
-        ease_factor: validated.easeFactor,
+        ease_factor: easeFactor,
         due_at: validated.dueAt,
         last_reviewed_at: validated.lastReviewedAt,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single();
 

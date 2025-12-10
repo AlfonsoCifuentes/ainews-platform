@@ -272,7 +272,31 @@ async function main() {
   }
 
   const moduleMap = new Map<string, ModuleRecord>();
-  for (const m of (modules as ModuleRecord[])) {
+  const normalizedModules: ModuleRecord[] = (modules ?? []).map((m) => {
+    const courseData = Array.isArray((m as { courses?: unknown }).courses)
+      ? (m as { courses?: Array<{ title_en?: string; title_es?: string }> }).courses?.[0] ?? null
+      : ((m as { courses?: unknown }).courses as ModuleRecord['courses']) ?? null;
+
+    const normalizedCourse = courseData
+      ? {
+          title_en: courseData.title_en ?? '',
+          title_es: courseData.title_es ?? '',
+        }
+      : null;
+
+    return {
+      id: String((m as { id: unknown }).id),
+      course_id: String((m as { course_id: unknown }).course_id),
+      order_index: Number((m as { order_index: unknown }).order_index ?? 0),
+      title_en: (m as { title_en?: string }).title_en ?? '',
+      title_es: (m as { title_es?: string }).title_es ?? '',
+      content_en: (m as { content_en?: string | null }).content_en ?? null,
+      content_es: (m as { content_es?: string | null }).content_es ?? null,
+      courses: normalizedCourse,
+    } satisfies ModuleRecord;
+  });
+
+  for (const m of normalizedModules) {
     moduleMap.set(m.id, m);
   }
 

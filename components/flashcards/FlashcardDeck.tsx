@@ -24,6 +24,12 @@ interface Flashcard {
   dueAt: string;
 }
 
+type RawFlashcard = Partial<Flashcard> & {
+  ease_factor?: number;
+  due_at?: string;
+  interval_days?: number;
+};
+
 interface FlashcardDeckProps {
   contentId: string;
   contentType: 'article' | 'course';
@@ -36,6 +42,21 @@ export function FlashcardDeck({ contentId, contentType, locale }: FlashcardDeckP
   const [isFlipped, setIsFlipped] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({ reviewed: 0, correct: 0, streak: 0 });
+
+  const normalizeFlashcard = (card: RawFlashcard): Flashcard => {
+    const defaultDueAt = new Date().toISOString();
+
+    return {
+      id: String(card.id ?? ''),
+      front: card.front ?? '',
+      back: card.back ?? '',
+      category: card.category ?? 'General',
+      interval: card.interval ?? card.interval_days ?? 0,
+      repetitions: card.repetitions ?? 0,
+      easeFactor: card.easeFactor ?? card.ease_factor ?? 2.5,
+      dueAt: card.dueAt ?? card.due_at ?? defaultDueAt,
+    };
+  };
 
   const t = locale === 'en' ? {
     title: 'Review Flashcards',
@@ -77,7 +98,8 @@ export function FlashcardDeck({ contentId, contentType, locale }: FlashcardDeckP
         );
         const data = await response.json();
         if (response.ok) {
-          setCards(data.data || []);
+          const normalized = (data.data as RawFlashcard[] | undefined)?.map(normalizeFlashcard) ?? [];
+          setCards(normalized);
         }
       } catch (error) {
         console.error('Failed to load flashcards:', error);
@@ -95,7 +117,8 @@ export function FlashcardDeck({ contentId, contentType, locale }: FlashcardDeckP
       );
       const data = await response.json();
       if (response.ok) {
-        setCards(data.data || []);
+        const normalized = (data.data as RawFlashcard[] | undefined)?.map(normalizeFlashcard) ?? [];
+        setCards(normalized);
       }
     } catch (error) {
       console.error('Failed to load flashcards:', error);
