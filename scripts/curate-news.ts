@@ -16,7 +16,8 @@ import { load } from 'cheerio';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 
-import { createLLMClientWithFallback, type LLMClient } from '../lib/ai/llm-client';
+import { createLLMClientForTask, type LLMClient } from '../lib/ai/llm-client';
+import { buildVerticalVoiceSystemPrompt } from '../lib/ai/prompt-voice';
 import { batchTranslate, detectLanguage, translateArticle } from '../lib/ai/translator';
 import { generateEmbedding } from '../lib/ai/embeddings';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
@@ -190,7 +191,10 @@ async function rewriteArticleContent(
 ): Promise<ArticleRewrite | null> {
 	const workingContent = truncateForRewrite(content);
 
-	const systemPrompt = `You are a concise, trustworthy AI news editor. You rewrite articles into a confident, warm expert voice that feels helpful and personable. NEVER name or impersonate specific people or brands. Keep facts, figures, links, and quotes faithful. Avoid hype, clickbait, and speculation. Write in ${language === 'en' ? 'English' : 'Spanish'} only.`;
+	const systemPrompt = buildVerticalVoiceSystemPrompt({
+		locale: language,
+		vertical: 'news',
+	});
 
 	const prompt = `Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'} with a friendly expert tone. Goals: (1) keep it factual, (2) add a quick "why it matters" feel, (3) avoid first-person unless clarifying. Keep paragraphs short (2-4 sentences). Return ONLY JSON with keys title, summary, content.
 
@@ -901,7 +905,7 @@ async function main(): Promise<void> {
 
 	let llm: LLMClient;
 	try {
-		llm = await createLLMClientWithFallback();
+			llm = await createLLMClientForTask('news_rewrite');
 	} catch (error) {
 		console.error('[LLM] Failed to initialize:', error);
 		return;

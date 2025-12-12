@@ -25,6 +25,7 @@ import {
   type TaskType 
 } from './model-strategy';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
+import { buildVerticalVoiceSystemPrompt } from './prompt-voice';
 
 const JSON_SYSTEM_PROMPT = `You are a world-class university professor and textbook author with 30+ years of experience. You write comprehensive, engaging educational content that rivals the best academic publishers (O'Reilly, Springer, Cambridge University Press).
 
@@ -35,6 +36,8 @@ Your writing style:
 - Includes "Did You Know?" curiosity boxes
 - Contains practical exercises with solutions
 - References current research and industry practices
+
+CRITICAL: Do not output Mermaid, ASCII diagrams, or diagram code blocks. Any diagrams must be described and paired with illustration prompts for generated images.
 
 CRITICAL: Return only valid JSON matching the provided schema. No markdown fences, no commentary.`;
 
@@ -208,10 +211,12 @@ async function executeWithSchema<T>(
   taskType: TaskType,
   prompt: string,
   schema: z.ZodSchema<T>,
-  systemPrompt: string = JSON_SYSTEM_PROMPT
+  systemPrompt: string = JSON_SYSTEM_PROMPT,
+  voiceLocale: 'en' | 'es' = 'en'
 ): Promise<T> {
   const model = await selectModelForTask(taskType);
-  const result = await executeWithModel(model, prompt, systemPrompt);
+  const voice = buildVerticalVoiceSystemPrompt({ locale: voiceLocale, vertical: 'courses' });
+  const result = await executeWithModel(model, prompt, `${voice}\n\n${systemPrompt}`);
   
   // Track model usage
   modelsUsedInGeneration.add(`${model.provider}:${model.model}`);
@@ -386,7 +391,9 @@ Return JSON matching the schema exactly.`;
   return await executeWithSchema(
     'outline_planning',
     prompt,
-    TextbookChapterOutlineSchema
+    TextbookChapterOutlineSchema,
+    JSON_SYSTEM_PROMPT,
+    options.locale
   );
 }
 
@@ -448,9 +455,10 @@ CONTENT REQUIREMENTS:
    - Define 5-10 important terms
    - Use consistent terminology
 
-6. DIAGRAMS:
-   - Describe 1-2 conceptual diagrams
-   - Include illustration_prompt for each
+6. DIAGRAMS (GENERATED IMAGES ONLY):
+  - Describe 1-2 conceptual diagrams in plain language
+  - Include illustration_prompt for each (for AI image generation)
+  - Do NOT include Mermaid, ASCII art, or any diagram code blocks
 
 Return JSON with: content, key_terms, did_you_know, code_examples, diagrams`;
 
@@ -458,7 +466,9 @@ Return JSON with: content, key_terms, did_you_know, code_examples, diagrams`;
   return await executeWithSchema(
     'content_generation',
     prompt,
-    TextbookSectionContentSchema
+    TextbookSectionContentSchema,
+    JSON_SYSTEM_PROMPT,
+    options.locale
   );
 }
 
@@ -504,7 +514,9 @@ Return JSON matching the schema exactly.`;
   return await executeWithSchema(
     'exercise_generation',
     prompt,
-    ExerciseSetSchema
+    ExerciseSetSchema,
+    JSON_SYSTEM_PROMPT,
+    options.locale
   );
 }
 
@@ -583,7 +595,9 @@ Return JSON matching the schema exactly.`;
     const result = await executeWithSchema(
       'case_study',
       prompt,
-      CaseStudySchema
+      CaseStudySchema,
+      JSON_SYSTEM_PROMPT,
+      options.locale
     );
 
     caseStudies.push(result);
@@ -648,7 +662,9 @@ Return JSON matching the schema exactly.`;
   return await executeWithSchema(
     'exam_generation',
     prompt,
-    ChapterExamSchema
+    ChapterExamSchema,
+    JSON_SYSTEM_PROMPT,
+    options.locale
   );
 }
 

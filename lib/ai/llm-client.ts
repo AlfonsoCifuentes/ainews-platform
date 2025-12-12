@@ -687,6 +687,48 @@ export function createLLMClient(
   return new LLMClient(apiKey, baseUrl, model ?? defaultModel, provider);
 }
 
+export type LLMTask = 'news_rewrite' | 'course_generation' | 'visual_planning' | 'general';
+
+function getActiveModelProfile(): 'latest' | 'cost-balanced' {
+  const raw = (process.env.AI_MODEL_PROFILE || '').trim().toLowerCase();
+  if (raw === 'cost-balanced' || raw === 'cost_balanced' || raw === 'costbalanced') return 'cost-balanced';
+  return 'latest';
+}
+
+/**
+ * Task-aware client selection.
+ *
+ * - Default: existing fallback strategy (local first, then cloud providers)
+ * - cost-balanced: prefer OpenAI for selected tasks when OPENAI_API_KEY is present
+ */
+export async function createLLMClientForTask(task: LLMTask): Promise<LLMClient> {
+  const profile = getActiveModelProfile();
+
+  if (profile === 'cost-balanced' && process.env.OPENAI_API_KEY) {
+    const model = (() => {
+      switch (task) {
+        case 'course_generation':
+          return 'gpt-4o';
+        case 'news_rewrite':
+        case 'visual_planning':
+        case 'general':
+        default:
+          return 'gpt-4o-mini';
+      }
+    })();
+
+    try {
+      const client = createLLMClient('openai', model);
+      console.log(`[LLM] ✓ Using OpenAI (${model}) for task "${task}" (AI_MODEL_PROFILE=cost-balanced)`);
+      return client;
+    } catch (error) {
+      console.warn('[LLM] OpenAI preferred but unavailable, falling back:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
+  return await createLLMClientWithFallback();
+}
+
 /**
  * Detect and prepare local Ollama model
  * If Ollama is running but model isn't pulled, attempts to download it

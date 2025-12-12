@@ -193,8 +193,8 @@ Focus on creating prompts that will generate high-quality, educational illustrat
 
   console.log(`[ImageAnalysis] Analyzing "${moduleTitle}" for image insertion points...`);
   
-  // Use DeepSeek for reasoning/analysis task (best at structural analysis)
-  const model = await selectModelForTask('reasoning_validation');
+  // Visual planning task: decide where images go and produce prompts (no Mermaid/code)
+  const model = await selectModelForTask('visual_planning');
   const result = await executeWithModel(model, prompt, systemPrompt);
   
   // Clean DeepSeek output (remove thinking blocks)

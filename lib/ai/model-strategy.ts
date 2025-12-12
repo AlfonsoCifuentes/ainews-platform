@@ -42,6 +42,7 @@ export type TaskType =
   | 'outline_planning'      // Chapter outline, curriculum design
   | 'exercise_generation'   // Exercises, quizzes, problems
   | 'reasoning_validation'  // Verify math, logic, proofs
+  | 'visual_planning'       // Decide what images/diagrams to generate (image-only)
   | 'content_generation'    // Main textbook prose
   | 'case_study'           // Case study narratives
   | 'exam_generation'      // Exam questions
@@ -49,6 +50,14 @@ export type TaskType =
   | 'code_generation'      // Code examples
   | 'quick_classification' // Fast classification tasks
   | 'general';             // Fallback
+
+type ModelProfile = 'latest' | 'cost-balanced';
+
+function getActiveModelProfile(): ModelProfile {
+  const raw = (process.env.AI_MODEL_PROFILE || '').trim().toLowerCase();
+  if (raw === 'cost-balanced' || raw === 'cost_balanced' || raw === 'costbalanced') return 'cost-balanced';
+  return 'latest';
+}
 
 export interface ModelConfig {
   provider: 'ollama' | 'groq' | 'openrouter' | 'gemini' | 'anthropic' | 'openai';
@@ -174,6 +183,26 @@ const MODELS = {
     temperature: 0.7,
     contextWindow: 128000
   },
+
+  // === OPENAI COST-BALANCED (LEGACY BUT COST-EFFICIENT) ===
+  // Used only when AI_MODEL_PROFILE=cost-balanced
+  gpt4o_actual: {
+    provider: 'openai' as const,
+    model: OPENAI_MODELS.GPT_4O,
+    description: 'GPT-4o - High-quality writing and reasoning (cost-balanced profile)',
+    maxTokens: 8000,
+    temperature: 0.7,
+    contextWindow: 128000
+  },
+
+  gpt4o_mini: {
+    provider: 'openai' as const,
+    model: OPENAI_MODELS.GPT_4O_MINI,
+    description: 'GPT-4o-mini - Fast, cost-efficient (cost-balanced profile)',
+    maxTokens: 8000,
+    temperature: 0.7,
+    contextWindow: 128000
+  },
   
   // OpenRouter - Free tier access
   openrouter_llama70b: {
@@ -225,6 +254,14 @@ const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
     'deepseek_r1_70b',    // Best at reasoning & validation
     'claude_sonnet',      // Claude Sonnet 4.5 - good at analysis
     'gpt5'                // GPT-5.1
+  ],
+
+  // 🎨 Visual planning (image-only; never Mermaid/code diagrams)
+  visual_planning: [
+    'deepseek_r1_70b',
+    'qwen3_30b',
+    'claude_sonnet',
+    'gpt5'
   ],
 
   // 📘 Qwen3 for polished prose content
@@ -289,6 +326,24 @@ const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
     'claude_sonnet',      // Claude Sonnet 4.5
     'gpt5'                // GPT-5.1
   ]
+};
+
+// Cost-balanced profile preferences
+// Intent:
+// - Courses: maximum quality on OpenAI GPT-4o
+// - News/visual planning: high volume on OpenAI GPT-4o-mini
+const TASK_MODEL_PREFERENCES_COST_BALANCED: Record<TaskType, (keyof typeof MODELS)[]> = {
+  outline_planning: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'gemini_pro', 'groq_llama70b'],
+  exercise_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'groq_llama70b'],
+  reasoning_validation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
+  visual_planning: ['gpt4o_mini', 'gpt4o_actual', 'claude_sonnet', 'groq_llama70b'],
+  content_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'gemini_pro', 'groq_llama70b'],
+  case_study: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'groq_llama70b'],
+  exam_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
+  translation: ['gpt4o_mini', 'gpt4o_actual', 'gemini_pro', 'claude_sonnet'],
+  code_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
+  quick_classification: ['gpt4o_mini', 'groq_llama70b', 'gemini_flash', 'openrouter_llama70b'],
+  general: ['gpt4o_mini', 'gpt4o_actual', 'claude_haiku', 'groq_llama70b', 'gemini_flash'],
 };
 
 // ============================================================================
@@ -387,7 +442,10 @@ export interface SelectedModel extends ModelConfig {
  */
 export async function selectModelForTask(task: TaskType): Promise<SelectedModel> {
   const availability = await checkModelAvailability();
-  const preferences = TASK_MODEL_PREFERENCES[task];
+  const profile = getActiveModelProfile();
+  const preferences = (profile === 'cost-balanced')
+    ? TASK_MODEL_PREFERENCES_COST_BALANCED[task]
+    : TASK_MODEL_PREFERENCES[task];
   
   // Find first available model from preferences
   for (const modelKey of preferences) {
@@ -403,7 +461,7 @@ export async function selectModelForTask(task: TaskType): Promise<SelectedModel>
         }
       }
       
-      console.log(`[ModelStrategy] Task "${task}" → ${modelKey} (${config.description})`);
+      console.log(`[ModelStrategy] Profile "${profile}" task "${task}" → ${modelKey} (${config.description})`);
       if (fallbackChain.length > 0) {
         console.log(`[ModelStrategy] Fallback chain: ${fallbackChain.map(m => m.model).join(' → ')}`);
       }
@@ -430,7 +488,9 @@ export async function selectModelForTask(task: TaskType): Promise<SelectedModel>
     return { key: 'claude_sonnet', ...MODELS.claude_sonnet, fallbackChain: [] };
   }
   if (availability.hasOpenAI) {
-    return { key: 'gpt4o', ...MODELS.gpt4o, fallbackChain: [] };
+    const profile = getActiveModelProfile();
+    const key = profile === 'cost-balanced' ? 'gpt4o_actual' : 'gpt4o';
+    return { key, ...MODELS[key], fallbackChain: [] };
   }
   
   throw new Error(`No models available for task "${task}". Please install Ollama models or configure API keys.`);
