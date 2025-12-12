@@ -262,6 +262,10 @@ export class LLMClient {
     }
 
     // OpenRouter, Groq, Together, DeepSeek, Mistral use OpenAI-compatible API
+    const isOpenAINewTokenModel =
+      this.provider === 'openai' &&
+      (this.model.startsWith('gpt-5') || this.model.startsWith('o'));
+
     const response = await this.fetchWithRateLimitRetry(
       `${this.baseUrl}/chat/completions`,
       {
@@ -282,8 +286,11 @@ export class LLMClient {
               content: prompt,
             },
           ],
-          temperature: validatedOptions.temperature,
-          max_tokens: validatedOptions.maxTokens,
+          // Some OpenAI models (e.g. GPT-5/o-series) only support default temperature.
+          ...(isOpenAINewTokenModel ? {} : { temperature: validatedOptions.temperature }),
+          ...(isOpenAINewTokenModel
+            ? { max_completion_tokens: validatedOptions.maxTokens }
+            : { max_tokens: validatedOptions.maxTokens }),
           top_p: validatedOptions.topP,
           frequency_penalty: validatedOptions.frequencyPenalty,
           presence_penalty: validatedOptions.presencePenalty,
@@ -620,7 +627,8 @@ export function createLLMClient(
     case 'openai':
       apiKey = process.env.OPENAI_API_KEY;
       baseUrl = 'https://api.openai.com/v1';
-      defaultModel = 'gpt-4o';
+      // Default to cost-effective model; override per-task via createLLMClientForTask
+      defaultModel = 'gpt-4o-mini';
       break;
 
     case 'openrouter':

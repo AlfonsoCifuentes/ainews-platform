@@ -13,7 +13,7 @@ if (existsSync(envLocal)) {
 }
 
 import { getSupabaseServerClient } from '../lib/db/supabase';
-import { createLLMClientForTask, type LLMClient } from '../lib/ai/llm-client';
+import { createLLMClient, createLLMClientForTask, type LLMClient, type LLMProvider } from '../lib/ai/llm-client';
 import { buildVerticalVoiceSystemPrompt } from '../lib/ai/prompt-voice';
 import { translateArticle } from '../lib/ai/translator';
 
@@ -34,9 +34,22 @@ type MaintainArgs = {
 	confirmDelete: boolean;
 	batchSize: number;
 	maxRewrite: number;
+	provider?: LLMProvider;
+	model?: string;
 };
 
 function readArgValue(name: string): string | undefined {
+	// npm v11 may treat unknown flags as npm config and expose them via env vars
+	// e.g. `--rewrite-days=3` -> process.env.npm_config_rewrite_days === '3'
+	const envKey = `npm_config_${name.replace(/^--/, '').replace(/-/g, '_')}`;
+	const fromEnv = process.env[envKey];
+	if (typeof fromEnv === 'string' && fromEnv.trim() !== '') return fromEnv.trim();
+
+	// Support: --flag value AND --flag=value
+	const eqPrefix = `${name}=`;
+	const eq = process.argv.find((a) => a.startsWith(eqPrefix));
+	if (eq) return eq.slice(eqPrefix.length);
+
 	const idx = process.argv.indexOf(name);
 	if (idx === -1) return undefined;
 	return process.argv[idx + 1];
@@ -50,19 +63,67 @@ function readArgNumber(name: string, defaultValue: number): number {
 }
 
 function hasFlag(name: string): boolean {
-	return process.argv.includes(name);
+	const envKey = `npm_config_${name.replace(/^--/, '').replace(/-/g, '_')}`;
+	const raw = (process.env[envKey] || '').trim().toLowerCase();
+	if (raw === 'true' || raw === '1' || raw === 'yes') return true;
+
+	if (process.argv.includes(name)) return true;
+
+	// Support: --flag=true / --flag=1 / --flag=yes
+	const eqPrefix = `${name}=`;
+	const eq = process.argv.find((a) => a.startsWith(eqPrefix));
+	if (!eq) return false;
+	const value = eq.slice(eqPrefix.length).trim().toLowerCase();
+	if (value === '') return true;
+	return value === 'true' || value === '1' || value === 'yes';
+}
+
+function getPositionalNumbers(): number[] {
+	// tsx: process.argv = [node, script, ...args]
+	return process.argv
+		.slice(2)
+		.filter((a) => !a.startsWith('-'))
+		.map((a) => Number(a))
+		.filter((n) => Number.isFinite(n));
 }
 
 function parseArgs(): MaintainArgs {
+	const positional = getPositionalNumbers();
+	const rewriteDays = readArgNumber('--rewrite-days', positional[0] ?? 3);
+	const deleteOlderThanDays = readArgNumber('--delete-older-than-days', positional[1] ?? 3);
+
+	const providerRaw = (readArgValue('--provider') || process.env.MAINTAIN_NEWS_PROVIDER || '').trim().toLowerCase();
+	const provider = (providerRaw || undefined) as LLMProvider | undefined;
+	const model = (readArgValue('--model') || process.env.MAINTAIN_NEWS_MODEL || undefined)?.trim() || undefined;
+
 	const dryRun = hasFlag('--dry-run') || (process.env.DRY_RUN ?? '').toLowerCase() === 'true';
 	return {
 		dryRun,
-		rewriteDays: readArgNumber('--rewrite-days', 3),
-		deleteOlderThanDays: readArgNumber('--delete-older-than-days', 3),
+		rewriteDays,
+		deleteOlderThanDays,
 		confirmDelete: hasFlag('--confirm-delete'),
 		batchSize: readArgNumber('--batch-size', 50),
 		maxRewrite: readArgNumber('--max-rewrite', 500),
+		provider,
+		model,
 	};
+}
+
+async function createMaintenanceLLM(args: MaintainArgs): Promise<LLMClient> {
+	if (args.provider) {
+		return createLLMClient(args.provider, args.model);
+	}
+
+	// For this operational maintenance script we prefer OpenAI when configured
+	// to avoid local-model structured-output drift.
+	if (process.env.OPENAI_API_KEY) {
+		const model = args.model || 'gpt-4o-mini';
+		const client = createLLMClient('openai', model);
+		console.log(`[LLM] ✓ Using OpenAI (${model}) for maintain-news`);
+		return client;
+	}
+
+	return await createLLMClientForTask('news_rewrite');
 }
 
 function normalizeForChecks(text: string): string {
@@ -145,6 +206,7 @@ Hard rules:
 - Do NOT include raw URLs in the summary or content.
 - Remove boilerplate like "Read more", "Continue reading", cookie/privacy banners, subscription prompts, republish notices.
 - Do NOT reference missing images or UI elements.
+- Keep output lengths within limits: title <= 180 chars, summary 60-520 chars, content 200-3200 chars.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -193,7 +255,8 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 		for (const row of rows) {
 			if (rewrittenCount + skippedCount >= args.maxRewrite) break;
 
-			const progress = `[MaintainNews] [${rewrittenCount + skippedCount + 1}]`;
+			const itemIndex = rewrittenCount + skippedCount + 1;
+			const progress = `[MaintainNews] [${itemIndex}]`;
 			const english = await rewriteInEnglish(llm, {
 				title: row.title_en,
 				summary: row.summary_en,
@@ -216,7 +279,9 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			}
 
 			if (args.dryRun) {
-				console.log(`${progress} DRY-RUN rewrite: ${row.id}`);
+				if (itemIndex <= 10 || itemIndex % 25 === 0) {
+					console.log(`${progress} DRY-RUN rewrite: ${row.id}`);
+				}
 				rewrittenCount += 1;
 				continue;
 			}
@@ -241,7 +306,9 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 				continue;
 			}
 
-			console.log(`${progress} Rewrote: ${row.id}`);
+			if (itemIndex <= 10 || itemIndex % 25 === 0) {
+				console.log(`${progress} Rewrote: ${row.id}`);
+			}
 			rewrittenCount += 1;
 		}
 
@@ -321,7 +388,7 @@ async function main(): Promise<void> {
 	console.log(`[MaintainNews] dryRun=${args.dryRun} rewriteDays=${args.rewriteDays} deleteOlderThanDays=${args.deleteOlderThanDays} batchSize=${args.batchSize}`);
 
 	const db = getSupabaseServerClient();
-	const llm = await createLLMClientForTask('news_rewrite');
+	const llm = await createMaintenanceLLM(args);
 
 	await rewriteLastDays(db, llm, args);
 	await deleteOlderThan(db, args);
