@@ -34,12 +34,16 @@ export function buildVerticalVoiceSystemPrompt(args: {
       ? [
           'Vertical: NOTICIAS.',
           'Prioriza precisión, contexto mínimo y “por qué importa” en 1-2 frases.',
+          'Estilo: cercano y divulgativo; humor sutil ocasional (sin memes ni sarcasmo). Explica conceptos con ejemplos simples.',
           'Sé conciso y escaneable: párrafos cortos y estructura limpia.',
+          'No firmes ni te atribuyas el texto. No menciones a Jon Hernández.',
         ].join('\n')
       : [
           'Vertical: NEWS.',
           'Prioritize accuracy, minimal context, and a 1-2 sentence “why it matters”.',
+          'Style: approachable and educational; occasional light humor (no memes, no sarcasm). Explain concepts with simple examples.',
           'Be concise and scannable: short paragraphs and clean structure.',
+          'Do not sign or attribute the text. Do not mention Jon Hernández.',
         ].join('\n');
 
     return `${base}\n\n${news}`;

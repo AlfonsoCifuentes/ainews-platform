@@ -7,6 +7,7 @@ import {
   newsArticleSchema,
   type INewsArticle,
 } from '@/lib/types/news';
+import { reorderArticlesForHero } from '@/lib/utils/news-quality';
 
 const fetchParamsSchema = z.object({
   limit: z.number().min(1).max(50).default(12),
@@ -66,7 +67,8 @@ export async function fetchLatestNews(
       throw error ?? new Error('No data returned from Supabase.');
     }
 
-    return newsArticleArraySchema.parse(data);
+    const articles = newsArticleArraySchema.parse(data);
+    return reorderArticlesForHero(articles, Date.now(), 3);
   } catch (error) {
     console.error('[fetchLatestNews] Falling back to sample data:', error);
     return getFallbackArticles(limit);

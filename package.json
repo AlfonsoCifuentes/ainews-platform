@@ -30,6 +30,7 @@
     "ai:fix-duplicates": "tsx scripts/fix-duplicate-images.ts",
     "ai:fix-google-images": "tsx scripts/fix-google-news-images.ts",
     "ai:remove-duplicates": "tsx scripts/remove-duplicate-articles.ts",
+    "ai:maintain-news": "tsx scripts/maintain-news.ts",
     "ollama:setup-tunnel": "tsx scripts/setup-ollama-tunnel.ts",
     "analytics:export": "tsx scripts/export-analytics.ts",
     "ai:clean-reddit": "tsx scripts/clean-reddit-metadata.ts",
