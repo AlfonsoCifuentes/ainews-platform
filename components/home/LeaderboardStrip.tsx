@@ -116,7 +116,7 @@ export function LeaderboardStrip({ leaders, summary, locale }: LeaderboardStripP
         </div>
 
         {/* View all link */}
-        <Link href={`/${locale}/leaderboard`}>
+        <Link href="/leaderboard">
           <div className="mt-8 inline-flex items-center gap-2 text-sm font-mono text-[#888888] hover:text-white transition-colors border border-[#1F1F1F] px-6 py-3 hover:border-white">
             <span>{locale === 'en' ? 'VIEW FULL LEADERBOARD' : 'VER CLASIFICACIÓN COMPLETA'}</span>
             <span>→</span>

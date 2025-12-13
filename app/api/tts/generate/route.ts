@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { createClient } from '@/lib/db/supabase-server';
-import { OPENAI_MODELS } from '@/lib/ai/model-versions';
 
 const GenerateSchema = z.object({
   contentId: z.string().uuid(),
@@ -105,23 +104,42 @@ export async function POST(req: NextRequest) {
       shimmer: 'shimmer',
     };
 
-    const model = process.env.OPENAI_TTS_MODEL || OPENAI_MODELS.GPT_5_1;
+    const modelCandidates = Array.from(
+      new Set(
+        [
+          process.env.OPENAI_TTS_MODEL,
+          // Common OpenAI TTS model names (try in order)
+          'gpt-4o-mini-tts',
+          'tts-1',
+          'tts-1-hd',
+        ].filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
+      )
+    );
 
-    const speech = await (async () => {
+    let speech: Awaited<ReturnType<typeof openai.audio.speech.create>> | null = null;
+
+    for (const candidate of modelCandidates) {
       try {
-        return await openai.audio.speech.create({
-          model,
+        speech = await openai.audio.speech.create({
+          model: candidate,
           voice: voiceMap[voice] ?? 'alloy',
           input,
         });
+        break;
       } catch (ttsError) {
-        console.warn('[tts] OpenAI TTS generation failed', ttsError);
-        return NextResponse.json(
-          { error: 'TTS generation failed' },
-          { status: 502 }
-        );
+        console.warn('[tts] OpenAI TTS generation failed for model', candidate, ttsError);
       }
-    })();
+    }
+
+    if (!speech) {
+      return NextResponse.json(
+        {
+          error: 'TTS generation failed',
+          attemptedModels: modelCandidates,
+        },
+        { status: 502 }
+      );
+    }
 
     if (speech instanceof NextResponse) return speech;
 
