@@ -79,6 +79,12 @@ export default async function LocaleLayout({
   ).replace(/\/$/, '');
   const umamiScriptSrc = `${umamiBaseUrl}/script.js`;
 
+  const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+  const enableAdsense = process.env.NODE_ENV === 'production' && !!adsenseClientId;
+  const adsenseScriptSrc = adsenseClientId
+    ? `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(adsenseClientId)}`
+    : null;
+
   return (
     <>
       <Analytics />
@@ -89,6 +95,20 @@ export default async function LocaleLayout({
           data-website-id={umamiSiteId}
           crossOrigin="anonymous"
         />
+      ) : null}
+
+      {enableAdsense && adsenseScriptSrc ? (
+        <>
+          <Script
+            src={adsenseScriptSrc}
+            strategy="afterInteractive"
+            async
+            crossOrigin="anonymous"
+          />
+          <Script id="adsense-init" strategy="afterInteractive">
+            {`window.adsbygoogle = window.adsbygoogle || []; window.adsbygoogle.push({});`}
+          </Script>
+        </>
       ) : null}
       
       {/* OAuth Callback Handler component will run useEffect to detect auth state */}
