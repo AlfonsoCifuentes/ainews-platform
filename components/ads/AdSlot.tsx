@@ -26,7 +26,10 @@ export function AdSlot({
   className,
   style,
 }: AdSlotProps) {
-  const adClient = client ?? process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+  const adClient =
+    client ??
+    process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID ??
+    'ca-pub-5204429722359767';
   const insRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

@@ -23,6 +23,13 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5204429722359767"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`
           ${inter.variable} ${grotesk.variable} ${plexMono.variable}
