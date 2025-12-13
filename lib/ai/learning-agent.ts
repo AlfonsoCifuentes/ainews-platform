@@ -62,7 +62,7 @@ export class LearningAgent {
   async runLearningCycle(): Promise<LearningMetrics> {
     console.log('🧠 Learning Agent: Iniciando ciclo de aprendizaje...');
 
-    // Initialize LLM client with Ollama-first fallback
+    // Initialize LLM client with multi-provider cloud fallback
     if (!this.llm) {
       this.llm = await createLLMClientWithFallback();
     }

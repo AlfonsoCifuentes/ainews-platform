@@ -66,6 +66,16 @@ export function ModuleIllustration({
     return sections || content;
   }, [slot, content]);
 
+  const slotPromptOverrides = useMemo(() => {
+    const payload = slot?.llmPayload as Record<string, unknown> | null | undefined;
+    const promptOverride = (payload?.promptOverride ?? payload?.prompt) as string | undefined;
+    const negativePromptOverride = payload?.negativePrompt as string | undefined;
+    return {
+      promptOverride: typeof promptOverride === 'string' && promptOverride.trim() ? promptOverride.trim() : undefined,
+      negativePromptOverride: typeof negativePromptOverride === 'string' && negativePromptOverride.trim() ? negativePromptOverride.trim() : undefined,
+    };
+  }, [slot?.llmPayload]);
+
   const slotContext = useMemo(() => {
     if (!slot) return null;
     const labels = {
@@ -214,6 +224,9 @@ export function ModuleIllustration({
           moduleId,
           visualStyle: resolvedVisualStyle,
           variants: VARIANT_STYLES,
+          promptOverride: slotPromptOverrides.promptOverride,
+          negativePromptOverride: slotPromptOverrides.negativePromptOverride,
+          providerOrder: slot?.slotType === 'diagram' ? ['gemini'] : ['runware'],
           slotId: slot?.id,
           anchor: slot
             ? {

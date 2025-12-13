@@ -339,7 +339,7 @@ tools:
   ###########################################################################
   - name: llm_cascade_generate
     description: >
-      Generate text using the LLM cascade strategy (Ollama → Groq → Gemini →
+      Generate text using the LLM cascade strategy (Groq → Gemini →
       OpenRouter → Anthropic → OpenAI) with Zod-validated structured outputs
       when needed.
     input_schema:

@@ -136,44 +136,6 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  // Webpack config for Transformers.js (browser LLM support)
-  webpack: (config, { isServer }) => {
-    // Fix for Transformers.js in browser
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        crypto: false,
-      };
-    }
-    
-    // Support for ONNX models (Transformers.js uses ONNX)
-    config.module.rules.push({
-      test: /\.onnx$/,
-      type: 'asset/resource',
-    });
-
-    return config;
-  },
-  // Headers for SharedArrayBuffer (required for WASM threading)
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
-          },
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-        ],
-      },
-    ];
-  },
   // optimizeFonts and swcMinify are now default in Next.js 15
 };
 

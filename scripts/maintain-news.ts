@@ -29,6 +29,7 @@ type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
 
 type MaintainArgs = {
 	dryRun: boolean;
+		rewriteAll: boolean;
 	rewriteDays: number;
 	deleteOlderThanDays: number;
 	confirmDelete: boolean;
@@ -97,8 +98,10 @@ function parseArgs(): MaintainArgs {
 	const model = (readArgValue('--model') || process.env.MAINTAIN_NEWS_MODEL || undefined)?.trim() || undefined;
 
 	const dryRun = hasFlag('--dry-run') || (process.env.DRY_RUN ?? '').toLowerCase() === 'true';
+	const rewriteAll = hasFlag('--rewrite-all') || (process.env.REWRITE_ALL ?? '').toLowerCase() === 'true';
 	return {
 		dryRun,
+		rewriteAll,
 		rewriteDays,
 		deleteOlderThanDays,
 		confirmDelete: hasFlag('--confirm-delete'),
@@ -231,19 +234,30 @@ Original content: ${truncateForRewrite(input.content)}`;
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
 	const cutoffIso = new Date(now - args.rewriteDays * 24 * 60 * 60 * 1000).toISOString();
-	console.log(`[MaintainNews] Rewrite window: published_at >= ${cutoffIso}`);
+	if (args.rewriteAll) {
+		console.log('[MaintainNews] Rewrite window: ALL (including null published_at)');
+	} else {
+		console.log(`[MaintainNews] Rewrite window: published_at >= ${cutoffIso}`);
+	}
 
 	let offset = 0;
 	let rewrittenCount = 0;
 	let skippedCount = 0;
 
 	while (rewrittenCount + skippedCount < args.maxRewrite) {
-		const { data, error } = await db
+		let query = db
 			.from('news_articles')
 			.select('id, title_en, summary_en, content_en, published_at')
-			.gte('published_at', cutoffIso)
-			.order('published_at', { ascending: false })
-			.range(offset, offset + args.batchSize - 1);
+			.order('published_at', { ascending: false });
+
+		if (args.rewriteAll) {
+			// Include null published_at rows, too.
+			query = query.or(`published_at.gte.${cutoffIso},published_at.is.null`);
+		} else {
+			query = query.gte('published_at', cutoffIso);
+		}
+
+		const { data, error } = await query.range(offset, offset + args.batchSize - 1);
 
 		if (error) {
 			throw new Error(`[MaintainNews] Failed to fetch articles: ${error.message}`);
@@ -385,7 +399,7 @@ async function main(): Promise<void> {
 	}
 
 	console.log('[MaintainNews] Starting...');
-	console.log(`[MaintainNews] dryRun=${args.dryRun} rewriteDays=${args.rewriteDays} deleteOlderThanDays=${args.deleteOlderThanDays} batchSize=${args.batchSize}`);
+	console.log(`[MaintainNews] dryRun=${args.dryRun} rewriteAll=${args.rewriteAll} rewriteDays=${args.rewriteDays} deleteOlderThanDays=${args.deleteOlderThanDays} batchSize=${args.batchSize}`);
 
 	const db = getSupabaseServerClient();
 	const llm = await createMaintenanceLLM(args);

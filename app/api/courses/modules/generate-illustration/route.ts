@@ -15,6 +15,7 @@ const RequestSchema = z.object({
   anchor: z.record(z.any()).optional(),
   checksum: z.string().optional(),
   promptOverride: z.string().min(10).max(4000).optional(),
+  negativePromptOverride: z.string().min(1).max(2000).optional(),
   variants: z.array(z.enum(VISUAL_STYLES)).min(1).max(10).optional(),
   metadata: z.record(z.any()).optional(),
   providerOrder: z.array(z.enum(['runware', 'gemini', 'huggingface', 'qwen'])).optional(),
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, promptOverride, metadata, variants, providerOrder } = validated.data;
+    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, promptOverride, negativePromptOverride, metadata, variants, providerOrder } = validated.data;
 
     const variantList = resolveVariantList(style, variants);
     const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
         visualStyle: variant as GenerateIllustrationRequest['visualStyle'],
         providerOrder: order,
         promptOverride,
+        negativePromptOverride,
       });
 
       const variantChecksum = checksum ?? computeIllustrationChecksum({

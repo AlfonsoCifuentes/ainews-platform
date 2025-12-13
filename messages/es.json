@@ -10,7 +10,6 @@
       "trending": "Tendencias",
       "kg": "Grafo de Conocimiento",
       "leaderboard": "Clasificación",
-      "chat": "Chat IA",
       "login": "Iniciar sesión",
       "signup": "Registrarse",
       "settings": "Configuración"
@@ -354,14 +353,6 @@
     "courses": "Cursos",
     "readMore": "Leer Más",
     "aiGenerated": "Generado por IA"
-  },
-  "chatbot": {
-    "title": "Chatbot IA - Local y Privado",
-    "description": "Chatea con tu asistente IA privado impulsado por modelos locales"
-  },
-  "chat": {
-    "title": "Chat IA - Estilo ChatGPT",
-    "description": "Interfaz estilo ChatGPT impulsada por tu modelo IA local"
   }
 }
 

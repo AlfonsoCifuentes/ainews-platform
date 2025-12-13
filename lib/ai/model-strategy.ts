@@ -8,23 +8,8 @@
  * - OpenAI: GPT-5.1, GPT-5 Pro, o3, o4-mini
  * - Anthropic: Claude Opus 4.5, Claude Sonnet 4.5, Claude Haiku 4.5
  * - Google: Gemini 3 Pro, Gemini 2.5 Flash
- * - Local: DeepSeek R1 70B, Qwen3 30B
  * 
  * Based on model strengths:
- * 
- * 🧠 DeepSeek-R1 70B:
- *   - Exceptional step-by-step reasoning and chain-of-thought
- *   - Best for math problems, proofs, logical analysis, exercise design
- *   - Ideal for curriculum planning, exercise banks, validation
- *   - Outputs verbose "thinking" blocks (cleaned automatically)
- *   - USE FOR: Planning, exercises, validation, reasoning-heavy tasks
- * 
- * 📘 Qwen3 30B:
- *   - Excellent balance of quality and speed
- *   - Strong coherence in long-form prose content
- *   - Supports Spanish and 100+ languages natively
- *   - Good at following complex instructions
- *   - USE FOR: Main textbook content, prose generation, translations
  * 
  * Fallback chain: Groq → Gemini → Anthropic → OpenAI
  */
@@ -34,7 +19,6 @@ import {
   GEMINI_MODELS, 
   CLAUDE_MODELS, 
   GROQ_MODELS, 
-  OLLAMA_MODELS,
   OPENROUTER_MODELS 
 } from './model-versions';
 
@@ -60,7 +44,7 @@ function getActiveModelProfile(): ModelProfile {
 }
 
 export interface ModelConfig {
-  provider: 'ollama' | 'groq' | 'openrouter' | 'gemini' | 'anthropic' | 'openai';
+  provider: 'groq' | 'openrouter' | 'gemini' | 'anthropic' | 'openai';
   model: string;
   description: string;
   maxTokens?: number;
@@ -71,48 +55,6 @@ export interface ModelConfig {
 // Model definitions with their characteristics
 // ⚠️ Using latest versions from model-versions.ts
 const MODELS = {
-  // === OLLAMA LOCAL MODELS (PRIMARY) ===
-  
-  // 🧠 DeepSeek R1 70B - REASONING POWERHOUSE
-  // Best for: Planning, exercises, validation, math, proofs
-  deepseek_r1_70b: {
-    provider: 'ollama' as const,
-    model: OLLAMA_MODELS.DEEPSEEK_R1_70B,
-    description: 'DeepSeek R1 70B - Exceptional reasoning, step-by-step analysis, exercise design',
-    maxTokens: 8000,
-    temperature: 0.3, // Lower temp for precise reasoning
-    contextWindow: 65536
-  },
-  
-  // 📘 Qwen3 30B - PROSE GENERATION WORKHORSE
-  // Best for: Textbook content, case studies, translations
-  qwen3_30b: {
-    provider: 'ollama' as const,
-    model: OLLAMA_MODELS.QWEN3_30B,
-    description: 'Qwen3 30B - Excellent prose quality, 100+ languages, fast generation',
-    maxTokens: 8000,
-    temperature: 0.7,
-    contextWindow: 40960
-  },
-  
-  // === OLLAMA FALLBACK MODELS ===
-  qwen2_5_14b: {
-    provider: 'ollama' as const,
-    model: OLLAMA_MODELS.QWEN2_5_14B,
-    description: 'Qwen2.5 14B - Faster fallback, good quality',
-    maxTokens: 4000,
-    temperature: 0.7,
-    contextWindow: 131072
-  },
-  llama3_1_8b: {
-    provider: 'ollama' as const,
-    model: OLLAMA_MODELS.LLAMA3_1_8B,
-    description: 'Llama 3.1 8B - Fast, lightweight fallback',
-    maxTokens: 4000,
-    temperature: 0.7,
-    contextWindow: 131072
-  },
-
   // === CLOUD MODELS (LATEST VERSIONS 2025) ===
   
   groq_llama70b: {
@@ -183,26 +125,6 @@ const MODELS = {
     temperature: 0.7,
     contextWindow: 128000
   },
-
-  // === OPENAI COST-BALANCED (LEGACY BUT COST-EFFICIENT) ===
-  // Used only when AI_MODEL_PROFILE=cost-balanced
-  gpt4o_actual: {
-    provider: 'openai' as const,
-    model: OPENAI_MODELS.GPT_4O,
-    description: 'GPT-4o - High-quality writing and reasoning (cost-balanced profile)',
-    maxTokens: 8000,
-    temperature: 0.7,
-    contextWindow: 128000
-  },
-
-  gpt4o_mini: {
-    provider: 'openai' as const,
-    model: OPENAI_MODELS.GPT_4O_MINI,
-    description: 'GPT-4o-mini - Fast, cost-efficient (cost-balanced profile)',
-    maxTokens: 8000,
-    temperature: 0.7,
-    contextWindow: 128000
-  },
   
   // OpenRouter - Free tier access
   openrouter_llama70b: {
@@ -230,120 +152,107 @@ const MODELS = {
 // Qwen3 30B = Prose tasks (content, case studies, translations)
 // ⚠️ Cloud fallbacks use LATEST versions (2025)
 const TASK_MODEL_PREFERENCES: Record<TaskType, (keyof typeof MODELS)[]> = {
-  // 🧠 DeepSeek excels at structured planning
   outline_planning: [
-    'deepseek_r1_70b',    // Best for structured planning & curriculum design
-    'qwen3_30b',          // Fallback with good reasoning
-    'groq_llama70b',      // Cloud fallback
-    'gemini_pro',         // Gemini 3 Pro
-    'claude_sonnet',      // Claude Sonnet 4.5
-    'gpt5'                // GPT-5.1
-  ],
-
-  // 🧠 DeepSeek excellent for exercises and problems
-  exercise_generation: [
-    'deepseek_r1_70b',    // Best for rigorous problem generation
-    'qwen3_30b',          // Good at math/code exercises
-    'groq_llama70b',
-    'claude_sonnet',      // Claude Sonnet 4.5
-    'gpt5'                // GPT-5.1
-  ],
-
-  // 🧠 DeepSeek for validation and verification
-  reasoning_validation: [
-    'deepseek_r1_70b',    // Best at reasoning & validation
-    'claude_sonnet',      // Claude Sonnet 4.5 - good at analysis
-    'gpt5'                // GPT-5.1
-  ],
-
-  // 🎨 Visual planning (image-only; never Mermaid/code diagrams)
-  visual_planning: [
-    'deepseek_r1_70b',
-    'qwen3_30b',
     'claude_sonnet',
+    'gemini_pro',
+    'gpt5',
+    'groq_llama70b',
+    'gemini_flash',
+    'openrouter_llama70b'
+  ],
+
+  exercise_generation: [
+    'claude_sonnet',
+    'gpt5',
+    'gemini_pro',
+    'groq_llama70b',
+    'gemini_flash',
+    'openrouter_llama70b'
+  ],
+
+  reasoning_validation: [
+    'claude_sonnet',
+    'gemini_pro',
     'gpt5'
   ],
 
-  // 📘 Qwen3 for polished prose content
+  visual_planning: [
+    'claude_sonnet',
+    'gemini_pro',
+    'gpt5',
+    'gemini_flash'
+  ],
+
   content_generation: [
-    'qwen3_30b',          // Best for long-form prose, clean output
-    'qwen2_5_14b',        // Faster fallback
-    'claude_sonnet',      // Claude Sonnet 4.5 - excellent writing
+    'claude_sonnet',
+    'gemini_pro',
+    'gpt5',
     'groq_llama70b',
-    'gemini_pro',         // Gemini 3 Pro
-    'gpt5'                // GPT-5.1
+    'gemini_flash'
   ],
 
-  // 📘 Qwen3 for narrative case studies
   case_study: [
-    'qwen3_30b',          // Good narrative, clean prose
-    'claude_sonnet',      // Claude Sonnet 4.5 - excellent storytelling
-    'groq_llama70b',
-    'gpt5'                // GPT-5.1
+    'claude_sonnet',
+    'gpt5',
+    'gemini_pro',
+    'groq_llama70b'
   ],
 
-  // 🧠 DeepSeek for rigorous exam questions
   exam_generation: [
-    'deepseek_r1_70b',    // Rigorous question design
-    'qwen3_30b',          // Good for varied question types
-    'claude_sonnet',      // Claude Sonnet 4.5
-    'gpt5'                // GPT-5.1
+    'claude_sonnet',
+    'gpt5',
+    'gemini_pro',
+    'groq_llama70b'
   ],
 
-  // 📘 Qwen3 excellent for multilingual (100+ languages)
   translation: [
-    'qwen3_30b',          // 100+ languages, excellent Spanish
-    'gemini_pro',         // Gemini 3 Pro - good multilingual
-    'claude_sonnet',      // Claude Sonnet 4.5
-    'gpt5'                // GPT-5.1
+    'gemini_pro',
+    'gemini_flash',
+    'claude_sonnet',
+    'gpt5_nano',
+    'gpt5'
   ],
 
-  // 🧠 DeepSeek for code logic, Qwen3 for code style
   code_generation: [
-    'deepseek_r1_70b',    // Strong code logic
-    'qwen3_30b',          // Clean code output
-    'claude_sonnet',      // Claude Sonnet 4.5 - best for coding
-    'gpt5'                // GPT-5.1 - best for coding
+    'claude_sonnet',
+    'gpt5',
+    'groq_llama70b',
+    'gemini_pro'
   ],
 
   // Fast models for quick classification
   quick_classification: [
-    'qwen2_5_14b',        // Fast, accurate
-    'llama3_1_8b',        // Very fast
-    'groq_llama70b',      // Cloud fast
-    'gemini_flash',       // Gemini 2.5 Flash
-    'claude_haiku',       // Claude Haiku 4.5
-    'gpt5_nano'           // GPT-5 Nano
+    'gemini_flash',
+    'claude_haiku',
+    'groq_llama70b',
+    'openrouter_llama70b',
+    'gpt5_nano'
   ],
 
   // General fallback chain
   general: [
-    'qwen3_30b',          // Primary general purpose
-    'deepseek_r1_70b',    // Secondary
-    'qwen2_5_14b',        // Fast fallback
     'groq_llama70b',
     'gemini_flash',       // Gemini 2.5 Flash
     'claude_sonnet',      // Claude Sonnet 4.5
-    'gpt5'                // GPT-5.1
+    'gpt5',               // GPT-5.1
+    'openrouter_llama70b'
   ]
 };
 
 // Cost-balanced profile preferences
-// Intent:
-// - Courses: maximum quality on OpenAI GPT-4o
-// - News/visual planning: high volume on OpenAI GPT-4o-mini
+// Intent: prefer cheaper/faster cloud models while keeping quality acceptable.
 const TASK_MODEL_PREFERENCES_COST_BALANCED: Record<TaskType, (keyof typeof MODELS)[]> = {
-  outline_planning: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'gemini_pro', 'groq_llama70b'],
-  exercise_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'groq_llama70b'],
-  reasoning_validation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
-  visual_planning: ['gpt4o_mini', 'gpt4o_actual', 'claude_sonnet', 'groq_llama70b'],
-  content_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'gemini_pro', 'groq_llama70b'],
-  case_study: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini', 'groq_llama70b'],
-  exam_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
-  translation: ['gpt4o_mini', 'gpt4o_actual', 'gemini_pro', 'claude_sonnet'],
-  code_generation: ['gpt4o_actual', 'claude_sonnet', 'gpt4o_mini'],
-  quick_classification: ['gpt4o_mini', 'groq_llama70b', 'gemini_flash', 'openrouter_llama70b'],
-  general: ['gpt4o_mini', 'gpt4o_actual', 'claude_haiku', 'groq_llama70b', 'gemini_flash'],
+  outline_planning: ['gemini_flash', 'groq_llama70b', 'claude_haiku', 'openrouter_llama70b', 'gpt5_nano'],
+  exercise_generation: ['groq_llama70b', 'gemini_flash', 'claude_haiku', 'openrouter_llama70b', 'gpt5_nano'],
+  reasoning_validation: ['claude_sonnet', 'gemini_pro', 'gpt5'],
+  visual_planning: ['gemini_flash', 'claude_haiku', 'groq_llama70b', 'gpt5_nano'],
+  content_generation: ['claude_sonnet', 'gemini_pro', 'groq_llama70b', 'gpt5'],
+  case_study: ['claude_sonnet', 'groq_llama70b', 'gemini_pro', 'gpt5'],
+  exam_generation: ['claude_sonnet', 'gemini_pro', 'gpt5'],
+  translation: ['gemini_flash', 'gemini_pro', 'claude_sonnet', 'gpt5_nano'],
+  code_generation: ['claude_sonnet', 'gpt5', 'groq_llama70b'],
+  quick_classification: ['gemini_flash', 'groq_llama70b', 'claude_haiku', 'openrouter_llama70b', 'gpt5_nano'],
+  general: ['gemini_flash', 'groq_llama70b', 'claude_haiku', 'openrouter_llama70b', 'gpt5_nano'],
 };
 
 // ============================================================================
@@ -351,7 +260,6 @@ const TASK_MODEL_PREFERENCES_COST_BALANCED: Record<TaskType, (keyof typeof MODEL
 // ============================================================================
 
 interface AvailableModels {
-  ollama: string[];
   hasGroq: boolean;
   hasGemini: boolean;
   hasAnthropic: boolean;
@@ -363,29 +271,13 @@ let cachedAvailability: AvailableModels | null = null;
 let lastAvailabilityCheck = 0;
 const AVAILABILITY_CACHE_MS = 60000; // 1 minute
 
-async function checkOllamaModels(): Promise<string[]> {
-  try {
-    const response = await fetch('http://localhost:11434/api/tags', {
-      signal: AbortSignal.timeout(3000)
-    });
-    if (!response.ok) return [];
-    const data = await response.json() as { models?: Array<{ name: string }> };
-    return data.models?.map(m => m.name) || [];
-  } catch {
-    return [];
-  }
-}
-
 async function checkModelAvailability(): Promise<AvailableModels> {
   // Return cached if fresh
   if (cachedAvailability && (Date.now() - lastAvailabilityCheck) < AVAILABILITY_CACHE_MS) {
     return cachedAvailability;
   }
 
-  const ollamaModels = await checkOllamaModels();
-  
   cachedAvailability = {
-    ollama: ollamaModels,
     hasGroq: !!process.env.GROQ_API_KEY,
     hasGemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
     hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
@@ -395,7 +287,6 @@ async function checkModelAvailability(): Promise<AvailableModels> {
   lastAvailabilityCheck = Date.now();
 
   console.log('[ModelStrategy] Available models:', {
-    ollama: cachedAvailability.ollama.length > 0 ? cachedAvailability.ollama : 'none',
     cloud: Object.entries(cachedAvailability)
       .filter(([k, v]) => k.startsWith('has') && v)
       .map(([k]) => k.replace('has', ''))
@@ -408,11 +299,6 @@ function isModelAvailable(modelKey: keyof typeof MODELS, availability: Available
   const model = MODELS[modelKey];
   
   switch (model.provider) {
-    case 'ollama':
-      // Check if the specific model is installed
-      return availability.ollama.some(m => 
-        m.startsWith(model.model.split(':')[0]) // Match base model name
-      );
     case 'groq':
       return availability.hasGroq;
     case 'gemini':
@@ -488,12 +374,10 @@ export async function selectModelForTask(task: TaskType): Promise<SelectedModel>
     return { key: 'claude_sonnet', ...MODELS.claude_sonnet, fallbackChain: [] };
   }
   if (availability.hasOpenAI) {
-    const profile = getActiveModelProfile();
-    const key = profile === 'cost-balanced' ? 'gpt4o_actual' : 'gpt4o';
-    return { key, ...MODELS[key], fallbackChain: [] };
+    return { key: 'gpt5', ...MODELS.gpt5, fallbackChain: [] };
   }
   
-  throw new Error(`No models available for task "${task}". Please install Ollama models or configure API keys.`);
+  throw new Error(`No models available for task "${task}". Please configure at least one cloud API key.`);
 }
 
 // ============================================================================
@@ -548,8 +432,6 @@ async function callModel(
   systemPrompt?: string
 ): Promise<string> {
   switch (config.provider) {
-    case 'ollama':
-      return callOllama(config, prompt, systemPrompt);
     case 'groq':
       return callGroq(config, prompt, systemPrompt);
     case 'gemini':
@@ -568,29 +450,6 @@ async function callModel(
 // ============================================================================
 // PROVIDER IMPLEMENTATIONS
 // ============================================================================
-
-async function callOllama(config: ModelConfig, prompt: string, systemPrompt?: string): Promise<string> {
-  const response = await fetch('http://localhost:11434/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
-      prompt: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
-      stream: false,
-      options: {
-        temperature: config.temperature ?? 0.7,
-        num_predict: config.maxTokens ?? 4000
-      }
-    })
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Ollama error: ${response.status}`);
-  }
-  
-  const data = await response.json() as { response: string };
-  return data.response;
-}
 
 async function callGroq(config: ModelConfig, prompt: string, systemPrompt?: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;

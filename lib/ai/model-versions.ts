@@ -301,33 +301,6 @@ export const OPENROUTER_MODELS = {
 } as const;
 
 // ============================================================================
-// OLLAMA LOCAL MODELS
-// ============================================================================
-
-export const OLLAMA_MODELS = {
-  /** DeepSeek R1 70B - Exceptional reasoning */
-  DEEPSEEK_R1_70B: 'deepseek-r1:70b',
-  
-  /** DeepSeek R1 32B - Balanced reasoning */
-  DEEPSEEK_R1_32B: 'deepseek-r1:32b',
-  
-  /** DeepSeek R1 14B - Lighter reasoning */
-  DEEPSEEK_R1_14B: 'deepseek-r1:14b',
-  
-  /** Qwen3 30B - Excellent prose, 100+ languages */
-  QWEN3_30B: 'qwen3:30b',
-  
-  /** Qwen3 14B - Faster Qwen */
-  QWEN3_14B: 'qwen3:14b',
-  
-  /** Qwen2.5 14B - Previous gen, still good */
-  QWEN2_5_14B: 'qwen2.5:14b',
-  
-  /** Llama 3.1 8B - Fast local */
-  LLAMA3_1_8B: 'llama3.1:8b',
-} as const;
-
-// ============================================================================
 // IMAGE MODELS (Flux primary, Qwen fallback)
 // ============================================================================
 export const HUGGINGFACE_IMAGE_MODELS = {
@@ -352,7 +325,6 @@ export const RUNWARE_IMAGE_MODELS = {
 export const RECOMMENDED_MODELS = {
   /** For complex reasoning, planning, and validation */
   reasoning: {
-    local: OLLAMA_MODELS.DEEPSEEK_R1_70B,
     cloud: OPENAI_MODELS.O3,
     budget: DEEPSEEK_MODELS.DEEPSEEK_REASONER, // Best price/quality for reasoning
     ultraFast: GROQ_MODELS.LLAMA_3_3_70B,
@@ -360,7 +332,6 @@ export const RECOMMENDED_MODELS = {
   
   /** For high-quality prose and content generation */
   content: {
-    local: OLLAMA_MODELS.QWEN3_30B,
     cloud: CLAUDE_MODELS.CLAUDE_SONNET_4_5, // Best prose quality
     budget: DEEPSEEK_MODELS.DEEPSEEK_CHAT,
     ultraFast: GROQ_MODELS.LLAMA_3_3_70B,
@@ -368,7 +339,6 @@ export const RECOMMENDED_MODELS = {
   
   /** For fast classification and simple tasks */
   fast: {
-    local: OLLAMA_MODELS.LLAMA3_1_8B,
     cloud: CLAUDE_MODELS.CLAUDE_HAIKU_4_5,
     budget: GEMINI_MODELS.GEMINI_2_5_FLASH_LITE,
     ultraFast: GROQ_MODELS.LLAMA_3_1_8B, // 560 tok/s!
@@ -376,7 +346,6 @@ export const RECOMMENDED_MODELS = {
   
   /** For code generation */
   coding: {
-    local: OLLAMA_MODELS.DEEPSEEK_R1_70B,
     cloud: OPENAI_MODELS.GPT_5_1, // Best for coding
     budget: MISTRAL_MODELS.CODESTRAL,
     ultraFast: GROQ_MODELS.GPT_OSS_120B,
@@ -391,7 +360,6 @@ export const RECOMMENDED_MODELS = {
   
   /** For multilingual/translation */
   multilingual: {
-    local: OLLAMA_MODELS.QWEN3_30B, // 100+ languages
     cloud: MISTRAL_MODELS.MISTRAL_MEDIUM_3_1, // Excellent multilingual
     budget: GEMINI_MODELS.GEMINI_2_5_FLASH,
     ultraFast: GROQ_MODELS.QWEN3_32B,
@@ -531,26 +499,6 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapabilities> = {
     costTier: 'free',
     speed: 'instant',
   },
-  
-  // Ollama local
-  [OLLAMA_MODELS.DEEPSEEK_R1_70B]: {
-    contextWindow: 65536,
-    maxOutputTokens: 8000,
-    supportsImages: false,
-    supportsTools: false,
-    supportsStreaming: true,
-    costTier: 'free',
-    speed: 'slow',
-  },
-  [OLLAMA_MODELS.QWEN3_30B]: {
-    contextWindow: 40960,
-    maxOutputTokens: 8000,
-    supportsImages: false,
-    supportsTools: false,
-    supportsStreaming: true,
-    costTier: 'free',
-    speed: 'medium',
-  },
 };
 
 // ============================================================================
@@ -655,7 +603,6 @@ export type ClaudeModel = typeof CLAUDE_MODELS[keyof typeof CLAUDE_MODELS];
 export type GroqModel = typeof GROQ_MODELS[keyof typeof GROQ_MODELS];
 export type DeepSeekModel = typeof DEEPSEEK_MODELS[keyof typeof DEEPSEEK_MODELS];
 export type MistralModel = typeof MISTRAL_MODELS[keyof typeof MISTRAL_MODELS];
-export type OllamaModel = typeof OLLAMA_MODELS[keyof typeof OLLAMA_MODELS];
 export type HuggingFaceImageModel = typeof HUGGINGFACE_IMAGE_MODELS[keyof typeof HUGGINGFACE_IMAGE_MODELS];
 export type QwenImageModel = typeof QWEN_IMAGE_MODELS[keyof typeof QWEN_IMAGE_MODELS];
 export type RunwareImageModel = typeof RUNWARE_IMAGE_MODELS[keyof typeof RUNWARE_IMAGE_MODELS];

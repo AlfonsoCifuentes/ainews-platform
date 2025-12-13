@@ -31,21 +31,23 @@ interface HeaderSlotRow {
   summary: string | null;
   reason: string | null;
   heading: string | null;
-  suggested_visual_style: VisualStyle | null;
+  suggested_visual_style: string | null;
   block_index: number | null;
   confidence: number | null;
+  llm_payload?: Record<string, unknown> | null;
 }
 
 interface VisualSlotRow {
   id: string;
   slot_type: 'header' | 'diagram' | 'inline';
   density: string | null;
-  suggested_visual_style: VisualStyle | null;
+  suggested_visual_style: string | null;
   block_index: number | null;
   heading: string | null;
   summary: string | null;
   reason: string | null;
   confidence: number | null;
+  llm_payload?: Record<string, unknown> | null;
 }
 
 function isMissingVisualSlotsTable(error: unknown): boolean {
@@ -54,9 +56,9 @@ function isMissingVisualSlotsTable(error: unknown): boolean {
   return message.toLowerCase().includes('module_visual_slots');
 }
 
-const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
-// Cost-aware defaults: Runware for most images, Gemini only when needed/fallback.
-const PROVIDER_ORDER_DEFAULT: ImageProviderName[] = ['runware', 'gemini'];
+let VARIANT_STYLES: VisualStyle[] = ['photorealistic'];
+// Project rule: Runware ONLY for no-text images (no Gemini fallback).
+const PROVIDER_ORDER_DEFAULT: ImageProviderName[] = ['runware'];
 const PROVIDER_ORDER_DIAGRAM: ImageProviderName[] = ['gemini'];
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
@@ -102,7 +104,7 @@ async function hasHeaderIllustration(moduleId: string, locale: Locale): Promise<
 async function fetchHeaderSlot(moduleId: string, locale: Locale): Promise<HeaderSlotRow | null> {
   const { data, error } = await supabase
     .from('module_visual_slots')
-    .select('id, summary, reason, heading, suggested_visual_style, block_index, confidence')
+    .select('id, summary, reason, heading, suggested_visual_style, block_index, confidence, llm_payload')
     .eq('module_id', moduleId)
     .eq('locale', locale)
     .eq('slot_type', 'header')
@@ -124,7 +126,7 @@ async function fetchHeaderSlot(moduleId: string, locale: Locale): Promise<Header
 async function fetchSupportingSlots(moduleId: string, locale: Locale): Promise<VisualSlotRow[]> {
   const { data, error } = await supabase
     .from('module_visual_slots')
-    .select('id, slot_type, density, suggested_visual_style, block_index, heading, summary, reason, confidence')
+    .select('id, slot_type, density, suggested_visual_style, block_index, heading, summary, reason, confidence, llm_payload')
     .eq('module_id', moduleId)
     .eq('locale', locale)
     .neq('slot_type', 'header');
@@ -204,6 +206,36 @@ function buildSlotPromptContext(module: ModuleRow, locale: Locale, slot: VisualS
   return parts.filter(Boolean).join('\n\n');
 }
 
+function getSlotPromptOverrides(slot: { llm_payload?: Record<string, unknown> | null }): {
+  promptOverride?: string;
+  negativePromptOverride?: string;
+} {
+  const payload = slot.llm_payload ?? null;
+  if (!payload || typeof payload !== 'object') return {};
+
+  const anyPayload = payload as Record<string, unknown>;
+
+  const promptOverrideRaw =
+    (typeof anyPayload.promptOverride === 'string' && anyPayload.promptOverride.trim()) ||
+    (typeof anyPayload.prompt === 'string' && anyPayload.prompt.trim()) ||
+    undefined;
+
+  const negativePromptRaw =
+    (typeof anyPayload.negativePrompt === 'string' && anyPayload.negativePrompt.trim()) ||
+    (typeof anyPayload.negative_prompt === 'string' && anyPayload.negative_prompt.trim()) ||
+    undefined;
+
+  return {
+    promptOverride: promptOverrideRaw,
+    negativePromptOverride: negativePromptRaw,
+  };
+}
+
+function defaultNoTextNegativePrompt(locale: Locale): string {
+  const base = 'text, letters, words, typography, watermark, logo, caption, subtitles, label, signage';
+  return locale === 'es' ? `${base}, texto, letras, palabras` : base;
+}
+
 async function generateWithRateLimitRetry(
   options: Parameters<typeof generateIllustrationWithCascade>[0],
   contextLabel: string,
@@ -250,6 +282,7 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
   const slot = await fetchHeaderSlot(module.id, locale);
   const visualStyle = normalizeVisualStyle(slot?.suggested_visual_style);
   const promptContext = buildPromptContext(module, locale, slot);
+  const overrides = getSlotPromptOverrides(slot ?? {});
   const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
 
   if (dryRun) {
@@ -265,6 +298,8 @@ async function generateForLocale(module: ModuleRow, locale: Locale): Promise<'ge
       style: 'header',
       visualStyle: variant,
       providerOrder: PROVIDER_ORDER_DEFAULT,
+      promptOverride: overrides.promptOverride,
+      negativePromptOverride: overrides.negativePromptOverride ?? defaultNoTextNegativePrompt(locale),
     }, `${moduleTitle} (${locale}) header ${variant}`);
 
     const checksum = computeIllustrationChecksum({
@@ -345,6 +380,7 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
     const style = slot.slot_type === 'diagram' ? 'diagram' : 'conceptual';
     const variants = style === 'diagram' ? ['photorealistic'] : VARIANT_STYLES;
     const prompt = buildSlotPromptContext(module, locale, slot);
+    const overrides = getSlotPromptOverrides(slot);
     const providerOrder = style === 'diagram' ? PROVIDER_ORDER_DIAGRAM : PROVIDER_ORDER_DEFAULT;
 
     for (const variant of variants) {
@@ -354,6 +390,10 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
         style: style as 'conceptual' | 'diagram',
         visualStyle: variant as VisualStyle,
         providerOrder,
+        promptOverride: overrides.promptOverride,
+        negativePromptOverride: style === 'diagram'
+          ? undefined
+          : overrides.negativePromptOverride ?? defaultNoTextNegativePrompt(locale),
       }, `${moduleTitleForLog(module, locale)} slot ${slot.id} ${variant}`);
 
       const checksum = computeIllustrationChecksum({
@@ -460,6 +500,11 @@ async function main() {
   console.log(`🌐 Locales: ${locales.join(', ')}`);
   console.log(`📚 Course filter: ${courseFilter ?? 'All courses'}`);
   console.log(`🧪 Dry run: ${dryRun ? 'YES' : 'NO'}`);
+
+  if (args.includes('--multi-variants')) {
+    VARIANT_STYLES = ['photorealistic', 'anime'];
+    console.warn('⚠️ Multi-variant mode enabled; ensure module_illustrations can store multiple variants per (module_id, locale, style).');
+  }
 
   const targets = await findTargets(limit, locales);
   if (!targets.length) {

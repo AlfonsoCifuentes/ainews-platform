@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
 import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
+import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 import {
   ChapterDecorator,
   CalloutBox,
@@ -50,6 +51,71 @@ export interface ContentBlock {
   items?: string[];
   caption?: string;
   source?: string;
+}
+
+function injectVisualFigures(blocks: ContentBlock[], slots: ModuleVisualSlot[]): ContentBlock[] {
+  const insertable = slots
+    .filter((slot) => slot.slotType !== 'header')
+    .filter((slot) => typeof slot.blockIndex === 'number' && slot.blockIndex >= 0)
+    .sort((a, b) => (a.blockIndex ?? 0) - (b.blockIndex ?? 0));
+
+  if (!insertable.length) return blocks;
+
+  const next: ContentBlock[] = [...blocks];
+  let offset = 0;
+
+  for (const slot of insertable) {
+    const rawIndex = slot.blockIndex ?? 0;
+    const clamped = Math.max(0, Math.min(rawIndex, next.length));
+    const index = clamped + offset;
+
+    const caption = slot.heading || slot.summary || (slot.slotType === 'diagram' ? 'Diagram' : 'Figure');
+    next.splice(index, 0, {
+      type: 'figure',
+      content: slot.id,
+      caption,
+      source: slot.slotType,
+    });
+    offset += 1;
+  }
+
+  return next;
+}
+
+function InlineFigure({
+  moduleId,
+  moduleContent,
+  locale,
+  slot,
+  caption,
+}: {
+  moduleId: string;
+  moduleContent: string;
+  locale: 'en' | 'es';
+  slot: ModuleVisualSlot;
+  caption?: string;
+}) {
+  // Reuse the existing pipeline, but render in a textbook-like figure layout.
+  const style = getIllustrationStyleForSlot(slot);
+
+  return (
+    <figure className="md:float-right md:w-[320px] md:ml-6 md:mb-4 my-2 break-inside-avoid">
+      <ModuleIllustration
+        moduleId={moduleId}
+        content={moduleContent}
+        locale={locale}
+        style={style}
+        visualStyle={slot.suggestedVisualStyle}
+        slot={slot}
+        className="p-0 border-0 bg-transparent"
+      />
+      {caption ? (
+        <figcaption className="mt-2 text-[11px] uppercase tracking-[0.25em] text-white/60 font-mono">
+          {caption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
 }
 
 export interface TableOfContentsItem {
@@ -297,6 +363,9 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
     case 'summary':
     case 'callout':
       return <CalloutBox type={block.type} content={block.content} isDark={isDark} />;
+    case 'figure':
+      // Figure blocks are injected later where we have module context.
+      return null;
     default:
       return (
         <p className="text-muted-foreground">
@@ -401,7 +470,8 @@ export function TextbookView({
 
   // Parse content
   useEffect(() => {
-    const blocks = parseContentIntoBlocks(content);
+    const rawBlocks = parseContentIntoBlocks(content);
+    const blocks = injectVisualFigures(rawBlocks, supportingSlots);
     const parsedPages: TextbookPage[] = [];
     const toc: TableOfContentsItem[] = [];
     let currentPageBlocks: ContentBlock[] = [];
@@ -440,7 +510,7 @@ export function TextbookView({
     createPage();
     setPages(parsedPages);
     setTableOfContents(toc);
-  }, [content]);
+  }, [content, supportingSlots]);
 
   const scrollPagesBy = useCallback((delta: number) => {
     const targets: Array<HTMLDivElement | null | undefined> = [];
@@ -538,9 +608,24 @@ export function TextbookView({
         )}
 
         <div className="space-y-6 text-white pb-6">
-          {page.content.map((block, i) => (
-            <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />
-          ))}
+          {page.content.map((block, i) => {
+            if (block.type === 'figure') {
+              const slotId = block.content;
+              const slot = supportingSlots.find((s) => s.id === slotId);
+              if (!moduleId || !slot) return null;
+              return (
+                <InlineFigure
+                  key={`${slotId}-${i}`}
+                  moduleId={moduleId}
+                  moduleContent={content}
+                  locale={locale}
+                  slot={slot}
+                  caption={block.caption}
+                />
+              );
+            }
+            return <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />;
+          })}
         </div>
 
         <div className="mt-8 pt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/60">

@@ -13,11 +13,23 @@ These documents contain the definitive truth about the project. When in doubt, c
 
 ---
 
-## 🤖 AI MODEL VERSION POLICY - CUTTING EDGE ALWAYS
+## 🤖 AI MODEL POLICY (PROJECT DECISION)
 
-**⚠️ CRITICAL**: This project MUST always use the **LATEST** AI model versions available.
+**⚠️ CRITICAL**: When the user gives a direct instruction (e.g., which model to use), that instruction takes priority over any default policy text in this file.
 
-### Mandatory Version Checking
+This project uses a **cost/quality strategy** (not “always latest”), and the concrete model choices below must be reflected in `lib/ai/model-versions.ts` (single source of truth).
+
+### Current Model Strategy (Dec 2025)
+
+**Text / Planning**
+- **GPT-4o**: reads courses/modules and plans illustrations/diagrams, prompts, captions, and placements (book-like layout).
+- **GPT-4o-mini**: news-oriented tasks (rewrite/summarize/maintenance), where cheaper/faster is preferred.
+
+**Images**
+- **Runware (HiDream-I1-Fast)**: `runware:97@3` for **no-text** course covers + illustrations.
+- **Gemini 3 Image**: for **diagrams/schemes that require text** (and those Gemini images are kept; do not replace them).
+
+### Version Checking
 
 Before implementing ANY AI-related code:
 
@@ -29,19 +41,11 @@ Before implementing ANY AI-related code:
 
 2. **UPDATE** `lib/ai/model-versions.ts` if newer versions are found
 
-3. **NEVER** use deprecated or outdated models:
-   - ❌ GPT-4, GPT-4-turbo, GPT-4o → Use GPT-5.1, GPT-5 Pro
-   - ❌ Claude 3, Claude 3.5 → Use Claude 4.5 (Opus/Sonnet/Haiku)
-   - ❌ Gemini 1.5 → Use Gemini 3 Pro, Gemini 2.5 Flash
+3. Keep `lib/ai/model-versions.ts` aligned with the strategy above (including GPT-4o / GPT-4o-mini).
 
-### Current Latest Models (2025)
+### Note on “latest models”
 
-| Provider | Flagship | Balanced | Fast |
-|----------|----------|----------|------|
-| **OpenAI** | GPT-5 Pro | GPT-5.1 | GPT-5 Nano |
-| **Anthropic** | Claude Opus 4.5 | Claude Sonnet 4.5 | Claude Haiku 4.5 |
-| **Google** | Gemini 3 Pro | Gemini 2.5 Pro | Gemini 2.5 Flash |
-| **OpenAI Reasoning** | o3 | o4-mini | - |
+We still track newer models and update `lib/ai/model-versions.ts`, but we do **not** automatically switch away from the chosen strategy unless the user requests it.
 
 ### Model Strategy Files
 
@@ -306,7 +310,7 @@ import { BookModuleView } from '@/components/courses/BookModuleView';
 
 ### Exercise Grading (Cascade LLM):
 - Uses cascade LLM grader (`app/api/courses/modules/grade/route.ts`)
-- **Provider order**: Ollama → Groq → Gemini → OpenRouter → Anthropic → OpenAI
+- **Provider order**: Groq → Gemini → OpenRouter → Anthropic → OpenAI
 - Validates responses with Zod schema
 - Falls back to heuristic grading if all LLMs fail
 - Awards XP via `award_xp` RPC on correct answers
@@ -395,12 +399,11 @@ All LLM calls MUST use the cascade fallback pattern with Zod validation:
 ```typescript
 // Priority order for LLM providers:
 const LLM_CASCADE = [
-  'ollama',      // 1. Local (fastest, free)
-  'groq',        // 2. Groq (fast, free tier)
-  'gemini',      // 3. Google Gemini (free tier)
-  'openrouter',  // 4. OpenRouter (multiple models)
-  'anthropic',   // 5. Anthropic Claude
-  'openai'       // 6. OpenAI (last resort)
+  'groq',        // 1. Groq (fast, free tier)
+  'gemini',      // 2. Google Gemini (free tier)
+  'openrouter',  // 3. OpenRouter (multiple models)
+  'anthropic',   // 4. Anthropic Claude
+  'openai'       // 5. OpenAI (last resort)
 ];
 
 // ALWAYS use Zod for response validation

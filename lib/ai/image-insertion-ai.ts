@@ -422,7 +422,7 @@ function escapeRegex(string: string): string {
 // ============================================================================
 
 /**
- * Check if local Ollama models are available
+ * Check if configured cloud models are available
  */
 export async function checkLocalModelsAvailable(): Promise<{
   available: boolean;

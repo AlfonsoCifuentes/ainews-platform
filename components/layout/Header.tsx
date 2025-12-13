@@ -16,12 +16,11 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Primary navigation items
-const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'analytics' | 'chat'; href: string }> = [
+const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'analytics'; href: string }> = [
   { key: 'news', href: '/news' },
   { key: 'courses', href: '/courses' },
   { key: 'coursesLibrary', href: '/courses-library' },
   { key: 'analytics', href: '/analytics' },
-  { key: 'chat', href: '/chat' },
 ];
 
 export function Header() {

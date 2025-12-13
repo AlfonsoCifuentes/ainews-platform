@@ -47,11 +47,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/chat" className="hover:text-white transition-colors">
-                  {t('nav.chat')}
-                </Link>
-              </li>
-              <li>
                 <Link href="/kg" className="hover:text-white transition-colors">
                   Knowledge Graph
                 </Link>

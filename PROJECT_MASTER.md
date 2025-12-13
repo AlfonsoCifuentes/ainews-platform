@@ -157,10 +157,9 @@ Crear una plataforma web bilingüe (inglés/español) que combine:
    - **Together.ai** - $25 créditos iniciales
    - **Groq** - LLM inference ultra-rápido gratis
    - **Cohere** - Trial API generoso
-   
-3. **Alternativas Locales**
-   - **Ollama** (si tienes GPU local)
-   - **LM Studio** (desarrollo local)
+
+3. **Recomendación**
+  - Usar siempre providers cloud con fallback (para mantener el entorno simple y consistente)
 
  
 #### Vector Database (Embeddings)
@@ -405,11 +404,7 @@ En cada artículo/curso:
 - PDFs públicos → texto + secciones, extracción de figures/footnotes.
 - Imágenes (capturas de paper) → OCR ligero (Tesseract.js en cliente, opcional).
 
-### 6) On‑Device LLM (sin costo de inferencia)
-
-- Integración opcional con WebLLM/transformers.js para pequeñas tareas (resumen local, flashcards) en dispositivos modernos, preservando privacidad y $0.
-
-### 7) Comunidad y Credibilidad
+### 6) Comunidad y Credibilidad
 
 - Notas y subrayados públicos/privados.
 - Curación colaborativa con votos y razonamientos.

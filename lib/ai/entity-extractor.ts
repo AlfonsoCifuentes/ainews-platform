@@ -48,7 +48,7 @@ export class EntityExtractor {
    * Extrae entidades y relaciones de un artículo
    */
   async extractFromArticle(articleId: string): Promise<ExtractionResult> {
-    // Initialize LLM client with Ollama-first fallback
+    // Initialize LLM client with multi-provider cloud fallback
     if (!this.llm) {
       this.llm = await createLLMClientWithFallback();
     }

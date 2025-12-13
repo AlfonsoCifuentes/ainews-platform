@@ -22,18 +22,22 @@ CREATE INDEX IF NOT EXISTS idx_module_visual_slots_module
 
 ALTER TABLE module_visual_slots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Public read module visual slots"
+DROP POLICY IF EXISTS "Public read module visual slots" ON module_visual_slots;
+CREATE POLICY "Public read module visual slots"
   ON module_visual_slots FOR SELECT
   USING (true);
 
-CREATE POLICY IF NOT EXISTS "Service upsert module visual slots"
+DROP POLICY IF EXISTS "Service upsert module visual slots" ON module_visual_slots;
+CREATE POLICY "Service upsert module visual slots"
   ON module_visual_slots FOR INSERT
   WITH CHECK (auth.role() = 'service_role');
 
-CREATE POLICY IF NOT EXISTS "Service manage module visual slots"
+DROP POLICY IF EXISTS "Service manage module visual slots" ON module_visual_slots;
+CREATE POLICY "Service manage module visual slots"
   ON module_visual_slots FOR UPDATE
   USING (auth.role() = 'service_role');
 
-CREATE POLICY IF NOT EXISTS "Service delete module visual slots"
+DROP POLICY IF EXISTS "Service delete module visual slots" ON module_visual_slots;
+CREATE POLICY "Service delete module visual slots"
   ON module_visual_slots FOR DELETE
   USING (auth.role() = 'service_role');

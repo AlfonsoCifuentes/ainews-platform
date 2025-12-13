@@ -15,40 +15,7 @@ async function diagnose() {
   console.log('║       🔍 DIAGNÓSTICO DEL SISTEMA DE FALLBACKS LLM             ║');
   console.log('╚════════════════════════════════════════════════════════════════╝\n');
 
-  // Verificar Ollama
-  console.log('1️⃣  OLLAMA (Local Model - ZERO COST)');
-  console.log('─'.repeat(60));
-
-  const isVercel = process.env.VERCEL === '1';
-  if (isVercel) {
-    console.log('   ⚠️  Running on Vercel - Ollama not available');
-  } else {
-    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    try {
-      const response = await fetch(`${ollamaUrl}/api/tags`, {
-        signal: AbortSignal.timeout(3000)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`   ✅ Ollama is RUNNING`);
-        console.log(`   📍 URL: ${ollamaUrl}`);
-        console.log(`   🤖 Available models:`);
-        data.models?.forEach((model: { name: string; size: number }) => {
-          const sizeMB = (model.size / 1024 / 1024).toFixed(0);
-          console.log(`      • ${model.name} (${sizeMB} MB)`);
-        });
-      } else {
-        console.log(`   ❌ Ollama responded but returned status: ${response.status}`);
-      }
-    } catch {
-      console.log(`   ❌ Ollama is NOT running`);
-      console.log(`   💡 Start it with: ollama serve`);
-      console.log(`   💡 Or install: winget install Ollama.Ollama`);
-    }
-  }
-
-console.log('\n2️⃣  CLOUD PROVIDERS (API Keys)');
+console.log('1️⃣  CLOUD PROVIDERS (API Keys)');
 console.log('─'.repeat(60));
 
 const providers = [
@@ -73,7 +40,7 @@ providers.forEach(({ name, env }) => {
   }
 });
 
-console.log('\n3️⃣  FALLBACK ORDER (Priority)');
+console.log('\n2️⃣  FALLBACK ORDER (Priority)');
 console.log('─'.repeat(60));
 
 const availableProviders = getAvailableProviders();
@@ -84,22 +51,20 @@ if (availableProviders.length === 0) {
 } else {
   console.log(`   ✅ ${availableProviders.length} provider(s) available:\n`);
   availableProviders.forEach((provider, index) => {
-    const isFree = provider === 'ollama';
-    const emoji = isFree ? '🏠' : '☁️';
-    const cost = isFree ? 'FREE (Local)' : 'API Cost';
+    const emoji = '☁️';
+    const cost = 'API Cost';
     const priority = index === 0 ? '🥇 PRIMARY' : index === 1 ? '🥈 SECONDARY' : '🥉 TERTIARY';
     console.log(`   ${priority} ${emoji} ${provider.toUpperCase().padEnd(12)} - ${cost}`);
   });
 }
 
-console.log('\n4️⃣  RECOMMENDATIONS');
+console.log('\n3️⃣  RECOMMENDATIONS');
 console.log('─'.repeat(60));
 
 if (availableProviders.length === 0) {
   console.log('   ⛔ CRITICAL: No LLM providers available!');
   console.log('   📝 Actions required:');
-  console.log('      1. Install Ollama: winget install Ollama.Ollama');
-  console.log('      2. Or add API keys to .env.local');
+  console.log('      1. Add API keys to .env.local');
 } else if (availableProviders.length === 1) {
   console.log('   ⚠️  Only 1 provider available - no fallback redundancy');
   console.log('   💡 Recommendation: Add at least 2 more API keys for reliability');
@@ -111,15 +76,7 @@ if (availableProviders.length === 0) {
   console.log('   🎯 System will try providers in order until one succeeds');
 }
 
-if (availableProviders[0] === 'ollama') {
-  console.log('   🏆 OPTIMAL: Using Ollama as primary = ZERO API costs!');
-} else if (availableProviders.includes('ollama')) {
-  console.log('   ⚠️  Ollama is available but not primary (check if it\'s running)');
-} else {
-  console.log('   💡 TIP: Install Ollama for free local LLM (no API costs)');
-}
-
-console.log('\n5️⃣  QUICK TEST');
+console.log('\n4️⃣  QUICK TEST');
 console.log('─'.repeat(60));
 
 if (availableProviders.length > 0) {

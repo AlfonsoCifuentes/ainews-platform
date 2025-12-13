@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import crypto from 'node:crypto';
 import { getGeminiImageClient, buildEducationalIllustrationPrompt, type IllustrationStyle, type ImageGenerationResult } from './gemini-image';
 import { GEMINI_MODELS, HUGGINGFACE_IMAGE_MODELS, QWEN_IMAGE_MODELS, RUNWARE_IMAGE_MODELS } from './model-versions';
 import type { VisualStyle } from '@/lib/types/illustrations';
@@ -12,6 +13,7 @@ export interface IllustrationCascadeOptions {
   visualStyle?: VisualStyle;
   providerOrder?: ImageProviderName[];
   promptOverride?: string;
+  negativePromptOverride?: string;
 }
 
 export interface CascadeAttempt {
@@ -55,7 +57,7 @@ export async function generateIllustrationWithCascade(
       const result = provider === 'gemini'
         ? await generateWithGemini(prompt, dimensions)
         : provider === 'runware'
-        ? await generateWithRunware(prompt, dimensions)
+        ? await generateWithRunware(prompt, options.negativePromptOverride, dimensions)
         : provider === 'qwen'
         ? await generateWithQwen(prompt, dimensions)
         : await generateWithHuggingFace(prompt, dimensions);
@@ -100,6 +102,7 @@ async function generateWithGemini(
 
 async function generateWithRunware(
   prompt: string,
+  negativePrompt: string | undefined,
   dimensions: ReturnType<typeof resolveDimensionsForStyle>
 ): Promise<ImageGenerationResult> {
   const apiKey = process.env.RUNWARE_API_KEY;
@@ -115,21 +118,30 @@ async function generateWithRunware(
   }
 
   try {
-    const response = await fetch('https://api.runware.ai/v1/runs', {
+    const taskUUID = crypto.randomUUID();
+    const trimmedNegative = typeof negativePrompt === 'string' ? negativePrompt.trim() : '';
+
+    const response = await fetch('https://api.runware.ai/v1', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        input: {
-          prompt,
-          num_images: 1,
+      // Runware API expects an array of task objects.
+      body: JSON.stringify([
+        {
+          taskType: 'imageInference',
+          taskUUID,
+          outputType: 'base64Data',
+          outputFormat: 'PNG',
+          positivePrompt: prompt,
+          ...(trimmedNegative.length >= 2 ? { negativePrompt: trimmedNegative } : {}),
           width: dimensions.width,
           height: dimensions.height,
+          model,
+          numberResults: 1,
         },
-      }),
+      ]),
     });
 
     if (!response.ok) {
@@ -142,25 +154,21 @@ async function generateWithRunware(
       };
     }
 
-    const data = (await response.json()) as Record<string, unknown>;
-    const output = data.output as Record<string, unknown> | undefined;
-    const nestedOutput = (data.data as Record<string, unknown> | undefined)?.output as
-      | Record<string, unknown>
-      | undefined;
-    const resultOutput = data.result as Record<string, unknown> | undefined;
-    const imagesRaw =
-      (output?.images as unknown) ||
-      (nestedOutput?.images as unknown) ||
-      (data.images as unknown) ||
-      (resultOutput?.images as unknown) ||
-      [];
-    const images = Array.isArray(imagesRaw) ? imagesRaw : [];
+    const json = (await response.json()) as Record<string, unknown>;
+    const dataArr = (json.data as unknown) ?? [];
+    const items = Array.isArray(dataArr) ? dataArr : [];
+    const match = items.find((item) => {
+      if (!item || typeof item !== 'object') return false;
+      const rec = item as Record<string, unknown>;
+      return rec.taskType === 'imageInference' && rec.taskUUID === taskUUID;
+    });
 
-    const first = Array.isArray(images) ? images[0] : null;
-    const base64 = first?.image_base64 || first?.base64 || first?.b64_json || first?.data;
-    const url = first?.url || first?.image_url;
+    const rec = (match && typeof match === 'object' ? (match as Record<string, unknown>) : null) ?? null;
+    const imageBase64Data = rec?.imageBase64Data;
+    const imageDataURI = rec?.imageDataURI;
+    const imageURL = rec?.imageURL;
 
-    if (!base64 && !url) {
+    if (!imageBase64Data && !imageDataURI && !imageURL) {
       return {
         success: false,
         images: [],
@@ -169,8 +177,46 @@ async function generateWithRunware(
       };
     }
 
-    if (url && !base64) {
-      const imgResponse = await fetch(url);
+    if (typeof imageBase64Data === 'string' && imageBase64Data) {
+      return {
+        success: true,
+        images: [
+          {
+            base64Data: imageBase64Data,
+            mimeType: 'image/png',
+          },
+        ],
+        model,
+      };
+    }
+
+    if (typeof imageDataURI === 'string' && imageDataURI.startsWith('data:')) {
+      const comma = imageDataURI.indexOf(',');
+      const meta = comma >= 0 ? imageDataURI.slice(5, comma) : '';
+      const mimeType = meta.split(';')[0] || 'image/png';
+      const base64Data = comma >= 0 ? imageDataURI.slice(comma + 1) : '';
+      if (!base64Data) {
+        return {
+          success: false,
+          images: [],
+          model,
+          error: 'Runware returned empty data URI payload',
+        };
+      }
+      return {
+        success: true,
+        images: [
+          {
+            base64Data,
+            mimeType,
+          },
+        ],
+        model,
+      };
+    }
+
+    if (typeof imageURL === 'string' && imageURL) {
+      const imgResponse = await fetch(imageURL);
       const buffer = Buffer.from(await imgResponse.arrayBuffer());
       return {
         success: true,
@@ -185,14 +231,10 @@ async function generateWithRunware(
     }
 
     return {
-      success: true,
-      images: [
-        {
-          base64Data: base64 as string,
-          mimeType: 'image/png',
-        },
-      ],
+      success: false,
+      images: [],
       model,
+      error: 'Runware returned unsupported image payload',
     };
   } catch (error) {
     return {
@@ -401,13 +443,14 @@ function resolveDimensionsForStyle(style: IllustrationStyle) {
   // Lower resolutions to reduce storage and cost
   switch (style) {
     case 'header':
-      return { width: 1280, height: 720, aspectRatio: '16:9' as const };
+      // Runware requires multiples of 64.
+      return { width: 1344, height: 768, aspectRatio: '16:9' as const };
     case 'diagram':
-      return { width: 1200, height: 900, aspectRatio: '4:3' as const };
+      return { width: 1024, height: 768, aspectRatio: '4:3' as const };
     case 'infographic':
-      return { width: 1024, height: 683, aspectRatio: '3:2' as const };
+      return { width: 1152, height: 768, aspectRatio: '3:2' as const };
     case 'schema':
-      return { width: 1200, height: 900, aspectRatio: '4:3' as const };
+      return { width: 1024, height: 768, aspectRatio: '4:3' as const };
     default:
       return { width: 1024, height: 576, aspectRatio: '16:9' as const };
   }

@@ -225,26 +225,53 @@ export async function persistModuleIllustration(
     metadata: buildMetadata(input),
   };
 
+  async function writeWithSchemaFallback(
+    mode: 'insert' | 'update',
+    basePayload: Record<string, unknown>,
+    id?: string
+  ): Promise<{ data: ModuleIllustrationRecord | null; error: PostgrestError | null }> {
+    const attemptPayload: Record<string, unknown> = { ...basePayload };
+    let lastError: PostgrestError | null = null;
+
+    for (let i = 0; i < 6; i += 1) {
+      const res =
+        mode === 'update'
+          ? await client.from('module_illustrations').update(attemptPayload).eq('id', id ?? '').select().single()
+          : await client.from('module_illustrations').insert(attemptPayload).select().single();
+
+      if (!res.error) {
+        return { data: res.data as ModuleIllustrationRecord, error: null };
+      }
+
+      lastError = res.error;
+      if (res.error.code !== 'PGRST204') {
+        break;
+      }
+
+      const msg = res.error.message ?? '';
+      const match = msg.match(/Could not find the '([^']+)' column/i);
+      const missingColumn = match?.[1];
+      if (!missingColumn) {
+        break;
+      }
+
+      delete attemptPayload[missingColumn];
+    }
+
+    return { data: null, error: lastError };
+  }
+
   let data: ModuleIllustrationRecord | null = null;
   let error: PostgrestError | null = null;
 
   if (existingId) {
-    const { data: updated, error: updateError } = await client
-      .from('module_illustrations')
-      .update(payload)
-      .eq('id', existingId)
-      .select()
-      .single();
-    data = updated as ModuleIllustrationRecord | null;
-    error = updateError;
+    const res = await writeWithSchemaFallback('update', payload as unknown as Record<string, unknown>, existingId);
+    data = res.data;
+    error = res.error;
   } else {
-    const { data: inserted, error: insertError } = await client
-      .from('module_illustrations')
-      .insert(payload)
-      .select()
-      .single();
-    data = inserted as ModuleIllustrationRecord | null;
-    error = insertError;
+    const res = await writeWithSchemaFallback('insert', payload as unknown as Record<string, unknown>);
+    data = res.data;
+    error = res.error;
   }
 
   if (error) {

@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { Link } from '@/i18n';
-import { LocalModelInfo } from './LocalModelInfo';
 
 type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -211,20 +210,16 @@ export function CourseGenerator({ locale, translations, initialTopic = '' }: Cou
       return;
     }
     
-    // For now, skip provider selector and go straight to cloud API
-    handleGenerateWithProvider('cloud');
+    handleGenerate();
   };
 
-  const handleGenerateWithProvider = (provider: 'browser' | 'cloud') => {
+  const handleGenerate = () => {
     if (!topic.trim()) {
       return;
     }
 
-    // Log which provider was selected
-    console.log(`[Course Generator] Using provider: ${provider.toUpperCase()}`);
-    
-    // For now, both use the API (browser LLM integration would be client-side)
-    // Future: If browser, generate locally; if cloud, use API
+    console.log('[Course Generator] Using provider: CLOUD');
+
     startTransition(async () => {
       const logger = new CourseGenerationLogger();
       
@@ -344,9 +339,6 @@ export function CourseGenerator({ locale, translations, initialTopic = '' }: Cou
         </h2>
         <p className="text-[#888888] font-mono text-sm">{translations.subtitle}</p>
       </div>
-
-      {/* Local Model Information Banner */}
-      <LocalModelInfo />
 
       <div className="space-y-6">
         {/* Topic Input */}

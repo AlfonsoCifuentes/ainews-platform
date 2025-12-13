@@ -58,9 +58,10 @@ function buildPrompt(input: CoursePlanInput) {
 Return concise JSON. Constraints:
 - At least 1 image prompt per module (non-Gemini provider like Runware/HF/Qwen). Keep density low: max 2 prompts per module.
 - Diagram prompts (for Gemini 3 Image) only when a diagram truly clarifies something; 0-1 per module is okay.
-- Course cover prompt: single image, no text/logos, conveys the course essence.
-- Prompts must be short, direct, and visual. Avoid camera jargon unless helpful. Include subject, mood, setting.
-- Diagram prompts must explicitly mention it's a diagram/flow or schematic, clean, dark UI friendly.
+- Course cover prompt: single image. ABSOLUTELY NO text/letters/typography/logos/watermarks. Conveys the course essence.
+- Prompts must be short, direct, and visual. Avoid camera jargon unless helpful. Include subject, mood, setting. Prefer "no text" unless it's explicitly a diagram.
+- Color: avoid a monotonous "always blue" look. Keep a dark, UI-friendly base, but choose accent colors that fit the topic (e.g., teal/amber/red/green/purple are OK). Use blue only when it makes sense; do not force it.
+- Diagram prompts must explicitly mention it's a diagram/flow/schematic. Clean, high-contrast, dark UI friendly. Minimal labels are allowed for diagrams.
 
 Course: ${title}
 Description: ${description ?? 'n/a'}
@@ -104,13 +105,13 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
     // Fallback: at least one prompt per module, basic cover
     parsed = {
       courseCover: {
-        prompt: `${input.title} – atmospheric, minimalist cover, no text, cinematic lighting, black & blue palette`,
+        prompt: `${input.title} – atmospheric minimalist cover, no text, dark high-contrast palette with topic-appropriate accent colors`,
         rationale: 'Fallback cover prompt',
       },
       modules: input.modules.map((m) => ({
         moduleId: m.id,
         moduleTitle: m.title,
-        images: [{ prompt: `Key scene from ${m.title}, human-centric, expressive lighting, no text` }],
+        images: [{ prompt: `Key scene from ${m.title}, human-centric, expressive lighting, no text, dark background with topic-appropriate accent colors` }],
         diagrams: [],
       })),
       model: result.model,
@@ -121,7 +122,9 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
   // Ensure at least one image per module
   parsed.modules = parsed.modules.map((m) => ({
     ...m,
-    images: m.images.length ? m.images.slice(0, 2) : [{ prompt: `Signature visual for ${m.moduleTitle}, no text, black & blue mood` }],
+    images: m.images.length
+      ? m.images.slice(0, 2)
+      : [{ prompt: `Signature visual for ${m.moduleTitle}, no text, dark high-contrast palette with topic-appropriate accent colors` }],
     diagrams: (m.diagrams || []).slice(0, 1),
   }));
 

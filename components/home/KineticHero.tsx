@@ -1,9 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useRef, useEffect } from 'react';
 import { Link } from '@/i18n';
 import { ArrowRight, Globe } from 'lucide-react';
+import MovingCubesBackground from '@/lib/utils/MovingCubesBackground';
 
 interface KineticHeroProps {
   locale: 'en' | 'es';
@@ -26,78 +26,6 @@ export function KineticHero({
   primaryCta,
   secondaryCta,
 }: KineticHeroProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Canvas-based orb animation (brutalist style)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    let w = canvas.width = parent.offsetWidth;
-    let h = canvas.height = parent.offsetHeight;
-
-    const particles: { x: number; y: number; r: number; v: number }[] = [];
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 2 + 1,
-        v: Math.random() * 0.5 + 0.1,
-      });
-    }
-
-    let animationId: number;
-    const render = () => {
-      ctx.fillStyle = '#020309';
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 1;
-
-      const cx = w / 2;
-      const cy = h / 2;
-      const radius = Math.min(w, h) * 0.35;
-      const t = Date.now() * 0.001;
-
-      // Wireframe sphere
-      for (let i = 0; i < 8; i++) {
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, radius, radius * Math.abs(Math.cos(t + i)), i * (Math.PI / 4), 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Floating particles
-      particles.forEach((p) => {
-        p.y -= p.v;
-        if (p.y < 0) p.y = h;
-        ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.5 + 0.2})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      animationId = requestAnimationFrame(render);
-    };
-    render();
-
-    const handleResize = () => {
-      if (!parent) return;
-      w = canvas.width = parent.offsetWidth;
-      h = canvas.height = parent.offsetHeight;
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
   return (
     <section className="relative min-h-screen flex flex-col justify-center px-6 md:px-12 pt-20 overflow-hidden z-10">
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -158,11 +86,13 @@ export function KineticHero({
           </motion.div>
         </div>
 
-        {/* 3D Orb / Stats Panel */}
-        <div className="lg:col-span-4 hidden lg:block relative h-[600px] w-full">
-          <canvas ref={canvasRef} className="w-full h-full" />
+        {/* 3D Cubes / Status Panel */}
+        <div className="lg:col-span-4 relative w-full h-[340px] sm:h-[420px] lg:h-[600px]">
+          <div className="absolute inset-0 rounded-sm overflow-hidden border border-white/5 bg-[#020309]">
+            <MovingCubesBackground cameraDistance={7.5} brightness={1.35} speed={4.0} />
+          </div>
 
-          <div className="absolute bottom-10 -left-10 p-6 rounded-sm w-64 z-20 border-l-2 border-white bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/5">
+          <div className="absolute bottom-6 left-6 lg:bottom-10 lg:-left-10 p-6 rounded-sm w-64 z-20 border-l-2 border-white bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/5">
             <div className="text-xs text-[#888888] font-mono mb-2">SYSTEM STATUS</div>
             <div className="flex justify-between items-end">
               <span className="text-3xl font-bold text-white">ONLINE</span>

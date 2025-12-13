@@ -107,6 +107,12 @@ Visual aesthetic: ${visualPrompt}
 Generate a visually striking image that immediately communicates what this chapter is about.`;
   }
 
+  const noTextRule = style === 'diagram' || style === 'schema'
+    ? ''
+    : (locale === 'es'
+      ? '\n\nRegla estricta: NO incluyas texto legible, letras, palabras, tipografías, números, subtítulos, marcas de agua ni logotipos.'
+      : '\n\nHard rule: Do NOT include readable text, letters, words, typography, numbers, captions, watermarks, or logos.');
+
   return `${stylePrompt}
 
 Content to illustrate:
@@ -114,7 +120,7 @@ ${contentSummary}
 
 Important: The image should be self-explanatory and enhance understanding of the topic. Use visual metaphors and friendly characters to make complex concepts accessible.
 
-Visual aesthetic: ${visualPrompt}`;
+Visual aesthetic: ${visualPrompt}${noTextRule}`;
 }
 
 // ============================================================================

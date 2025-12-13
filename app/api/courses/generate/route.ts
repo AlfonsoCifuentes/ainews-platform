@@ -8,7 +8,6 @@ import {
   type LLMProvider 
 } from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
-import { detectLocalModels } from '@/lib/ai/local-models';
 
 // Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
 export const maxDuration = 300; // 5 minutes
@@ -174,19 +173,6 @@ export async function POST(req: NextRequest) {
     const availableProviders = getAvailableProviders();
     console.log(`${logPrefix} 📊 Available providers:`, availableProviders);
     
-    // Check for local models
-    console.log(`${logPrefix} 🏠 Checking for local Ollama models...`);
-    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    const localSetup = await detectLocalModels(ollamaUrl);
-    
-    if (localSetup.hasOllama && localSetup.availableModels.length > 0) {
-      console.log(`${logPrefix} ✅ Found ${localSetup.availableModels.length} local model(s):`);
-      localSetup.availableModels.forEach(m => {
-        const badge = m.isBestForJSON ? '✨' : '  ';
-        console.log(`${logPrefix}    ${badge} ${m.name} (${m.size.toFixed(1)}GB, ${m.speedRating})`);
-      });
-    }
-    
     console.log(`${logPrefix} 🔑 API Keys status:`, {
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasGemini: !!process.env.GEMINI_API_KEY,
@@ -195,33 +181,29 @@ export async function POST(req: NextRequest) {
       hasTogether: !!process.env.TOGETHER_API_KEY,
       hasDeepSeek: !!process.env.DEEPSEEK_API_KEY,
       hasMistral: !!process.env.MISTRAL_API_KEY,
-      hasLocalModels: localSetup.hasOllama && localSetup.availableModels.length > 0
+      hasLocalModels: false
     });
 
-    // Check if we have ANY provider available (local or cloud)
+    // Cloud-only: require at least one configured provider
     const hasCloudProviders = availableProviders.length > 0;
-    const hasLocalModels = localSetup.hasOllama && localSetup.availableModels.length > 0;
 
-    if (!hasCloudProviders && !hasLocalModels) {
+    if (!hasCloudProviders) {
       console.error(`${logPrefix} ❌ CRITICAL: No LLM providers available!`);
-      console.error(`${logPrefix} 💡 Options:`);
-      console.error(`${logPrefix}    1. Install Ollama (free, zero cost):`);
-      console.error(`${logPrefix}       - Download: https://ollama.ai`);
-      console.error(`${logPrefix}       - Pull model: ollama pull neural-chat:latest`);
-      console.error(`${logPrefix}    2. Or add cloud API key to .env.local:`);
-      console.error(`${logPrefix}       - ANTHROPIC_API_KEY (recommended)`);
-      console.error(`${logPrefix}       - GROQ_API_KEY`);
-      console.error(`${logPrefix}       - GEMINI_API_KEY`);
-      console.error(`${logPrefix}       - OPENROUTER_API_KEY`);
+      console.error(`${logPrefix} 💡 Add at least one cloud API key to .env.local:`);
+      console.error(`${logPrefix}    - GROQ_API_KEY`);
+      console.error(`${logPrefix}    - GEMINI_API_KEY`);
+      console.error(`${logPrefix}    - OPENROUTER_API_KEY`);
+      console.error(`${logPrefix}    - ANTHROPIC_API_KEY`);
+      console.error(`${logPrefix}    - OPENAI_API_KEY`);
+      console.error(`${logPrefix}    - MISTRAL_API_KEY`);
+      console.error(`${logPrefix}    - DEEPSEEK_API_KEY`);
+      console.error(`${logPrefix}    - TOGETHER_API_KEY`);
       return NextResponse.json(
         {
           success: false,
           error: 'No AI provider available',
-          message: 'Please install Ollama with local models or configure cloud API keys',
-          hasLocalModels: false,
-          hasCloudProviders: false,
-          suggestedSetup: hasLocalModels ? 'ollama' : 'cloud',
-          instructions: localSetup.instructions
+          message: 'Please configure at least one cloud API key',
+          hasCloudProviders: false
         },
         { status: 503 }
       );

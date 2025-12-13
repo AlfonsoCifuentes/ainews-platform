@@ -6,11 +6,6 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(_req: NextRequest) {
   const providers = {
-    ollama: {
-      configured: !!process.env.OLLAMA_BASE_URL || (process.env.VERCEL !== '1' && !!process.env.OLLAMA_API_KEY),
-      keyPrefix: process.env.OLLAMA_API_KEY ? process.env.OLLAMA_API_KEY.substring(0, 10) + '...' : 'LOCAL',
-      note: 'Local/Remote model'
-    },
     openai: {
       configured: !!process.env.OPENAI_API_KEY,
       keyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'NOT SET',
