@@ -66,6 +66,62 @@ function buildCsv(rows: Array<Record<string, unknown>>, headers: string[]): stri
   return `${headerLine}\n${body}`;
 }
 
+type OverviewRow = Record<string, unknown>;
+
+function isMissingRelationError(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string; details?: string };
+  const msg = `${anyErr?.message ?? ''} ${anyErr?.details ?? ''}`.toLowerCase();
+  return anyErr?.code === '42P01' || (msg.includes('relation') && msg.includes('does not exist'));
+}
+
+function normalizeOverview(rows: OverviewRow[] | null | undefined): Record<string, number> {
+  const defaults = {
+    total_users: 0,
+    active_users_week: 0,
+    active_users_month: 0,
+    total_articles: 0,
+    articles_week: 0,
+    total_courses: 0,
+    total_enrollments: 0,
+    completed_enrollments: 0,
+    avg_quiz_score: 0,
+    searches_week: 0,
+    users_with_saved_articles: 0,
+    avg_streak_days: 0,
+  };
+
+  if (!rows || rows.length === 0) return defaults;
+
+  const first = rows[0] as Record<string, unknown>;
+  const readString = (row: Record<string, unknown>, key: string): string => {
+    const v = row[key];
+    if (typeof v === 'string') return v;
+    if (v === null || v === undefined) return '';
+    return String(v);
+  };
+  const readNumber = (row: Record<string, unknown>, key: string): number => {
+    const v = row[key];
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  if ('metric_name' in first) {
+    const mapped: Record<string, number> = { ...defaults };
+    for (const row of rows) {
+      const metric = readString(row, 'metric_name').trim();
+      if (!metric) continue;
+      mapped[metric] = readNumber(row, 'metric_value');
+    }
+    return mapped;
+  }
+
+  const mapped: Record<string, number> = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    mapped[key] = readNumber(first, key);
+  }
+  return mapped;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const isPublic = process.env.NEXT_PUBLIC_ANALYTICS_PUBLIC === 'true';
@@ -88,7 +144,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [overviewRes, searchRes, xpRes] = await Promise.all([
-      supabase.from('analytics_overview').select('*').single(),
+      supabase.from('analytics_overview').select('*').limit(2000),
       supabase
         .from('search_queries')
         .select('id,user_id,query,locale,semantic,results_count,created_at')
@@ -101,11 +157,14 @@ export async function GET(req: NextRequest) {
         .limit(500),
     ]);
 
-    if (overviewRes.error) throw overviewRes.error;
+    if (overviewRes.error) {
+      if (!isMissingRelationError(overviewRes.error)) throw overviewRes.error;
+    }
     if (searchRes.error) throw searchRes.error;
     if (xpRes.error) throw xpRes.error;
 
-    const overviewRows = Object.entries(overviewRes.data ?? {}).map(([metric, value]) => ({
+    const overview = normalizeOverview((overviewRes.data as OverviewRow[] | null | undefined) ?? []);
+    const overviewRows = Object.entries(overview).map(([metric, value]) => ({
       dataset: 'overview',
       metric,
       value,

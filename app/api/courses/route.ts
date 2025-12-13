@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { z } from 'zod';
 
 // Logger utility (inline for API routes)
 const logger = {
@@ -20,21 +21,55 @@ const logger = {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const QuerySchema = z.object({
+  category: z.string().optional(),
+  difficulty: z.string().optional(),
+  search: z.string().optional(),
+  locale: z.enum(['en', 'es']).default('en'),
+  sort: z.enum(['newest', 'popular', 'rating', 'oldest']).default('newest'),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+function isMissingColumnError(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string; details?: string };
+  const msg = `${anyErr?.message ?? ''} ${anyErr?.details ?? ''}`.toLowerCase();
+  return anyErr?.code === '42703' || (msg.includes('column') && msg.includes('does not exist'));
+}
+
+function isMissingRelationError(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string; details?: string };
+  const msg = `${anyErr?.message ?? ''} ${anyErr?.details ?? ''}`.toLowerCase();
+  return anyErr?.code === '42P01' || (msg.includes('relation') && msg.includes('does not exist'));
+}
+
+type CourseRow = Record<string, unknown>;
+
+function getRowId(row: CourseRow): string | null {
+  const v = row.id;
+  if (typeof v === 'string' && v.trim() !== '') return v;
+  if (v === null || v === undefined) return null;
+  const s = String(v);
+  return s.trim() ? s : null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     logger.info('GET request received', { url: req.url });
     
     const db = getSupabaseServerClient();
     const { searchParams } = req.nextUrl;
-    
+
+    const parsed = QuerySchema.parse(Object.fromEntries(searchParams));
+
     // Parse query parameters
-    const category = searchParams.get('category');
-    const difficulty = searchParams.get('difficulty');
-    const search = searchParams.get('search');
-    const locale = searchParams.get('locale') || 'en';
-    const sort = searchParams.get('sort') || 'newest'; // newest, popular, rating
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const category = parsed.category;
+    const difficulty = parsed.difficulty;
+    const search = parsed.search;
+    const locale = parsed.locale;
+    const sort = parsed.sort; // newest, popular, rating, oldest
+    const limit = parsed.limit;
+    const offset = parsed.offset;
     
     logger.info('Query parameters parsed', {
       category,
@@ -47,113 +82,135 @@ export async function GET(req: NextRequest) {
     });
     
     // Build query
-    logger.info('Building database query', { 
-      note: 'No status filter - showing all courses regardless of status',
-      reasoning: 'Courses may have different status values; filtering only would exclude them'
+    logger.info('Building database query', {
+      note: 'Schema-flexible select(*) to support older Supabase schemas',
+      reasoning: 'Some deployments may not have newer columns like category/view_count/thumbnail_url yet',
     });
-    let query = db
-      .from('courses')
-      .select(`
-        id,
-        title_en,
-        title_es,
-        description_en,
-        description_es,
-        category,
-        difficulty,
-        duration_minutes,
-        topics,
-        enrollment_count,
-        rating_avg,
-        completion_rate,
-        view_count,
-        status,
-        created_at,
-        published_at,
-        thumbnail_url
-      `);
     
     // Apply filters
     logger.info('Applying filters', {
       hasCategoryFilter: !!category && category !== 'all',
       hasDifficultyFilter: !!difficulty && difficulty !== 'all',
-      hasSearchFilter: !!search && search.trim()
+      hasSearchFilter: !!search && search.trim(),
     });
-    
-    if (category && category !== 'all') {
-      query = query.eq('category', category);
-      logger.debug('Category filter applied', { category });
-    }
-    
-    if (difficulty && difficulty !== 'all') {
-      query = query.eq('difficulty', difficulty);
-      logger.debug('Difficulty filter applied', { difficulty });
-    }
-    
-    // Apply search
-    if (search && search.trim()) {
-      const searchColumn = locale === 'es' ? 'title_es' : 'title_en';
-      query = query.ilike(searchColumn, `%${search.trim()}%`);
-      logger.debug('Search filter applied', { searchColumn, searchTerm: search });
-    }
-    
-    // Apply sorting
-    switch (sort) {
-      case 'popular':
-        query = query.order('view_count', { ascending: false });
-        logger.debug('Sorting applied', { sort: 'popular by view_count' });
+
+    const searchColumn = locale === 'es' ? 'title_es' : 'title_en';
+    const trimmedSearch = (search ?? '').trim();
+
+    const includeCategoryCandidates = category && category !== 'all' ? [true, false] : [false];
+    const orderCandidates: Array<{ column: string; ascending: boolean; note: string }> = (() => {
+      switch (sort) {
+        case 'popular':
+          return [
+            { column: 'view_count', ascending: false, note: 'popular by view_count' },
+            { column: 'enrollment_count', ascending: false, note: 'popular by enrollment_count' },
+            { column: 'created_at', ascending: false, note: 'fallback newest' },
+          ];
+        case 'rating':
+          return [
+            { column: 'rating_avg', ascending: false, note: 'rating' },
+            { column: 'created_at', ascending: false, note: 'fallback newest' },
+          ];
+        case 'oldest':
+          return [{ column: 'created_at', ascending: true, note: 'oldest' }];
+        case 'newest':
+        default:
+          return [{ column: 'created_at', ascending: false, note: 'newest' }];
+      }
+    })();
+
+    let courses: CourseRow[] | null = null;
+    let lastError: unknown = null;
+
+    for (const includeCategory of includeCategoryCandidates) {
+      for (const order of orderCandidates) {
+        logger.info('Executing query to Supabase', {
+          timestamp: new Date().toISOString(),
+          includeCategory,
+          orderBy: order.column,
+          orderNote: order.note,
+        });
+
+        let query = db.from('courses').select('*');
+
+        if (includeCategory && category && category !== 'all') {
+          query = query.eq('category', category);
+          logger.debug('Category filter applied', { category });
+        }
+
+        if (difficulty && difficulty !== 'all') {
+          query = query.eq('difficulty', difficulty);
+          logger.debug('Difficulty filter applied', { difficulty });
+        }
+
+        if (trimmedSearch) {
+          query = query.ilike(searchColumn, `%${trimmedSearch}%`);
+          logger.debug('Search filter applied', { searchColumn, searchTerm: trimmedSearch });
+        }
+
+        query = query.order(order.column, { ascending: order.ascending });
+
+        // Apply pagination
+        query = query.range(offset, offset + limit - 1);
+        logger.info('Pagination applied', { offset, limit, range: `${offset}-${offset + limit - 1}` });
+
+        const res = await query;
+
+        if (res.error) {
+          lastError = res.error;
+          const typedError = res.error as { code?: string; message?: string; details?: string };
+          logger.error('Database error', {
+            code: typedError.code,
+            message: typedError.message,
+            details: typedError.details,
+          });
+
+          // Retry on schema mismatches (missing columns)
+          if (isMissingColumnError(res.error)) {
+            continue;
+          }
+
+          return NextResponse.json({ success: false, error: 'Failed to fetch courses' }, { status: 500 });
+        }
+
+        const rows = (res.data as unknown as CourseRow[] | null) ?? [];
+        courses = rows;
+        lastError = null;
+        logger.info('Query executed', {
+          coursesCount: courses.length,
+          hasError: false,
+          timestamp: new Date().toISOString(),
+        });
         break;
-      case 'rating':
-        query = query.order('rating_avg', { ascending: false });
-        logger.debug('Sorting applied', { sort: 'rating' });
-        break;
-      case 'oldest':
-        query = query.order('created_at', { ascending: true });
-        logger.debug('Sorting applied', { sort: 'oldest' });
-        break;
-      case 'newest':
-      default:
-        query = query.order('created_at', { ascending: false });
-        logger.debug('Sorting applied', { sort: 'newest' });
-        break;
+      }
+      if (courses) break;
     }
-    
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
-    logger.info('Pagination applied', { offset, limit, range: `${offset}-${offset + limit - 1}` });
-    
-    logger.info('Executing query to Supabase', { timestamp: new Date().toISOString() });
-    const { data: courses, error } = await query;
-    
-    logger.info('Query executed', {
-      coursesCount: courses?.length || 0,
-      hasError: !!error,
-      timestamp: new Date().toISOString()
-    });
-    
-    if (error) {
-      const typedError = error as { code?: string; message?: string; details?: string };
-      logger.error('Database error', {
-        code: typedError.code,
-        message: typedError.message,
-        details: typedError.details
-      });
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch courses' },
-        { status: 500 }
-      );
+
+    if (!courses) {
+      logger.error('Database error (exhausted fallbacks)', lastError);
+      return NextResponse.json({ success: false, error: 'Failed to fetch courses' }, { status: 500 });
     }
     
     // Fetch covers for all courses
-    const courseIds = (courses || []).map(c => c.id);
+    const courseIds = courses.map(getRowId).filter((id): id is string => typeof id === 'string');
     let coversMap: Record<string, string> = {};
     
     if (courseIds.length > 0) {
-      const { data: covers } = await db
+      const coversRes = await db
         .from('course_covers')
         .select('course_id, image_url')
         .in('course_id', courseIds)
         .eq('locale', locale);
+
+      if (coversRes.error) {
+        // Older schemas may not have course_covers yet.
+        if (!isMissingRelationError(coversRes.error) && !isMissingColumnError(coversRes.error)) {
+          logger.error('Covers query error', coversRes.error);
+        }
+      }
+
+      type CoverRow = { course_id: string; image_url: string };
+      const covers = (coversRes.data as unknown as CoverRow[] | null) ?? null;
       
       if (covers) {
         coversMap = covers.reduce((acc, c) => {
@@ -165,16 +222,50 @@ export async function GET(req: NextRequest) {
     }
     
     // Merge covers into courses
-    const coursesWithCovers = (courses || []).map(c => ({
-      ...c,
-      thumbnail_url: coversMap[c.id] || null,
-    }));
+    const coursesWithCovers = courses.map((c) => {
+      const id = getRowId(c);
+      return {
+        ...c,
+        thumbnail_url: id ? coversMap[id] || null : null,
+      };
+    });
     
     // Get total count for pagination
     logger.info('Fetching total count', { timestamp: new Date().toISOString() });
-    const { count: totalCount } = await db
-      .from('courses')
-      .select('*', { count: 'exact', head: true });
+
+    let totalCount: number | null = null;
+    let countLastError: unknown = null;
+
+    for (const includeCategory of includeCategoryCandidates) {
+      let countQuery = db.from('courses').select('*', { count: 'exact', head: true });
+      if (includeCategory && category && category !== 'all') {
+        countQuery = countQuery.eq('category', category);
+      }
+      if (difficulty && difficulty !== 'all') {
+        countQuery = countQuery.eq('difficulty', difficulty);
+      }
+      if (trimmedSearch) {
+        countQuery = countQuery.ilike(searchColumn, `%${trimmedSearch}%`);
+      }
+
+      const countRes = await countQuery;
+      if (countRes.error) {
+        countLastError = countRes.error;
+        if (isMissingColumnError(countRes.error)) {
+          continue;
+        }
+        logger.error('Count query error', countRes.error);
+        break;
+      }
+      totalCount = countRes.count ?? 0;
+      countLastError = null;
+      break;
+    }
+
+    if (totalCount === null) {
+      logger.error('Count query error (exhausted fallbacks)', countLastError);
+      totalCount = courses.length;
+    }
     
     logger.info('Total count retrieved', {
       totalCount,

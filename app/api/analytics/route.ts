@@ -33,6 +33,64 @@ function aggregateByDay<T extends Record<string, string | number | Date>>(rows: 
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+type OverviewRow = Record<string, unknown>;
+
+function isMissingRelationError(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string; details?: string };
+  const msg = `${anyErr?.message ?? ''} ${anyErr?.details ?? ''}`.toLowerCase();
+  return anyErr?.code === '42P01' || (msg.includes('relation') && msg.includes('does not exist'));
+}
+
+function normalizeOverview(rows: OverviewRow[] | null | undefined): Record<string, number> {
+  const defaults = {
+    total_users: 0,
+    active_users_week: 0,
+    active_users_month: 0,
+    total_articles: 0,
+    articles_week: 0,
+    total_courses: 0,
+    total_enrollments: 0,
+    completed_enrollments: 0,
+    avg_quiz_score: 0,
+    searches_week: 0,
+    users_with_saved_articles: 0,
+    avg_streak_days: 0,
+  };
+
+  if (!rows || rows.length === 0) return defaults;
+
+  const first = rows[0] as Record<string, unknown>;
+  const readString = (row: Record<string, unknown>, key: string): string => {
+    const v = row[key];
+    if (typeof v === 'string') return v;
+    if (v === null || v === undefined) return '';
+    return String(v);
+  };
+  const readNumber = (row: Record<string, unknown>, key: string): number => {
+    const v = row[key];
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Table form: { metric_name, metric_value, ... }
+  if ('metric_name' in first) {
+    const mapped: Record<string, number> = { ...defaults };
+    for (const row of rows) {
+      const metric = readString(row, 'metric_name').trim();
+      if (!metric) continue;
+      mapped[metric] = readNumber(row, 'metric_value');
+    }
+    return mapped;
+  }
+
+  // View form: single row with numeric columns
+  const mapped: Record<string, number> = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    mapped[key] = readNumber(first, key);
+  }
+  return mapped;
+}
+
 async function getRequestUser(req: NextRequest): Promise<User | null> {
   try {
     const supabaseAuth = await createServerSupabaseClient();
@@ -82,10 +140,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
     }
 
-    // Get analytics overview from the view
-    const { data, error } = await supabase.from('analytics_overview').select('*').single();
+    // analytics_overview can be a VIEW (single row) or a TABLE (metric rows) depending on migrations.
+    const overviewRes = await supabase.from('analytics_overview').select('*').limit(2000);
+    if (overviewRes.error) {
+      if (isMissingRelationError(overviewRes.error)) {
+        return NextResponse.json({
+          data: normalizeOverview([]),
+          searchTrends: [],
+          xpTrends: [],
+          timestamp: new Date().toISOString(),
+        });
+      }
+      throw overviewRes.error;
+    }
 
-    if (error) throw error;
+    const data = normalizeOverview(overviewRes.data as OverviewRow[] | null | undefined);
 
     // Lightweight trend samples for ML-ish insights
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

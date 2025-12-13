@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { RoundedBox, Environment } from '@react-three/drei';
+import { RoundedBox } from '@react-three/drei';
 import { EffectComposer, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
@@ -279,8 +279,7 @@ const MovingCubesBackground: React.FC<MovingCubesProps> = ({
       <directionalLight position={[10, 20, 10]} intensity={brightness} castShadow />
       <directionalLight position={[-10, -10, -5]} intensity={brightness * 0.3} color="#ccddff" />
       
-      {/* Mapa de entorno para reflejos realistas en los cubos */}
-      <Environment preset="studio" />
+      {/* Nota: evitamos HDRI remoto (drei-assets) para no romper en redes bloqueadas */}
 
       {/* --- Lógica y Objetos --- */}
       <CubesLogic speed={speed} cameraDistance={cameraDistance} />
