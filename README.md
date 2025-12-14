@@ -30,6 +30,23 @@ La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma,
 - **Interactive Quizzes** — Automated assessment generation
 - **Progress Tracking** — Gamified learning experience with XP rewards
 
+#### Course covers (important)
+
+- **Same cover in EN/ES**: course covers are language-agnostic (no text) and must be identical across locales.
+- The platform stores covers in `course_covers` per locale, but the underlying image should be the same storage object.
+
+Backfill missing covers (generates images):
+
+```powershell
+npm run ai:backfill-course-covers:write
+```
+
+Sync existing covers across locales (no image generation; makes `en` and `es` match):
+
+```powershell
+npm run ai:sync-course-covers:write
+```
+
 ### 🧠 **Knowledge Graph**
 
 - **Entity Recognition** — Automatic extraction of people, companies, concepts

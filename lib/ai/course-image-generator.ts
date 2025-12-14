@@ -11,7 +11,7 @@
 import { randomUUID } from 'crypto';
 import { planCourseIllustrations } from './image-plan';
 import { persistModuleIllustration, fetchLatestModuleIllustration } from '@/lib/db/module-illustrations';
-import { persistCourseCover, courseCoverExists } from '@/lib/db/course-covers';
+import { copyCourseCoverLocale, persistCourseCoverShared, courseCoverExists } from '@/lib/db/course-covers';
 
 const RUNWARE_MODEL = process.env.RUNWARE_IMAGE_MODEL || 'runware:97@3';
 
@@ -180,19 +180,59 @@ export async function generateCourseImages(
 
     // Step 2: Generate course cover
     if (plan.courseCover?.prompt) {
-      const coverAlreadyExists = await courseCoverExists(input.courseId, input.locale);
-      
-      if (coverAlreadyExists) {
-        console.log('[CourseImageGenerator] Cover already exists, skipping');
+      const hasEn = await courseCoverExists(input.courseId, 'en');
+      const hasEs = await courseCoverExists(input.courseId, 'es');
+
+      // Enforce: same cover across locales.
+      if (hasEn && !hasEs) {
+        console.log('[CourseImageGenerator] Cover exists (en). Copying to es...');
+        try {
+          const saved = await copyCourseCoverLocale({
+            courseId: input.courseId,
+            fromLocale: 'en',
+            toLocale: 'es',
+            source: 'api',
+          });
+          if (saved) {
+            result.coverGenerated = true;
+            result.coverUrl = saved.image_url;
+            console.log('[CourseImageGenerator] Cover copied to es');
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          result.errors.push(`Cover copy failed: ${msg}`);
+          console.error('[CourseImageGenerator] Cover copy failed:', msg);
+        }
+      } else if (!hasEn && hasEs) {
+        console.log('[CourseImageGenerator] Cover exists (es). Copying to en...');
+        try {
+          const saved = await copyCourseCoverLocale({
+            courseId: input.courseId,
+            fromLocale: 'es',
+            toLocale: 'en',
+            source: 'api',
+          });
+          if (saved) {
+            result.coverGenerated = true;
+            result.coverUrl = saved.image_url;
+            console.log('[CourseImageGenerator] Cover copied to en');
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          result.errors.push(`Cover copy failed: ${msg}`);
+          console.error('[CourseImageGenerator] Cover copy failed:', msg);
+        }
+      } else if (hasEn && hasEs) {
+        console.log('[CourseImageGenerator] Cover already exists for en+es, skipping');
       } else {
-        console.log('[CourseImageGenerator] Generating cover...');
+        console.log('[CourseImageGenerator] Generating cover (shared en+es)...');
         const coverResult = await generateWithRunware(plan.courseCover.prompt, 768, 512);
 
         if (coverResult.success && coverResult.base64Data) {
           try {
-            const saved = await persistCourseCover({
+            const saved = await persistCourseCoverShared({
               courseId: input.courseId,
-              locale: input.locale,
+              locales: ['en', 'es'],
               prompt: plan.courseCover.prompt.slice(0, 2000),
               model: RUNWARE_MODEL,
               provider: 'runware',
@@ -200,9 +240,9 @@ export async function generateCourseImages(
               mimeType: coverResult.mimeType || 'image/webp',
               source: 'api',
             });
-            result.coverGenerated = true;
-            result.coverUrl = saved.image_url;
-            console.log('[CourseImageGenerator] Cover saved');
+            result.coverGenerated = saved.length > 0;
+            result.coverUrl = saved[0]?.image_url;
+            console.log('[CourseImageGenerator] Shared cover saved for en+es');
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             result.errors.push(`Cover persist failed: ${msg}`);

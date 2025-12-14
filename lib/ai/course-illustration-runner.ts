@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { planCourseIllustrations } from './image-plan';
 import { generateIllustrationWithCascade, type ImageProviderName } from './image-cascade';
 import { persistModuleIllustration } from '@/lib/db/module-illustrations';
-import { persistCourseCover } from '@/lib/db/course-covers';
+import { copyCourseCoverLocale, courseCoverExists, persistCourseCoverShared } from '@/lib/db/course-covers';
 
 const GENERAL_ORDER: ImageProviderName[] = ['runware', 'huggingface', 'qwen'];
 const DIAGRAM_ORDER: ImageProviderName[] = ['gemini'];
@@ -75,6 +75,21 @@ async function generateModuleImage(moduleId: string, prompt: string, locale: Loc
 }
 
 async function generateCourseCover(courseId: string, prompt: string, locale: Locale) {
+  const hasEn = await courseCoverExists(courseId, 'en');
+  const hasEs = await courseCoverExists(courseId, 'es');
+
+  if (hasEn && !hasEs) {
+    await copyCourseCoverLocale({ courseId, fromLocale: 'en', toLocale: 'es', source: 'script' });
+    return;
+  }
+  if (!hasEn && hasEs) {
+    await copyCourseCoverLocale({ courseId, fromLocale: 'es', toLocale: 'en', source: 'script' });
+    return;
+  }
+  if (hasEn && hasEs) {
+    return;
+  }
+
   const cascade = await generateIllustrationWithCascade({
     moduleContent: prompt,
     locale,
@@ -89,9 +104,9 @@ async function generateCourseCover(courseId: string, prompt: string, locale: Loc
   }
 
   const image = cascade.images[0];
-  return persistCourseCover({
+  await persistCourseCoverShared({
     courseId,
-    locale,
+    locales: ['en', 'es'],
     prompt: cascade.prompt.slice(0, 2000),
     model: cascade.model,
     provider: cascade.provider,

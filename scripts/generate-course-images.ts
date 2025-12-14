@@ -16,7 +16,7 @@ import { randomUUID } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { planCourseIllustrations } from '../lib/ai/image-plan';
 import { persistModuleIllustration } from '../lib/db/module-illustrations';
-import { persistCourseCover } from '../lib/db/course-covers';
+import { copyCourseCoverLocale, persistCourseCoverShared } from '../lib/db/course-covers';
 import { getGeminiImageClient } from '../lib/ai/gemini-image';
 import { GEMINI_MODELS } from '../lib/ai/model-versions';
 
@@ -243,17 +243,27 @@ async function processCourse(course: CourseRecord) {
 
   // Step 2: Generate course cover with Runware (768x512 - safe dimensions)
   if (plan.courseCover?.prompt) {
-    // Check if cover already exists
-    if (await coverExists(course.id, locale)) {
-      console.log(`\n  🖼️ Cover already exists, skipping`);
+    const hasEn = await coverExists(course.id, 'en');
+    const hasEs = await coverExists(course.id, 'es');
+
+    if (hasEn && !hasEs) {
+      console.log(`\n  🖼️ Cover exists (en). Copying to es...`);
+      await copyCourseCoverLocale({ courseId: course.id, fromLocale: 'en', toLocale: 'es', source: 'script' });
+      console.log(`  ✓ Cover copied to es`);
+    } else if (!hasEn && hasEs) {
+      console.log(`\n  🖼️ Cover exists (es). Copying to en...`);
+      await copyCourseCoverLocale({ courseId: course.id, fromLocale: 'es', toLocale: 'en', source: 'script' });
+      console.log(`  ✓ Cover copied to en`);
+    } else if (hasEn && hasEs) {
+      console.log(`\n  🖼️ Cover already exists for en+es, skipping`);
     } else {
-      console.log(`\n  🖼️ Generating cover...`);
+      console.log(`\n  🖼️ Generating cover (shared en+es)...`);
       const coverResult = await generateWithRunware(plan.courseCover.prompt, 768, 512);
-      
+
       if (coverResult.success && coverResult.base64Data) {
-        await persistCourseCover({
+        await persistCourseCoverShared({
           courseId: course.id,
-          locale,
+          locales: ['en', 'es'],
           prompt: plan.courseCover.prompt.slice(0, 2000),
           model: RUNWARE_MODEL,
           provider: 'runware',
@@ -261,7 +271,7 @@ async function processCourse(course: CourseRecord) {
           mimeType: coverResult.mimeType || 'image/webp',
           source: 'script',
         });
-        console.log(`  ✓ Cover saved`);
+        console.log(`  ✓ Cover saved (shared)`);
       } else {
         console.log(`  ✗ Cover failed: ${coverResult.error}`);
       }

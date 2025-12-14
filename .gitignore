@@ -6,6 +6,8 @@ node_modules/
 # Testing
 coverage/
 .nyc_output
+playwright-report/
+test-results/
 
 # Next.js
 .next/
@@ -43,6 +45,7 @@ yarn-error.log*
 # Logs
 logs
 *.log
+upgrade-courses-log.txt
 
 # Local OCR assets / one-off logs
 *.traineddata
