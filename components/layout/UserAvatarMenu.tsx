@@ -1,9 +1,9 @@
 "use client";
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n';
 import { calculateLevel } from '@/lib/gamification/xp';
 import {
   Bookmark,
@@ -29,6 +29,11 @@ interface UserAvatarMenuProps {
 
 export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
   const pathname = usePathname();
+
+  const normalizedPathname = useMemo(() => {
+    const raw = typeof pathname === 'string' ? pathname : '';
+    return raw.replace(/^\/(en|es)(\/|$)/, '/');
+  }, [pathname]);
   
   if (!profile) {
     return null;
@@ -37,13 +42,13 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
   const currentLevel = profile.level || calculateLevel(profile.total_xp || 0);
 
   const menuItems = [
-    { href: `/${locale}/dashboard`, label: locale === 'en' ? 'Dashboard' : 'Panel', icon: Gauge },
-    { href: `/${locale}/profile`, label: locale === 'en' ? 'Profile' : 'Perfil', icon: User2 },
-    { href: `/${locale}/bookmarks`, label: locale === 'en' ? 'Saved' : 'Guardados', icon: Bookmark },
-    { href: `/${locale}/trending`, label: locale === 'en' ? 'Trending' : 'Tendencias', icon: Flame },
-    { href: `/${locale}/kg`, label: locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento', icon: Grid },
-    { href: `/${locale}/leaderboard`, label: locale === 'en' ? 'Leaderboard' : 'Clasificación', icon: Trophy },
-    { href: `/${locale}/settings`, label: locale === 'en' ? 'Settings' : 'Configuración', icon: Settings },
+    { href: '/dashboard', label: locale === 'en' ? 'Dashboard' : 'Panel', icon: Gauge },
+    { href: '/profile', label: locale === 'en' ? 'Profile' : 'Perfil', icon: User2 },
+    { href: '/bookmarks', label: locale === 'en' ? 'Saved' : 'Guardados', icon: Bookmark },
+    { href: '/trending', label: locale === 'en' ? 'Trending' : 'Tendencias', icon: Flame },
+    { href: '/kg', label: locale === 'en' ? 'Knowledge Graph' : 'Grafo de Conocimiento', icon: Grid },
+    { href: '/leaderboard', label: locale === 'en' ? 'Leaderboard' : 'Clasificación', icon: Trophy },
+    { href: '/settings', label: locale === 'en' ? 'Settings' : 'Configuración', icon: Settings },
   ];
 
   return (
@@ -121,7 +126,7 @@ export function UserAvatarMenu({ profile, locale }: UserAvatarMenuProps) {
             </div>
           </div>
           {menuItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = normalizedPathname === item.href;
             return (
               <Link
                 key={item.href}

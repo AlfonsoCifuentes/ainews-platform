@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n';
 import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
+import { generateFallbackImage } from '@/lib/utils/generate-fallback-image';
 
 interface Course {
   id: string;
@@ -42,10 +43,35 @@ const DIFFICULTY_LABELS = {
   advanced: { en: 'Advanced', es: 'Avanzado' }
 };
 
+const COURSE_FALLBACK_CATEGORY_MAP: Record<string, string> = {
+  'machine learning': 'machine-learning',
+  'deep learning': 'models',
+  'natural language processing': 'nlp',
+  'computer vision': 'computer-vision',
+  'ai ethics': 'ethics',
+  ethics: 'ethics',
+  robotics: 'robotics',
+  research: 'research',
+  industry: 'industry',
+  tools: 'tools',
+  models: 'models',
+};
+
 export function CourseCard({ course, locale, showPopularBadge = false }: CourseCardProps) {
   const title = locale === 'es' ? course.title_es : course.title_en;
   const description = locale === 'es' ? course.description_es : course.description_en;
   const difficultyLabel = DIFFICULTY_LABELS[course.difficulty][locale as 'en' | 'es'];
+
+  const fallbackCategory = useMemo(() => {
+    const raw = typeof course.category === 'string' ? course.category.trim().toLowerCase() : '';
+    return COURSE_FALLBACK_CATEGORY_MAP[raw] ?? 'default';
+  }, [course.category]);
+
+  const coverSrc = useMemo(() => {
+    const url = typeof course.thumbnail_url === 'string' ? course.thumbnail_url.trim() : '';
+    if (url) return url;
+    return generateFallbackImage({ title, category: fallbackCategory, width: 1280, height: 720 });
+  }, [course.thumbnail_url, title, fallbackCategory]);
   
   const [isEnrolled] = useState(false);
   const [isCompleted] = useState(false);
@@ -72,26 +98,16 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
 
       {/* Course Cover Image */}
       <Link href={`/courses/${course.id}`} className="block relative w-full aspect-video overflow-hidden">
-        {course.thumbnail_url ? (
-          <>
-            <Image
-              src={course.thumbnail_url}
-              alt={title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] group-hover:scale-105 transition-transform duration-500">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(59,161,255,0.15)_0%,_transparent_70%)]" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <BookOpen className="w-12 h-12 text-white/20" />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
-          </div>
-        )}
+        <>
+          <Image
+            src={coverSrc}
+            alt={title}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
+        </>
       </Link>
 
       {/* Share Button - Top Right */}
