@@ -12,10 +12,20 @@ const intlMiddleware = createMiddleware({
 });
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Normalize accidental double-locale prefixes (e.g. /en/en/leaderboard)
+  const doubleLocaleMatch = pathname.match(/^\/(en|es)\/\1(\/|$)/);
+  if (doubleLocaleMatch) {
+    const locale = doubleLocaleMatch[1];
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(`/${locale}/${locale}`, `/${locale}`);
+    return NextResponse.redirect(url, 308);
+  }
+
   // Handle i18n routing only
   // DO NOT touch cookies - they can be corrupted!
-  const response = intlMiddleware(request);
-  return response;
+  return intlMiddleware(request);
 }
 
 export const config = {

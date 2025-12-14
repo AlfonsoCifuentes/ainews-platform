@@ -89,11 +89,24 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
         }),
       });
 
-      const data = await response.json();
-      if (response.ok && data.audioUrl) {
-        setAudioUrl(data.audioUrl);
+      const data = await response.json().catch(() => ({} as unknown));
+
+      if (!response.ok) {
+        const msg = (typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error?: unknown }).error === 'string')
+          ? (data as { error: string }).error
+          : `TTS request failed (${response.status})`;
+        setLoadError(msg);
+        return;
+      }
+
+      const audioUrl = (typeof data === 'object' && data !== null)
+        ? (data as { audioUrl?: unknown }).audioUrl
+        : null;
+
+      if (typeof audioUrl === 'string' && audioUrl) {
+        setAudioUrl(audioUrl);
         if (audioRef.current) {
-          audioRef.current.src = data.audioUrl;
+          audioRef.current.src = audioUrl;
           audioRef.current.load();
 
           const canPlayMp3 = audioRef.current.canPlayType('audio/mpeg');
@@ -110,9 +123,12 @@ export function AudioPlayer({ contentId, contentType, locale }: AudioPlayerProps
               setLoadError('Audio could not start. Try download.');
             });
         }
+      } else {
+        setLoadError(locale === 'es' ? 'Respuesta inválida del servidor de audio.' : 'Invalid audio server response.');
       }
     } catch (error) {
       console.error('Failed to generate audio:', error);
+      setLoadError(locale === 'es' ? 'No se pudo generar el audio. Inténtalo más tarde.' : 'Failed to generate audio. Please try again later.');
     } finally {
       setIsLoading(false);
     }

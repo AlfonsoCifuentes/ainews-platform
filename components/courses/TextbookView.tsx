@@ -409,6 +409,10 @@ export function TextbookView({
     loading: visualSlotsLoading,
     refresh: refreshVisualSlots,
   } = useModuleVisualSlots(moduleId ?? null, locale);
+  const headerSlot = useMemo(
+    () => visualSlots.find((slot) => slot.slotType === 'header') ?? null,
+    [visualSlots]
+  );
   const supportingSlots = useMemo(
     () => visualSlots.filter((slot) => slot.slotType !== 'header'),
     [visualSlots]
@@ -647,6 +651,19 @@ export function TextbookView({
 
   return (
     <>
+      {moduleId && (
+        <div className="mb-6">
+          <ModuleIllustration
+            moduleId={moduleId}
+            content={content}
+            locale={locale}
+            style={headerSlot ? 'header' : 'textbook'}
+            visualStyle={headerSlot?.suggestedVisualStyle}
+            slot={headerSlot}
+          />
+        </div>
+      )}
+
       {canRenderVisualGallery && moduleId && (
         <div
           className={`mb-6 rounded-3xl border p-5 ${

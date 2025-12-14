@@ -193,14 +193,17 @@ export async function GET(req: NextRequest) {
     
     // Fetch covers for all courses
     const courseIds = courses.map(getRowId).filter((id): id is string => typeof id === 'string');
-    let coversMap: Record<string, string> = {};
+    const preferredLocale = locale;
+    const fallbackLocale = locale === 'en' ? 'es' : 'en';
+    const preferredCoversMap: Record<string, string> = {};
+    const fallbackCoversMap: Record<string, string> = {};
     
     if (courseIds.length > 0) {
       const coversRes = await db
         .from('course_covers')
-        .select('course_id, image_url')
+        .select('course_id, image_url, locale')
         .in('course_id', courseIds)
-        .eq('locale', locale);
+        .in('locale', [preferredLocale, fallbackLocale]);
 
       if (coversRes.error) {
         // Older schemas may not have course_covers yet.
@@ -213,20 +216,33 @@ export async function GET(req: NextRequest) {
       const covers = (coversRes.data as unknown as CoverRow[] | null) ?? null;
       
       if (covers) {
-        coversMap = covers.reduce((acc, c) => {
-          acc[c.course_id] = c.image_url;
-          return acc;
-        }, {} as Record<string, string>);
+        const rawRows = coversRes.data as unknown as Array<{ course_id?: unknown; image_url?: unknown; locale?: unknown }> | null;
+        const rows = rawRows ?? [];
+        for (const row of rows) {
+          const courseId = typeof row.course_id === 'string' ? row.course_id : null;
+          const imageUrl = typeof row.image_url === 'string' ? row.image_url : null;
+          const rowLocale = typeof row.locale === 'string' ? row.locale : null;
+          if (!courseId || !imageUrl || !rowLocale) continue;
+          if (rowLocale === preferredLocale) preferredCoversMap[courseId] = imageUrl;
+          if (rowLocale === fallbackLocale) fallbackCoversMap[courseId] = imageUrl;
+        }
       }
-      logger.info('Covers fetched', { coversCount: Object.keys(coversMap).length });
+      logger.info('Covers fetched', {
+        preferredCount: Object.keys(preferredCoversMap).length,
+        fallbackCount: Object.keys(fallbackCoversMap).length,
+      });
     }
     
     // Merge covers into courses
     const coursesWithCovers = courses.map((c) => {
       const id = getRowId(c);
+      const existingThumb = typeof c.thumbnail_url === 'string' && c.thumbnail_url.trim() ? c.thumbnail_url : null;
+      const preferredCover = id ? preferredCoversMap[id] ?? null : null;
+      const fallbackCover = id ? fallbackCoversMap[id] ?? null : null;
       return {
         ...c,
-        thumbnail_url: id ? coversMap[id] || null : null,
+        // Prefer: cover for requested locale -> existing thumbnail_url column -> cover from other locale
+        thumbnail_url: preferredCover ?? existingThumb ?? fallbackCover,
       };
     });
     

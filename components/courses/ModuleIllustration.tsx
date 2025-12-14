@@ -152,6 +152,10 @@ export function ModuleIllustration({
           visualStyle: resolvedVisualStyle,
         });
 
+        if (slot?.id) {
+          params.set('slotId', slot.id);
+        }
+
         const response = await fetch(`/api/courses/modules/illustrations?${params.toString()}`, {
           method: 'GET',
           signal: controller.signal,
@@ -214,11 +218,15 @@ export function ModuleIllustration({
     setError(null);
 
     try {
+      const contentForGeneration = generationContent.length > 6000
+        ? generationContent.slice(0, 6000)
+        : generationContent;
+
       const response = await fetch('/api/courses/modules/generate-illustration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: generationContent,
+          content: contentForGeneration,
           locale,
           style,
           moduleId,
@@ -278,7 +286,18 @@ export function ModuleIllustration({
     } finally {
       setLoadingState('idle');
     }
-  }, [moduleId, generationContent, locale, style, resolvedVisualStyle, slot, autoGenerate, maxAutoAttempts]);
+  }, [
+    moduleId,
+    generationContent,
+    locale,
+    style,
+    resolvedVisualStyle,
+    slot,
+    slotPromptOverrides.promptOverride,
+    slotPromptOverrides.negativePromptOverride,
+    autoGenerate,
+    maxAutoAttempts,
+  ]);
 
   useEffect(() => {
     if (!autoGenerate) return;

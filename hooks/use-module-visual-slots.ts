@@ -41,7 +41,7 @@ export function useModuleVisualSlots(
       setError(null);
 
       try {
-        const params = new URLSearchParams({ moduleId: safeModuleId, locale });
+        const params = new URLSearchParams({ moduleId: safeModuleId, locale, ensure: '1' });
         if (options.slotType) params.set('slotType', options.slotType);
         if (options.limit) params.set('limit', String(options.limit));
 

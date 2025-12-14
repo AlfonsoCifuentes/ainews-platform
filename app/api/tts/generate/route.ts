@@ -117,27 +117,72 @@ export async function POST(req: NextRequest) {
     );
 
     let speech: Awaited<ReturnType<typeof openai.audio.speech.create>> | null = null;
+    const attemptErrors: Array<{ model: string; status?: number; message: string; kind: 'timeout' | 'auth' | 'quota' | 'bad_request' | 'other' }> = [];
+    const timeoutMs = (() => {
+      const raw = process.env.TTS_TIMEOUT_MS;
+      const parsed = raw ? Number(raw) : 20000;
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 20000;
+    })();
 
     for (const candidate of modelCandidates) {
       try {
-        speech = await openai.audio.speech.create({
-          model: candidate,
-          voice: voiceMap[voice] ?? 'alloy',
-          input,
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          speech = await openai.audio.speech.create(
+            {
+              model: candidate,
+              voice: voiceMap[voice] ?? 'alloy',
+              input,
+            },
+            { signal: controller.signal }
+          );
+        } finally {
+          clearTimeout(timeout);
+        }
         break;
       } catch (ttsError) {
-        console.warn('[tts] OpenAI TTS generation failed for model', candidate, ttsError);
+        const status = typeof (ttsError as { status?: unknown }).status === 'number'
+          ? (ttsError as { status: number }).status
+          : undefined;
+        const message = ttsError instanceof Error ? ttsError.message : String(ttsError);
+
+        const aborted = (ttsError instanceof Error && (ttsError.name === 'AbortError')) || (message.toLowerCase().includes('aborted'));
+        const kind: (typeof attemptErrors)[number]['kind'] = aborted
+          ? 'timeout'
+          : status === 401 || status === 403
+            ? 'auth'
+            : status === 429
+              ? 'quota'
+              : status === 400
+                ? 'bad_request'
+                : 'other';
+
+        attemptErrors.push({ model: candidate, status, message, kind });
+        console.warn('[tts] OpenAI TTS generation failed', { model: candidate, status, kind, message });
+
+        // Don't keep retrying other models on auth/quota/bad-request; it's not model-specific.
+        if (kind === 'auth' || kind === 'quota' || kind === 'bad_request') {
+          break;
+        }
       }
     }
 
     if (!speech) {
+      const hasAuth = attemptErrors.some((e) => e.kind === 'auth');
+      const hasQuota = attemptErrors.some((e) => e.kind === 'quota');
+      const hasBadRequest = attemptErrors.some((e) => e.kind === 'bad_request');
+      const hasTimeout = attemptErrors.some((e) => e.kind === 'timeout');
+
+      const status = hasBadRequest ? 400 : (hasAuth || hasQuota || hasTimeout) ? 503 : 502;
+
       return NextResponse.json(
         {
           error: 'TTS generation failed',
           attemptedModels: modelCandidates,
+          attempts: attemptErrors.map((e) => ({ model: e.model, status: e.status, kind: e.kind })),
         },
-        { status: 502 }
+        { status }
       );
     }
 
