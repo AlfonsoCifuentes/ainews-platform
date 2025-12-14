@@ -81,7 +81,10 @@ async function uploadCoverImage(params: {
   base64Data: string;
   mimeType: string;
 }): Promise<{ storagePath: string; imageUrl: string }> {
-  const buffer = Buffer.from(params.base64Data, 'base64');
+  const base64 = params.base64Data.includes('base64,')
+    ? params.base64Data.slice(params.base64Data.indexOf('base64,') + 'base64,'.length)
+    : params.base64Data;
+  const buffer = Buffer.from(base64, 'base64');
   const extension = inferExtension(params.mimeType);
   const timestamp = Date.now();
   const path = `${params.courseId}/${params.storageBasename}-${timestamp}.${extension}`;
@@ -253,7 +256,7 @@ export async function fetchCourseCover(
     .maybeSingle();
 
   if (error) {
-    console.error('[CourseCover] Failed to fetch:', error.message);
+    console.error('[CourseCover] Failed to fetch:', { courseId, locale, message: error.message });
     return null;
   }
 
@@ -268,13 +271,20 @@ export async function courseCoverExists(
   locale: Locale
 ): Promise<boolean> {
   const client = getSupabaseAdminClient();
-  
-  const { data } = await client
+
+  const { data, error } = await client
     .from('course_covers')
-    .select('id')
+    .select('storage_path')
     .eq('course_id', courseId)
     .eq('locale', locale)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  return !!data;
+  if (error) {
+    console.error('[CourseCover] Failed to check existence:', { courseId, locale, message: error.message });
+    return false;
+  }
+
+  return typeof (data as { storage_path?: unknown } | null)?.storage_path === 'string';
 }

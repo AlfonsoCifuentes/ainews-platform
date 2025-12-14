@@ -160,14 +160,18 @@ async function main() {
   const ids = Array.from(courseIds);
   console.log(`[SyncCourseCovers] Found ${ids.length} courses with at least one cover row`);
 
+  const idsToProcess = args.limit > 0 ? ids.slice(0, args.limit) : ids;
+  if (args.limit > 0) {
+    console.log(`[SyncCourseCovers] Processing first ${idsToProcess.length} courses due to --limit`);
+  }
+
   const limit = pLimit(args.concurrency);
-  let scanned = 0;
+  let processed = 0;
   let changed = 0;
   let failed = 0;
 
-  const tasks = ids.map((courseId) => limit(async () => {
-    if (args.limit > 0 && scanned >= args.limit) return;
-    scanned++;
+  const tasks = idsToProcess.map((courseId) => limit(async () => {
+    processed++;
 
     const preferCover = await fetchCourseCover(courseId, args.prefer);
     const otherCover = await fetchCourseCover(courseId, other);
@@ -231,7 +235,7 @@ async function main() {
 
   await Promise.all(tasks);
 
-  console.log(`[SyncCourseCovers] Done. scanned=${scanned} wouldChangeOrChanged=${changed} failed=${failed}`);
+  console.log(`[SyncCourseCovers] Done. processed=${processed} wouldChangeOrChanged=${changed} failed=${failed}`);
   if (failed > 0) process.exitCode = 1;
 }
 
