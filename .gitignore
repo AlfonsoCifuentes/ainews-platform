@@ -48,6 +48,9 @@ logs
 *.traineddata
 replace-modules-log.txt
 
+# Local one-off scripts
+scripts/replace-course-images-with-text.ts
+
 # OS
 Thumbs.db
 
