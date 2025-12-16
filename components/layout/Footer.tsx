@@ -57,8 +57,16 @@ export function Footer() {
           <div>
             <h4 className="text-white font-bold mb-6">LEGAL</h4>
             <ul className="space-y-4 text-sm text-[#888]">
-              <li className="hover:text-white cursor-pointer transition-colors">Privacy Policy</li>
-              <li className="hover:text-white cursor-pointer transition-colors">Terms of Service</li>
+              <li>
+                <Link href="/privacy" className="hover:text-white transition-colors">
+                  {t('common.footer.privacyPolicy')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-white transition-colors">
+                  {t('common.footer.termsOfService')}
+                </Link>
+              </li>
               <li>
                 <button
                   onClick={() => {

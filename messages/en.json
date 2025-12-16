@@ -16,7 +16,9 @@
     },
     "footer": {
       "copyright": "© 2025 ThotNet Core. All rights reserved.",
-      "builtWith": "Built with AI"
+      "builtWith": "Built with AI",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
     },
     "buttons": {
       "readMore": "Read More",
@@ -135,6 +137,23 @@
         "title": "Self-Improving",
         "description": "Our AI learns from feedback and gets better every day"
       }
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": "This page explains, at a high level, how ThotNet Core processes data when you use the site.",
+      "adsense": "Advertising: We may use Google AdSense to display ads. Google and its partners may use cookies or similar technologies to show ads, measure performance, and prevent fraud, subject to your consent where required.",
+      "analytics": "Analytics: We may use analytics to understand site usage and improve the product (for example, performance, feature adoption, and reliability).",
+      "control": "You can review or change your ad-related consent choices at any time via the \"Cookie Settings\" link in the footer.",
+      "disclaimer": "This page is provided for informational purposes only and may be updated. It is not legal advice."
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "intro": "By using ThotNet Core, you agree to use the service responsibly and in compliance with applicable laws.",
+      "accounts": "Accounts: Some features may require signing in. You are responsible for safeguarding access to your account.",
+      "availability": "Availability: The service is provided on an \"as is\" basis and may change over time as we improve the platform.",
+      "disclaimer": "These terms are a short summary and may be updated. They do not replace a full legal agreement."
     }
   },
   "news": {

@@ -16,7 +16,9 @@
     },
     "footer": {
       "copyright": "© 2025 ThotNet Core. Todos los derechos reservados.",
-      "builtWith": "Construido con IA"
+      "builtWith": "Construido con IA",
+      "privacyPolicy": "Política de privacidad",
+      "termsOfService": "Términos del servicio"
     },
     "buttons": {
       "readMore": "Leer Más",
@@ -134,6 +136,23 @@
         "title": "Auto-mejorante",
         "description": "Nuestra IA aprende del feedback y mejora cada día"
       }
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Política de privacidad",
+      "intro": "Esta página explica, a alto nivel, cómo ThotNet Core trata los datos cuando usas el sitio.",
+      "adsense": "Publicidad: Podemos usar Google AdSense para mostrar anuncios. Google y sus partners pueden usar cookies o tecnologías similares para mostrar anuncios, medir rendimiento y prevenir fraude, sujeto a tu consentimiento cuando sea obligatorio.",
+      "analytics": "Analíticas: Podemos usar analíticas para entender el uso del sitio y mejorar el producto (por ejemplo, rendimiento, adopción de funciones y fiabilidad).",
+      "control": "Puedes revisar o cambiar tus decisiones de consentimiento relacionadas con publicidad en cualquier momento desde el enlace \"Ajustes de cookies\" del pie de página.",
+      "disclaimer": "Esta página se ofrece solo con fines informativos y puede actualizarse. No constituye asesoramiento legal."
+    },
+    "terms": {
+      "title": "Términos del servicio",
+      "intro": "Al usar ThotNet Core, aceptas utilizar el servicio de forma responsable y conforme a la legislación aplicable.",
+      "accounts": "Cuentas: Algunas funciones pueden requerir inicio de sesión. Eres responsable de proteger el acceso a tu cuenta.",
+      "availability": "Disponibilidad: El servicio se ofrece \"tal cual\" y puede cambiar con el tiempo a medida que mejoramos la plataforma.",
+      "disclaimer": "Estos términos son un resumen breve y pueden actualizarse. No sustituyen un acuerdo legal completo."
     }
   },
   "news": {
