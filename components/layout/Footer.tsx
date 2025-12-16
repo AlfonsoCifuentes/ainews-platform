@@ -63,7 +63,21 @@ export function Footer() {
                 <button
                   onClick={() => {
                     if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent('thotnet:revoke-consent'));
+                      // Prefer Google Privacy & Messaging (Funding Choices) revocation.
+                      // Per Google docs, the supported way is to use the callbackQueue.
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const w = window as any;
+                      w.googlefc = w.googlefc || {};
+                      w.googlefc.callbackQueue = w.googlefc.callbackQueue || [];
+                      w.googlefc.callbackQueue.push({
+                        CONSENT_API_READY: () => {
+                          try {
+                            w.googlefc?.showRevocationMessage?.();
+                          } catch {
+                            // no-op
+                          }
+                        },
+                      });
                     }
                   }}
                   className="hover:text-white cursor-pointer transition-colors text-left"
