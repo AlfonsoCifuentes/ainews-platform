@@ -48,12 +48,12 @@ export default function NotFound() {
         </div>
 
         <div className="mt-10 flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.3em] text-black sm:flex-row">
-          <Link href="/" locale="en" className="w-full sm:w-auto">
+          <Link href="/" className="w-full sm:w-auto">
             <span className="inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-3 text-xs text-black transition-transform hover:-translate-y-0.5">
               Return home
             </span>
           </Link>
-          <Link href="/news" locale="en" className="w-full sm:w-auto">
+          <Link href="/news" className="w-full sm:w-auto">
             <span className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-8 py-3 text-xs text-white transition-all hover:border-white/60">
               <ArrowLeft className="mr-2 h-4 w-4" /> Latest reports
             </span>
@@ -70,7 +70,7 @@ export default function NotFound() {
                 { href: '/trending', label: 'Trending topics' },
                 { href: '/leaderboard', label: 'Leaderboard' },
               ].map((link) => (
-                <Link key={link.href} href={link.href} locale="en">
+                <Link key={link.href} href={link.href}>
                   <span className="inline-flex rounded-lg border border-white/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:bg-white/10">
                     {link.label}
                   </span>

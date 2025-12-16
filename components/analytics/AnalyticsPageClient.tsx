@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { FadeSlideTransition } from '@/components/shared/PageTransition';
 import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
 import { ScrollAnimate } from '@/components/shared/ScrollEffects';
@@ -11,6 +11,33 @@ interface AnalyticsPageClientProps {
 }
 
 export function AnalyticsPageClient({ children }: AnalyticsPageClientProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch from motion/viewport-based animations.
+  if (!isMounted) {
+    return (
+      <main className="min-h-screen px-4 py-12">
+        <div className="container mx-auto max-w-7xl">
+          <header className="mb-12 text-center">
+            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border font-medium bg-gradient-to-r from-primary via-accent to-primary text-white px-2 py-0.5 text-xs">
+              📊 Platform Insights
+            </span>
+            <h1 className="mb-4 text-4xl font-bold md:text-5xl">Analytics Dashboard</h1>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Real-time metrics and insights into platform performance and user engagement
+            </p>
+          </header>
+
+          {children}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <FadeSlideTransition>
       <main className="min-h-screen px-4 py-12">

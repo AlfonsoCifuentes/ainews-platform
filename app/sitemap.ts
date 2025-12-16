@@ -32,9 +32,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     createEntry('', { changeFrequency: 'daily', priority: 1 }),
     createEntry('/news', { changeFrequency: 'hourly', priority: 0.9 }),
     createEntry('/courses', { changeFrequency: 'daily', priority: 0.8 }),
+    createEntry('/courses-library', { changeFrequency: 'daily', priority: 0.7 }),
     createEntry('/trending', { changeFrequency: 'hourly', priority: 0.8 }),
     createEntry('/kg', { changeFrequency: 'daily', priority: 0.7 }),
     createEntry('/leaderboard', { changeFrequency: 'daily', priority: 0.6 }),
+    createEntry('/privacy', { changeFrequency: 'monthly', priority: 0.4 }),
+    createEntry('/terms', { changeFrequency: 'monthly', priority: 0.4 }),
   ];
 
   // Dynamic pages - News articles

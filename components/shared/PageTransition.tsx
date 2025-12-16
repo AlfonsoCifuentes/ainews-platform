@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -12,11 +12,23 @@ interface PageTransitionProps {
 // Fade + Slide Up transition
 export function FadeSlideTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    // Avoid hydration mismatches when `usePathname()` differs between SSR and client.
+    // Keep a stable key through hydration, then switch to the real pathname.
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
@@ -35,11 +47,21 @@ export function FadeSlideTransition({ children, className = '' }: PageTransition
 // Scale + Fade transition (for modal-like pages)
 export function ScaleTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 1.05 }}
@@ -58,11 +80,21 @@ export function ScaleTransition({ children, className = '' }: PageTransitionProp
 // Slide from right (for detail pages)
 export function SlideTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0, x: 100 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -100 }}
@@ -81,11 +113,21 @@ export function SlideTransition({ children, className = '' }: PageTransitionProp
 // Stagger children (for grids/lists)
 export function StaggerPageTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial="hidden"
         animate="visible"
         exit="hidden"
@@ -110,11 +152,21 @@ export function StaggerPageTransition({ children, className = '' }: PageTransiti
 // 3D Flip transition (for dramatic page changes)
 export function FlipTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0, rotateX: 90, transformPerspective: 1000 }}
         animate={{ opacity: 1, rotateX: 0, transformPerspective: 1000 }}
         exit={{ opacity: 0, rotateX: -90, transformPerspective: 1000 }}
@@ -134,11 +186,21 @@ export function FlipTransition({ children, className = '' }: PageTransitionProps
 // Curtain transition (wipes from top)
 export function CurtainTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ clipPath: 'inset(0 0 100% 0)' }}
         animate={{ clipPath: 'inset(0 0 0% 0)' }}
         exit={{ clipPath: 'inset(100% 0 0 0)' }}
@@ -157,11 +219,21 @@ export function CurtainTransition({ children, className = '' }: PageTransitionPr
 // Zoom transition (for focus on content)
 export function ZoomTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 1.2 }}
@@ -184,6 +256,16 @@ export function LoadingTransition({
   isLoading = false
 }: PageTransitionProps & { isLoading?: boolean }) {
   const pathname = usePathname();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const transitionKey = useMemo(() => {
+    if (!hydrated) return 'hydrating';
+    return pathname || 'unknown-path';
+  }, [hydrated, pathname]);
   
   return (
     <>
@@ -203,7 +285,7 @@ export function LoadingTransition({
       {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={pathname}
+          key={transitionKey}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

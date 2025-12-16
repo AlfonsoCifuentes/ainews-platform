@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FadeSlideTransition } from '@/components/shared/PageTransition';
 import { TextGradient, TextSplit } from '@/components/shared/TextAnimations';
@@ -25,6 +25,31 @@ interface KGPageClientProps {
 
 export function KGPageClient({ title, searchPlaceholder, filters, children }: KGPageClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Avoid hydration errors caused by animation libraries rendering differently
+  // between SSR and the browser (e.g. intersection observer / media queries).
+  if (!isMounted) {
+    return (
+      <main className="min-h-screen px-4 py-12">
+        <div className="container mx-auto max-w-7xl">
+          <header className="mb-12 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium">
+              🧠 AI Knowledge Graph
+            </div>
+            <h1 className="mb-4 text-4xl font-bold md:text-5xl">{title}</h1>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Explore entities, relationships, and insights from the AI ecosystem
+            </p>
+          </header>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <FadeSlideTransition>

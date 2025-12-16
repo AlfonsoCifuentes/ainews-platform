@@ -1,4 +1,19 @@
+import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'legal' });
+
+  return {
+    title: t('privacy.title'),
+    description: t('privacy.intro'),
+  };
+}
 
 export default async function PrivacyPolicyPage({
   params,

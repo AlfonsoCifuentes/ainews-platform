@@ -36,7 +36,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   const user = await getServerAuthUser();
 
   if (!user) {
-    redirect(`/${locale}/auth/signin`);
+    redirect(`/${locale}/auth?mode=signin`);
   }
 
   const db = getSupabaseServerClient();

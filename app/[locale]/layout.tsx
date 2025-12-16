@@ -32,19 +32,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
   
   const descriptions: Record<string, string> = {
-    en: 'ThotNet Core te mantiene al día con noticias de IA, cursos tipo libro y agentes autónomos en EN/ES.',
+    en: 'ThotNet Core keeps you up to date with AI news, textbook-style courses, and autonomous agents in EN/ES.',
     es: 'ThotNet Core te mantiene al día con noticias de IA, cursos tipo libro y agentes autónomos en EN/ES.'
   };
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
+  const resolvedTitle = titles[locale] || titles.en;
+  const resolvedDescription = descriptions[locale] || descriptions.en;
   
   return {
-    title: titles[locale] || titles.en,
-    description: descriptions[locale] || descriptions.en,
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app'),
+    title: resolvedTitle,
+    description: resolvedDescription,
+    metadataBase: new URL(baseUrl),
     alternates: {
       languages: {
         en: '/en',
         es: '/es',
       },
+    },
+    openGraph: {
+      type: 'website',
+      title: resolvedTitle,
+      description: resolvedDescription,
+      siteName: 'ThotNet Core',
+      locale: locale === 'es' ? 'es_ES' : 'en_US',
+      images: ['/images/thotnet-core-orb.png'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: resolvedTitle,
+      description: resolvedDescription,
+      images: ['/images/thotnet-core-orb.png'],
     },
   };
 }

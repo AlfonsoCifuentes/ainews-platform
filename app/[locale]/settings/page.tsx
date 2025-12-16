@@ -17,7 +17,7 @@ export default async function SettingsPage({
   const { locale } = await params;
   const user = await getServerAuthUser();
   if (!user) {
-    redirect(`/${locale}/login`);
+    redirect(`/${locale}/auth?mode=signin`);
   }
 
   const db = getSupabaseServerClient();
