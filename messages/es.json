@@ -353,6 +353,34 @@
     "courses": "Cursos",
     "readMore": "Leer Más",
     "aiGenerated": "Generado por IA"
+  },
+  "gdpr": {
+    "title": "Valoramos tu privacidad",
+    "description": "Usamos cookies y tecnologías similares para personalizar contenido y anuncios, ofrecer funciones sociales y analizar el tráfico. Puedes aceptar todas las cookies, rechazar las no esenciales o personalizar tus preferencias.",
+    "acceptAll": "Aceptar Todo",
+    "rejectAll": "Rechazar Todo",
+    "manageOptions": "Gestionar Opciones",
+    "savePreferences": "Guardar Preferencias",
+    "close": "Cerrar",
+    "privacyPolicy": "Política de Privacidad",
+    "cookieSettings": "Configuración de Cookies",
+    "alwaysOn": "Siempre Activo",
+    "essential": {
+      "title": "Cookies Esenciales",
+      "description": "Necesarias para el funcionamiento básico del sitio. No se pueden desactivar."
+    },
+    "analytics": {
+      "title": "Cookies de Analítica",
+      "description": "Nos ayudan a entender cómo interactúan los visitantes con nuestro sitio."
+    },
+    "advertising": {
+      "title": "Cookies de Publicidad",
+      "description": "Se utilizan para mostrar anuncios relevantes y medir su efectividad."
+    },
+    "personalization": {
+      "title": "Personalización",
+      "description": "Permiten contenido y recomendaciones de anuncios personalizados."
+    }
   }
 }
 

@@ -6,7 +6,7 @@ import { useBookMode } from '@/lib/hooks/useBookMode';
 import Image from 'next/image';
 
 export function Footer() {
-  const t = useTranslations('common');
+  const t = useTranslations();
   const { isBookMode } = useBookMode();
 
   if (isBookMode) return null;
@@ -29,7 +29,7 @@ export function Footer() {
               <span className="font-bold text-xl tracking-tighter text-white">THOTNET</span>
             </div>
             <p className="text-[#888] text-sm leading-relaxed max-w-xs">
-              {t('footer.builtWith')}
+              {t('common.footer.builtWith')}
             </p>
           </div>
           
@@ -38,12 +38,12 @@ export function Footer() {
             <ul className="space-y-4 text-sm text-[#888]">
               <li>
                 <Link href="/news" className="hover:text-white transition-colors">
-                  {t('nav.news')}
+                  {t('common.nav.news')}
                 </Link>
               </li>
               <li>
                 <Link href="/courses" className="hover:text-white transition-colors">
-                  {t('nav.courses')}
+                  {t('common.nav.courses')}
                 </Link>
               </li>
               <li>
@@ -59,7 +59,18 @@ export function Footer() {
             <ul className="space-y-4 text-sm text-[#888]">
               <li className="hover:text-white cursor-pointer transition-colors">Privacy Policy</li>
               <li className="hover:text-white cursor-pointer transition-colors">Terms of Service</li>
-              <li className="hover:text-white cursor-pointer transition-colors">Cookie Settings</li>
+              <li>
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('thotnet:revoke-consent'));
+                    }
+                  }}
+                  className="hover:text-white cursor-pointer transition-colors text-left"
+                >
+                  {t('gdpr.cookieSettings')}
+                </button>
+              </li>
             </ul>
           </div>
 

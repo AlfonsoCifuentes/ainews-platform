@@ -20,6 +20,7 @@ import { PWAInstaller } from '@/components/pwa/PWAInstaller';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { UnifiedDebugPanel } from '@/components/shared/UnifiedDebugPanel';
 import { BookModeProvider } from '@/lib/hooks/useBookMode';
+import { CookieConsent } from '@/components/shared/CookieConsent';
 import { routing } from '@/i18n/routing';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -203,6 +204,9 @@ console.log('[CookieNorm] Starting normalization...');
                     {children}
                   </main>
                   <Footer />
+                  
+                  {/* GDPR Cookie Consent Banner */}
+                  <CookieConsent />
                   
                   {/* Gamification Systems */}
                   <DailyLoginTracker />
