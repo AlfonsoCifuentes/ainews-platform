@@ -90,7 +90,7 @@ export function Footer() {
                   }}
                   className="hover:text-white cursor-pointer transition-colors text-left"
                 >
-                  {t('gdpr.cookieSettings')}
+                  {t('common.footer.cookieSettings')}
                 </button>
               </li>
             </ul>
