@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Link } from '@/i18n';
 import { Clock, BookOpen, TrendingUp, Star, Play, ArrowRight, CheckCircle, Zap } from 'lucide-react';
 import { ShareCourseButton } from './ShareCourseButton';
-import { generateFallbackImage } from '@/lib/utils/generate-fallback-image';
+import { generateCourseFallbackImage } from '@/lib/utils/generate-fallback-image';
 
 interface Course {
   id: string;
@@ -70,8 +70,8 @@ export function CourseCard({ course, locale, showPopularBadge = false }: CourseC
   const coverSrc = useMemo(() => {
     const url = typeof course.thumbnail_url === 'string' ? course.thumbnail_url.trim() : '';
     if (url) return url;
-    return generateFallbackImage({ title, category: fallbackCategory, width: 1280, height: 720 });
-  }, [course.thumbnail_url, title, fallbackCategory]);
+    return generateCourseFallbackImage({ category: fallbackCategory, width: 1280, height: 720 });
+  }, [course.thumbnail_url, fallbackCategory]);
   
   const [isEnrolled] = useState(false);
   const [isCompleted] = useState(false);

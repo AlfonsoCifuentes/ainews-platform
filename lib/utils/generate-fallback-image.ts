@@ -10,6 +10,12 @@ export interface FallbackImageConfig {
   height?: number;
 }
 
+export interface CourseFallbackImageConfig {
+  category?: string;
+  width?: number;
+  height?: number;
+}
+
 const categoryGradients: Record<string, { from: string; to: string; icon: string }> = {
   'machine-learning': {
     from: '#2563eb', // Blue
@@ -176,6 +182,46 @@ export function generateFallbackImageSVG(config: FallbackImageConfig): string {
 }
 
 /**
+ * Genera un SVG de respaldo para portadas de cursos.
+ * Norma crítica: NO debe contener texto (ni títulos, ni badges, ni marcas).
+ */
+export function generateCourseFallbackImageSVG(config: CourseFallbackImageConfig): string {
+  const { category = 'default', width = 1280, height = 720 } = config;
+  const gradient = categoryGradients[category] || categoryGradients.default;
+
+  const svg = `
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${gradient.from};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:${gradient.to};stop-opacity:1" />
+        </linearGradient>
+        <radialGradient id="vignette" cx="50%" cy="50%" r="65%">
+          <stop offset="0%" stop-color="rgba(0,0,0,0)" />
+          <stop offset="100%" stop-color="rgba(0,0,0,0.35)" />
+        </radialGradient>
+        <pattern id="noise" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+          <circle cx="6" cy="9" r="1" fill="rgba(255,255,255,0.06)" />
+          <circle cx="45" cy="18" r="1" fill="rgba(255,255,255,0.05)" />
+          <circle cx="70" cy="60" r="1" fill="rgba(255,255,255,0.05)" />
+          <circle cx="20" cy="72" r="1" fill="rgba(255,255,255,0.04)" />
+        </pattern>
+      </defs>
+
+      <rect width="${width}" height="${height}" fill="url(#gradient)" />
+      <rect width="${width}" height="${height}" fill="url(#noise)" />
+
+      <circle cx="${Math.round(width * 0.82)}" cy="${Math.round(height * 0.22)}" r="${Math.round(Math.min(width, height) * 0.32)}" fill="rgba(255,255,255,0.06)" />
+      <circle cx="${Math.round(width * 0.18)}" cy="${Math.round(height * 0.78)}" r="${Math.round(Math.min(width, height) * 0.26)}" fill="rgba(0,0,0,0.08)" />
+
+      <rect width="${width}" height="${height}" fill="url(#vignette)" />
+    </svg>
+  `.trim();
+
+  return svg;
+}
+
+/**
  * Convierte SVG a Data URL para usar en src de imagen
  */
 export function svgToDataURL(svg: string): string {
@@ -188,6 +234,11 @@ export function svgToDataURL(svg: string): string {
  */
 export function generateFallbackImage(config: FallbackImageConfig): string {
   const svg = generateFallbackImageSVG(config);
+  return svgToDataURL(svg);
+}
+
+export function generateCourseFallbackImage(config: CourseFallbackImageConfig): string {
+  const svg = generateCourseFallbackImageSVG(config);
   return svgToDataURL(svg);
 }
 

@@ -37,6 +37,17 @@ Your writing style:
 - Contains practical exercises with solutions
 - References current research and industry practices
 
+Editorial layout (magazine-style, mandatory for any markdown content fields):
+- Avoid walls of text: never write more than 3 plain paragraphs in a row; break the flow with widgets.
+- Use Z-scan formatting: bold key concepts sparingly so the reader can scan.
+- Use pull quotes as blockquotes with a headline: > ## "..." and an optional attribution line like: > *— Context*.
+- Use sidebar boxes as ONE-CELL markdown tables, e.g.:
+  | 💡 TECH INSIGHT: TITLE |
+  | :--- |
+  | Body text... |
+- Code fences must always specify the language (e.g., python, ts, etc.).
+- Image placements (conceptual) can be suggested inline as: ![DISEÑO: ...].
+
 CRITICAL: Do not output Mermaid, ASCII diagrams, or diagram code blocks. Any diagrams must be described and paired with illustration prompts for generated images.
 
 CRITICAL: Return only valid JSON matching the provided schema. No markdown fences, no commentary.`;
@@ -436,9 +447,17 @@ CONTENT REQUIREMENTS:
 
 2. STRUCTURE:
    - Use clear markdown hierarchy (##, ###, ####)
-   - Include bullet points and numbered lists
-   - Add tables for comparisons
-   - Break dense text with examples
+  - Include bullet points and numbered lists (editorial list style: each bullet starts with a bold label, e.g. "- **Concept:** ...")
+  - Add tables for comparisons
+  - Break dense text with examples
+  - NEVER write more than 3 plain paragraphs in a row; insert a widget to break the rhythm
+  - Include at least:
+     - 2 pull quotes using: > ## "Impactful sentence" and > *— Context*
+    - 2 sidebar boxes using ONE-CELL tables:
+     | 💡 TECH INSIGHT: TITLE |
+     | :--- |
+     | Body text... |
+   - Suggest 1-2 conceptual image placements inline using: ![DISEÑO: ...]
 
 3. EXAMPLES & ILLUSTRATIONS:
    - 3-5 detailed examples per major concept
@@ -678,15 +697,46 @@ Return JSON matching the schema exactly.`;
 export function assembleChapterMarkdown(chapter: TextbookChapter): string {
   const md: string[] = [];
 
-  // Title and metadata
+  const isSpanish = chapter.metadata.language.toLowerCase().startsWith('span') || chapter.metadata.language.toLowerCase() === 'es';
+  const label = {
+    stats: isSpanish ? '💡 TECH INSIGHT: Datos del capítulo' : '💡 TECH INSIGHT: Chapter stats',
+    estimated: isSpanish ? 'Tiempo estimado de lectura' : 'Estimated reading time',
+    totalWords: isSpanish ? 'Total de palabras' : 'Total words',
+    exercises: isSpanish ? 'Ejercicios' : 'Exercises',
+    objectives: isSpanish ? '📎 Objetivos de aprendizaje' : '📎 Learning Objectives',
+    prerequisites: isSpanish ? '📚 Requisitos previos' : '📚 Prerequisites',
+    afterCompleting: isSpanish ? 'Al terminar este capítulo, serás capaz de:' : 'After completing this chapter, you will be able to:',
+    beforeStarting: isSpanish ? 'Antes de empezar, conviene que domines:' : 'Before starting this chapter, you should be familiar with:',
+    keyTerms: isSpanish ? '📖 Términos clave' : '📖 Key Terms',
+    codeExamples: isSpanish ? '💻 Ejemplos de código' : '💻 Code Examples',
+    caseStudies: isSpanish ? '📊 Casos de estudio' : '📊 Case Studies',
+    practice: isSpanish ? '🎯 Ejercicios de práctica' : '🎯 Practice Exercises',
+    exam: '📝',
+    gradingScale: isSpanish ? 'Escala de calificación' : 'Grading Scale',
+    summary: isSpanish ? '📋 Resumen del capítulo' : '📋 Chapter Summary',
+    reading: isSpanish ? '📚 Lecturas recomendadas' : '📚 Suggested Reading',
+    keyIdea: isSpanish ? 'Idea clave' : 'Key idea',
+    prereq: isSpanish ? 'Requisito' : 'Prerequisite',
+    reference: isSpanish ? 'Referencia' : 'Reference',
+  };
+
+  // The Hook: Title + bold 2-line standfirst + separator
   md.push(`# ${chapter.outline.chapter_title}\n`);
-  md.push(`> **Estimated reading time:** ${chapter.metadata.estimatedReadingMinutes} minutes`);
-  md.push(`> **Total words:** ${chapter.metadata.totalWords.toLocaleString()}`);
-  md.push(`> **Exercises:** ${chapter.metadata.totalExercises}\n`);
+
+  const standfirstLines = chapter.outline.chapter_summary_points.slice(0, 2);
+  if (standfirstLines.length > 0) {
+    md.push(`**${standfirstLines.join('\n')}**\n`);
+  }
+  md.push('---\n');
+
+  // Chapter stats as a sidebar box (one-cell table)
+  md.push(`| ${label.stats} |`);
+  md.push('| :--- |');
+  md.push(`| **${label.estimated}:** ${chapter.metadata.estimatedReadingMinutes} min · **${label.totalWords}:** ${chapter.metadata.totalWords.toLocaleString()} · **${label.exercises}:** ${chapter.metadata.totalExercises} |\n`);
 
   // Learning objectives
-  md.push('## 📎 Learning Objectives\n');
-  md.push('After completing this chapter, you will be able to:\n');
+  md.push(`## ${label.objectives}\n`);
+  md.push(`${label.afterCompleting}\n`);
   chapter.outline.learning_objectives.forEach((obj, i) => {
     md.push(`${i + 1}. ${obj}`);
   });
@@ -694,10 +744,10 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
   // Prerequisites
   if (chapter.outline.prerequisite_knowledge.length > 0) {
-    md.push('## 📚 Prerequisites\n');
-    md.push('Before starting this chapter, you should be familiar with:\n');
+    md.push(`## ${label.prerequisites}\n`);
+    md.push(`${label.beforeStarting}\n`);
     chapter.outline.prerequisite_knowledge.forEach(prereq => {
-      md.push(`- ${prereq}`);
+      md.push(`- **${label.prereq}:** ${prereq}`);
     });
     md.push('');
   }
@@ -712,7 +762,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
     // Key terms
     if (section.content.key_terms && section.content.key_terms.length > 0) {
-      md.push('### 📖 Key Terms\n');
+      md.push(`### ${label.keyTerms}\n`);
       md.push('| Term | Definition |');
       md.push('|------|------------|');
       section.content.key_terms.forEach(term => {
@@ -723,15 +773,14 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
     // Did you know box
     if (section.content.did_you_know) {
-      md.push('> ### 💡 Did You Know?\n>');
-      md.push(`> **${section.content.did_you_know.title}**\n>`);
-      md.push(`> ${section.content.did_you_know.content}`);
-      md.push('');
+      md.push(`| 💡 TECH INSIGHT: ${section.content.did_you_know.title} |`);
+      md.push('| :--- |');
+      md.push(`| ${section.content.did_you_know.content} |\n`);
     }
 
     // Code examples
     if (section.content.code_examples && section.content.code_examples.length > 0) {
-      md.push('### 💻 Code Examples\n');
+      md.push(`### ${label.codeExamples}\n`);
       section.content.code_examples.forEach(example => {
         md.push(`**${example.description}**\n`);
         md.push('```' + example.language);
@@ -745,7 +794,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
   // Case studies
   if (chapter.caseStudies.length > 0) {
-    md.push('## 📊 Case Studies\n');
+    md.push(`## ${label.caseStudies}\n`);
     
     chapter.caseStudies.forEach((cs, i) => {
       md.push(`### Case Study ${i + 1}: ${cs.title}\n`);
@@ -778,7 +827,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
       md.push('');
       
       md.push('#### Lessons Learned\n');
-      cs.lessons_learned.forEach(lesson => md.push(`- ${lesson}`));
+      cs.lessons_learned.forEach(lesson => md.push(`- **${label.keyIdea}:** ${lesson}`));
       md.push('');
       
       md.push('#### Discussion Questions\n');
@@ -788,7 +837,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
   }
 
   // Exercises
-  md.push('## 🎯 Practice Exercises\n');
+  md.push(`## ${label.practice}\n`);
   md.push(`*Total points: ${chapter.exercises.total_points} | Passing score: ${chapter.exercises.passing_score}% | Estimated time: ${chapter.exercises.time_estimate_minutes} minutes*\n`);
 
   chapter.exercises.exercises.forEach((ex, i) => {
@@ -834,7 +883,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
   // Chapter exam
   md.push('---\n');
-  md.push(`## 📝 ${chapter.exam.exam_title}\n`);
+  md.push(`## ${label.exam} ${chapter.exam.exam_title}\n`);
   md.push(`*Time limit: ${chapter.exam.time_limit_minutes} minutes | Total points: ${chapter.exam.total_points}*\n`);
   md.push(`**Instructions:** ${chapter.exam.instructions}\n`);
 
@@ -863,7 +912,7 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
   md.push('</details>\n');
 
   // Grading scale
-  md.push('#### Grading Scale\n');
+  md.push(`#### ${label.gradingScale}\n`);
   md.push('| Grade | Percentage | Description |');
   md.push('|-------|------------|-------------|');
   chapter.exam.grading_scale.forEach(g => {
@@ -873,17 +922,17 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
   // Summary
   md.push('---\n');
-  md.push('## 📋 Chapter Summary\n');
+  md.push(`## ${label.summary}\n`);
   chapter.outline.chapter_summary_points.forEach(point => {
-    md.push(`- ${point}`);
+    md.push(`- **${label.keyIdea}:** ${point}`);
   });
   md.push('');
 
   // Suggested reading
   if (chapter.outline.suggested_reading.length > 0) {
-    md.push('## 📚 Suggested Reading\n');
+    md.push(`## ${label.reading}\n`);
     chapter.outline.suggested_reading.forEach(ref => {
-      md.push(`- **${ref.title}** by ${ref.author} (${ref.type})`);
+      md.push(`- **${label.reference}:** **${ref.title}** — ${ref.author} (${ref.type})`);
     });
   }
 

@@ -8,8 +8,124 @@
 2. **DESIGN_SYSTEM.md** - Black & Blue color palette, component patterns, accessibility rules
 3. **RSS_SOURCES.md** - All RSS feeds, import configuration, monitoring guidelines
 4. **lib/ai/model-versions.ts** - **SINGLE SOURCE OF TRUTH** for all AI model versions
+5. **app/textbook-magazine-examples/guia_estilo_editorial.md** - **THOTNET DARK EDITORIAL SPEC (v6.0)**: strict component templates + anti-patterns for educational modules
+
+This file (`.github/copilot-instructions.md`) is also a binding, permanent rulebook for the agent.
 
 These documents contain the definitive truth about the project. When in doubt, consult them first.
+
+---
+
+## 📰 PROTOCOLOS DE DISEÑO EDITORIAL
+
+**CRÍTICO (NUEVO ESTÁNDAR PREDETERMINADO):** Cualquier solicitud de **generación de contenido educativo / módulos de curso** debe seguir **por defecto** la maquetación tipo revista descrita en `app/textbook-magazine-examples/guia_estilo_editorial.md` **sin que el usuario tenga que recordártelo**.
+
+### THOTNET DARK EDITORIAL SPEC (v6.0) — STRICT
+
+**Importante (no UX):** “THOTNET TITANIUM (v6.0)” es un **nombre interno** del estándar editorial. El usuario final **no invoca nada** ni debe conocer estos detalles.
+
+**Prioridad / Precedencia**
+- Para **cualquier** solicitud de generación de contenido educativo (cursos/módulos): aplica estas reglas en modo **STRICT** automáticamente, usando **solo** los templates de componentes (Hero, Insight Card, Split Layout, Editorial List) y evitando texto fuera de esas estructuras.
+- Si el usuario pide explícitamente un formato distinto (caso excepcional), se considerará una instrucción de mayor prioridad; si entra en conflicto con compliance/UX, se pedirá aclaración.
+
+**Referencia visual**
+- Prioriza la estructura tipo `textbook0` en `app/textbook-magazine-examples/`.
+
+**Manifiesto (philosophy)**
+- **Dark Mode** como baseline: el enemigo es la fatiga visual.
+- **Contraste sobre brillo**: grises/blancos + acentos cian/azul; evita neones saturados.
+- **Modularidad**: contenido como bloques (no “novela”).
+- **Densidad**: alta densidad informativa, baja densidad de texto plano.
+
+**Reglas de oro (anti‑patterns) — PROHIBIDO**
+1. **🚫 Muro de texto**: cualquier párrafo con más de **5 líneas** es un error; romperlo con componentes.
+2. **🚫 Introducciones “chatbot”**: nunca “Claro, aquí tienes…”, “¡Hola!…”. Empieza directamente con **Hero**.
+3. **🚫 Listas simples**: evita bullets sueltos `-`; usa **Editorial List**.
+4. **🚫 Conclusiones genéricas**: evita “En resumen…”; cierra con una **Insight Card**.
+
+**Biblioteca de componentes (Component Library)**
+
+`COMPONENTE A: The Hero Module` (obligatorio al inicio)
+```markdown
+# 0X. [TÍTULO CORTO Y POTENTE EN MAYÚSCULAS]
+**⏱️ Tiempo:** [X] min | **📊 Nivel:** [Nivel] | **🏷️ Tags:** `[Tag1]` `[Tag2]`
+
+> **[Entradilla (Lead Paragraph)]**
+> *Texto en cursiva o negrita de máximo 3 líneas. Debe "vender" la utilidad del módulo.*
+
+---
+```
+
+`COMPONENTE B: The Insight Card` (conceptos)
+- Usa `>` como “tarjeta” con iconos de interfaz: 💡 (Idea), ⚠️ (Warning), 💠 (Definición), 🧠 (Deep Dive).
+```markdown
+> ### 💠 [TÍTULO DEL CONCEPTO]
+>
+> [Definición clara y concisa del concepto].
+>
+> * **Contexto:** [Dato adicional si es necesario].
+> * **Ejemplo:** [Breve aplicación práctica].
+```
+
+`COMPONENTE C: The Split Layout` (comparativas)
+- Usar tablas para enfrentar ideas; **nunca** para texto largo corrido.
+```markdown
+| 🔹 [CONCEPTO A] | 🔸 [CONCEPTO B] |
+| :--- | :--- |
+| **[Subtítulo]**<br>[Descripción breve] | **[Subtítulo]**<br>[Descripción breve] |
+```
+
+`COMPONENTE D: The Editorial List` (listas ricas)
+```markdown
+* **[Concepto Clave]:** [Explicación del concepto].
+* **[Concepto Clave]:** [Explicación del concepto].
+```
+
+**Motor de imágenes (Smart Visuals)**
+
+Algoritmo de decisión:
+- IF (Es el inicio del módulo) → **GENERAR HERO IMAGE**.
+- IF (Concepto abstracto/difícil) → **GENERAR DIAGRAMA/ILUSTRACIÓN**.
+- IF (Texto acumulado > 200 palabras) → **GENERAR BREAK VISUAL**.
+- ELSE → **NO GENERAR IMAGEN** (usa Insight Card o Split Layout).
+
+Prompting (Dark ThotNet):
+- **Atmósfera:** "Dark Mode aesthetic", "Cinematic lighting", "Minimalist".
+- **Estilo:** "3D Matte Render" (objetos) o "Abstract isometric data art" (software/teoría).
+- **Colores:** "Black background", "Dark Grey", "Cyan/Electric Blue accents".
+- **Negativo:** "No text", "No cartoon", "No white background", "No photorealistic humans".
+
+**Tono y voz (Editorial Voice)**
+- **Autoridad:** experto senior (no servil).
+- **Concisión:** sin relleno.
+- **Segunda persona:** directivo y accionable.
+- **Tecnicismos:** terminología correcta en `code spans`.
+
+**Iconos de interfaz (UI icons)**
+- Emojis solo como iconos de UI, no decoración.
+- **Estructura (Azules):** 🔹 🔷 💠 🌀
+- **Datos/Tech:** 💾 🔌 🔋 📡 🔮
+- **Atención:** 💡 📌 📍 ⚠️
+- **Check:** ✅
+
+Reglas operativas (Markdown):
+- **Cabecera obligatoria**: `# Título` → inmediatamente después, **entradilla de 2 líneas en negrita** → `---`.
+- **Regla de los 3 párrafos**: nunca más de 3 párrafos planos seguidos; romper el ritmo con widgets.
+- **Lectura en Z / escaneabilidad**: usar **negritas** en conceptos clave (sin convertirlo en un muro de negritas).
+- **Pull Quote (obligatorio)**: al menos 1 cada ~300 palabras.
+  - Sintaxis:
+    - `> ## "La frase impactante va aquí en grande"`
+    - `> *— Contexto o explicación breve*`
+- **Widget de Despiece (Sidebar Box)**: usar **tabla de una sola celda** para crear “caja” de revista.
+  - Sintaxis:
+    - `| 💡 TECH INSIGHT: NOMBRE DEL CONCEPTO |`
+    - `| :--- |`
+    - `| Explicación técnica breve, clara y separada del flujo principal. |`
+- **Listas editoriales**: evitar listas planas; cada bullet comienza con **Etiqueta en negrita** (p.ej. `**Concepto:** ...`).
+- **Código**: siempre con lenguaje especificado (```python, ```ts, etc.).
+- **Imágenes (placement editorial)**: no usar “hero” de ilustración al principio del capítulo como patrón por defecto; las imágenes/figuras deben ir **intercaladas** entre bloques o en sangrías laterales.
+  - Sugerir placements con `![DISEÑO: ...]` (descripción de la ilustración) en el punto exacto donde debe insertarse.
+- **Cierre**: terminar siempre con takeaway accionable (lista o caja).
 
 ---
 

@@ -16,6 +16,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
+import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 // Vercel serverless has strict timeout limits (60s max)
 export const maxDuration = 50;
@@ -107,9 +108,26 @@ ESTRUCTURA PROFESIONAL:
 ✓ Cada sección principal tiene 3-5 subsecciones
 ✓ Texto denso quebrado con listas con viñetas, tablas, ejemplos
 ✓ Usa cerca de código para contenido técnico
-✓ Incluye descripciones visuales o diagramas ASCII donde sea útil
+✓ Prioriza widgets editoriales (cajas laterales, pull quotes) sobre muros de texto
 ✓ Cada sección sustancial: mínimo 150 palabras
 ✓ Complejidad progresiva
+
+MAQUETACIÓN TIPO REVISTA (OBLIGATORIO):
+✓ Cabecera (The Hook) al inicio de cada módulo:
+  1) # Título
+  2) Entradilla de 2 líneas en **negrita** (por qué esto importa)
+  3) Separador: ---
+✓ Regla de los 3 párrafos: nunca más de 3 párrafos seguidos; rompe el ritmo con widgets
+✓ Pull Quote:
+  > ## "La frase impactante va aquí en grande"
+  > *— Contexto o explicación breve*
+✓ Sidebar Box (caja lateral): usa tabla de UNA celda:
+  | 💡 TECH INSIGHT: NOMBRE DEL CONCEPTO |
+  | :--- |
+  | Explicación técnica breve, clara y separada del flujo principal. |
+✓ Listas editoriales: cada bullet empieza con **Etiqueta en negrita** (p.ej. "- **Concepto:** ...")
+✓ Código: siempre con lenguaje especificado (por ejemplo: python, ts, etc.)
+✓ Imágenes: NO pongas una "hero" al principio; sugiere placements inline con ![DISEÑO: ...]
 
 TONO Y VOZ PROFESIONAL:
 ✓ Escribe como MENTOR y experto en la materia, NO como asistente IA
@@ -227,9 +245,26 @@ PROFESSIONAL STRUCTURE:
 ✓ Each major section has 3-5 subsections
 ✓ Dense text broken with bullet points, tables, examples
 ✓ Use code fences for technical content
-✓ Include visual descriptions or ASCII diagrams where helpful
+✓ Prefer editorial widgets (sidebars, pull quotes) over walls of text
 ✓ Each section substantial: minimum 150 words
 ✓ Progressive complexity
+
+MAGAZINE LAYOUT (MANDATORY):
+✓ Hook header at the start of every module:
+  1) # Title
+  2) 2-line **bold** standfirst (why this matters)
+  3) ---
+✓ 3-paragraph rule: never more than 3 plain paragraphs in a row; break with widgets
+✓ Pull Quote:
+  > ## "A bold, scannable takeaway"
+  > *— Short context*
+✓ Sidebar box (one-cell table):
+  | 💡 TECH INSIGHT: CONCEPT |
+  | :--- |
+  | Clear technical explanation separated from the main flow. |
+✓ Editorial lists: each bullet starts with a **bold label** (e.g., "- **Concept:** ...")
+✓ Code fences always include the language (e.g., python, ts, etc.)
+✓ Images: no hero-at-the-top; suggest inline placements with ![DISEÑO: ...]
 
 PROFESSIONAL TONE AND VOICE:
 ✓ Write as MENTOR and subject matter expert, NOT as AI assistant
@@ -300,7 +335,7 @@ FINAL NON-NEGOTIABLE REQUIREMENTS:
 };
 
 // Call LLM with automatic provider fallback (Groq → Gemini → OpenRouter → etc)
-async function callLLMWithFallback(prompt: string): Promise<CourseData> {
+async function callLLMWithFallback(prompt: string, locale: 'en' | 'es'): Promise<CourseData> {
   console.log('[LLM] Requesting course generation with provider fallback...');
 
   const controller = new AbortController();
@@ -374,6 +409,34 @@ async function callLLMWithFallback(prompt: string): Promise<CourseData> {
         else if (!m.content) {
           m.content = `# ${m.title || 'Module'}\n\nContent for this module is being generated. Please check back later.`;
           console.log('[LLM] Generated placeholder content for module:', m.title?.substring(0, 30));
+        }
+      }
+    }
+
+    // Enforce the editorial hook (title + bold standfirst + ---) and log style issues.
+    if (Array.isArray(parsed.modules)) {
+      for (const m of parsed.modules) {
+        const title = typeof m.title === 'string' ? m.title : 'Module';
+        const description = typeof m.description === 'string' ? m.description : '';
+        const keyTakeaways = Array.isArray(m.keyTakeaways) ? m.keyTakeaways : [];
+
+        const standfirst = (description || keyTakeaways.slice(0, 2).join(' · ')).trim();
+        const fallbackStandfirst = locale === 'es' ? 'Por qué esto importa.' : 'Why this matters.';
+
+        const body = typeof m.content === 'string' ? m.content : '';
+        const bodyLines = body.split(/\r?\n/);
+        const firstNonEmpty = bodyLines.find((l) => l.trim().length > 0)?.trim() ?? '';
+        const hasH1 = firstNonEmpty.startsWith('# ');
+
+        if (!hasH1) {
+          m.content = `# ${title}\n\n**${standfirst || fallbackStandfirst}**\n\n---\n\n${body}`;
+        }
+
+        const issues = auditEditorialMarkdown(m.content);
+        if (issues.length > 0) {
+          console.warn(
+            `[LLM] ⚠️ Editorial style issues in module "${title}": ${issues.map((i) => i.code).join(', ')}`
+          );
         }
       }
     }
@@ -476,8 +539,8 @@ async function saveCourseToDB(
       order_index: i,
       title_en: m.title,
       title_es: m.title,
-      content_en: m.content,
-      content_es: m.content,
+      content_en: normalizeEditorialMarkdown(m.content, { title: m.title, standfirst: m.description, locale: params.locale }),
+      content_es: normalizeEditorialMarkdown(m.content, { title: m.title, standfirst: m.description, locale: params.locale }),
       type: 'text' as const,
       estimated_time: m.estimatedMinutes ?? 30, // Default to 30 minutes if not provided
       resources: {
@@ -534,7 +597,7 @@ export async function POST(req: NextRequest) {
 
     // Generate prompt and call LLM with automatic fallback
     const prompt = generatePrompt(params.topic, params.difficulty, params.duration, params.locale);
-    const courseData = await callLLMWithFallback(prompt);
+    const courseData = await callLLMWithFallback(prompt, params.locale);
 
     // Save to database
     const courseId = crypto.randomUUID();

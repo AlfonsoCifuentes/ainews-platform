@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import crypto from 'crypto';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -166,6 +167,11 @@ export async function POST(req: NextRequest) {
         // Create modules
         for (let i = 0; i < demoCourse.modules.length; i++) {
           const moduleData = demoCourse.modules[i];
+          const normalized = normalizeEditorialMarkdown(moduleData.content, {
+            title: moduleData.title,
+            standfirst: moduleData.description,
+            locale: params.locale,
+          });
           await supabase
             .from('course_modules')
             .insert({
@@ -175,8 +181,8 @@ export async function POST(req: NextRequest) {
               title_es: moduleData.title,
               description_en: moduleData.description,
               description_es: moduleData.description,
-              content_en: moduleData.content,
-              content_es: moduleData.content,
+              content_en: normalized,
+              content_es: normalized,
               estimated_minutes: 15
             });
         }

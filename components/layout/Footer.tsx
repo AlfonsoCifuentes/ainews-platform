@@ -58,17 +58,18 @@ export function Footer() {
             <h4 className="text-white font-bold mb-6">LEGAL</h4>
             <ul className="space-y-4 text-sm text-[#888]">
               <li>
-                <Link href="/privacy" className="hover:text-white transition-colors">
+                <Link href="/privacy" className="hover:text-white transition-colors" data-testid="footer-privacy-link">
                   {t('common.footer.privacyPolicy')}
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-white transition-colors">
+                <Link href="/terms" className="hover:text-white transition-colors" data-testid="footer-terms-link">
                   {t('common.footer.termsOfService')}
                 </Link>
               </li>
               <li>
                 <button
+                  data-testid="footer-cookie-settings-button"
                   onClick={() => {
                     if (typeof window !== 'undefined') {
                       // Prefer Google Privacy & Messaging (Funding Choices) revocation.

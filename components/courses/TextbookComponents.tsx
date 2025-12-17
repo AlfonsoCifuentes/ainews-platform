@@ -162,11 +162,23 @@ export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
 // ============================================================================
 
 export function QuoteBlock({ content, isDark }: { content: string; isDark: boolean }) {
-  const lines = content.split('\n');
-  const lastLine = lines[lines.length - 1];
-  const isAttribution = lastLine.startsWith('—') || lastLine.startsWith('-') || lastLine.startsWith('–');
-  const quote = isAttribution ? lines.slice(0, -1).join('\n') : content;
-  const attribution = isAttribution ? lastLine.replace(/^[—\-–]\s*/, '') : null;
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lastLine = lines[lines.length - 1] || '';
+
+  const stripMarkdown = (text: string) => {
+    let t = text.trim();
+    t = t.replace(/^#+\s*/, ''); // headings
+    t = t.replace(/^\*+|\*+$/g, ''); // surrounding emphasis
+    t = t.replace(/^"|"$/g, ''); // surrounding quotes
+    return t.trim();
+  };
+
+  const attributionMatch = lastLine.match(/^\*?\s*[—\-–]\s*(.+?)\s*\*?$/);
+  const isAttribution = Boolean(attributionMatch);
+
+  const quoteRaw = isAttribution ? lines.slice(0, -1).join('\n') : lines.join('\n');
+  const quote = stripMarkdown(quoteRaw);
+  const attribution = isAttribution ? stripMarkdown(attributionMatch?.[1] ?? '') : null;
 
   return (
     <figure className={`

@@ -3,6 +3,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { loggers } from '@/lib/utils/logger';
+import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 interface GenerateModuleContentRequest {
   moduleId: string;
@@ -180,6 +181,21 @@ export async function POST(req: NextRequest) {
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')     // Remove Unicode control chars
       .trim();
 
+    const normalizedContent = normalizeEditorialMarkdown(sanitizedContent, {
+      title: moduleTitle,
+      standfirst: (module.description_en || module.description_es || courseDesc || '').toString(),
+      locale,
+    });
+
+    const editorialIssues = auditEditorialMarkdown(normalizedContent);
+    if (editorialIssues.length > 0) {
+      loggers.course('Generated module content is not fully editorial-compliant', {
+        moduleId,
+        locale,
+        issueCodes: editorialIssues.map((i) => i.code),
+      });
+    }
+
     console.log('\ud83d\udcbe Saving generated content to database...');
 
     // Update the module with generated content
@@ -189,7 +205,7 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await db
       .from('course_modules')
       .update({
-        [contentField]: sanitizedContent,
+        [contentField]: normalizedContent,
         updated_at: new Date().toISOString()
       })
       .eq('id', moduleId);
@@ -223,8 +239,8 @@ export async function POST(req: NextRequest) {
       success: true,
       data: {
         moduleId,
-        content: sanitizedContent,
-        contentLength: sanitizedContent.length,
+        content: normalizedContent,
+        contentLength: normalizedContent.length,
         locale
       }
     });

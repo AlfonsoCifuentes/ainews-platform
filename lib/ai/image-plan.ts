@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UnifiedLLMClient } from './unified-llm-client';
+import { enforceNoTextCoverPrompt } from './course-cover-no-text';
 
 interface ModuleInput {
   id: string;
@@ -105,7 +106,7 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
     // Fallback: at least one prompt per module, basic cover
     parsed = {
       courseCover: {
-        prompt: `${input.title} – atmospheric minimalist cover, no text, dark high-contrast palette with topic-appropriate accent colors`,
+        prompt: `${input.title} – atmospheric minimalist cover, dark high-contrast palette with topic-appropriate accent colors`,
         rationale: 'Fallback cover prompt',
       },
       modules: input.modules.map((m) => ({
@@ -118,6 +119,8 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
       provider: result.provider,
     };
   }
+
+  parsed.courseCover.prompt = enforceNoTextCoverPrompt(parsed.courseCover.prompt);
 
   // Ensure at least one image per module
   parsed.modules = parsed.modules.map((m) => ({

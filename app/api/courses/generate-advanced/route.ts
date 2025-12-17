@@ -4,6 +4,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { generateCourseWithDetailedPrompts } from '@/lib/ai/course-generator-advanced';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 export const maxDuration = 300; // 5 minutes - Vercel hobby plan limit
 export const dynamic = 'force-dynamic';
@@ -158,13 +159,21 @@ export async function POST(req: NextRequest) {
     console.log(`${logPrefix} ✅ Course created: ${courseRecord.id}`);
 
     // Save modules
-    const modulesToInsert = generatedModules.map((m, idx) => ({
+    const modulesToInsert = generatedModules.map((m, idx) => {
+      const outlineDescription = outline.modules[idx]?.description ?? outline.description;
+      const normalized = normalizeEditorialMarkdown(m.content.content, {
+        title: m.modulePrompt.title,
+        standfirst: outlineDescription,
+        locale: params.locale,
+      });
+
+      return {
       course_id: courseRecord.id,
       order_index: idx,
       title_en: params.locale === 'en' ? m.modulePrompt.title : m.modulePrompt.title,
       title_es: params.locale === 'es' ? m.modulePrompt.title : m.modulePrompt.title,
-      content_en: params.locale === 'en' ? m.content.content : m.content.content,
-      content_es: params.locale === 'es' ? m.content.content : m.content.content,
+      content_en: normalized,
+      content_es: normalized,
       type: 'text',
       estimated_time: m.modulePrompt.title.length || 45,
       resources: m.content.resources.map((r) => ({
@@ -172,7 +181,8 @@ export async function POST(req: NextRequest) {
         type: r.type,
         title: r.title
       }))
-    }));
+      };
+    });
 
     const { error: modulesError } = await db
       .from('course_modules')

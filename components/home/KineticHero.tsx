@@ -92,7 +92,7 @@ export function KineticHero({
             <MovingCubesBackground cameraDistance={7.5} brightness={1.35} speed={4.0} />
           </div>
 
-          <div className="absolute bottom-6 left-6 lg:bottom-10 lg:-left-10 p-6 rounded-sm w-64 z-20 border-l-2 border-white bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/5">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 lg:bottom-10 p-6 rounded-sm w-64 z-20 border-l-2 border-white bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/5">
             <div className="text-xs text-[#888888] font-mono mb-2">SYSTEM STATUS</div>
             <div className="flex justify-between items-end">
               <span className="text-3xl font-bold text-white">ONLINE</span>

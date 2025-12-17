@@ -13,7 +13,6 @@ import {
   Bookmark,
   BookmarkCheck,
   Search,
-  RefreshCw,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,7 @@ import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
 import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 import {
   ChapterDecorator,
   CalloutBox,
@@ -54,8 +54,15 @@ export interface ContentBlock {
 }
 
 function injectVisualFigures(blocks: ContentBlock[], slots: ModuleVisualSlot[]): ContentBlock[] {
-  const insertable = slots
-    .filter((slot) => slot.slotType !== 'header')
+  const normalized = slots.map((slot) => {
+    if (slot.slotType !== 'header') return slot;
+    // Never place visuals at the very start of the lesson.
+    // If header slots don't have a meaningful blockIndex, insert after the first couple blocks.
+    const safeIndex = typeof slot.blockIndex === 'number' ? slot.blockIndex : 2;
+    return { ...slot, blockIndex: safeIndex };
+  });
+
+  const insertable = normalized
     .filter((slot) => typeof slot.blockIndex === 'number' && slot.blockIndex >= 0)
     .sort((a, b) => (a.blockIndex ?? 0) - (b.blockIndex ?? 0));
 
@@ -174,6 +181,12 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     
     if (!line) { i++; continue; }
 
+    // Horizontal rules are layout separators in markdown; don't render them as text.
+    if (/^---+$/.test(line)) {
+      i++;
+      continue;
+    }
+
     // Match headings with or without space after hash marks
     const h1Match = line.match(/^#\s*(.+)$/);
     if (h1Match && !line.startsWith('##')) {
@@ -188,6 +201,13 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     const h3Match = line.match(/^###\s*(.+)$/);
     if (h3Match) {
       blocks.push({ type: 'heading3', content: h3Match[1].trim() });
+      i++; continue;
+    }
+
+    // Some generators emit deeper headings (####, #####). Render them as heading3.
+    const h4PlusMatch = line.match(/^#{4,}\s*(.+)$/);
+    if (h4PlusMatch) {
+      blocks.push({ type: 'heading3', content: h4PlusMatch[1].trim() });
       i++; continue;
     }
 
@@ -216,8 +236,26 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
         quoteLines.push(lines[i].trim().slice(2));
         i++;
       }
-      blocks.push({ type: 'quote', content: quoteLines.join('\n') });
+
+      const first = quoteLines[0]?.trim() ?? '';
+      const isPullQuote = first.startsWith('##') || first.startsWith('## ');
+      if (isPullQuote) {
+        blocks.push({ type: 'quote', content: quoteLines.join('\n') });
+      } else {
+        blocks.push({ type: 'callout', content: quoteLines.join('\n').trim() });
+      }
       continue;
+    }
+
+    // Editorial image placeholder: ![DISEÑO: ...]
+    if (line.startsWith('![') && /\[\s*DISEÑO\s*:/i.test(line)) {
+      const altMatch = line.match(/^!\[\s*DISEÑO\s*:\s*([^\]]+)\]/i);
+      const prompt = altMatch?.[1]?.trim();
+      if (prompt) {
+        blocks.push({ type: 'callout', content: `**DISEÑO**\n\n${prompt}` });
+        i++;
+        continue;
+      }
     }
 
     if (line.startsWith('💡') || line.toLowerCase().includes('did you know')) {
@@ -276,6 +314,27 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
         tableLines.push(lines[i]);
         i++;
       }
+
+      // Sidebar box widget (one-cell table) → render as a callout box.
+      // Expected format:
+      // | 💡 TECH INSIGHT: TITLE |
+      // | :--- |
+      // | Body |
+      const normalized = tableLines.map((l) => l.trim()).filter(Boolean);
+      const isSidebarBox =
+        normalized.length >= 3 &&
+        /^\|\s*:?---+:?\s*\|?$/.test(normalized[1].replace(/\s+/g, ' ')) &&
+        normalized.every((l) => l.startsWith('|'));
+
+      if (isSidebarBox) {
+        const firstRowCells = normalized[0].split('|').map((c) => c.trim()).filter(Boolean);
+        const bodyRowCells = normalized[2].split('|').map((c) => c.trim()).filter(Boolean);
+        if (firstRowCells.length === 1 && bodyRowCells.length === 1) {
+          blocks.push({ type: 'callout', content: `**${firstRowCells[0]}**\n\n${bodyRowCells[0]}` });
+          continue;
+        }
+      }
+
       blocks.push({ type: 'table', content: tableLines.join('\n') });
       continue;
     }
@@ -406,21 +465,17 @@ export function TextbookView({
   const [isTwoPageView, setIsTwoPageView] = useState(false);
   const {
     slots: visualSlots,
-    loading: visualSlotsLoading,
-    refresh: refreshVisualSlots,
   } = useModuleVisualSlots(moduleId ?? null, locale);
-  const headerSlot = useMemo(
-    () => visualSlots.find((slot) => slot.slotType === 'header') ?? null,
-    [visualSlots]
-  );
-  const supportingSlots = useMemo(
-    () => visualSlots.filter((slot) => slot.slotType !== 'header'),
-    [visualSlots]
-  );
-  const gallerySlots = useMemo(() => supportingSlots.slice(0, 4), [supportingSlots]);
-  const canRenderVisualGallery = Boolean(moduleId && gallerySlots.length > 0);
+  const slotsById = useMemo(() => new Map(visualSlots.map((slot) => [slot.id, slot])), [visualSlots]);
   const bookRef = useRef<HTMLDivElement>(null);
   const pageScrollRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const normalizedContent = useMemo(() => {
+    return normalizeEditorialMarkdown(content || '', {
+      title,
+      locale,
+    });
+  }, [content, title, locale]);
 
   const t = useMemo(() => locale === 'en' ? {
     chapter: 'Chapter', of: 'of', page: 'Page',
@@ -474,8 +529,8 @@ export function TextbookView({
 
   // Parse content
   useEffect(() => {
-    const rawBlocks = parseContentIntoBlocks(content);
-    const blocks = injectVisualFigures(rawBlocks, supportingSlots);
+    const rawBlocks = parseContentIntoBlocks(normalizedContent);
+    const blocks = injectVisualFigures(rawBlocks, visualSlots);
     const parsedPages: TextbookPage[] = [];
     const toc: TableOfContentsItem[] = [];
     let currentPageBlocks: ContentBlock[] = [];
@@ -514,7 +569,7 @@ export function TextbookView({
     createPage();
     setPages(parsedPages);
     setTableOfContents(toc);
-  }, [content, supportingSlots]);
+  }, [normalizedContent, visualSlots]);
 
   const scrollPagesBy = useCallback((delta: number) => {
     const targets: Array<HTMLDivElement | null | undefined> = [];
@@ -615,13 +670,13 @@ export function TextbookView({
           {page.content.map((block, i) => {
             if (block.type === 'figure') {
               const slotId = block.content;
-              const slot = supportingSlots.find((s) => s.id === slotId);
+              const slot = slotsById.get(slotId);
               if (!moduleId || !slot) return null;
               return (
                 <InlineFigure
                   key={`${slotId}-${i}`}
                   moduleId={moduleId}
-                  moduleContent={content}
+                  moduleContent={normalizedContent}
                   locale={locale}
                   slot={slot}
                   caption={block.caption}
@@ -651,60 +706,6 @@ export function TextbookView({
 
   return (
     <>
-      {moduleId && (
-        <div className="mb-6">
-          <ModuleIllustration
-            moduleId={moduleId}
-            content={content}
-            locale={locale}
-            style={headerSlot ? 'header' : 'textbook'}
-            visualStyle={headerSlot?.suggestedVisualStyle}
-            slot={headerSlot}
-          />
-        </div>
-      )}
-
-      {canRenderVisualGallery && moduleId && (
-        <div
-          className={`mb-6 rounded-3xl border p-5 ${
-            'bg-card/70 border-white/10'
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.5em] text-primary/80">
-                {t.visualHighlights}
-              </p>
-              <p className="text-sm text-muted-foreground">{t.visualGalleryNote}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshVisualSlots}
-              disabled={visualSlotsLoading}
-              className="text-xs"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${visualSlotsLoading ? 'animate-spin' : ''}`} />
-              {t.refreshVisuals}
-            </Button>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {gallerySlots.map((slot) => (
-              <ModuleIllustration
-                key={slot.id}
-                moduleId={moduleId}
-                content={content}
-                locale={locale}
-                style={getIllustrationStyleForSlot(slot)}
-                visualStyle={slot.suggestedVisualStyle}
-                slot={slot}
-                autoGenerate={false}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       <div
         ref={bookRef}
         className={`relative w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'rounded-[32px] overflow-hidden shadow-[0_40px_120px_-60px_rgba(0,0,0,0.8)] border border-white/10'}`}

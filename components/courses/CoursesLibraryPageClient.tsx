@@ -55,6 +55,22 @@ const DIFFICULTY_OPTIONS = [
 
 type DifficultyFilter = 'all' | 'beginner' | 'intermediate' | 'advanced';
 
+function dedupeCoursesKeepFirst(list: Course[]): Course[] {
+  const seen = new Set<string>();
+  const next: Course[] = [];
+
+  for (const course of list) {
+    const titleKey = `${(course.title_es ?? '').trim().toLowerCase()}|${(course.title_en ?? '').trim().toLowerCase()}`;
+    const key = titleKey === '|' ? course.id : titleKey;
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push(course);
+  }
+
+  return next;
+}
+
 export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientProps) {
   const logger = useLogger('CoursesLibraryPageClient');
   const [courses, setCourses] = useState<Course[]>([]);
@@ -179,7 +195,10 @@ export function CoursesLibraryPageClient({ locale }: CoursesLibraryPageClientPro
 
       const data = await response.json();
       const coursesArray: Course[] = data.data || [];
-      setCourses((prev) => (reset ? coursesArray : [...prev, ...coursesArray]));
+      setCourses((prev) => {
+        const merged = reset ? coursesArray : [...prev, ...coursesArray];
+        return dedupeCoursesKeepFirst(merged);
+      });
       setTotalAvailable(data.pagination?.total ?? coursesArray.length);
       setHasMore(Boolean(data.pagination?.hasMore));
       setError(null);

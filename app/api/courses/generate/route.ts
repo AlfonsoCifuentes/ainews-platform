@@ -8,6 +8,7 @@ import {
   type LLMProvider 
 } from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 // Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
 export const maxDuration = 300; // 5 minutes
@@ -551,13 +552,32 @@ Remember: You are writing for intelligent, motivated learners pursuing professio
 
       console.log(`${logPrefix} 💾 Module ${i + 1}/${generatedModules.length}: "${courseByLocale.en.modules[i]?.title || moduleData.outline.title}"...`);
       
+      const titleEn = courseByLocale.en.modules[i]?.title ?? moduleData.outline.title;
+      const titleEs = courseByLocale.es.modules[i]?.title ?? moduleData.outline.title;
+      const standfirstEn = courseByLocale.en.modules[i]?.description ?? moduleData.outline.description;
+      const standfirstEs = courseByLocale.es.modules[i]?.description ?? moduleData.outline.description;
+
+      const contentEnRaw = courseByLocale.en.modules[i]?.content ?? moduleData.content.content;
+      const contentEsRaw = courseByLocale.es.modules[i]?.content ?? moduleData.content.content;
+
+      const contentEn = normalizeEditorialMarkdown(contentEnRaw, {
+        title: titleEn,
+        standfirst: standfirstEn,
+        locale: 'en',
+      });
+      const contentEs = normalizeEditorialMarkdown(contentEsRaw, {
+        title: titleEs,
+        standfirst: standfirstEs,
+        locale: 'es',
+      });
+
       const moduleRecord = {
         course_id: course.id,
         order_index: i,
-        title_en: courseByLocale.en.modules[i]?.title ?? moduleData.outline.title,
-        title_es: courseByLocale.es.modules[i]?.title ?? moduleData.outline.title,
-        content_en: courseByLocale.en.modules[i]?.content ?? moduleData.content.content,
-        content_es: courseByLocale.es.modules[i]?.content ?? moduleData.content.content,
+        title_en: titleEn,
+        title_es: titleEs,
+        content_en: contentEn,
+        content_es: contentEs,
         type: 'text' as const,
         estimated_time: normalizeDuration(moduleData.outline.estimated_minutes),
         resources

@@ -3,6 +3,7 @@ import { planCourseIllustrations } from './image-plan';
 import { generateIllustrationWithCascade, type ImageProviderName } from './image-cascade';
 import { persistModuleIllustration } from '@/lib/db/module-illustrations';
 import { copyCourseCoverLocale, courseCoverExists, persistCourseCoverShared } from '@/lib/db/course-covers';
+import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
 
 const GENERAL_ORDER: ImageProviderName[] = ['runware', 'huggingface', 'qwen'];
 const DIAGRAM_ORDER: ImageProviderName[] = ['gemini'];
@@ -90,13 +91,15 @@ async function generateCourseCover(courseId: string, prompt: string, locale: Loc
     return;
   }
 
+  const coverPrompt = enforceNoTextCoverPrompt(prompt);
   const cascade = await generateIllustrationWithCascade({
-    moduleContent: prompt,
+    moduleContent: coverPrompt,
     locale,
     style: 'header',
     visualStyle: 'photorealistic',
     providerOrder: GENERAL_ORDER,
-    promptOverride: prompt,
+    promptOverride: coverPrompt,
+    negativePromptOverride: COURSE_COVER_NEGATIVE_PROMPT,
   });
 
   if (!cascade.success || !cascade.images.length) {

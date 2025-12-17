@@ -22,6 +22,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { NormalizedModule } from '@/lib/courses/normalize';
 import { loggers } from '@/lib/utils/logger';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 // Brutalist design tokens
 const BRUTALIST = {
@@ -184,6 +185,14 @@ export function ModulePlayer({
   const description = locale === 'en' ? module.description_en : module.description_es;
   const content = locale === 'en' ? module.content_en : module.content_es;
   const displayContent = generatedContent || content;
+
+  const normalizedContent = useMemo(() => {
+    return normalizeEditorialMarkdown(displayContent || '', {
+      title,
+      standfirst: description,
+      locale,
+    });
+  }, [displayContent, title, description, locale]);
   const { slots: visualSlots } = useModuleVisualSlots(module.id, locale);
   const supportingSlots = useMemo(
     () => visualSlots.filter((slot) => slot.slotType !== 'header'),
@@ -207,9 +216,9 @@ export function ModulePlayer({
       progressId: currentProgress?.id || 'N/A'
     });
     console.log('📝 Content Status:', {
-      hasContent: !!(displayContent?.trim()),
-      contentLength: displayContent?.length || 0,
-      contentPreview: displayContent?.substring(0, 100) || 'NO CONTENT'
+      hasContent: !!(normalizedContent?.trim()),
+      contentLength: normalizedContent?.length || 0,
+      contentPreview: normalizedContent?.substring(0, 100) || 'NO CONTENT'
     });
     console.groupEnd();
     
@@ -218,9 +227,9 @@ export function ModulePlayer({
       enrollmentId,
       currentProgress: currentProgress?.completed ? 'Completed' : 'Not completed',
       contentType: module.content_type,
-      hasContent: !!(displayContent?.trim())
+      hasContent: !!(normalizedContent?.trim())
     });
-  }, [module.id, enrollmentId, currentProgress?.completed, currentProgress?.completed_at, currentProgress?.id, module.order_index, module.title_en, module.title_es, module.content_type, displayContent]);
+  }, [module.id, enrollmentId, currentProgress?.completed, currentProgress?.completed_at, currentProgress?.id, module.order_index, module.title_en, module.title_es, module.content_type, normalizedContent]);
 
   // Auto-generate content if missing or if content is only a placeholder
   useEffect(() => {
@@ -671,7 +680,7 @@ export function ModulePlayer({
                 <p className="font-mono text-lg">{t.generatingContent}</p>
               </div>
             </div>
-          ) : displayContent && displayContent.trim() ? (
+          ) : normalizedContent && normalizedContent.trim() ? (
             <>
               {supportingSlots.length > 0 && (
                 <div className="space-y-6 mb-6">
@@ -679,7 +688,7 @@ export function ModulePlayer({
                     <ModuleIllustration
                       key={slot.id}
                       moduleId={module.id}
-                      content={displayContent || ''}
+                      content={normalizedContent || ''}
                       locale={locale}
                       style={getIllustrationStyleForSlot(slot)}
                       visualStyle={slot.suggestedVisualStyle}
@@ -787,7 +796,7 @@ export function ModulePlayer({
                   },
                 }}
               >
-                {displayContent}
+                {normalizedContent}
               </ReactMarkdown>
               {supportingSlots.length > 2 && (
                 <div className="mt-10 space-y-4 border p-6" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
@@ -802,7 +811,7 @@ export function ModulePlayer({
                       <ModuleIllustration
                         key={slot.id}
                         moduleId={module.id}
-                        content={displayContent || ''}
+                        content={normalizedContent || ''}
                         locale={locale}
                         style={getIllustrationStyleForSlot(slot)}
                         visualStyle={slot.suggestedVisualStyle}

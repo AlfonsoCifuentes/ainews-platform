@@ -36,15 +36,21 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     es: 'ThotNet Core te mantiene al día con noticias de IA, cursos tipo libro y agentes autónomos en EN/ES.'
   };
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://thotnet-core.vercel.app';
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://thotnet-core.vercel.app';
   const resolvedTitle = titles[locale] || titles.en;
   const resolvedDescription = descriptions[locale] || descriptions.en;
-  
+  const ogLocale = locale === 'es' ? 'es_ES' : 'en_US';
+  const ogImage = '/logos/thotnet-core-white-only.png';
+
   return {
     title: resolvedTitle,
     description: resolvedDescription,
     metadataBase: new URL(baseUrl),
     alternates: {
+      canonical: `/${locale}`,
       languages: {
         en: '/en',
         es: '/es',
@@ -55,14 +61,20 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       title: resolvedTitle,
       description: resolvedDescription,
       siteName: 'ThotNet Core',
-      locale: locale === 'es' ? 'es_ES' : 'en_US',
-      images: ['/images/thotnet-core-orb.png'],
+      locale: ogLocale,
+      url: `/${locale}`,
+      images: [
+        {
+          url: ogImage,
+          alt: 'ThotNet Core',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: resolvedTitle,
       description: resolvedDescription,
-      images: ['/images/thotnet-core-orb.png'],
+      images: [ogImage],
     },
   };
 }
@@ -133,7 +145,7 @@ console.log('[CookieNorm] Starting normalization...');
         return null;
       }
     }
-    
+
     function normalizeValue(rawValue) {
       if (!rawValue || typeof rawValue !== 'string') return null;
       

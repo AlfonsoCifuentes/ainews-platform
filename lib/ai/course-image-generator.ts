@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { planCourseIllustrations } from './image-plan';
 import { persistModuleIllustration, fetchLatestModuleIllustration } from '@/lib/db/module-illustrations';
 import { copyCourseCoverLocale, persistCourseCoverShared, courseCoverExists } from '@/lib/db/course-covers';
+import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
 
 const RUNWARE_MODEL = process.env.RUNWARE_IMAGE_MODEL || 'runware:97@3';
 
@@ -52,6 +53,7 @@ interface RunwareResult {
 
 async function generateWithRunware(
   prompt: string,
+  negativePrompt: string | undefined,
   width: number,
   height: number
 ): Promise<RunwareResult> {
@@ -61,16 +63,17 @@ async function generateWithRunware(
   }
 
   try {
+    const trimmedNegative = typeof negativePrompt === 'string' ? negativePrompt.trim() : '';
     const response = await fetch('https://api.runware.ai/v1', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify([
-        { taskType: 'authentication', apiKey },
         {
           taskType: 'imageInference',
           taskUUID: randomUUID(),
           model: RUNWARE_MODEL,
           positivePrompt: prompt,
+          ...(trimmedNegative.length >= 2 ? { negativePrompt: trimmedNegative } : {}),
           width,
           height,
           numberResults: 1,
@@ -226,14 +229,15 @@ export async function generateCourseImages(
         console.log('[CourseImageGenerator] Cover already exists for en+es, skipping');
       } else {
         console.log('[CourseImageGenerator] Generating cover (shared en+es)...');
-        const coverResult = await generateWithRunware(plan.courseCover.prompt, 768, 512);
+        const coverPrompt = enforceNoTextCoverPrompt(plan.courseCover.prompt);
+        const coverResult = await generateWithRunware(coverPrompt, COURSE_COVER_NEGATIVE_PROMPT, 768, 512);
 
         if (coverResult.success && coverResult.base64Data) {
           try {
             const saved = await persistCourseCoverShared({
               courseId: input.courseId,
               locales: ['en', 'es'],
-              prompt: plan.courseCover.prompt.slice(0, 2000),
+              prompt: coverPrompt.slice(0, 2000),
               model: RUNWARE_MODEL,
               provider: 'runware',
               base64Data: coverResult.base64Data,
@@ -276,7 +280,7 @@ export async function generateCourseImages(
           console.log(`[CourseImageGenerator] Module ${mod.id} image exists, skipping`);
         } else {
           console.log(`[CourseImageGenerator] Generating image for: ${mod.title.slice(0, 40)}...`);
-          const imgResult = await generateWithRunware(generalPrompt, 512, 512);
+          const imgResult = await generateWithRunware(generalPrompt, undefined, 512, 512);
 
           if (imgResult.success && imgResult.base64Data) {
             try {

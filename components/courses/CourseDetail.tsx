@@ -6,8 +6,10 @@ import {
   BookOpen, Clock, TrendingUp, Star, CheckCircle2,
   Play, ChevronRight, Award, BarChart3
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ShareCourse } from './ShareCourse';
 import { CourseRatings } from './CourseRatings';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 interface Module {
   id: string;
@@ -58,6 +60,8 @@ const DIFFICULTY_LABELS = {
 export function CourseDetail({ course, locale }: CourseDetailProps) {
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [progress, setProgress] = useState<Record<string, boolean>>({});
+
+  const effectiveLocale: 'en' | 'es' = locale === 'es' ? 'es' : 'en';
   const [userId] = useState('demo-user'); // TODO: Replace with real auth
 
   const title = locale === 'es' ? course.title_es : course.title_en;
@@ -282,15 +286,25 @@ export function CourseDetail({ course, locale }: CourseDetailProps) {
                   </h2>
 
                   <div className="prose prose-invert prose-primary max-w-none">
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: (locale === 'es' ? selectedModule.content_es : selectedModule.content_en)
-                          .replace(/\n/g, '<br />')
-                          .replace(/#{1,6}\s(.+)/g, '<h3 class="text-xl font-bold mt-4 mb-2">$1</h3>')
-                          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                        h2: ({ ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                        h3: ({ ...props }) => <h4 className="text-lg font-semibold mt-4 mb-2" {...props} />,
+                        p: ({ ...props }) => <p className="leading-relaxed" {...props} />,
+                        blockquote: ({ ...props }) => (
+                          <blockquote className="border-l-4 border-white/20 pl-4 italic" {...props} />
+                        ),
                       }}
-                    />
+                    >
+                      {normalizeEditorialMarkdown(
+                        (locale === 'es' ? selectedModule.content_es : selectedModule.content_en) || '',
+                        {
+                          title: locale === 'es' ? selectedModule.title_es : selectedModule.title_en,
+                          locale: effectiveLocale,
+                        }
+                      )}
+                    </ReactMarkdown>
                   </div>
 
                   {/* Complete Button */}

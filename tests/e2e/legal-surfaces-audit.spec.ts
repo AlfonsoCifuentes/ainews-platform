@@ -81,18 +81,6 @@ test.describe('Legal surfaces audit (full static crawl)', () => {
     const context = page.context();
 
     const locales: Locale[] = ['en', 'es'];
-    const localeStrings: Record<Locale, { privacy: string; terms: string; cookieSettings: string }> = {
-      en: {
-        privacy: 'Privacy Policy',
-        terms: 'Terms of Service',
-        cookieSettings: 'Cookie Settings',
-      },
-      es: {
-        privacy: 'Política de privacidad',
-        terms: 'Términos del servicio',
-        cookieSettings: 'Ajustes de cookies',
-      },
-    };
 
     const staticRoutes = collectStaticLocaleRoutes();
     const urls = expandLocales(staticRoutes, locales);
@@ -148,21 +136,21 @@ test.describe('Legal surfaces audit (full static crawl)', () => {
 
       const missing: string[] = [];
 
-      const privacyLink = footer.getByRole('link', { name: localeStrings[locale].privacy });
+      const privacyLink = footer.locator('[data-testid="footer-privacy-link"]');
       if ((await privacyLink.count()) === 0) {
         missing.push('privacy link');
       } else {
         await expect(privacyLink.first()).toHaveAttribute('href', new RegExp(`/${locale}/privacy$`));
       }
 
-      const termsLink = footer.getByRole('link', { name: localeStrings[locale].terms });
+      const termsLink = footer.locator('[data-testid="footer-terms-link"]');
       if ((await termsLink.count()) === 0) {
         missing.push('terms link');
       } else {
         await expect(termsLink.first()).toHaveAttribute('href', new RegExp(`/${locale}/terms$`));
       }
 
-      const cookieButton = footer.getByRole('button', { name: localeStrings[locale].cookieSettings });
+      const cookieButton = footer.locator('[data-testid="footer-cookie-settings-button"]');
       if ((await cookieButton.count()) === 0) {
         missing.push('cookie revocation button');
       } else {

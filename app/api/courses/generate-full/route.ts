@@ -16,6 +16,7 @@ import {
   generateTextbookChapter, 
   assembleChapterMarkdown
 } from '@/lib/ai/course-generator-textbook';
+import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
 
 export const maxDuration = 300; // Extended for textbook quality
@@ -563,6 +564,15 @@ async function generateTextbookCourse(
       });
       
       const content = assembleChapterMarkdown(chapter);
+
+      const editorialIssues = auditEditorialMarkdown(content);
+      if (editorialIssues.length > 0) {
+        console.warn(
+          `[Textbook] ⚠️ Editorial style issues in module ${i + 1}: ${editorialIssues
+            .map((issue) => issue.code)
+            .join(', ')}`
+        );
+      }
       
       // Extract exercises as quiz questions
       // chapter.exercises is an ExerciseSet object with { exercises: [...], total_points, etc }
@@ -850,13 +860,20 @@ async function saveCourseToDatabase(
       };
     }
 
-    const modulesToInsert = courseData.modules.map((module, index) => ({
+    const modulesToInsert = courseData.modules.map((module, index) => {
+      const normalized = normalizeEditorialMarkdown(module.content, {
+        title: module.title,
+        standfirst: module.description,
+        locale: params.locale,
+      });
+
+      return {
       course_id: courseId,
       order_index: index,
       title_en: params.locale === 'en' ? module.title : module.title,
       title_es: params.locale === 'es' ? module.title : module.title,
-      content_en: params.locale === 'en' ? module.content : module.content,
-      content_es: params.locale === 'es' ? module.content : module.content,
+      content_en: normalized,
+      content_es: normalized,
       type: 'text' as const,
       estimated_time: module.estimatedMinutes,
       resources: {
@@ -864,7 +881,8 @@ async function saveCourseToDatabase(
         quiz: module.quiz,
         links: module.resources
       }
-    }));
+      };
+    });
 
     console.log(`[Database] Inserting ${modulesToInsert.length} modules...`);
 

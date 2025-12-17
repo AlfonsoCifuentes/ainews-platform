@@ -234,7 +234,7 @@ export function ModuleIllustration({
           variants: VARIANT_STYLES,
           promptOverride: slotPromptOverrides.promptOverride,
           negativePromptOverride: slotPromptOverrides.negativePromptOverride,
-          providerOrder: slot?.slotType === 'diagram' ? ['gemini'] : ['runware'],
+          providerOrder: slot?.slotType === 'diagram' ? ['gemini'] : ['runware', 'gemini'],
           slotId: slot?.id,
           anchor: slot
             ? {
