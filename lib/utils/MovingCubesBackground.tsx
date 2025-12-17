@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { EffectComposer, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 /**
@@ -283,16 +282,6 @@ const MovingCubesBackground: React.FC<MovingCubesProps> = ({
 
       {/* --- Lógica y Objetos --- */}
       <CubesLogic speed={speed} cameraDistance={cameraDistance} />
-
-      {/* --- Post-Procesado (Ambient Occlusion) --- */}
-      <EffectComposer enableNormalPass={false}>
-        <N8AO 
-          aoRadius={0.4} 
-          intensity={2.5} 
-          distanceFalloff={2} 
-          screenSpaceRadius={true} 
-        />
-      </EffectComposer>
     </Canvas>
   );
 };

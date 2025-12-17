@@ -195,6 +195,15 @@ export function ModuleIllustration({
         }
       } catch (err) {
         if (!isActive) return;
+
+        // Abort is expected when the component unmounts or params change rapidly.
+        if (
+          controller.signal.aborted ||
+          (err instanceof Error && err.name === 'AbortError')
+        ) {
+          return;
+        }
+
         console.error('[ModuleIllustration] Fetch failed:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

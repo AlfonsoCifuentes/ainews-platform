@@ -138,8 +138,14 @@ export async function POST(req: NextRequest) {
 
     if (!generatedResults.length) {
       return NextResponse.json(
-        { success: false, error: errors.join(' | ') || 'Gemini image generation failed' },
-        { status: 502 }
+        {
+          success: false,
+          code: 'NO_ILLUSTRATION_GENERATED',
+          error: errors.join(' | ') || 'No illustration could be generated with the configured providers',
+        },
+        // Returning 200 prevents client-side network error logging (502/5xx) for an expected
+        // failure mode (e.g., providers disabled/misconfigured). The UI already handles `success:false`.
+        { status: 200 }
       );
     }
 
