@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     console.log('📚 Fetching course context...');
     const { data: course } = await db
       .from('courses')
-      .select('title_en, title_es, description_en, description_es')
+      .select('title_en, title_es, description_en, description_es, difficulty, topics')
       .eq('id', courseId)
       .single();
 
@@ -102,6 +102,22 @@ export async function POST(req: NextRequest) {
     const courseDesc = locale === 'en' ? course?.description_en : course?.description_es;
     const moduleTitle = locale === 'en' ? module.title_en : module.title_es;
     const contentType = module.content_type || 'article';
+
+    const estimatedMinutes = typeof module.estimated_time === 'number' && Number.isFinite(module.estimated_time)
+      ? Math.max(5, Math.round(module.estimated_time))
+      : 30;
+
+    const difficulty = (course?.difficulty || 'beginner').toString().toLowerCase();
+    const levelLabel = locale === 'en'
+      ? (difficulty === 'advanced' ? 'Advanced' : difficulty === 'intermediate' ? 'Intermediate' : 'Beginner')
+      : (difficulty === 'advanced' ? 'Avanzado' : difficulty === 'intermediate' ? 'Intermedio' : 'Básico');
+
+    const courseTopics = Array.isArray(course?.topics)
+      ? (course?.topics as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      : [];
+    const baseTags = locale === 'en' ? ['AI', 'Course'] : ['AI', 'Curso'];
+    const tags = Array.from(new Set([...baseTags, ...courseTopics])).slice(0, 4);
+    const tagsInline = tags.map((t) => `\`${t}\``).join(' ');
 
     console.log('📝 Content generation params:', {
       courseTitle,
@@ -147,7 +163,12 @@ export async function POST(req: NextRequest) {
         courseDesc,
         moduleTitle,
         module.description_en || module.description_es || moduleTitle,
-        locale
+        locale,
+        {
+          estimatedMinutes,
+          levelLabel,
+          tagsInline,
+        }
       );
       console.log('✅ Article generated:', { length: generatedContent.length });
     } else if (contentType === 'video') {
@@ -279,11 +300,12 @@ async function generateArticleContent(
   courseDesc: string | undefined,
   moduleTitle: string,
   moduleDesc: string,
-  locale: 'en' | 'es'
+  locale: 'en' | 'es',
+  meta: { estimatedMinutes: number; levelLabel: string; tagsInline: string }
 ): Promise<string> {
   const llm = await createLLMClientWithFallback();
   
-  const prompt = locale === 'en'
+  const _legacyPrompt = locale === 'en'
     ? `You are a world-class AI educator with decades of experience creating professional university-level content.
 
 **COURSE**: ${courseTitle}
@@ -419,10 +441,86 @@ Genera contenido de artículo EXHAUSTIVO y PROFESIONAL (MÍNIMO 2500 palabras / 
 
 CRÍTICO: Este contenido será evaluado por PROFUNDIDAD, RIGOR y UTILIDAD PRÁCTICA. Apunta a 2500+ palabras mínimo.`;
 
+  const prompt = locale === 'en'
+    ? `You are writing a course module in Markdown for a dark editorial "textbook magazine" layout.
+
+COURSE: ${courseTitle}
+COURSE DESCRIPTION: ${courseDesc}
+MODULE: ${moduleTitle}
+MODULE DESCRIPTION: ${moduleDesc}
+
+Write in English. Output ONLY Markdown (no JSON, no preface).
+
+STRICT TEMPLATE (follow exactly):
+# ${moduleTitle}
+**⏱️ Time:** ${meta.estimatedMinutes} min | **📊 Level:** ${meta.levelLabel} | **🏷️ Tags:** ${meta.tagsInline}
+
+> **This module turns a fuzzy topic into a clear, usable mental model.**
+
+---
+
+BODY RULES (use these building blocks; no walls of plain text):
+- Sections: 3–6 with "##" headings.
+- Insight Cards: blockquotes starting with "> ### 💡" and including Context + Example bullets.
+- Split Layout: at least one 2-column markdown table (with a "| :--- | :--- |" separator row).
+- Editorial List: at least one list using "* **Label:** value" formatting.
+- Pull Quote (exact markdown shape, at least 1):
+  > ## "Short, bold takeaway"
+  > *— Short attribution*
+- Sidebar box (one-cell table, at least 1):
+  | 💡 TECH INSIGHT: A SPECIFIC TECHNICAL POINT |
+  | :--- |
+  | Clear, actionable explanation. |
+
+HARD CONSTRAINTS:
+- No paragraph longer than ~350 characters.
+- Never more than 3 plain paragraphs in a row (insert a card/table/list/quote).
+- No single-word line breaks.
+- No AI/system/prompt instructions. No placeholders.
+
+Target length: ~800–1200 words.`
+    : `Estás escribiendo un módulo de curso en Markdown para una maquetación editorial oscura tipo "revista / libro de texto".
+
+CURSO: ${courseTitle}
+DESCRIPCIÓN DEL CURSO: ${courseDesc}
+MÓDULO: ${moduleTitle}
+DESCRIPCIÓN DEL MÓDULO: ${moduleDesc}
+
+Escribe en español. Devuelve SOLO Markdown (sin JSON, sin prefacio).
+
+PLANTILLA ESTRICTA (síguela exactamente):
+# ${moduleTitle}
+**⏱️ Tiempo:** ${meta.estimatedMinutes} min | **📊 Nivel:** ${meta.levelLabel} | **🏷️ Tags:** ${meta.tagsInline}
+
+> **Este módulo convierte un tema difuso en un modelo mental claro y accionable.**
+
+---
+
+REGLAS DEL CUERPO (usa estos bloques; cero muros de texto):
+- Secciones: 3–6 con encabezados "##".
+- Insight Cards: blockquotes que empiezan por "> ### 💡" e incluyen bullets de Contexto + Ejemplo.
+- Split Layout: al menos una tabla markdown de 2 columnas (con fila separadora "| :--- | :--- |").
+- Editorial List: al menos una lista con formato "* **Etiqueta:** valor".
+- Pull Quote (forma exacta en markdown, mínimo 1):
+  > ## "Idea contundente"
+  > *— Atribución breve*
+- Sidebar box (tabla de 1 celda, mínimo 1):
+  | 💡 TECH INSIGHT: UN PUNTO TÉCNICO ESPECÍFICO |
+  | :--- |
+  | Explicación clara y accionable. |
+
+REGLAS DURAS:
+- Ningún párrafo debe superar ~350 caracteres.
+- Nunca más de 3 párrafos planos seguidos (mete tarjeta/tabla/lista/cita).
+- No cortes palabras en líneas sueltas.
+- Prohibido texto de instrucciones/prompt. Sin placeholders.
+
+Longitud objetivo: ~800–1200 palabras.`;
+
   try {
     const response = await llm.generate(prompt, {
-      temperature: 0.7,
-      maxTokens: 6000 // Increased from 3000 to allow longer content
+      temperature: 0.6,
+      maxTokens: 2800,
     });
     return response.content;
   } catch (error) {

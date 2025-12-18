@@ -162,7 +162,13 @@ export function ModulePlayer({
     generatingContent: 'Generating module content...',
     contentGenerated: 'Module content generated successfully!',
     visualHighlights: 'Visual highlights',
-    visualGalleryNote: 'AI illustrations anchored to this section'
+    visualGalleryNote: 'AI illustrations anchored to this section',
+    practiceExerciseTitle: 'Practice Exercise',
+    practiceExerciseDescription: 'Try a short answer and submit for automatic grading.',
+    practiceExercisePlaceholder: 'Write your short answer here...',
+    practiceExerciseSubmit: 'Submit Answer',
+    gradedBy: 'Graded by',
+    score: 'Score',
   } : {
     markComplete: 'Marcar como Completado',
     completed: 'Completado',
@@ -179,7 +185,13 @@ export function ModulePlayer({
     generatingContent: 'Generando contenido del módulo...',
     contentGenerated: '¡Contenido del módulo generado exitosamente!',
     visualHighlights: 'Destellos visuales',
-    visualGalleryNote: 'Ilustraciones IA ancladas a esta sección'
+    visualGalleryNote: 'Ilustraciones IA ancladas a esta sección',
+    practiceExerciseTitle: 'Ejercicio de práctica',
+    practiceExerciseDescription: 'Responde brevemente y envíalo para corrección automática.',
+    practiceExercisePlaceholder: 'Escribe tu respuesta corta aquí...',
+    practiceExerciseSubmit: 'Enviar respuesta',
+    gradedBy: 'Corregido por',
+    score: 'Puntuación',
   }, [locale]);
 
   const title = locale === 'en' ? module.title_en : module.title_es;
@@ -618,9 +630,9 @@ export function ModulePlayer({
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <Icon className="w-5 h-5" style={{ color: BRUTALIST.text }} />
-            <h1 className="font-mono text-xl md:text-2xl font-bold uppercase tracking-tight" style={{ color: BRUTALIST.text }}>{title}</h1>
+            <h1 className="font-sans text-xl md:text-2xl font-black tracking-tight" style={{ color: BRUTALIST.text }}>{title}</h1>
           </div>
-          <p className="font-mono text-sm md:text-base" style={{ color: BRUTALIST.textMuted }}>{description}</p>
+          <p className="font-sans text-sm md:text-base leading-relaxed" style={{ color: BRUTALIST.textMuted }}>{description}</p>
         </div>
 
         <CompleteModuleButton
@@ -698,134 +710,124 @@ export function ModulePlayer({
                   ))}
                 </div>
               )}
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  // Headings - brutalist uppercase monospace
-                  h1: ({ ...props }) => (
-                    <h1 
-                      className="font-mono text-2xl md:text-3xl font-bold mb-6 mt-8 first:mt-0 tracking-tight" 
-                      style={{ color: BRUTALIST.text }}
-                      {...props} 
-                    />
-                  ),
-                  h2: ({ ...props }) => (
-                    <h2 
-                      className="font-mono text-xl md:text-2xl font-bold mb-4 mt-8 border-l-4 pl-4" 
-                      style={{ color: BRUTALIST.text, borderColor: BRUTALIST.text }}
-                      {...props} 
-                    />
-                  ),
-                  h3: ({ ...props }) => (
-                    <h3 
-                      className="font-mono text-lg md:text-xl font-bold mb-3 mt-6" 
-                      style={{ color: BRUTALIST.text }}
-                      {...props} 
-                    />
-                  ),
-                  // Paragraphs
-                  p: ({ ...props }) => (
-                    <p 
-                      className="font-mono text-sm md:text-base leading-relaxed mb-4" 
-                      style={{ color: BRUTALIST.textMuted }}
-                      {...props} 
-                    />
-                  ),
-                  // Lists
-                  ul: ({ ...props }) => (
-                    <ul 
-                      className="space-y-2 my-4 pl-5" 
-                      {...props} 
-                    />
-                  ),
-                  ol: ({ ...props }) => (
-                    <ol 
-                      className="space-y-2 my-4 pl-5" 
-                      {...props} 
-                    />
-                  ),
-                  li: ({ ...props }) => (
-                    <li 
-                      className="font-mono text-sm md:text-base leading-relaxed" 
-                      style={{ color: BRUTALIST.textMuted }}
-                      {...props} 
-                    />
-                  ),
-                  // Blockquotes - brutalist style
-                  blockquote: ({ ...props }) => (
-                    <blockquote 
-                      className="border-l-4 p-4 my-4 font-mono text-sm md:text-base" 
-                      style={{ borderColor: BRUTALIST.text, backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
-                      {...props} 
-                    />
-                  ),
-                  // Links
-                  a: ({ ...props }) => (
-                    <a 
-                      className="font-mono font-bold underline transition-colors hover:opacity-70" 
-                      style={{ color: BRUTALIST.text }}
-                      {...props} 
-                    />
-                  ),
-                  table: ({ ...props }) => (
-                    <div className="my-6 overflow-x-auto border" style={{ borderColor: BRUTALIST.border }}>
-                      <table
-                        className="w-full border-collapse font-mono text-sm"
-                        style={{ color: BRUTALIST.textMuted }}
+              <div className="mx-auto max-w-[72ch]">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ ...props }) => (
+                      <h1
+                        className="font-sans text-2xl md:text-3xl font-black mb-6 mt-10 first:mt-0 tracking-tight"
+                        style={{ color: BRUTALIST.text }}
                         {...props}
                       />
-                    </div>
-                  ),
-                  thead: ({ ...props }) => (
-                    <thead style={{ backgroundColor: BRUTALIST.bg }} {...props} />
-                  ),
-                  th: ({ ...props }) => (
-                    <th
-                      className="p-3 text-left font-mono text-sm font-bold align-top"
-                      style={{ color: BRUTALIST.text, borderBottom: `1px solid ${BRUTALIST.border}` }}
-                      {...props}
-                    />
-                  ),
-                  td: ({ ...props }) => (
-                    <td
-                      className="p-3 font-mono text-sm align-top"
-                      style={{ borderBottom: `1px solid ${BRUTALIST.border}` }}
-                      {...props}
-                    />
-                  ),
-                  // Code blocks and inline code
-                  code(props) {
-                    const { inline, className, children, ...rest } = props as {
-                      inline?: boolean;
-                      className?: string;
-                      children?: React.ReactNode;
-                    };
-                    const match = /language-(\w+)/.exec(className || '');
-                    return !inline && match ? (
-                      <div className="my-6 overflow-hidden border" style={{ borderColor: BRUTALIST.border }}>
-                        <SyntaxHighlighter
-                          style={vscDarkPlus}
-                          language={match[1]}
-                          PreTag="div"
+                    ),
+                    h2: ({ ...props }) => (
+                      <h2
+                        className="font-sans text-xl md:text-2xl font-bold mb-4 mt-10 border-l-4 pl-4"
+                        style={{ color: BRUTALIST.text, borderColor: BRUTALIST.text }}
+                        {...props}
+                      />
+                    ),
+                    h3: ({ ...props }) => (
+                      <h3
+                        className="font-sans text-lg md:text-xl font-semibold mb-3 mt-8"
+                        style={{ color: BRUTALIST.text }}
+                        {...props}
+                      />
+                    ),
+                    p: ({ ...props }) => (
+                      <p
+                        className="font-sans text-base md:text-lg leading-relaxed mb-5"
+                        style={{ color: BRUTALIST.text }}
+                        {...props}
+                      />
+                    ),
+                    ul: ({ ...props }) => (
+                      <ul className="space-y-2 my-5 pl-6 list-disc" {...props} />
+                    ),
+                    ol: ({ ...props }) => (
+                      <ol className="space-y-2 my-5 pl-6 list-decimal" {...props} />
+                    ),
+                    li: ({ ...props }) => (
+                      <li
+                        className="font-sans text-base md:text-lg leading-relaxed"
+                        style={{ color: BRUTALIST.text }}
+                        {...props}
+                      />
+                    ),
+                    blockquote: ({ ...props }) => (
+                      <blockquote
+                        className="border-l-4 p-5 my-6 rounded-xl"
+                        style={{
+                          borderColor: BRUTALIST.text,
+                          backgroundColor: BRUTALIST.bg,
+                          color: BRUTALIST.text,
+                        }}
+                        {...props}
+                      />
+                    ),
+                    a: ({ ...props }) => (
+                      <a
+                        className="font-sans underline underline-offset-4 transition-colors hover:opacity-80"
+                        style={{ color: BRUTALIST.text }}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        {...props}
+                      />
+                    ),
+                    table: ({ ...props }) => (
+                      <div className="my-7 overflow-x-auto border rounded-xl" style={{ borderColor: BRUTALIST.border }}>
+                        <table
+                          className="w-full border-collapse text-sm md:text-base"
+                          style={{ color: BRUTALIST.text }}
+                          {...props}
+                        />
+                      </div>
+                    ),
+                    thead: ({ ...props }) => <thead style={{ backgroundColor: BRUTALIST.bg }} {...props} />,
+                    th: ({ ...props }) => (
+                      <th
+                        className="p-3 text-left text-xs font-mono font-semibold uppercase tracking-[0.2em] align-top"
+                        style={{ color: BRUTALIST.text, borderBottom: `1px solid ${BRUTALIST.border}` }}
+                        {...props}
+                      />
+                    ),
+                    td: ({ ...props }) => (
+                      <td
+                        className="p-3 align-top font-sans"
+                        style={{ borderBottom: `1px solid ${BRUTALIST.border}` }}
+                        {...props}
+                      />
+                    ),
+                    // Code blocks and inline code
+                    code(props) {
+                      const { inline, className, children, ...rest } = props as {
+                        inline?: boolean;
+                        className?: string;
+                        children?: React.ReactNode;
+                      };
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <div className="my-7 overflow-hidden border" style={{ borderColor: BRUTALIST.border }}>
+                          <SyntaxHighlighter style={vscDarkPlus} language={match[1]} PreTag="div" {...rest}>
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        </div>
+                      ) : (
+                        <code
+                          className="px-2 py-1 font-mono text-[0.95em]"
+                          style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
                           {...rest}
                         >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
-                      </div>
-                    ) : (
-                      <code 
-                        className="px-2 py-1 font-mono text-base" 
-                        style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
-                        {...rest}
-                      >
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
-              >
-                {normalizedContent}
-              </ReactMarkdown>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {normalizedContent}
+                </ReactMarkdown>
+              </div>
               {supportingSlots.length > 2 && (
                 <div className="mt-10 space-y-4 border p-6" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
                   <div>
@@ -945,14 +947,14 @@ export function ModulePlayer({
 
       {/* Simple Exercise Short Answer */}
       <div className="p-6 border mt-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
-        <h3 className="font-mono text-lg font-bold mb-2" style={{ color: BRUTALIST.text }}>Practice Exercise</h3>
-        <p className="font-mono text-sm mb-3" style={{ color: BRUTALIST.textMuted }}>Try a short answer and submit for automatic grading.</p>
+        <h3 className="font-sans text-lg font-bold mb-2" style={{ color: BRUTALIST.text }}>{t.practiceExerciseTitle}</h3>
+        <p className="font-sans text-sm mb-3" style={{ color: BRUTALIST.textMuted }}>{t.practiceExerciseDescription}</p>
         <textarea
           value={exerciseAnswer}
           onChange={(e) => setExerciseAnswer(e.target.value)}
           className="w-full p-3 font-mono text-sm mb-3 min-h-[120px] border"
           style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text, borderColor: BRUTALIST.border }}
-          placeholder={locale === 'en' ? 'Write your short answer here...' : 'Escribe tu respuesta corta aquí...'}
+          placeholder={t.practiceExercisePlaceholder}
         />
         <div className="flex gap-4 items-center">
           <button 
@@ -965,14 +967,14 @@ export function ModulePlayer({
               border: `1px solid ${BRUTALIST.text}`,
             }}
           >
-            {locale === 'en' ? 'Submit Answer' : 'Enviar Respuesta'}
+            {t.practiceExerciseSubmit}
           </button>
           {gradingResult && (
             <div className="font-mono text-sm" style={{ color: BRUTALIST.text }}>
-              <div>Score: {gradingResult.score}%</div>
+              <div>{t.score}: {gradingResult.score}%</div>
               <div className="text-xs" style={{ color: BRUTALIST.textMuted }}>{gradingResult.feedback}</div>
               {gradingResult.debug?.usedModel && (
-                <div className="text-xs mt-1" style={{ color: BRUTALIST.textMuted }}>Graded by: {String(gradingResult.debug.usedModel)}</div>
+                <div className="text-xs mt-1" style={{ color: BRUTALIST.textMuted }}>{t.gradedBy}: {String(gradingResult.debug.usedModel)}</div>
               )}
             </div>
           )}

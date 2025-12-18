@@ -43,7 +43,7 @@ export interface TextbookPage {
 }
 
 export interface ContentBlock {
-  type: 'heading1' | 'heading2' | 'heading3' | 'paragraph' | 'callout' | 
+  type: 'heading1' | 'heading2' | 'heading3' | 'meta' | 'standfirst' | 'paragraph' | 'callout' | 
         'didyouknow' | 'example' | 'exercise' | 'quote' | 'list' | 
         'numbered-list' | 'code' | 'table' | 'figure' | 'marginal-note' |
         'key-concept' | 'warning' | 'tip' | 'summary';
@@ -150,6 +150,7 @@ export interface TextbookViewProps {
 
 export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
+  let inHero = true;
   
   // First pass: Convert styled div boxes to callouts
   let content = rawContent
@@ -183,6 +184,14 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
 
     // Horizontal rules are layout separators in markdown; don't render them as text.
     if (/^---+$/.test(line)) {
+      inHero = false;
+      i++;
+      continue;
+    }
+
+    // Hero meta line (time/level/tags) should render as metadata, not as a paragraph.
+    if (inHero && line.includes('|') && /\b(Tiempo|Nivel|Tags|Level|Duration)\b/i.test(line)) {
+      blocks.push({ type: 'meta', content: line });
       i++;
       continue;
     }
@@ -241,9 +250,48 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       const isPullQuote = first.startsWith('##') || first.startsWith('## ');
       if (isPullQuote) {
         blocks.push({ type: 'quote', content: quoteLines.join('\n') });
-      } else {
-        blocks.push({ type: 'callout', content: quoteLines.join('\n').trim() });
+        continue;
       }
+
+      // Hero standfirst (lead paragraph) is always inside a blockquote per the editorial spec.
+      if (inHero) {
+        blocks.push({ type: 'standfirst', content: quoteLines.join('\n').trim() });
+        continue;
+      }
+
+      // Insight Card pattern: first line is a markdown heading ("### ...").
+      const calloutHeadingMatch = first.match(/^###\s*(.+)$/);
+      if (calloutHeadingMatch) {
+        const title = calloutHeadingMatch[1].trim();
+        const body = quoteLines.slice(1).join('\n').trim();
+        const titleLower = title.toLowerCase();
+
+        const calloutType: ContentBlock['type'] =
+          title.includes('⚠️') || titleLower.includes('warning') || titleLower.includes('peligro')
+            ? 'warning'
+            : title.includes('💡') || titleLower.includes('insight') || titleLower.includes('idea')
+              ? 'didyouknow'
+              : title.includes('✅') || titleLower.includes('tip') || titleLower.includes('consejo')
+                ? 'tip'
+                : title.includes('🎯') || titleLower.includes('key concept') || titleLower.includes('concepto')
+                  ? 'key-concept'
+                  : title.includes('✏️') || titleLower.includes('exercise') || titleLower.includes('ejercicio')
+                    ? 'exercise'
+                    : 'callout';
+
+        const merged = body ? `**${title}**\n\n${body}` : `**${title}**`;
+        blocks.push({ type: calloutType, content: merged });
+        continue;
+      }
+
+      blocks.push({ type: 'callout', content: quoteLines.join('\n').trim() });
+      continue;
+    }
+
+    // Some legacy generators emit the standfirst as a single bold line (outside the blockquote).
+    if (inHero && line.startsWith('**') && line.endsWith('**') && line.length >= 6) {
+      blocks.push({ type: 'standfirst', content: line });
+      i++;
       continue;
     }
 
@@ -396,6 +444,18 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
         <h3 className="text-lg md:text-xl font-serif font-medium mb-3 mt-6 text-foreground">
           {block.content}
         </h3>
+      );
+    case 'meta':
+      return (
+        <div className="my-2 text-[11px] uppercase tracking-[0.25em] text-muted-foreground font-mono">
+          <FormattedText text={block.content} isDark={isDark} />
+        </div>
+      );
+    case 'standfirst':
+      return (
+        <p className="my-6 text-lg md:text-xl leading-relaxed text-foreground">
+          <FormattedText text={block.content} isDark={isDark} />
+        </p>
       );
     case 'paragraph':
       return (

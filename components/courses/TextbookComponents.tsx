@@ -40,6 +40,55 @@ interface CalloutBoxProps {
   isDark: boolean;
 }
 
+type CalloutBodyBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'list'; items: string[] };
+
+function parseCalloutBody(content: string): CalloutBodyBlock[] {
+  const blocks: CalloutBodyBlock[] = [];
+  const lines = String(content ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n');
+
+  let paragraphLines: string[] = [];
+  let listItems: string[] = [];
+
+  const flushParagraph = () => {
+    const merged = paragraphLines.join(' ').replace(/\s+/g, ' ').trim();
+    if (merged) blocks.push({ type: 'paragraph', text: merged });
+    paragraphLines = [];
+  };
+
+  const flushList = () => {
+    if (listItems.length) blocks.push({ type: 'list', items: listItems });
+    listItems = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const listMatch = line.match(/^[-*]\s+(.+)$/);
+    if (listMatch) {
+      flushParagraph();
+      listItems.push(listMatch[1].trim());
+      continue;
+    }
+
+    flushList();
+    paragraphLines.push(line);
+  }
+
+  flushParagraph();
+  flushList();
+
+  return blocks;
+}
+
 export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
   const configs: Record<string, { 
     icon: React.ReactNode; 
@@ -121,6 +170,7 @@ export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
   const titleMatch = content.match(/^\*\*([^*]+)\*\*\n\n?([\s\S]*)/);
   const displayTitle = titleMatch ? titleMatch[1] : config.title;
   const displayContent = titleMatch ? titleMatch[2] : content;
+  const bodyBlocks = parseCalloutBody(displayContent);
 
   return (
     <div className={`
@@ -151,7 +201,35 @@ export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
         px-5 py-4 text-sm leading-relaxed
         ${isDark ? 'text-muted-foreground' : 'text-gray-700'}
       `}>
-        <FormattedText text={displayContent} isDark={isDark} />
+        {bodyBlocks.length ? (
+          bodyBlocks.map((block, idx) => {
+            if (block.type === 'paragraph') {
+              return (
+                <p key={idx} className={idx === 0 ? '' : 'mt-3'}>
+                  <FormattedText text={block.text} isDark={isDark} />
+                </p>
+              );
+            }
+
+            return (
+              <ul key={idx} className={`${idx === 0 ? '' : 'mt-3'} space-y-2 pl-0`}>
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex} className="flex items-start gap-3">
+                    <span className={`
+                      mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0
+                      ${isDark ? 'bg-primary' : 'bg-blue-500'}
+                    `} />
+                    <span className="flex-1">
+                      <FormattedText text={item} isDark={isDark} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })
+        ) : (
+          <FormattedText text={displayContent} isDark={isDark} />
+        )}
       </div>
     </div>
   );

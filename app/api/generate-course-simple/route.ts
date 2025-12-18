@@ -54,8 +54,123 @@ interface CourseData {
   modules: Module[];
 }
 
-// Generate simplified prompt based on locale
+// Editorial-first prompt aligned to guia_estilo_editorial.md (THOTNET DARK EDITORIAL SPEC v6.0)
 const generatePrompt = (topic: string, difficulty: string, duration: string, locale: 'en' | 'es'): string => {
+  const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
+  const targetWords = duration === 'short' ? 650 : duration === 'medium' ? 850 : 1000;
+  const estimatedMinutes = duration === 'short' ? 25 : duration === 'medium' ? 30 : 40;
+
+  const levelLabel = locale === 'en'
+    ? (difficulty === 'advanced' ? 'Advanced' : difficulty === 'intermediate' ? 'Intermediate' : 'Beginner')
+    : (difficulty === 'advanced' ? 'Avanzado' : difficulty === 'intermediate' ? 'Intermedio' : 'Básico');
+
+  if (locale === 'es') {
+    return `Genera un curso en español sobre: "${topic}". Nivel: ${levelLabel}. Duración: ${duration}. 
+
+Devuelve SOLO JSON válido (sin markdown envolvente, sin texto extra). El JSON debe ser parseable inmediatamente.
+
+Estructura requerida:
+{
+  "title": "Título del curso",
+  "description": "Descripción breve y concreta (máx. 120 palabras)",
+  "objectives": ["Objetivo 1", "Objetivo 2", "Objetivo 3", "Objetivo 4"],
+  "modules": [
+    {
+      "title": "Módulo 1: ...",
+      "description": "2–3 frases, valor concreto",
+      "estimatedMinutes": ${estimatedMinutes},
+      "content": ["... markdown en bloques ..."],
+      "keyTakeaways": ["Punto clave 1", "Punto clave 2", "Punto clave 3"],
+      "quiz": [
+        {"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"... (3–5 frases)"},
+        {"question":"...","options":["A","B","C","D"],"correctAnswer":1,"explanation":"... (3–5 frases)"}
+      ],
+      "resources": ["Recurso 1 - URL", "Recurso 2 - URL", "Recurso 3 - URL"]
+    }
+  ]
+}
+
+REGLAS PARA "content" (Markdown editorial, estilo revista/libro):
+- "content" debe ser un ARRAY de strings (bloques). Cada bloque es markdown.
+- Empieza SIEMPRE con Hero:
+  1) "# 0X. TÍTULO" (puedes usar el título del módulo)
+  2) "**⏱️ Tiempo:** ${estimatedMinutes} min | **📊 Nivel:** ${levelLabel} | **🏷️ Tags:** \`AI\` \`${topic}\`"
+  3) Entradilla en blockquote: línea que empieza por "> **...**"
+  4) "---"
+- Incluye como mínimo:
+  - 1 Pull Quote con este formato exacto:
+    > ## "Idea contundente"
+    > *— Idea ancla del módulo*
+  - 1 Sidebar box (tabla de 1 celda):
+    | 💡 TECH INSIGHT: UN PUNTO TÉCNICO ESPECÍFICO |
+    | :--- |
+    | Explicación clara y accionable. |
+  - 2 Insight Cards (blockquote con "> ### 💡 ...", con bullets de Contexto y Ejemplo)
+  - 1 Split Layout (tabla 2 columnas con separador "| :--- | :--- |")
+  - 1 Editorial List usando "* **Etiqueta:** valor"
+- No más de 3 párrafos planos seguidos; rompe con tarjeta/tabla/lista/cita.
+- Ningún párrafo debe superar ~350 caracteres. Evita muros de texto.
+- Prohibidos saltos de línea de una sola palabra ("En\\nLa\\n...").
+- Prohibido incluir instrucciones/prompt dentro del contenido.
+- Evita repetición: nada duplicado (especialmente citas).
+
+Genera EXACTAMENTE ${moduleCount} módulos. Longitud objetivo por módulo: ~${targetWords} palabras (sin obsesión por mínimos).`;
+  }
+
+  return `Generate an English course about: "${topic}". Level: ${levelLabel}. Duration: ${duration}.
+
+Return ONLY valid JSON (no markdown wrapper, no extra text). The JSON must be immediately parseable.
+
+Required shape:
+{
+  "title": "Course title",
+  "description": "Brief, concrete description (max 120 words)",
+  "objectives": ["Objective 1", "Objective 2", "Objective 3", "Objective 4"],
+  "modules": [
+    {
+      "title": "Module 1: ...",
+      "description": "2–3 sentences, concrete value",
+      "estimatedMinutes": ${estimatedMinutes},
+      "content": ["... markdown blocks ..."],
+      "keyTakeaways": ["Key point 1", "Key point 2", "Key point 3"],
+      "quiz": [
+        {"question":"...","options":["A","B","C","D"],"correctAnswer":2,"explanation":"... (3–5 sentences)"},
+        {"question":"...","options":["A","B","C","D"],"correctAnswer":1,"explanation":"... (3–5 sentences)"}
+      ],
+      "resources": ["Resource 1 - URL", "Resource 2 - URL", "Resource 3 - URL"]
+    }
+  ]
+}
+
+RULES FOR "content" (editorial magazine/textbook markdown):
+- "content" must be an ARRAY of strings (blocks). Each block is markdown.
+- ALWAYS start with a Hero:
+  1) "# 0X. TITLE" (you can reuse the module title)
+  2) "**⏱️ Time:** ${estimatedMinutes} min | **📊 Level:** ${levelLabel} | **🏷️ Tags:** \`AI\` \`${topic}\`"
+  3) Lead paragraph in a blockquote: a line starting with "> **...**"
+  4) "---"
+- Include at minimum:
+  - 1 Pull Quote in this exact shape:
+    > ## "Bold takeaway"
+    > *— Short attribution*
+  - 1 Sidebar one-cell table:
+    | 💡 TECH INSIGHT: A SPECIFIC TECHNICAL POINT |
+    | :--- |
+    | Clear, actionable explanation. |
+  - 2 Insight Cards (blockquote starting with "> ### 💡 ...", with Context + Example bullets)
+  - 1 Split Layout (2-column table with a "| :--- | :--- |" separator row)
+  - 1 Editorial List using "* **Label:** value"
+- Never more than 3 plain paragraphs in a row; break with a card/table/list/quote.
+- No paragraph longer than ~350 characters. Avoid walls of text.
+- No single-word line breaks ("In\\nThe\\n...").
+- Do not include any prompt/instructions inside the module content.
+- Avoid duplication (especially quotes).
+
+Generate EXACTLY ${moduleCount} modules. Target length per module: ~${targetWords} words (no hard minimum).`;
+};
+
+// Generate simplified prompt based on locale
+const _legacyGeneratePrompt = (topic: string, difficulty: string, duration: string, locale: 'en' | 'es'): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
   const wordCount = duration === 'short' ? 3000 : duration === 'medium' ? 3500 : 4000;
   
@@ -429,7 +544,7 @@ async function callLLMWithFallback(prompt: string, locale: 'en' | 'es'): Promise
         const hasH1 = firstNonEmpty.startsWith('# ');
 
         if (!hasH1) {
-          m.content = `# ${title}\n\n**${standfirst || fallbackStandfirst}**\n\n---\n\n${body}`;
+          m.content = `# ${title}\n\n> **${standfirst || fallbackStandfirst}**\n\n---\n\n${body}`;
         }
 
         const issues = auditEditorialMarkdown(m.content);

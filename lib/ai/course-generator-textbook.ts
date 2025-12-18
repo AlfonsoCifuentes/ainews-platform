@@ -723,9 +723,9 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
   // The Hook: Title + bold 2-line standfirst + separator
   md.push(`# ${chapter.outline.chapter_title}\n`);
 
-  const standfirstLines = chapter.outline.chapter_summary_points.slice(0, 2);
-  if (standfirstLines.length > 0) {
-    md.push(`**${standfirstLines.join('\n')}**\n`);
+  const standfirstText = chapter.outline.chapter_summary_points.slice(0, 2).join(' ').trim();
+  if (standfirstText) {
+    md.push(`> **${standfirstText}**\n`);
   }
   md.push('---\n');
 

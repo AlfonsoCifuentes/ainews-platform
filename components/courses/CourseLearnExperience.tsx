@@ -58,7 +58,7 @@ export function CourseLearnExperience({
 	currentProgress,
 }: CourseLearnExperienceProps) {
 	const [hydrated, setHydrated] = useState(false);
-	const [bookMode, setBookMode] = useState(false);
+	const [bookMode, setBookMode] = useState(true);
 	const [indexOpen, setIndexOpen] = useState(false);
 	const [bookContent, setBookContent] = useState(() => (locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
 	const [isGeneratingBookContent, setIsGeneratingBookContent] = useState(false);
@@ -68,9 +68,40 @@ export function CourseLearnExperience({
 	const { setBookMode: setGlobalBookMode } = useBookMode();
 	const { showToast } = useToast();
 
+	const BOOK_MODE_STORAGE_KEY = 'thotnet:courseBookMode';
+
 	useEffect(() => {
 		setHydrated(true);
 	}, []);
+
+	// Persist book mode preference (default ON per editorial spec).
+	useEffect(() => {
+		if (!hydrated) return;
+		try {
+			const stored = window.localStorage.getItem(BOOK_MODE_STORAGE_KEY);
+			if (stored === '0' || stored === 'false') {
+				setBookMode(false);
+				return;
+			}
+			if (stored === '1' || stored === 'true') {
+				setBookMode(true);
+				return;
+			}
+			window.localStorage.setItem(BOOK_MODE_STORAGE_KEY, '1');
+			setBookMode(true);
+		} catch {
+			// Ignore storage errors (private mode / blocked storage).
+		}
+	}, [hydrated]);
+
+	useEffect(() => {
+		if (!hydrated) return;
+		try {
+			window.localStorage.setItem(BOOK_MODE_STORAGE_KEY, bookMode ? '1' : '0');
+		} catch {
+			// Ignore storage errors (private mode / blocked storage).
+		}
+	}, [bookMode, hydrated]);
 
 	// Sync local bookMode with global context (controls header/footer visibility)
 	useEffect(() => {

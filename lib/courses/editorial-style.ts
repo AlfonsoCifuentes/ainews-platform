@@ -75,7 +75,13 @@ export function auditEditorialMarkdown(markdown: string): EditorialStyleIssue[] 
   const firstSeparatorIndex = afterTitle.findIndex((l) => /^---+$/.test(l.trim()));
 
   const preSeparator = firstSeparatorIndex >= 0 ? afterTitle.slice(0, firstSeparatorIndex) : afterTitle;
-  const hasStandfirst = preSeparator.some((l) => l.trim().startsWith('**') && l.trim().endsWith('**'));
+  const hasStandfirst = preSeparator.some((line) => {
+    const t = line.trim();
+    if (t.startsWith('**') && t.endsWith('**')) return true;
+    // Editorial spec: lead paragraph inside a blockquote (not a pull quote).
+    if (t.startsWith('>') && !t.startsWith('> ##')) return true;
+    return false;
+  });
 
   if (!hasStandfirst) {
     issues.push({
@@ -325,9 +331,39 @@ function ensureHookStructure(lines: string[], options: NormalizeEditorialOptions
   const idx2 = getFirstNonEmptyLineIndex(lines);
   const afterTitle = idx2 >= 0 ? lines.slice(idx2 + 1) : lines;
 
-  // Hero format is already a valid hook. For non-hero, ensure a bold standfirst.
+  const stripOuterBold = (value: string): string => {
+    const t = value.trim();
+    if (t.startsWith('**') && t.endsWith('**') && t.length > 4) {
+      return t.slice(2, -2).trim();
+    }
+    return t;
+  };
+
+  // Hero format uses a meta line + lead paragraph in a blockquote.
   const hero = hasHeroHeaderBlock(afterTitle);
-  if (!hero && !hasBoldStandfirst(afterTitle)) {
+  const hasLeadBlockquote = afterTitle
+    .slice(0, 12)
+    .some((l) => l.trim().startsWith('>') && !l.trim().startsWith('> ##'));
+
+  if (hero && !hasLeadBlockquote) {
+    const standfirstValue = (options.standfirst && options.standfirst.trim().length > 0)
+      ? options.standfirst.trim()
+      : defaultStandfirst(locale, options.title);
+    const lead = stripOuterBold(standfirstValue);
+
+    // Insert lead paragraph right after the meta line if present, otherwise after H1.
+    let insertAt = (idx2 >= 0 ? idx2 + 1 : 0);
+    for (let i = insertAt; i < Math.min(lines.length, insertAt + 10); i++) {
+      if (lines[i]?.trim().startsWith('**⏱️')) {
+        insertAt = i + 1;
+      }
+    }
+
+    if (lines[insertAt]?.trim().length) {
+      lines.splice(insertAt, 0, '');
+    }
+    lines.splice(insertAt + 1, 0, `> **${lead}**`, '');
+  } else if (!hero && !hasBoldStandfirst(afterTitle)) {
     const standfirst = (options.standfirst && options.standfirst.trim().length > 0)
       ? `**${options.standfirst.trim()}**`
       : defaultStandfirst(locale, options.title);
@@ -517,15 +553,55 @@ function unwrapSoftLineBreaks(markdown: string): string {
       continue;
     }
 
-    if (trimmed.startsWith('>')) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('>')) {
-        quoteLines.push(lines[i].replace(/^>\s?/, '').trim());
+    if (/^\s*>/.test(line)) {
+      const quoteRawLines: string[] = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) {
+        quoteRawLines.push(lines[i]);
         i++;
       }
       i--;
-      const quoteText = collapseWhitespace(quoteLines.join(' '));
-      tokens.push({ type: 'structural', value: `> ${quoteText}` });
+
+      const innerLines = quoteRawLines.map((l) => l.replace(/^\s*>\s?/, ''));
+      const isStructuredQuote = innerLines.some((inner) => isStructuralLine(inner.trim()));
+
+      // Simple blockquote: collapse single-word line breaks into one readable sentence.
+      if (!isStructuredQuote) {
+        const quoteText = collapseWhitespace(innerLines.join(' '));
+        tokens.push({ type: 'structural', value: `> ${quoteText}` });
+        continue;
+      }
+
+      // Structured blockquote (Insight Cards / Pull Quotes):
+      // preserve line structure but unwrap soft breaks inside paragraph runs.
+      const outQuoteLines: string[] = [];
+      let paragraphBuffer: string[] = [];
+
+      const flushParagraph = () => {
+        if (!paragraphBuffer.length) return;
+        const merged = collapseWhitespace(paragraphBuffer.join(' '));
+        if (merged) outQuoteLines.push(`> ${merged}`);
+        paragraphBuffer = [];
+      };
+
+      for (const inner of innerLines) {
+        const t = inner.trim();
+        if (!t) {
+          // Remove empty quote lines that break downstream parsers and don't carry meaning.
+          flushParagraph();
+          continue;
+        }
+
+        if (t.startsWith('```') || t.startsWith(':::') || isStructuralLine(t)) {
+          flushParagraph();
+          outQuoteLines.push(`> ${t}`);
+          continue;
+        }
+
+        paragraphBuffer.push(t);
+      }
+
+      flushParagraph();
+      tokens.push({ type: 'structural', value: outQuoteLines.join('\n') });
       continue;
     }
 
@@ -592,6 +668,105 @@ function removeDanglingQuoteHeadings(markdown: string): string {
       }
     }
     out.push(line);
+  }
+
+  return out.join('\n');
+}
+
+function normalizePullQuoteHeadings(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let lastPullQuote: string | null = null;
+
+  const countQuoteMarks = (text: string): number => (text.match(/["“”]/g) || []).length;
+
+  const normalizeQuoteText = (text: string): string => {
+    let t = collapseWhitespace(text).replace(/[“”]/g, '"');
+    if (!t) return '';
+    if (!t.startsWith('"')) t = `"${t}`;
+    if (!t.endsWith('"')) t = `${t}"`;
+    return t;
+  };
+
+  const isAttribution = (inner: string): boolean => /^\*?[-—]\s+/.test(inner.trim());
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i]?.trim() ?? '';
+    const headingMatch = trimmed.match(/^(#{2,6})\s+(.+)$/);
+    const remainder = headingMatch?.[2]?.trim() ?? '';
+
+    // Legacy artifact: pull quotes emitted as headings that begin with a quote mark.
+    if (!headingMatch || !/^[\"“]/.test(remainder)) {
+      out.push(lines[i]);
+      continue;
+    }
+
+    const parts: string[] = [remainder];
+    let quoteCount = countQuoteMarks(remainder);
+    let j = i + 1;
+    let abortIndex: number | null = null;
+
+    while (j < lines.length) {
+      const candidate = lines[j]?.trim() ?? '';
+      if (!candidate) {
+        j += 1;
+        continue;
+      }
+
+      // Stop early if we hit a structural boundary before closing the quote.
+      if (quoteCount % 2 === 1 && isStructuralLine(candidate)) {
+        abortIndex = j;
+        break;
+      }
+
+      parts.push(candidate);
+      quoteCount += countQuoteMarks(candidate);
+
+      if (quoteCount > 0 && quoteCount % 2 === 0) {
+        break;
+      }
+
+      j += 1;
+    }
+
+    // If we never closed the quote, drop the broken block and resume at the boundary.
+    if (abortIndex !== null || quoteCount % 2 === 1 || quoteCount === 0) {
+      i = (abortIndex ?? j) - 1;
+      continue;
+    }
+
+    const normalizedQuote = normalizeQuoteText(parts.join(' '));
+    if (!normalizedQuote) {
+      i = j;
+      continue;
+    }
+
+    // Consume attribution lines (if present) so they don't float independently.
+    let k = j + 1;
+    while (k < lines.length && !lines[k]?.trim()) k += 1;
+
+    const attributionLines: string[] = [];
+    while (k < lines.length) {
+      const candidate = lines[k]?.trim() ?? '';
+      if (!candidate.startsWith('>')) break;
+      const inner = candidate.replace(/^>\s*/, '').trim();
+      if (!inner) {
+        k += 1;
+        continue;
+      }
+      if (!isAttribution(inner)) break;
+      attributionLines.push(`> ${inner}`);
+      k += 1;
+    }
+
+    // De-dupe consecutive identical pull quotes (common generation failure).
+    if (normalizedQuote !== lastPullQuote) {
+      out.push(`> ## ${normalizedQuote}`);
+      out.push(...attributionLines);
+      lastPullQuote = normalizedQuote;
+    }
+
+    i = k - 1;
   }
 
   return out.join('\n');
@@ -744,7 +919,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const listsCleaned = removeEmptyListMarkers(separatorsFixed);
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
   const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
-  const danglingQuotesFixed = removeDanglingQuoteHeadings(unwrapped);
+  const pullQuotesFixed = normalizePullQuoteHeadings(unwrapped);
+  const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
   const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
   const inlineListsFixed = normalizeInlineLists(headingsSplit);
   const lines = inlineListsFixed.split('\n');
