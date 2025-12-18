@@ -158,12 +158,22 @@ function normalizeSeparatorLines(markdown: string): string {
 }
 
 function removeEmptyListMarkers(markdown: string): string {
-  return markdown.replace(/^\s*[-*]\s*$/gm, '');
+  return markdown
+    .replace(/^\s*[-*]\s*$/gm, '')
+    .replace(/^\s*[-*]\s*>\s*$/gm, '')
+    .replace(/^\s*>\s*$/gm, '');
 }
 
 function fixSidebarTableArtifacts(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
+
+  const isNoiseLine = (text: string): boolean => {
+    if (!text.trim()) return true;
+    if (/^[-*]+(\s+[-*]+)*$/.test(text)) return true;
+    if (/^[|:\s-]+$/.test(text)) return true;
+    return !/[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ]/.test(text);
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -178,8 +188,7 @@ function fixSidebarTableArtifacts(markdown: string): string {
       let j = i + 1;
       for (; j < lines.length; j++) {
         const candidate = lines[j].trim();
-        if (!candidate) continue;
-        if (/^[-*]$/.test(candidate)) continue;
+        if (isNoiseLine(candidate)) continue;
         if (/^\|\s*:?-{2,}:?\s*\|?$/.test(candidate)) continue;
         if (candidate.startsWith('|')) {
           const rowCells = candidate.split('|').map((c) => c.trim()).filter(Boolean);
@@ -403,6 +412,30 @@ function unwrapSoftLineBreaks(markdown: string): string {
     const line = lines[i];
     const trimmed = line.trim();
 
+    if (/^#{1,6}\s*/.test(trimmed)) {
+      const match = trimmed.match(/^(#{1,6}\s+)/);
+      const prefix = match ? match[1] : '# ';
+      let headingText = trimmed.slice(prefix.length).trim();
+      headingText = headingText.replace(/^#{1,6}\s+/, '');
+
+      let j = i + 1;
+      while (j < lines.length) {
+        const next = lines[j].trim();
+        if (!next) {
+          j += 1;
+          continue;
+        }
+        if (next.startsWith('```') || next.startsWith(':::')) break;
+        if (isStructuralLine(next)) break;
+        headingText = collapseWhitespace(`${headingText} ${next}`);
+        j += 1;
+      }
+
+      tokens.push({ type: 'structural', value: `${prefix}${headingText}`.trimEnd() });
+      i = j - 1;
+      continue;
+    }
+
     if (trimmed.startsWith('```')) {
       const blockLines = [line];
       i++;
@@ -491,6 +524,97 @@ function unwrapSoftLineBreaks(markdown: string): string {
   return output.join('\n');
 }
 
+function removeDanglingQuoteHeadings(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (/^#{1,6}\s+/.test(trimmed) && trimmed.includes('"')) {
+      const quoteCount = (trimmed.match(/"/g) || []).length;
+      if (quoteCount % 2 === 1) {
+        let j = i + 1;
+        while (j < lines.length && !lines[j].trim()) {
+          j += 1;
+        }
+        if (j < lines.length && lines[j].trim().startsWith('|')) {
+          continue;
+        }
+      }
+    }
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
+const KNOWN_HEADING_PREFIXES = [
+  'Introducción y Contexto',
+  'Conceptos Fundamentales',
+  'Teoría y Principios Principales',
+  'Inmersión Profunda Avanzada',
+  'Aplicaciones Reales y Casos de Estudio',
+  'Guía Práctica de Implementación',
+  'Casos Límite, Limitaciones y Consideraciones Avanzadas',
+  'Síntesis y Conclusión',
+  'Síntesis y Práctica Autónoma',
+  'Síntesis y Práctica Autonoma',
+  'Synthesis and Conclusions',
+  'Synthesis and Autonomous Practice',
+  'Introduction and Context',
+  'Foundational Concepts',
+  'Core Theory and Principles',
+  'Advanced Deep Dive',
+  'Real-World Applications and Case Studies',
+  'Practical Implementation Guide',
+  'Edge Cases, Limitations and Advanced Considerations',
+];
+
+function splitRunOnKnownHeadings(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  const prefixes = KNOWN_HEADING_PREFIXES.map((prefix) => ({
+    raw: prefix,
+    lower: prefix.toLowerCase(),
+  }));
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const headingMatch = trimmed.match(/^(#{2,6})\s+(.+)$/);
+    if (!headingMatch) {
+      out.push(line);
+      continue;
+    }
+
+    const prefix = headingMatch[1];
+    const rest = headingMatch[2].trim();
+    const restLower = rest.toLowerCase();
+    let matched = false;
+
+    for (const entry of prefixes) {
+      if (!restLower.startsWith(entry.lower)) continue;
+      const remainder = rest.slice(entry.raw.length).trim();
+      if (remainder) {
+        const cleanedRemainder = remainder.replace(/^[:\-]\s*/, '');
+        out.push(`${prefix} ${entry.raw}`);
+        if (cleanedRemainder) {
+          out.push(cleanedRemainder);
+        }
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      out.push(line);
+    }
+  }
+
+  return out.join('\n');
+}
+
 /**
  * Deterministic, non-LLM normalization to make legacy/new markdown more compatible
  * with the THOTNET editorial spec in both normal and book views.
@@ -505,7 +629,9 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const listsCleaned = removeEmptyListMarkers(separatorsFixed);
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
   const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
-  const lines = unwrapped.split('\n');
+  const danglingQuotesFixed = removeDanglingQuoteHeadings(unwrapped);
+  const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
+  const lines = headingsSplit.split('\n');
 
   const hooked = ensureHookStructure([...lines], options);
   const listed = normalizeEditorialListSyntax(hooked);
