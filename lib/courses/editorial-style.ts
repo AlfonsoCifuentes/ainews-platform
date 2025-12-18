@@ -278,6 +278,98 @@ function stripPromptArtifacts(markdown: string): string {
   return cleaned.join('\n');
 }
 
+function canonicalizeBoilerplateText(raw: string): string {
+  let t = String(raw ?? '').trim();
+  t = t.replace(/^>\s*/, '').trim();
+
+  // One-cell table rows look like `| content |`.
+  if (t.startsWith('|') && t.endsWith('|')) {
+    t = t.slice(1, -1).trim();
+  }
+
+  // Remove surrounding emphasis markers.
+  t = t.replace(/^\*{1,2}/, '').replace(/\*{1,2}$/, '').trim();
+
+  return collapseWhitespace(t.replace(/[“”]/g, '"'));
+}
+
+function isBoilerplateHeroLead(text: string): boolean {
+  const t = canonicalizeBoilerplateText(text).toLowerCase();
+  return (
+    /^este módulo convierte un tema difuso en un modelo mental claro(?: y accionable)?\.?$/.test(t) ||
+    /^this module turns a fuzzy topic into a clear(?:,)? usable mental model\.?$/.test(t)
+  );
+}
+
+function isBoilerplateStandfirst(text: string): boolean {
+  const t = canonicalizeBoilerplateText(text).toLowerCase();
+  return (
+    /^un módulo (directo|rápido|rapido) y estructurado sobre .+/.test(t) ||
+    /^a (fast|direct),? structured module on .+/.test(t)
+  );
+}
+
+function isBoilerplateAttribution(text: string): boolean {
+  const t = canonicalizeBoilerplateText(text).toLowerCase();
+  return (
+    /^[—-]\s*idea ancla del módulo\.?$/.test(t) ||
+    /^[—-]\s*short attribution\.?$/.test(t) ||
+    /^[—-]\s*atribuci[oó]n breve\.?$/.test(t)
+  );
+}
+
+function isBoilerplateTechInsight(text: string): boolean {
+  const t = canonicalizeBoilerplateText(text).toLowerCase();
+  return (
+    /^una definición operativa hace un concepto comprobable: qué es, qué observas y qué lo refutaría\.?$/.test(t)
+  );
+}
+
+function stripEditorialBoilerplate(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const separatorIndex = lines.findIndex((l) => /^---+$/.test(l.trim()));
+
+  const preSeparator = separatorIndex >= 0 ? lines.slice(0, separatorIndex) : lines;
+  const postSeparator = separatorIndex >= 0 ? lines.slice(separatorIndex) : [];
+
+  const out: string[] = [];
+
+  for (const line of preSeparator) {
+    const canonical = canonicalizeBoilerplateText(line);
+    if (isBoilerplateHeroLead(canonical)) continue;
+    if (isBoilerplateStandfirst(canonical)) continue;
+    out.push(line);
+  }
+
+  for (let i = 0; i < postSeparator.length; i++) {
+    const line = postSeparator[i];
+    const trimmed = line.trim();
+
+    // Remove boilerplate TECH INSIGHT tables (one-cell).
+    if (trimmed.startsWith('|') && /TECH INSIGHT/i.test(trimmed) && i + 2 < postSeparator.length) {
+      const separator = postSeparator[i + 1]?.trim() ?? '';
+      const body = postSeparator[i + 2]?.trim() ?? '';
+      const isOneCellSeparator = separator === '| :--- |' || /^\|\s*:?-{3,}\s*\|\s*$/.test(separator);
+
+      if (isOneCellSeparator && body.startsWith('|')) {
+        const bodyText = canonicalizeBoilerplateText(body);
+        if (isBoilerplateTechInsight(bodyText)) {
+          i += 2;
+          continue;
+        }
+      }
+    }
+
+    const canonical = canonicalizeBoilerplateText(trimmed);
+    if (isBoilerplateAttribution(canonical)) continue;
+
+    out.push(line);
+  }
+
+  // Avoid excessive blank space when we removed boilerplate lines/blocks.
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 function getFirstNonEmptyLineIndex(lines: string[]): number {
   return lines.findIndex((l) => l.trim().length > 0);
 }
@@ -331,39 +423,12 @@ function ensureHookStructure(lines: string[], options: NormalizeEditorialOptions
   const idx2 = getFirstNonEmptyLineIndex(lines);
   const afterTitle = idx2 >= 0 ? lines.slice(idx2 + 1) : lines;
 
-  const stripOuterBold = (value: string): string => {
-    const t = value.trim();
-    if (t.startsWith('**') && t.endsWith('**') && t.length > 4) {
-      return t.slice(2, -2).trim();
-    }
-    return t;
-  };
-
-  // Hero format uses a meta line + lead paragraph in a blockquote.
+  // Hero format uses a meta line + (optional) lead paragraph in a blockquote.
   const hero = hasHeroHeaderBlock(afterTitle);
-  const hasLeadBlockquote = afterTitle
-    .slice(0, 12)
-    .some((l) => l.trim().startsWith('>') && !l.trim().startsWith('> ##'));
 
-  if (hero && !hasLeadBlockquote) {
-    const standfirstValue = (options.standfirst && options.standfirst.trim().length > 0)
-      ? options.standfirst.trim()
-      : defaultStandfirst(locale, options.title);
-    const lead = stripOuterBold(standfirstValue);
-
-    // Insert lead paragraph right after the meta line if present, otherwise after H1.
-    let insertAt = (idx2 >= 0 ? idx2 + 1 : 0);
-    for (let i = insertAt; i < Math.min(lines.length, insertAt + 10); i++) {
-      if (lines[i]?.trim().startsWith('**⏱️')) {
-        insertAt = i + 1;
-      }
-    }
-
-    if (lines[insertAt]?.trim().length) {
-      lines.splice(insertAt, 0, '');
-    }
-    lines.splice(insertAt + 1, 0, `> **${lead}**`, '');
-  } else if (!hero && !hasBoldStandfirst(afterTitle)) {
+  // Do NOT auto-inject generic standfirst/lead lines for hero content.
+  // Those phrases are template boilerplate and should not leak into the reader UI.
+  if (!hero && !hasBoldStandfirst(afterTitle)) {
     const standfirst = (options.standfirst && options.standfirst.trim().length > 0)
       ? `**${options.standfirst.trim()}**`
       : defaultStandfirst(locale, options.title);
@@ -919,7 +984,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const listsCleaned = removeEmptyListMarkers(separatorsFixed);
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
   const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
-  const pullQuotesFixed = normalizePullQuoteHeadings(unwrapped);
+  const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
+  const pullQuotesFixed = normalizePullQuoteHeadings(boilerplateStripped);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
   const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
   const inlineListsFixed = normalizeInlineLists(headingsSplit);

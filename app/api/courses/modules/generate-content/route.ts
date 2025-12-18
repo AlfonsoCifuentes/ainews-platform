@@ -455,22 +455,20 @@ STRICT TEMPLATE (follow exactly):
 # ${moduleTitle}
 **⏱️ Time:** ${meta.estimatedMinutes} min | **📊 Level:** ${meta.levelLabel} | **🏷️ Tags:** ${meta.tagsInline}
 
-> **This module turns a fuzzy topic into a clear, usable mental model.**
-
 ---
 
 BODY RULES (use these building blocks; no walls of plain text):
+- Lead (optional but recommended): insert exactly ONE standfirst line between the meta line and the "---" separator using:
+  - > **...** (topic-specific; do NOT use generic meta like "This module turns..." or "A fast, structured module...").
 - Sections: 3–6 with "##" headings.
 - Insight Cards: blockquotes starting with "> ### 💡" and including Context + Example bullets.
 - Split Layout: at least one 2-column markdown table (with a "| :--- | :--- |" separator row).
 - Editorial List: at least one list using "* **Label:** value" formatting.
-- Pull Quote (exact markdown shape, at least 1):
-  > ## "Short, bold takeaway"
-  > *— Short attribution*
+- Pull Quote (at least 1): a 2-line blockquote with an italic attribution/context line (starts with an em dash). Do NOT write placeholders like "Short attribution".
 - Sidebar box (one-cell table, at least 1):
   | 💡 TECH INSIGHT: A SPECIFIC TECHNICAL POINT |
   | :--- |
-  | Clear, actionable explanation. |
+  | Specific, topic-related explanation (no generic boilerplate). |
 
 HARD CONSTRAINTS:
 - No paragraph longer than ~350 characters.
@@ -492,22 +490,20 @@ PLANTILLA ESTRICTA (síguela exactamente):
 # ${moduleTitle}
 **⏱️ Tiempo:** ${meta.estimatedMinutes} min | **📊 Nivel:** ${meta.levelLabel} | **🏷️ Tags:** ${meta.tagsInline}
 
-> **Este módulo convierte un tema difuso en un modelo mental claro y accionable.**
-
 ---
 
 REGLAS DEL CUERPO (usa estos bloques; cero muros de texto):
+- Entradilla (opcional pero recomendable): inserta EXACTAMENTE 1 línea entre la meta y el separador "---" usando:
+  - > **...** (frase concreta del tema; NO uses frases meta genéricas tipo "Este módulo convierte..." o "Un módulo directo y estructurado...").
 - Secciones: 3–6 con encabezados "##".
 - Insight Cards: blockquotes que empiezan por "> ### 💡" e incluyen bullets de Contexto + Ejemplo.
 - Split Layout: al menos una tabla markdown de 2 columnas (con fila separadora "| :--- | :--- |").
 - Editorial List: al menos una lista con formato "* **Etiqueta:** valor".
-- Pull Quote (forma exacta en markdown, mínimo 1):
-  > ## "Idea contundente"
-  > *— Atribución breve*
+- Pull Quote (mínimo 1): cita en blockquote de 2 líneas con una 2ª línea en cursiva de atribución/contexto (empieza por un guion largo). Prohibido escribir placeholders tipo "Idea ancla del módulo" o "Atribución breve".
 - Sidebar box (tabla de 1 celda, mínimo 1):
   | 💡 TECH INSIGHT: UN PUNTO TÉCNICO ESPECÍFICO |
   | :--- |
-  | Explicación clara y accionable. |
+  | Explicación específica y relacionada con el tema (sin boilerplate genérico). |
 
 REGLAS DURAS:
 - Ningún párrafo debe superar ~350 caracteres.

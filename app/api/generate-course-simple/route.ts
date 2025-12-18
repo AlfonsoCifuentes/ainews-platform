@@ -95,12 +95,12 @@ REGLAS PARA "content" (Markdown editorial, estilo revista/libro):
 - Empieza SIEMPRE con Hero:
   1) "# 0X. TÍTULO" (puedes usar el título del módulo)
   2) "**⏱️ Tiempo:** ${estimatedMinutes} min | **📊 Nivel:** ${levelLabel} | **🏷️ Tags:** \`AI\` \`${topic}\`"
-  3) Entradilla en blockquote: línea que empieza por "> **...**"
+  3) Entradilla en blockquote: línea que empieza por "> **...**" (evita frases plantilla tipo "Este módulo convierte..." o "Un módulo directo y estructurado...")
   4) "---"
 - Incluye como mínimo:
-  - 1 Pull Quote con este formato exacto:
-    > ## "Idea contundente"
-    > *— Idea ancla del módulo*
+  - 1 Pull Quote (blockquote de 2 líneas):
+    - Línea 1: > ## "..." (tu propia frase, corta y potente)
+    - Línea 2: > *— ...* (atribución/contexto breve y específico; PROHIBIDO usar textos plantilla como "Idea ancla del módulo")
   - 1 Sidebar box (tabla de 1 celda):
     | 💡 TECH INSIGHT: UN PUNTO TÉCNICO ESPECÍFICO |
     | :--- |
@@ -147,12 +147,12 @@ RULES FOR "content" (editorial magazine/textbook markdown):
 - ALWAYS start with a Hero:
   1) "# 0X. TITLE" (you can reuse the module title)
   2) "**⏱️ Time:** ${estimatedMinutes} min | **📊 Level:** ${levelLabel} | **🏷️ Tags:** \`AI\` \`${topic}\`"
-  3) Lead paragraph in a blockquote: a line starting with "> **...**"
+  3) Lead paragraph in a blockquote: a line starting with "> **...**" (avoid template boilerplate like "This module turns..." or "A fast, structured module...")
   4) "---"
 - Include at minimum:
-  - 1 Pull Quote in this exact shape:
-    > ## "Bold takeaway"
-    > *— Short attribution*
+  - 1 Pull Quote (2-line blockquote):
+    - Line 1: > ## "..." (your own short, bold takeaway)
+    - Line 2: > *— ...* (short, specific attribution/context; DO NOT use placeholders like "Short attribution")
   - 1 Sidebar one-cell table:
     | 💡 TECH INSIGHT: A SPECIFIC TECHNICAL POINT |
     | :--- |
