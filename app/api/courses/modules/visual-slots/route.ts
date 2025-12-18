@@ -46,6 +46,22 @@ function shouldFallbackToEmpty(error: unknown): boolean {
   );
 }
 
+function cleanHeadingText(raw: string): string {
+  return String(raw ?? '')
+    .replace(/^#+\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isSlotCorrupted(slot: { heading?: string | null; summary?: string | null; reason?: string | null }): boolean {
+  const headingLength = (slot.heading ?? '').length;
+  const summaryLength = (slot.summary ?? '').length;
+  const reasonLength = (slot.reason ?? '').length;
+
+  // Keep parity with the POST schema constraints.
+  return headingLength > 280 || summaryLength > 2000 || reasonLength > 2000;
+}
+
 // Keep parity with `scripts/plan-module-visual-slots-gpt4o.ts` and the UI parser so block indexes are usable.
 function parseContentIntoBlocks(rawContent: string): Array<{ type: string; content: string; items?: string[] }> {
   const blocks: Array<{ type: string; content: string; items?: string[] }> = [];
@@ -82,19 +98,19 @@ function parseContentIntoBlocks(rawContent: string): Array<{ type: string; conte
 
     const h1Match = line.match(/^#\s*(.+)$/);
     if (h1Match && !line.startsWith('##')) {
-      blocks.push({ type: 'heading1', content: h1Match[1].trim() });
+      blocks.push({ type: 'heading1', content: cleanHeadingText(h1Match[1]) });
       i += 1;
       continue;
     }
     const h2Match = line.match(/^##\s*(.+)$/);
     if (h2Match && !line.startsWith('###')) {
-      blocks.push({ type: 'heading2', content: h2Match[1].trim() });
+      blocks.push({ type: 'heading2', content: cleanHeadingText(h2Match[1]) });
       i += 1;
       continue;
     }
     const h3Match = line.match(/^###\s*(.+)$/);
     if (h3Match) {
-      blocks.push({ type: 'heading3', content: h3Match[1].trim() });
+      blocks.push({ type: 'heading3', content: cleanHeadingText(h3Match[1]) });
       i += 1;
       continue;
     }
@@ -347,7 +363,8 @@ export async function GET(request: NextRequest) {
       slots = [];
     }
 
-    if (params.ensure && slots.length === 0) {
+    const shouldEnsure = params.ensure && (slots.length === 0 || slots.some(isSlotCorrupted));
+    if (shouldEnsure) {
       try {
         const db = getSupabaseServerClient();
         const { data: moduleRow } = await db
@@ -368,7 +385,9 @@ export async function GET(request: NextRequest) {
           });
 
           const stored = await replaceModuleVisualSlots(params.moduleId, params.locale, planned);
-          slots = stored;
+          slots = stored
+            .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
+            .slice(0, params.limit ?? stored.length);
         }
       } catch (ensureError) {
         console.warn('[API/visual-slots] ensure failed, returning empty', ensureError);

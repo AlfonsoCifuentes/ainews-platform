@@ -13,6 +13,7 @@ import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 
 const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
 const MAX_SLOT_TEXT_CHARS = 420;
+const MAX_SLOT_HEADING_CHARS = 140;
 
 interface ModuleIllustrationProps {
   moduleId: string;
@@ -94,6 +95,9 @@ export function ModuleIllustration({
     const summaryRaw = normalizeSlotText(slot.summary);
     const reasonRaw = normalizeSlotText(slot.reason);
 
+    const headingValue = detailsExpanded ? heading : truncateText(heading, MAX_SLOT_HEADING_CHARS).value;
+    const headingTruncated = !detailsExpanded && heading.length > MAX_SLOT_HEADING_CHARS;
+
     const summary = detailsExpanded ? summaryRaw : truncateText(summaryRaw, MAX_SLOT_TEXT_CHARS).value;
     const summaryTruncated = !detailsExpanded && summaryRaw.length > MAX_SLOT_TEXT_CHARS;
 
@@ -101,7 +105,8 @@ export function ModuleIllustration({
     const reasonTruncated = !detailsExpanded && reasonRaw.length > MAX_SLOT_TEXT_CHARS;
 
     return {
-      heading,
+      heading: headingValue,
+      headingTruncated,
       summary,
       summaryTruncated,
       reason,
@@ -413,7 +418,7 @@ export function ModuleIllustration({
               {slotDisplay.reason}
             </p>
           )}
-          {(slotDisplay?.summaryTruncated || slotDisplay?.reasonTruncated) && (
+          {(slotDisplay?.headingTruncated || slotDisplay?.summaryTruncated || slotDisplay?.reasonTruncated) && (
             <button
               type="button"
               onClick={() => setDetailsExpanded((prev) => !prev)}

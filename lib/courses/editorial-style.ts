@@ -404,6 +404,54 @@ function shouldMergeParagraphs(current: string, next: string): boolean {
   return false;
 }
 
+const HEADING_CONTINUATION_STOPWORDS = new Set([
+  // Spanish
+  'y',
+  'e',
+  'o',
+  'de',
+  'del',
+  'la',
+  'el',
+  'los',
+  'las',
+  'a',
+  'en',
+  'para',
+  // English
+  'and',
+  'or',
+  'of',
+  'to',
+  'in',
+  'for',
+  'with',
+  'on',
+]);
+
+function shouldMergeHeadingContinuation(headingText: string): boolean {
+  const t = headingText.trim();
+  if (!t) return false;
+  if (/[—–\-:]$/.test(t)) return true;
+
+  const quoteCount = (t.match(/"/g) || []).length;
+  if (quoteCount % 2 === 1) return true;
+
+  const words = t.toLowerCase().split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] || '';
+  return HEADING_CONTINUATION_STOPWORDS.has(last);
+}
+
+function isLikelyHeadingContinuationLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (t.length > 80) return false;
+  const wordCount = t.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 12) return false;
+  if (/[.!?]$/.test(t)) return false;
+  return true;
+}
+
 function unwrapSoftLineBreaks(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const tokens: Array<{ type: 'paragraph' | 'structural' | 'blank'; value: string }> = [];
@@ -419,15 +467,15 @@ function unwrapSoftLineBreaks(markdown: string): string {
       headingText = headingText.replace(/^#{1,6}\s+/, '');
 
       let j = i + 1;
-      while (j < lines.length) {
+      let merges = 0;
+      while (j < lines.length && merges < 3 && shouldMergeHeadingContinuation(headingText)) {
         const next = lines[j].trim();
-        if (!next) {
-          j += 1;
-          continue;
-        }
+        if (!next) break;
         if (next.startsWith('```') || next.startsWith(':::')) break;
         if (isStructuralLine(next)) break;
+        if (!isLikelyHeadingContinuationLine(next)) break;
         headingText = collapseWhitespace(`${headingText} ${next}`);
+        merges += 1;
         j += 1;
       }
 
