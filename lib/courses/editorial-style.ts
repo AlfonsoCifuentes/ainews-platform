@@ -571,6 +571,73 @@ const KNOWN_HEADING_PREFIXES = [
   'Edge Cases, Limitations and Advanced Considerations',
 ];
 
+function normalizeInlineLists(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      out.push(line);
+      continue;
+    }
+
+    if (isStructuralLine(trimmed)) {
+      out.push(line);
+      continue;
+    }
+
+    const numberedMatches = [...line.matchAll(/(\d+)\.\s*/g)];
+    if (numberedMatches.length >= 2 && !/^\s*\d+\.\s/.test(line)) {
+      const firstIndex = numberedMatches[0]?.index ?? 0;
+      const pre = line.slice(0, firstIndex).trim();
+      const items: string[] = [];
+
+      for (let i = 0; i < numberedMatches.length; i++) {
+        const match = numberedMatches[i];
+        const number = match[1];
+        const start = (match.index ?? 0) + match[0].length;
+        const end = i + 1 < numberedMatches.length ? (numberedMatches[i + 1].index ?? line.length) : line.length;
+        const text = line.slice(start, end).trim();
+        if (text) items.push(`${number}. ${text}`);
+      }
+
+      if (items.length >= 2) {
+        if (pre) {
+          out.push(pre);
+          out.push('');
+        }
+        out.push(...items);
+        continue;
+      }
+    }
+
+    const bulletMatches = [...line.matchAll(/\*\s+/g)];
+    if (bulletMatches.length >= 2 && !/^\s*[*-]\s+/.test(line)) {
+      const firstIndex = bulletMatches[0]?.index ?? 0;
+      const pre = line.slice(0, firstIndex).trim();
+      const items = line
+        .slice(firstIndex)
+        .split(/\*\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      if (items.length >= 2) {
+        if (pre) {
+          out.push(pre);
+          out.push('');
+        }
+        out.push(...items.map((item) => `* ${item}`));
+        continue;
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
 function splitRunOnKnownHeadings(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
@@ -631,7 +698,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(unwrapped);
   const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
-  const lines = headingsSplit.split('\n');
+  const inlineListsFixed = normalizeInlineLists(headingsSplit);
+  const lines = inlineListsFixed.split('\n');
 
   const hooked = ensureHookStructure([...lines], options);
   const listed = normalizeEditorialListSyntax(hooked);
