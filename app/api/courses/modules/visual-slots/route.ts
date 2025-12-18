@@ -53,13 +53,29 @@ function cleanHeadingText(raw: string): string {
     .trim();
 }
 
+function isNoisyHeading(raw: string | null | undefined): boolean {
+  const cleaned = cleanHeadingText(raw ?? '');
+  if (!cleaned) return false;
+
+  if (/^["“”]/.test(cleaned)) {
+    const quoteCount = (cleaned.match(/["“”]/g) || []).length;
+    // Incomplete quote headings like `"En` are a common artifact; skip them.
+    if (quoteCount < 2) return true;
+  }
+
+  const stripped = cleaned.replace(/^["“”]+/, '').trim();
+  if (stripped.length <= 12 && /^en(\s+la)?$/i.test(stripped)) return true;
+
+  return false;
+}
+
 function isSlotCorrupted(slot: { heading?: string | null; summary?: string | null; reason?: string | null }): boolean {
   const headingLength = (slot.heading ?? '').length;
   const summaryLength = (slot.summary ?? '').length;
   const reasonLength = (slot.reason ?? '').length;
 
   // Keep parity with the POST schema constraints.
-  return headingLength > 280 || summaryLength > 2000 || reasonLength > 2000;
+  return headingLength > 280 || summaryLength > 2000 || reasonLength > 2000 || isNoisyHeading(slot.heading);
 }
 
 // Keep parity with `scripts/plan-module-visual-slots-gpt4o.ts` and the UI parser so block indexes are usable.
@@ -215,6 +231,7 @@ function pickSectionHeading(blocks: Array<{ type: string; content: string }>, ar
   for (let i = Math.min(aroundIndex, blocks.length - 1); i >= 0; i -= 1) {
     const b = blocks[i];
     if (b.type === 'heading2' || b.type === 'heading1' || b.type === 'heading3') {
+      if (isNoisyHeading(b.content)) continue;
       return b.content;
     }
   }
