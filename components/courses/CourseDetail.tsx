@@ -7,6 +7,7 @@ import {
   Play, ChevronRight, Award, BarChart3
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ShareCourse } from './ShareCourse';
 import { CourseRatings } from './CourseRatings';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
@@ -287,6 +288,7 @@ export function CourseDetail({ course, locale }: CourseDetailProps) {
 
                   <div className="prose prose-invert prose-primary max-w-none">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
                         h1: ({ ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,
                         h2: ({ ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,

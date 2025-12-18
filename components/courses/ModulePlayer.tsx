@@ -18,6 +18,7 @@ import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { NormalizedModule } from '@/lib/courses/normalize';
@@ -698,6 +699,7 @@ export function ModulePlayer({
                 </div>
               )}
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   // Headings - brutalist uppercase monospace
                   h1: ({ ...props }) => (
@@ -763,6 +765,32 @@ export function ModulePlayer({
                       className="font-mono font-bold underline transition-colors hover:opacity-70" 
                       style={{ color: BRUTALIST.text }}
                       {...props} 
+                    />
+                  ),
+                  table: ({ ...props }) => (
+                    <div className="my-6 overflow-x-auto border" style={{ borderColor: BRUTALIST.border }}>
+                      <table
+                        className="w-full border-collapse font-mono text-sm"
+                        style={{ color: BRUTALIST.textMuted }}
+                        {...props}
+                      />
+                    </div>
+                  ),
+                  thead: ({ ...props }) => (
+                    <thead style={{ backgroundColor: BRUTALIST.bg }} {...props} />
+                  ),
+                  th: ({ ...props }) => (
+                    <th
+                      className="p-3 text-left font-mono text-sm font-bold align-top"
+                      style={{ color: BRUTALIST.text, borderBottom: `1px solid ${BRUTALIST.border}` }}
+                      {...props}
+                    />
+                  ),
+                  td: ({ ...props }) => (
+                    <td
+                      className="p-3 font-mono text-sm align-top"
+                      style={{ borderBottom: `1px solid ${BRUTALIST.border}` }}
+                      {...props}
                     />
                   ),
                   // Code blocks and inline code
