@@ -407,7 +407,7 @@ export function ModuleIllustration({
             {slotContext && <Badge variant="outline" className="!text-white/80">{slotContext}</Badge>}
           </div>
           {slotDisplay?.heading && <p className="mt-3 text-sm font-semibold text-white break-words">{slotDisplay.heading}</p>}
-          {slotDisplay?.summary && (
+          {detailsExpanded && slotDisplay?.summary && (
             <p className="mt-2 text-sm text-white/80 break-words">
               {slotDisplay.summary}
             </p>
@@ -418,13 +418,13 @@ export function ModuleIllustration({
               {slotDisplay.reason}
             </p>
           )}
-          {(slotDisplay?.headingTruncated || slotDisplay?.summaryTruncated || slotDisplay?.reasonTruncated) && (
+          {(slotDisplay?.summary || slotDisplay?.headingTruncated || slotDisplay?.summaryTruncated || slotDisplay?.reasonTruncated) && (
             <button
               type="button"
               onClick={() => setDetailsExpanded((prev) => !prev)}
               className="mt-3 text-[11px] uppercase tracking-[0.35em] text-blue-200/80 hover:text-blue-100 transition-colors"
             >
-              {detailsExpanded ? (locale === 'en' ? 'Show less' : 'Ver menos') : (locale === 'en' ? 'Show more' : 'Ver más')}
+              {detailsExpanded ? (locale === 'en' ? 'Hide details' : 'Ocultar detalles') : (locale === 'en' ? 'Show details' : 'Ver detalles')}
             </button>
           )}
         </div>

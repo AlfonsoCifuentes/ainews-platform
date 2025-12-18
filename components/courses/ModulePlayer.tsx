@@ -695,21 +695,6 @@ export function ModulePlayer({
             </div>
           ) : normalizedContent && normalizedContent.trim() ? (
             <>
-              {supportingSlots.length > 0 && (
-                <div className="space-y-6 mb-6">
-                  {supportingSlots.slice(0, 2).map((slot) => (
-                    <ModuleIllustration
-                      key={slot.id}
-                      moduleId={module.id}
-                      content={normalizedContent || ''}
-                      locale={locale}
-                      style={getIllustrationStyleForSlot(slot)}
-                      visualStyle={slot.suggestedVisualStyle}
-                      slot={slot}
-                    />
-                  ))}
-                </div>
-              )}
               <div className="mx-auto max-w-[72ch]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -828,7 +813,7 @@ export function ModulePlayer({
                   {normalizedContent}
                 </ReactMarkdown>
               </div>
-              {supportingSlots.length > 2 && (
+              {supportingSlots.length > 0 && (
                 <div className="mt-10 space-y-4 border p-6" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
                   <div>
                     <p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
@@ -837,7 +822,7 @@ export function ModulePlayer({
                     <p className="font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>{t.visualGalleryNote}</p>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
-                    {supportingSlots.slice(2, 6).map((slot) => (
+                    {supportingSlots.slice(0, 6).map((slot, index) => (
                       <ModuleIllustration
                         key={slot.id}
                         moduleId={module.id}
@@ -846,7 +831,7 @@ export function ModulePlayer({
                         style={getIllustrationStyleForSlot(slot)}
                         visualStyle={slot.suggestedVisualStyle}
                         slot={slot}
-                        autoGenerate={false}
+                        autoGenerate={index < 2}
                       />
                     ))}
                   </div>
