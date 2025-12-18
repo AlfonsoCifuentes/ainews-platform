@@ -12,6 +12,7 @@ import { normalizeVisualStyle, type VisualStyle } from '@/lib/types/illustration
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 
 const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
+const MAX_SLOT_TEXT_CHARS = 420;
 
 interface ModuleIllustrationProps {
   moduleId: string;
@@ -32,6 +33,25 @@ interface IllustrationMeta {
   updatedAt?: string | null;
 }
 
+function normalizeSlotText(input: unknown): string {
+  const text = String(input ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text) return '';
+
+  // Fix common missing-space artifacts (e.g. "ContextoRole" -> "Contexto Role").
+  return text.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
+}
+
+function truncateText(text: string, maxChars: number): { value: string; truncated: boolean } {
+  if (text.length <= maxChars) return { value: text, truncated: false };
+  return { value: `${text.slice(0, maxChars).trimEnd()}…`, truncated: true };
+}
+
 export function ModuleIllustration({
   moduleId,
   content,
@@ -46,6 +66,7 @@ export function ModuleIllustration({
   const [meta, setMeta] = useState<IllustrationMeta | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [shouldAutoGenerate, setShouldAutoGenerate] = useState(false);
   const [autoAttempts, setAutoAttempts] = useState(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +86,28 @@ export function ModuleIllustration({
       .join('\n\n');
     return sections || content;
   }, [slot, content]);
+
+  const slotDisplay = useMemo(() => {
+    if (!slot) return null;
+
+    const heading = normalizeSlotText(slot.heading);
+    const summaryRaw = normalizeSlotText(slot.summary);
+    const reasonRaw = normalizeSlotText(slot.reason);
+
+    const summary = detailsExpanded ? summaryRaw : truncateText(summaryRaw, MAX_SLOT_TEXT_CHARS).value;
+    const summaryTruncated = !detailsExpanded && summaryRaw.length > MAX_SLOT_TEXT_CHARS;
+
+    const reason = detailsExpanded ? reasonRaw : truncateText(reasonRaw, MAX_SLOT_TEXT_CHARS).value;
+    const reasonTruncated = !detailsExpanded && reasonRaw.length > MAX_SLOT_TEXT_CHARS;
+
+    return {
+      heading,
+      summary,
+      summaryTruncated,
+      reason,
+      reasonTruncated,
+    };
+  }, [slot, detailsExpanded]);
 
   const slotPromptOverrides = useMemo(() => {
     const payload = slot?.llmPayload as Record<string, unknown> | null | undefined;
@@ -121,6 +164,7 @@ export function ModuleIllustration({
     setImageSource(null);
     setMeta(null);
     setError(null);
+    setDetailsExpanded(false);
     setShouldAutoGenerate(false);
     setAutoAttempts(0);
     if (retryTimeoutRef.current) {
@@ -357,13 +401,26 @@ export function ModuleIllustration({
             <span>{t.slotInsight}</span>
             {slotContext && <Badge variant="outline" className="!text-white/80">{slotContext}</Badge>}
           </div>
-          {slot.heading && <p className="mt-3 text-sm font-semibold text-white">{slot.heading}</p>}
-          {slot.summary && <p className="mt-2 text-sm text-white/80">{slot.summary}</p>}
-          {slot.reason && (
-            <p className="mt-3 text-xs text-white/60">
-              <span className="font-semibold uppercase tracking-widest text-white/70">{t.slotReason}: </span>
-              {slot.reason}
+          {slotDisplay?.heading && <p className="mt-3 text-sm font-semibold text-white break-words">{slotDisplay.heading}</p>}
+          {slotDisplay?.summary && (
+            <p className="mt-2 text-sm text-white/80 break-words">
+              {slotDisplay.summary}
             </p>
+          )}
+          {slotDisplay?.reason && (
+            <p className="mt-3 text-xs text-white/60 break-words">
+              <span className="font-semibold uppercase tracking-widest text-white/70">{t.slotReason}: </span>
+              {slotDisplay.reason}
+            </p>
+          )}
+          {(slotDisplay?.summaryTruncated || slotDisplay?.reasonTruncated) && (
+            <button
+              type="button"
+              onClick={() => setDetailsExpanded((prev) => !prev)}
+              className="mt-3 text-[11px] uppercase tracking-[0.35em] text-blue-200/80 hover:text-blue-100 transition-colors"
+            >
+              {detailsExpanded ? (locale === 'en' ? 'Show less' : 'Ver menos') : (locale === 'en' ? 'Show more' : 'Ver más')}
+            </button>
           )}
         </div>
       )}
