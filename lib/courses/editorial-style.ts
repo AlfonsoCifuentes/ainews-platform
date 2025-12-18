@@ -30,6 +30,29 @@ function isPlainParagraph(block: string): boolean {
   return true;
 }
 
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function isMetaLine(text: string): boolean {
+  return text.includes('|') && /\b(Tiempo|Nivel|Tags|Level|Duration)\b/i.test(text);
+}
+
+function isStructuralLine(text: string): boolean {
+  if (!text) return false;
+  if (text.startsWith('#')) return true;
+  if (text.startsWith('>')) return true;
+  if (text.startsWith('|')) return true;
+  if (text.startsWith('```')) return true;
+  if (text.startsWith(':::')) return true;
+  if (text.startsWith('- ') || text.startsWith('* ') || /^\d+\.\s/.test(text)) return true;
+  if (/^---+$/.test(text)) return true;
+  if (/^!\[\s*DISE/i.test(text)) return true;
+  if (text.startsWith('**') && text.endsWith('**')) return true;
+  if (isMetaLine(text)) return true;
+  return false;
+}
+
 /**
  * Lightweight audit for the editorial/magazine markdown rules.
  * Returns a list of issues (empty means "looks compliant enough").
@@ -128,6 +151,61 @@ export function auditEditorialMarkdown(markdown: string): EditorialStyleIssue[] 
 
 function normalizeNewlines(input: string): string {
   return input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function normalizeSeparatorLines(markdown: string): string {
+  return markdown.replace(/^\s*--\s*$/gm, '---');
+}
+
+function removeEmptyListMarkers(markdown: string): string {
+  return markdown.replace(/^\s*[-*]\s*$/gm, '');
+}
+
+function fixSidebarTableArtifacts(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('|') && /(TECH\s+INSIGHT|INSIGHT|CONSEJO|TIP)/i.test(trimmed)) {
+      const cells = trimmed.split('|').map((c) => c.trim()).filter(Boolean);
+      const rawTitle = cells[0] || trimmed.replace(/^\|\s*|\s*\|$/g, '');
+      const title = collapseWhitespace(rawTitle);
+
+      let body = '';
+      let j = i + 1;
+      for (; j < lines.length; j++) {
+        const candidate = lines[j].trim();
+        if (!candidate) continue;
+        if (/^[-*]$/.test(candidate)) continue;
+        if (/^\|\s*:?-{2,}:?\s*\|?$/.test(candidate)) continue;
+        if (candidate.startsWith('|')) {
+          const rowCells = candidate.split('|').map((c) => c.trim()).filter(Boolean);
+          if (rowCells.length) {
+            body = rowCells[rowCells.length - 1];
+            break;
+          }
+        } else if (!isStructuralLine(candidate)) {
+          body = candidate;
+          break;
+        } else {
+          break;
+        }
+      }
+
+      if (title && body) {
+        out.push(`| ${title} |`, '| :--- |', `| ${collapseWhitespace(body)} |`);
+        i = j;
+        continue;
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n');
 }
 
 function stripPromptArtifacts(markdown: string): string {
@@ -305,6 +383,114 @@ function normalizeEditorialListSyntax(lines: string[]): string[] {
   });
 }
 
+function shouldMergeParagraphs(current: string, next: string): boolean {
+  if (!current || !next) return false;
+  const trimmed = current.trim();
+  if (trimmed.startsWith('**') && trimmed.endsWith('**')) return false;
+  if (isMetaLine(trimmed)) return false;
+  const wordCount = trimmed.split(/\s+/).length;
+  const endsSentence = /[.!?:;"'\)\]]$/.test(trimmed);
+  if (wordCount <= 4) return true;
+  if (!endsSentence && trimmed.length <= 80) return true;
+  return false;
+}
+
+function unwrapSoftLineBreaks(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const tokens: Array<{ type: 'paragraph' | 'structural' | 'blank'; value: string }> = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      const blockLines = [line];
+      i++;
+      while (i < lines.length) {
+        blockLines.push(lines[i]);
+        if (lines[i].trim().startsWith('```')) {
+          break;
+        }
+        i++;
+      }
+      tokens.push({ type: 'structural', value: blockLines.join('\n') });
+      continue;
+    }
+
+    if (trimmed.startsWith(':::')) {
+      const blockLines = [line];
+      i++;
+      while (i < lines.length) {
+        blockLines.push(lines[i]);
+        if (lines[i].trim().startsWith(':::')) {
+          break;
+        }
+        i++;
+      }
+      tokens.push({ type: 'structural', value: blockLines.join('\n') });
+      continue;
+    }
+
+    if (!trimmed) {
+      tokens.push({ type: 'blank', value: '' });
+      continue;
+    }
+
+    if (trimmed.startsWith('>')) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        quoteLines.push(lines[i].replace(/^>\s?/, '').trim());
+        i++;
+      }
+      i--;
+      const quoteText = collapseWhitespace(quoteLines.join(' '));
+      tokens.push({ type: 'structural', value: `> ${quoteText}` });
+      continue;
+    }
+
+    if (isStructuralLine(trimmed)) {
+      tokens.push({ type: 'structural', value: line });
+      continue;
+    }
+
+    const paragraphLines = [trimmed];
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1].trim();
+      if (!next) break;
+      if (next.startsWith('```') || next.startsWith(':::') || next.startsWith('>') || isStructuralLine(next)) break;
+      paragraphLines.push(next);
+      i++;
+    }
+    tokens.push({ type: 'paragraph', value: collapseWhitespace(paragraphLines.join(' ')) });
+  }
+
+  const output: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.type === 'paragraph') {
+      let merged = token.value;
+      while (
+        i + 2 < tokens.length &&
+        tokens[i + 1].type === 'blank' &&
+        tokens[i + 2].type === 'paragraph' &&
+        shouldMergeParagraphs(merged, tokens[i + 2].value)
+      ) {
+        merged = collapseWhitespace(`${merged} ${tokens[i + 2].value}`);
+        i += 2;
+      }
+      output.push(merged);
+    } else if (token.type === 'blank') {
+      if (output.length > 0 && output[output.length - 1] !== '') {
+        output.push('');
+      }
+    } else {
+      output.push(token.value);
+    }
+  }
+
+  return output.join('\n');
+}
+
 /**
  * Deterministic, non-LLM normalization to make legacy/new markdown more compatible
  * with the THOTNET editorial spec in both normal and book views.
@@ -315,7 +501,11 @@ function normalizeEditorialListSyntax(lines: string[]): string[] {
 export function normalizeEditorialMarkdown(markdown: string, options: NormalizeEditorialOptions = {}): string {
   const input = normalizeNewlines(String(markdown ?? '')).replace(/^\uFEFF/, '');
   const cleaned = stripPromptArtifacts(input);
-  const lines = cleaned.split('\n');
+  const separatorsFixed = normalizeSeparatorLines(cleaned);
+  const listsCleaned = removeEmptyListMarkers(separatorsFixed);
+  const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
+  const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
+  const lines = unwrapped.split('\n');
 
   const hooked = ensureHookStructure([...lines], options);
   const listed = normalizeEditorialListSyntax(hooked);
