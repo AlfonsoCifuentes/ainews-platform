@@ -130,6 +130,61 @@ function normalizeNewlines(input: string): string {
   return input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
+function stripPromptArtifacts(markdown: string): string {
+  const normalized = normalizeNewlines(markdown ?? '');
+  const triggerRegex =
+    /(required structure|estructura requerida|quality requirements|requisitos de calidad|final non-negotiable|requisitos no negociables|only valid|solo json|respond only|responde solo|generate exactly|genera exactamente)/i;
+
+  if (!triggerRegex.test(normalized)) {
+    return normalized;
+  }
+
+  const instructionHeadingRegex =
+    /^(#{1,6}\s*)?(required structure|estructura requerida|quality requirements|requisitos de calidad|guidelines|directrices|style|estilo|critical|cr\u00edtico|non-negotiable|no negociables|final non-negotiable|final requirements|quality checklist|checklist|remember|recuerda)\b/i;
+  const instructionLineRegex =
+    /(only valid|solo json|respond only|responde solo|no markdown|sin markdown|no commentary|sin comentarios|do not include|no incluyas|generate exactly|genera exactamente|word count|m\u00ednimo|minimo|tokens?|schema|json|markdown|placeholders?)/i;
+  const placeholderLineRegex = /^\s*\[[^\]]+\]\s*$/;
+  const listLineRegex = /^\s*[-*•]\s+/;
+
+  const lines = normalized.split('\n');
+  const cleaned: string[] = [];
+  let skippingBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (instructionHeadingRegex.test(trimmed)) {
+      skippingBlock = true;
+      continue;
+    }
+
+    if (placeholderLineRegex.test(trimmed)) {
+      continue;
+    }
+
+    if (instructionLineRegex.test(trimmed) && (skippingBlock || listLineRegex.test(trimmed))) {
+      continue;
+    }
+
+    if (skippingBlock) {
+      if (!trimmed) {
+        skippingBlock = false;
+        continue;
+      }
+
+      if (/^#{1,6}\s+/.test(trimmed) && !instructionHeadingRegex.test(trimmed)) {
+        skippingBlock = false;
+      } else {
+        continue;
+      }
+    }
+
+    cleaned.push(line);
+  }
+
+  return cleaned.join('\n');
+}
+
 function getFirstNonEmptyLineIndex(lines: string[]): number {
   return lines.findIndex((l) => l.trim().length > 0);
 }
@@ -259,7 +314,8 @@ function normalizeEditorialListSyntax(lines: string[]): string[] {
  */
 export function normalizeEditorialMarkdown(markdown: string, options: NormalizeEditorialOptions = {}): string {
   const input = normalizeNewlines(String(markdown ?? '')).replace(/^\uFEFF/, '');
-  const lines = input.split('\n');
+  const cleaned = stripPromptArtifacts(input);
+  const lines = cleaned.split('\n');
 
   const hooked = ensureHookStructure([...lines], options);
   const listed = normalizeEditorialListSyntax(hooked);
