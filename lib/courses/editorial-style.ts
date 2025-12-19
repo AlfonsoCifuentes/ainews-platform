@@ -330,6 +330,86 @@ function isBoilerplateTechInsight(text: string): boolean {
   );
 }
 
+function isBoilerplateKeyConcept(title: string, body: string, payload?: string): boolean {
+  const t = canonicalizeBoilerplateText(title).toLowerCase();
+  const b = canonicalizeBoilerplateText(body).toLowerCase();
+  const p = canonicalizeBoilerplateText(payload ?? '').toLowerCase();
+
+  const combined = `${t} ${b} ${p}`;
+
+  const hasClaimVsEvidence =
+    /(distinci[oó]n clave|key insight|punto clave)/i.test(t) &&
+    /(afirmaci[oó]n|claim|assertion)\s*(?:≠|!=|not equal)\s*(evidencia|evidence)/i.test(combined);
+
+  if (hasClaimVsEvidence) return true;
+
+  const hasPatternTemplate =
+    /(patr[oó]n|pattern)/i.test(t) &&
+    /(definici[oó]n|definition)\s*(?:→|->)\s*observables?\s*(?:→|->)\s*(contraejemplos|counterexamples)/i.test(
+      combined
+    );
+
+  return hasPatternTemplate;
+}
+
+function stripBoilerplateKeyConceptCallouts(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(rawLine);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const openMatch = trimmed.match(/^:::\s*keyconcept\s*\[(.+?)\]\s*$/i);
+    if (!openMatch) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const title = (openMatch[1] ?? '').trim();
+    const bodyLines: string[] = [];
+    let j = i + 1;
+    while (j < lines.length) {
+      const candidate = lines[j] ?? '';
+      if (candidate.trim() === ':::') break;
+      bodyLines.push(candidate);
+      j += 1;
+    }
+
+    if (j >= lines.length) {
+      // Unclosed block; keep as-is.
+      out.push(rawLine);
+      out.push(...bodyLines);
+      i = j - 1;
+      continue;
+    }
+
+    const body = bodyLines.join('\n').trim();
+    if (isBoilerplateKeyConcept(title, body)) {
+      // Drop the entire block, including the closing fence.
+      i = j;
+      continue;
+    }
+
+    out.push(rawLine, ...bodyLines, lines[j] ?? ':::');
+    i = j;
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 function stripEditorialBoilerplate(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const separatorIndex = lines.findIndex((l) => /^---+$/.test(l.trim()));
@@ -848,6 +928,11 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
 
     const calloutTitle = title || defaultTitle;
     const calloutBody = body || payload;
+
+    // Some legacy content leaks prompt boilerplate as "INSIGHT" lines. Drop it entirely.
+    if (isBoilerplateKeyConcept(calloutTitle, calloutBody, payload)) {
+      continue;
+    }
 
     if (out.length && out[out.length - 1]?.trim()) out.push('');
 
@@ -1517,7 +1602,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const unwrapped = unwrapSoftLineBreaks(blockquotesSplit);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
   const insightsFixed = normalizeInlineInsightMarkers(boilerplateStripped, options.locale);
-  const typosFixed = fixCommonTranslationTypos(insightsFixed, options.locale);
+  const insightsCalloutsStripped = stripBoilerplateKeyConceptCallouts(insightsFixed);
+  const typosFixed = fixCommonTranslationTypos(insightsCalloutsStripped, options.locale);
   const pullQuotesFixed = normalizePullQuoteHeadings(typosFixed);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
   const compoundHeadingsRepaired = repairBrokenCompoundHeadings(danglingQuotesFixed);

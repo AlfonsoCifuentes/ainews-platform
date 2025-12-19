@@ -14,6 +14,87 @@ import {
   TableBlock,
 } from '@/components/courses/TextbookComponents';
 
+function normalizeFigureCaptionText(input: unknown): string {
+  return String(input ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeFigureCaptionForMatch(input: unknown): string {
+  return normalizeFigureCaptionText(input)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isTruncatedHeadingCaption(caption: string): boolean {
+  const t = normalizeFigureCaptionForMatch(caption);
+  if (!t) return true;
+
+  const stopwords = new Set([
+    // Spanish
+    'y',
+    'e',
+    'o',
+    'de',
+    'del',
+    'la',
+    'el',
+    'los',
+    'las',
+    'a',
+    'en',
+    'para',
+    // English
+    'and',
+    'or',
+    'of',
+    'to',
+    'in',
+    'for',
+    'with',
+    'on',
+  ]);
+
+  const words = t.split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] ?? '';
+  return stopwords.has(last) && words.length <= 4;
+}
+
+function isGenericFigureCaption(caption: string): boolean {
+  const t = normalizeFigureCaptionForMatch(caption);
+  if (!t) return true;
+
+  return (
+    t === 'ilustracion de apoyo' ||
+    t === 'supporting illustration' ||
+    t === 'esquema visual del concepto' ||
+    t === 'visual schema of the concept' ||
+    t === 'ilustracion principal del modulo' ||
+    t === 'main module illustration' ||
+    t === 'figure' ||
+    t === 'diagram'
+  );
+}
+
+function pickFigureCaption(slot: ModuleVisualSlot): string | undefined {
+  if (slot.slotType === 'diagram') return undefined;
+
+  const summary = normalizeFigureCaptionText(slot.summary);
+  if (
+    summary &&
+    !isGenericFigureCaption(summary) &&
+    !isTruncatedHeadingCaption(summary) &&
+    summary.length >= 24
+  ) {
+    return summary;
+  }
+
+  return undefined;
+}
+
 function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string): ModuleVisualSlot[] {
   const slots = allSlots.filter((slot) => slot.slotType !== 'header');
 
@@ -47,7 +128,7 @@ function injectFigureBlocks(blocks: ContentBlock[], slots: ModuleVisualSlot[]): 
     const rawIndex = slot.blockIndex ?? 0;
     const clamped = Math.max(0, Math.min(rawIndex, next.length));
     const index = clamped + offset;
-    const caption = slot.heading || slot.summary || (slot.slotType === 'diagram' ? 'Diagram' : 'Figure');
+    const caption = pickFigureCaption(slot);
 
     next.splice(index, 0, {
       type: 'figure',
@@ -149,7 +230,7 @@ function InlineFigure({
 
   const wrapperClassName = isDiagram
     ? 'my-10 w-full clear-both break-inside-avoid'
-    : 'md:float-right md:w-[320px] md:ml-6 md:mb-4 my-4 break-inside-avoid';
+    : 'my-8 w-full clear-both break-inside-avoid';
 
   return (
     <figure className={wrapperClassName}>

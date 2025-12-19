@@ -4,6 +4,7 @@ import { replaceModuleVisualSlots, fetchModuleVisualSlots } from '@/lib/db/modul
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { VISUAL_DENSITIES, VISUAL_STYLES } from '@/lib/types/illustrations';
 import type { ModuleVisualSlotType } from '@/lib/types/visual-slots';
+import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
 const QuerySchema = z.object({
   moduleId: z.string().uuid(),
@@ -57,8 +58,40 @@ function isNoisyHeading(raw: string | null | undefined): boolean {
   const cleaned = cleanHeadingText(raw ?? '');
   if (!cleaned) return false;
 
-  if (/^["“”]/.test(cleaned)) {
-    const quoteCount = (cleaned.match(/["“”]/g) || []).length;
+  const stopwords = new Set([
+    // Spanish
+    'y',
+    'e',
+    'o',
+    'de',
+    'del',
+    'la',
+    'el',
+    'los',
+    'las',
+    'a',
+    'en',
+    'para',
+    // English
+    'and',
+    'or',
+    'of',
+    'to',
+    'in',
+    'for',
+    'with',
+    'on',
+  ]);
+
+  const words = cleaned.toLowerCase().split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] ?? '';
+  if (stopwords.has(last) && words.length <= 4) {
+    // Headings like "Introducción y" are a common generation artifact; skip them.
+    return true;
+  }
+
+  if (/^["""]/.test(cleaned)) {
+    const quoteCount = (cleaned.match(/["""]/g) || []).length;
     // Incomplete quote headings like `"En` are a common artifact; skip them.
     if (quoteCount < 2) return true;
   }
@@ -244,7 +277,11 @@ function buildHeuristicSlots(args: {
   moduleTitle: string;
   moduleContent: string;
 }) {
-  const blocks = parseContentIntoBlocks(args.moduleContent);
+  const normalizedContent = normalizeEditorialMarkdown(args.moduleContent, {
+    title: args.moduleTitle,
+    locale: args.locale,
+  });
+  const blocks = parseContentIntoBlocks(normalizedContent);
   const total = blocks.length || 1;
 
   const inlineA = Math.max(2, Math.floor(total * 0.18));
@@ -253,21 +290,21 @@ function buildHeuristicSlots(args: {
 
   const languageLabel = args.locale === 'es' ? 'Spanish' : 'English';
   const noTextNegative = args.locale === 'es'
-    ? 'texto, letras, palabras, tipografía, marca de agua, logo, caption'
-    : 'text, letters, words, typography, watermark, logo, caption';
+    ? 'texto, letras, palabras, números, dígitos, años, tipografía, marca de agua, logo, caption'
+    : 'text, letters, words, numbers, digits, years, typography, watermark, logo, caption';
 
   const headerPrompt = args.locale === 'es'
-    ? `Portada ilustrada estilo libro para el módulo "${args.moduleTitle}". Ilustración educativa, limpia, moderna, sin texto, sin letras, sin logotipos. Fondo oscuro elegante, tema IA/tecnología.`
-    : `Book-style cover illustration for the module "${args.moduleTitle}". Educational, clean, modern, no text, no letters, no logos. Elegant dark background, AI/technology theme.`;
+    ? `Portada ilustrada estilo libro para el módulo "${args.moduleTitle}". Ilustración educativa, limpia, moderna, sin texto, sin letras, sin números, sin logotipos. Fondo oscuro elegante, tema IA/tecnología.`
+    : `Book-style cover illustration for the module "${args.moduleTitle}". Educational, clean, modern, no text, no letters, no numbers, no logos. Elegant dark background, AI/technology theme.`;
 
   const diagramHeading = pickSectionHeading(blocks, diagram) ?? args.moduleTitle;
   const diagramPrompt = args.locale === 'es'
-    ? `Crea un diagrama didáctico claro (con cajas y flechas) sobre "${diagramHeading}". Incluye etiquetas cortas en Español. Estilo limpio, alto contraste, legible.`
-    : `Create a clear didactic diagram (boxes and arrows) explaining "${diagramHeading}". Include short labels in English. Clean style, high contrast, readable.`;
+    ? `Crea un diagrama didáctico MUY legible (cajas + flechas) sobre "${diagramHeading}". Etiquetas MUY cortas en Español (1–3 palabras), tipografía GRANDE, pocas cajas (máx 7), alto contraste, sin texto largo.`
+    : `Create a VERY readable didactic diagram (boxes + arrows) explaining "${diagramHeading}". VERY short labels in English (1–3 words), LARGE typography, few boxes (max 7), high contrast, no long text.`;
 
   const inlinePrompt = (heading: string | null) => (args.locale === 'es'
-    ? `Ilustración educativa para explicar "${heading ?? args.moduleTitle}". Sin texto, sin letras, sin marcas. Estilo conceptual, claro, minimalista, enfoque didáctico.`
-    : `Educational illustration to explain "${heading ?? args.moduleTitle}". No text, no letters, no branding. Conceptual, clear, minimalist, didactic.`);
+    ? `Ilustración educativa para explicar "${heading ?? args.moduleTitle}". Sin texto, sin letras, sin números, sin marcas. Estilo conceptual, claro, minimalista, enfoque didáctico.`
+    : `Educational illustration to explain "${heading ?? args.moduleTitle}". No text, no letters, no numbers, no branding. Conceptual, clear, minimalist, didactic.`);
 
   return [
     {
@@ -384,6 +421,11 @@ export async function GET(request: NextRequest) {
     if (shouldEnsure) {
       try {
         const db = getSupabaseServerClient();
+        const allExisting = await fetchModuleVisualSlots({
+          moduleId: params.moduleId,
+          locale: params.locale,
+        });
+
         const { data: moduleRow } = await db
           .from('course_modules')
           .select('id, title_en, title_es, content_en, content_es')
@@ -401,10 +443,71 @@ export async function GET(request: NextRequest) {
             moduleContent,
           });
 
-          const stored = await replaceModuleVisualSlots(params.moduleId, params.locale, planned);
-          slots = stored
-            .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
-            .slice(0, params.limit ?? stored.length);
+          // If there are no stored slots at all, seed them.
+          if (allExisting.length === 0) {
+            const stored = await replaceModuleVisualSlots(params.moduleId, params.locale, planned);
+            slots = stored
+              .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
+              .slice(0, params.limit ?? stored.length);
+          } else if (allExisting.some(isSlotCorrupted)) {
+            // Avoid deleting/replacing slots when only minor repairs are needed.
+            // Replacing slots would orphan previously generated illustrations (slot_id set null).
+            const plannedByType = new Map<string, typeof planned>();
+            plannedByType.set('header', planned.filter((s) => s.slotType === 'header'));
+            plannedByType.set('diagram', planned.filter((s) => s.slotType === 'diagram'));
+            plannedByType.set('inline', planned.filter((s) => s.slotType === 'inline'));
+
+            const updatedLocal = [...allExisting];
+
+            for (let i = 0; i < updatedLocal.length; i += 1) {
+              const slot = updatedLocal[i];
+              if (!isSlotCorrupted(slot)) continue;
+
+              const candidates = plannedByType.get(slot.slotType) ?? [];
+              if (!candidates.length) continue;
+
+              const targetIndex =
+                candidates.length === 1
+                  ? 0
+                  : candidates.reduce((best, candidate, idx) => {
+                      const a = typeof slot.blockIndex === 'number' ? slot.blockIndex : Number.POSITIVE_INFINITY;
+                      const b = typeof candidate.blockIndex === 'number' ? candidate.blockIndex : Number.POSITIVE_INFINITY;
+                      const bestCandidate = candidates[best];
+                      const bestB = typeof bestCandidate?.blockIndex === 'number' ? bestCandidate.blockIndex : Number.POSITIVE_INFINITY;
+                      return Math.abs(a - b) < Math.abs(a - bestB) ? idx : best;
+                    }, 0);
+
+              const target = candidates[targetIndex];
+              const nextHeading = typeof target?.heading === 'string' ? target.heading.trim() : '';
+              if (!nextHeading || isNoisyHeading(nextHeading)) continue;
+
+              if ((slot.heading ?? '').trim() === nextHeading) {
+                // Still consume the candidate so inline slots map 1:1.
+                candidates.splice(targetIndex, 1);
+                plannedByType.set(slot.slotType, candidates);
+                continue;
+              }
+
+              const { error: updateError } = await db
+                .from('module_visual_slots')
+                .update({ heading: nextHeading })
+                .eq('id', slot.id);
+
+              if (updateError) {
+                console.warn('[API/visual-slots] slot repair failed', updateError.message);
+                continue;
+              }
+
+              updatedLocal[i] = { ...slot, heading: nextHeading };
+
+              candidates.splice(targetIndex, 1);
+              plannedByType.set(slot.slotType, candidates);
+            }
+
+            slots = updatedLocal
+              .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
+              .slice(0, params.limit ?? updatedLocal.length);
+          }
         }
       } catch (ensureError) {
         console.warn('[API/visual-slots] ensure failed, returning empty', ensureError);
