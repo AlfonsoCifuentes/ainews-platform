@@ -370,6 +370,63 @@ function stripEditorialBoilerplate(markdown: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | undefined): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const defaultTitle = locale === 'es' ? 'Punto clave' : 'Key insight';
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(rawLine);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const match = trimmed.match(/^(?:[💡🧠✨⚡️]\s*)?insight\s*(?:>>|>\s*>|:|-)\s*(.+)$/i);
+    if (!match) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const payload = match[1]?.trim() ?? '';
+    if (!payload) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const [head, ...tail] = payload.split(':');
+    const title = (head ?? '').trim();
+    const body = tail.join(':').trim();
+
+    const calloutTitle = title || defaultTitle;
+    const calloutBody = body || payload;
+
+    if (out.length && out[out.length - 1]?.trim()) out.push('');
+    out.push(`:::key-concept[${calloutTitle}]`);
+    out.push(calloutBody);
+    out.push(':::');
+    out.push('');
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function fixCommonTranslationTypos(markdown: string, locale: 'en' | 'es' | undefined): string {
+  if (locale !== 'es') return markdown;
+
+  // Keep this deterministic and conservative: only fix known, high-confidence mistakes.
+  return markdown.replace(/\bchallengente\b/gi, 'desafiante');
+}
+
 function getFirstNonEmptyLineIndex(lines: string[]): number {
   return lines.findIndex((l) => l.trim().length > 0);
 }
@@ -985,7 +1042,9 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
   const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
-  const pullQuotesFixed = normalizePullQuoteHeadings(boilerplateStripped);
+  const insightsFixed = normalizeInlineInsightMarkers(boilerplateStripped, options.locale);
+  const typosFixed = fixCommonTranslationTypos(insightsFixed, options.locale);
+  const pullQuotesFixed = normalizePullQuoteHeadings(typosFixed);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
   const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
   const inlineListsFixed = normalizeInlineLists(headingsSplit);

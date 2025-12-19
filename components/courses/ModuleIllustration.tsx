@@ -385,10 +385,23 @@ export function ModuleIllustration({
     }
   }, [meta?.updatedAt, t.updated]);
 
+  const isDiagram = style === 'diagram' || slot?.slotType === 'diagram';
+
   if (variant === 'figure') {
     return (
-      <div className={cn('rounded-2xl border border-white/10 bg-white/5 p-3', className)}>
-        <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40">
+      <div
+        className={cn(
+          'rounded-2xl border border-white/10 bg-white/5',
+          isDiagram ? 'p-2 md:p-3' : 'p-3',
+          className
+        )}
+      >
+        <div
+          className={cn(
+            'relative overflow-hidden rounded-xl border border-white/10 bg-black/40',
+            isDiagram ? 'aspect-[4/3]' : 'aspect-video'
+          )}
+        >
           <AnimatePresence mode="wait">
             {loadingState !== 'idle' && (
               <motion.div
@@ -441,11 +454,13 @@ export function ModuleIllustration({
                   src={imageSource}
                   alt={slot?.heading || 'AI-generated educational illustration'}
                   fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 600px"
+                  className={isDiagram ? 'object-contain' : 'object-cover'}
+                  sizes={isDiagram ? '(max-width: 768px) 100vw, 900px' : '(max-width: 768px) 100vw, 600px'}
                   unoptimized={imageSource.startsWith('data:')}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                {!isDiagram && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                )}
               </motion.div>
             )}
           </AnimatePresence>
