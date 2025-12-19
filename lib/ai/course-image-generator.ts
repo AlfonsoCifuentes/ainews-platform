@@ -10,6 +10,7 @@
  */
 import { randomUUID } from 'crypto';
 import { planCourseIllustrations } from './image-plan';
+import type { CourseIllustrationPlan } from './image-plan';
 import { persistModuleIllustration, fetchLatestModuleIllustration } from '@/lib/db/module-illustrations';
 import { copyCourseCoverLocale, persistCourseCoverShared, courseCoverExists } from '@/lib/db/course-covers';
 import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
@@ -38,6 +39,14 @@ export interface GenerationResult {
   modulesProcessed: number;
   modulesGenerated: number;
   errors: string[];
+}
+
+export interface GenerateCourseImagesOptions {
+  /**
+   * When `false`, skips the LLM-based image planning step and uses a deterministic
+   * heuristic plan (faster and more reliable in serverless environments).
+   */
+  useLLMPlan?: boolean;
 }
 
 // ============================================================================
@@ -145,7 +154,8 @@ async function moduleIllustrationExists(
  * It's designed to be non-blocking - errors are logged but don't stop the process.
  */
 export async function generateCourseImages(
-  input: CourseImageGeneratorInput
+  input: CourseImageGeneratorInput,
+  options: GenerateCourseImagesOptions = {}
 ): Promise<GenerationResult> {
   const result: GenerationResult = {
     coverGenerated: false,
@@ -165,19 +175,48 @@ export async function generateCourseImages(
   }
 
   try {
-    // Step 1: Use LLM to plan illustrations
-    console.log('[CourseImageGenerator] Planning illustrations with LLM...');
-    const plan = await planCourseIllustrations({
-      courseId: input.courseId,
-      title: input.title,
-      description: input.description,
-      locale: input.locale,
-      modules: input.modules.map((m) => ({
-        id: m.id,
-        title: m.title,
-        content: m.content.slice(0, 6000), // Limit content for LLM
-      })),
-    });
+    const useLLMPlan = options.useLLMPlan !== false;
+
+    const plan: CourseIllustrationPlan = await (useLLMPlan
+      ? (() => {
+          console.log('[CourseImageGenerator] Planning illustrations with LLM...');
+          return planCourseIllustrations({
+            courseId: input.courseId,
+            title: input.title,
+            description: input.description,
+            locale: input.locale,
+            modules: input.modules.map((m) => ({
+              id: m.id,
+              title: m.title,
+              content: m.content.slice(0, 6000), // Limit content for LLM
+            })),
+          });
+        })()
+      : (() => {
+          console.log('[CourseImageGenerator] Using heuristic illustration plan (no LLM)...');
+          const coverSubject = input.description ? `${input.title} — ${input.description}` : input.title;
+          return Promise.resolve({
+            courseCover: {
+              prompt: enforceNoTextCoverPrompt(
+                `${coverSubject}, minimalist dark editorial course cover, cinematic lighting, abstract symbolic composition, high contrast, no text, no letters, no typography, no logos, no watermarks`
+              ),
+              rationale: 'Heuristic cover prompt',
+            },
+            modules: input.modules.map((m) => ({
+              moduleId: m.id,
+              moduleTitle: m.title,
+              images: [
+                {
+                  prompt: `Editorial textbook illustration for "${m.title}", dark mode aesthetic, minimalist, cinematic lighting, high contrast, no text, no letters, no typography, no logos, no watermarks`,
+                  rationale: 'Heuristic module prompt',
+                },
+              ],
+              diagrams: [],
+            })),
+            provider: 'heuristic',
+            model: undefined,
+          } satisfies CourseIllustrationPlan);
+        })());
 
     console.log(`[CourseImageGenerator] Plan ready: cover + ${plan.modules.length} module plans`);
 

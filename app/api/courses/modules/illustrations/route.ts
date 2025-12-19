@@ -44,6 +44,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // If no result and style is 'conceptual', try 'textbook' as a compatibility fallback
+    // (older generators only produced textbook illustrations).
+    if (!record && style === 'conceptual') {
+      record = await fetchLatestModuleIllustration({
+        moduleId,
+        locale,
+        style: 'textbook',
+        visualStyle,
+        slotId: slotId ?? null,
+      });
+    }
+
     if (!record) {
       return NextResponse.json({ success: true, illustration: null }, { status: 200 });
     }

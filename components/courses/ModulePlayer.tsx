@@ -11,16 +11,11 @@ import {
   Code,
   ExternalLink
 } from 'lucide-react';
-import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
+import { ModuleEditorialContent } from '@/components/courses/ModuleEditorialContent';
 import { useToast } from '@/components/shared/ToastProvider';
 import { useUser } from '@/lib/hooks/useUser';
 import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
-import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import { useRouter } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { NormalizedModule } from '@/lib/courses/normalize';
 import { loggers } from '@/lib/utils/logger';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
@@ -207,10 +202,6 @@ export function ModulePlayer({
     });
   }, [displayContent, title, description, locale]);
   const { slots: visualSlots } = useModuleVisualSlots(module.id, locale);
-  const supportingSlots = useMemo(
-    () => visualSlots.filter((slot) => slot.slotType !== 'header'),
-    [visualSlots]
-  );
 
   // Log component mount with detailed diagnostics
   useEffect(() => {
@@ -696,147 +687,14 @@ export function ModulePlayer({
           ) : normalizedContent && normalizedContent.trim() ? (
             <>
               <div className="mx-auto max-w-[72ch]">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ ...props }) => (
-                      <h1
-                        className="font-sans text-2xl md:text-3xl font-black mb-6 mt-10 first:mt-0 tracking-tight"
-                        style={{ color: BRUTALIST.text }}
-                        {...props}
-                      />
-                    ),
-                    h2: ({ ...props }) => (
-                      <h2
-                        className="font-sans text-xl md:text-2xl font-bold mb-4 mt-10 border-l-4 pl-4"
-                        style={{ color: BRUTALIST.text, borderColor: BRUTALIST.text }}
-                        {...props}
-                      />
-                    ),
-                    h3: ({ ...props }) => (
-                      <h3
-                        className="font-sans text-lg md:text-xl font-semibold mb-3 mt-8"
-                        style={{ color: BRUTALIST.text }}
-                        {...props}
-                      />
-                    ),
-                    p: ({ ...props }) => (
-                      <p
-                        className="font-sans text-base md:text-lg leading-relaxed mb-5"
-                        style={{ color: BRUTALIST.text }}
-                        {...props}
-                      />
-                    ),
-                    ul: ({ ...props }) => (
-                      <ul className="space-y-2 my-5 pl-6 list-disc" {...props} />
-                    ),
-                    ol: ({ ...props }) => (
-                      <ol className="space-y-2 my-5 pl-6 list-decimal" {...props} />
-                    ),
-                    li: ({ ...props }) => (
-                      <li
-                        className="font-sans text-base md:text-lg leading-relaxed"
-                        style={{ color: BRUTALIST.text }}
-                        {...props}
-                      />
-                    ),
-                    blockquote: ({ ...props }) => (
-                      <blockquote
-                        className="border-l-4 p-5 my-6 rounded-xl"
-                        style={{
-                          borderColor: BRUTALIST.text,
-                          backgroundColor: BRUTALIST.bg,
-                          color: BRUTALIST.text,
-                        }}
-                        {...props}
-                      />
-                    ),
-                    a: ({ ...props }) => (
-                      <a
-                        className="font-sans underline underline-offset-4 transition-colors hover:opacity-80"
-                        style={{ color: BRUTALIST.text }}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        {...props}
-                      />
-                    ),
-                    table: ({ ...props }) => (
-                      <div className="my-7 overflow-x-auto border rounded-xl" style={{ borderColor: BRUTALIST.border }}>
-                        <table
-                          className="w-full border-collapse text-sm md:text-base"
-                          style={{ color: BRUTALIST.text }}
-                          {...props}
-                        />
-                      </div>
-                    ),
-                    thead: ({ ...props }) => <thead style={{ backgroundColor: BRUTALIST.bg }} {...props} />,
-                    th: ({ ...props }) => (
-                      <th
-                        className="p-3 text-left text-xs font-mono font-semibold uppercase tracking-[0.2em] align-top"
-                        style={{ color: BRUTALIST.text, borderBottom: `1px solid ${BRUTALIST.border}` }}
-                        {...props}
-                      />
-                    ),
-                    td: ({ ...props }) => (
-                      <td
-                        className="p-3 align-top font-sans"
-                        style={{ borderBottom: `1px solid ${BRUTALIST.border}` }}
-                        {...props}
-                      />
-                    ),
-                    // Code blocks and inline code
-                    code(props) {
-                      const { inline, className, children, ...rest } = props as {
-                        inline?: boolean;
-                        className?: string;
-                        children?: React.ReactNode;
-                      };
-                      const match = /language-(\w+)/.exec(className || '');
-                      return !inline && match ? (
-                        <div className="my-7 overflow-hidden border" style={{ borderColor: BRUTALIST.border }}>
-                          <SyntaxHighlighter style={vscDarkPlus} language={match[1]} PreTag="div" {...rest}>
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        </div>
-                      ) : (
-                        <code
-                          className="px-2 py-1 font-mono text-[0.95em]"
-                          style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text }}
-                          {...rest}
-                        >
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                >
-                  {normalizedContent}
-                </ReactMarkdown>
+                <ModuleEditorialContent
+                  moduleId={module.id}
+                  locale={locale}
+                  normalizedContent={normalizedContent}
+                  moduleTitle={title}
+                  visualSlots={visualSlots}
+                />
               </div>
-              {supportingSlots.length > 0 && (
-                <div className="mt-10 space-y-4 border p-6" style={{ backgroundColor: BRUTALIST.bg, borderColor: BRUTALIST.border }}>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.3em]" style={{ color: BRUTALIST.textMuted }}>
-                      {t.visualHighlights}
-                    </p>
-                    <p className="font-mono text-sm" style={{ color: BRUTALIST.textMuted }}>{t.visualGalleryNote}</p>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {supportingSlots.slice(0, 6).map((slot, index) => (
-                      <ModuleIllustration
-                        key={slot.id}
-                        moduleId={module.id}
-                        content={normalizedContent || ''}
-                        locale={locale}
-                        style={getIllustrationStyleForSlot(slot)}
-                        visualStyle={slot.suggestedVisualStyle}
-                        slot={slot}
-                        autoGenerate={index < 2}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <div className="text-center py-12" style={{ color: BRUTALIST.textMuted }}>

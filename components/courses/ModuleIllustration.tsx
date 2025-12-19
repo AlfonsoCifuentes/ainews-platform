@@ -24,6 +24,7 @@ interface ModuleIllustrationProps {
   slot?: ModuleVisualSlot | null;
   autoGenerate?: boolean;
   className?: string;
+  variant?: 'card' | 'figure';
 }
 
 type LoadingState = 'idle' | 'fetching' | 'generating';
@@ -62,6 +63,7 @@ export function ModuleIllustration({
   slot,
   autoGenerate = true,
   className = '',
+  variant = 'card',
 }: ModuleIllustrationProps) {
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [meta, setMeta] = useState<IllustrationMeta | null>(null);
@@ -382,6 +384,75 @@ export function ModuleIllustration({
       return `${t.updated} ${meta.updatedAt}`;
     }
   }, [meta?.updatedAt, t.updated]);
+
+  if (variant === 'figure') {
+    return (
+      <div className={cn('rounded-2xl border border-white/10 bg-white/5 p-3', className)}>
+        <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40">
+          <AnimatePresence mode="wait">
+            {loadingState !== 'idle' && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-white"
+              >
+                <Loader2 className="h-7 w-7 animate-spin" />
+                <p className="text-xs text-blue-100/80">{statusLabel}</p>
+              </motion.div>
+            )}
+
+            {error && loadingState === 'idle' && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-center text-white px-4"
+              >
+                <AlertCircle className="h-8 w-8 text-red-300" />
+                <p className="text-xs text-red-100/90">{t.error}</p>
+              </motion.div>
+            )}
+
+            {!imageSource && !error && loadingState === 'idle' && (
+              <motion.div
+                key="placeholder"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-blue-100/70"
+              >
+                <ImageIcon className="h-8 w-8" />
+                <p className="text-xs text-center px-6">{t.missing}</p>
+              </motion.div>
+            )}
+
+            {imageSource && !error && (
+              <motion.div
+                key="image"
+                initial={{ opacity: 0, scale: 1.02 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0"
+              >
+                <Image
+                  src={imageSource}
+                  alt={slot?.heading || 'AI-generated educational illustration'}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 600px"
+                  unoptimized={imageSource.startsWith('data:')}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('rounded-3xl border border-white/10 bg-gradient-to-br from-blue-950/30 to-slate-950/50 p-6', className)}>

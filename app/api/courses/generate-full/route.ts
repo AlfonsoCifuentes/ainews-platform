@@ -17,7 +17,7 @@ import {
   assembleChapterMarkdown
 } from '@/lib/ai/course-generator-textbook';
 import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
-import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
+import { generateCourseImages } from '@/lib/ai/course-image-generator';
 
 export const maxDuration = 300; // Extended for textbook quality
 export const dynamic = 'force-dynamic';
@@ -983,16 +983,27 @@ export async function POST(req: NextRequest) {
       throw new Error(dbResult.error || 'Database save failed');
     }
 
-    // 5. Generate course images in background (fire-and-forget)
+    // 5. Generate course images eagerly so the reading experience is ready immediately.
     if (dbResult.moduleIds?.length) {
       console.log('[API] 🎨 Triggering background image generation...');
-      generateCourseImagesAsync({
-        courseId,
-        title: courseData.title,
-        description: courseData.description,
-        locale: params.locale,
-        modules: dbResult.moduleIds,
-      });
+      try {
+        const imageResult = await generateCourseImages(
+          {
+            courseId,
+            title: courseData.title,
+            description: courseData.description,
+            locale: params.locale,
+            modules: dbResult.moduleIds,
+          },
+          { useLLMPlan: false }
+        );
+
+        if (imageResult.errors.length > 0) {
+          console.warn('[API] Image generation completed with warnings:', imageResult.errors);
+        }
+      } catch (err) {
+        console.warn('[API] Image generation failed (continuing):', err);
+      }
     }
 
     // 6. Return response

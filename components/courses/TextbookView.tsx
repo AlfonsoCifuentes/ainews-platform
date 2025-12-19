@@ -89,6 +89,26 @@ function injectVisualFigures(blocks: ContentBlock[], slots: ModuleVisualSlot[]):
   return next;
 }
 
+function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string): ModuleVisualSlot[] {
+  const slots = allSlots.filter((slot) => slot.slotType !== 'header');
+  const inlineSlots = slots.filter((slot) => slot.slotType === 'inline');
+
+  const bestInline =
+    inlineSlots.find((slot) => {
+      const heading = (slot.heading ?? '').trim();
+      if (!heading) return false;
+      if (!moduleTitle) return true;
+      return heading.toLowerCase() !== moduleTitle.toLowerCase();
+    }) ??
+    inlineSlots[0] ??
+    null;
+
+  if (bestInline) return [bestInline];
+
+  const diagram = slots.find((slot) => slot.slotType === 'diagram') ?? null;
+  return diagram ? [diagram] : [];
+}
+
 function InlineFigure({
   moduleId,
   moduleContent,
@@ -104,9 +124,14 @@ function InlineFigure({
 }) {
   // Reuse the existing pipeline, but render in a textbook-like figure layout.
   const style = getIllustrationStyleForSlot(slot);
+  const isDiagram = slot.slotType === 'diagram';
+
+  const wrapperClassName = isDiagram
+    ? 'my-8 break-inside-avoid'
+    : 'md:float-right md:w-[320px] md:ml-6 md:mb-4 my-2 break-inside-avoid';
 
   return (
-    <figure className="md:float-right md:w-[320px] md:ml-6 md:mb-4 my-2 break-inside-avoid">
+    <figure className={wrapperClassName}>
       <ModuleIllustration
         moduleId={moduleId}
         content={moduleContent}
@@ -114,6 +139,7 @@ function InlineFigure({
         style={style}
         visualStyle={slot.suggestedVisualStyle}
         slot={slot}
+        variant="figure"
         className="p-0 border-0 bg-transparent"
       />
       {caption ? (
@@ -590,7 +616,7 @@ export function TextbookView({
   // Parse content
   useEffect(() => {
     const rawBlocks = parseContentIntoBlocks(normalizedContent);
-    const blocks = injectVisualFigures(rawBlocks, visualSlots);
+    const blocks = injectVisualFigures(rawBlocks, selectIntegratedSlots(visualSlots, title));
     const parsedPages: TextbookPage[] = [];
     const toc: TableOfContentsItem[] = [];
     let currentPageBlocks: ContentBlock[] = [];
@@ -629,7 +655,7 @@ export function TextbookView({
     createPage();
     setPages(parsedPages);
     setTableOfContents(toc);
-  }, [normalizedContent, visualSlots]);
+  }, [normalizedContent, visualSlots, title]);
 
   const scrollPagesBy = useCallback((delta: number) => {
     const targets: Array<HTMLDivElement | null | undefined> = [];

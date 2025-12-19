@@ -15,11 +15,11 @@ import crypto from 'crypto';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
-import { generateCourseImagesAsync } from '@/lib/ai/course-image-generator';
+import { generateCourseImages } from '@/lib/ai/course-image-generator';
 import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 
-// Vercel serverless has strict timeout limits (60s max)
-export const maxDuration = 50;
+// Course generation + eager image generation can take a while.
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
@@ -725,17 +725,28 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Generate course images in background (fire-and-forget)
-    // This doesn't block the response - images will be available shortly after
+    // Generate course images eagerly so the reading experience is ready immediately.
+    // Any errors are logged but do not fail the course creation.
     if (dbResult.moduleIds?.length) {
-      console.log('[API] Triggering background image generation...');
-      generateCourseImagesAsync({
-        courseId,
-        title: courseData.title,
-        description: courseData.description,
-        locale: params.locale,
-        modules: dbResult.moduleIds,
-      });
+      console.log('[API] Generating course images...');
+      try {
+        const imageResult = await generateCourseImages(
+          {
+            courseId,
+            title: courseData.title,
+            description: courseData.description,
+            locale: params.locale,
+            modules: dbResult.moduleIds,
+          },
+          { useLLMPlan: false }
+        );
+
+        if (imageResult.errors.length > 0) {
+          console.warn('[API] Image generation completed with warnings:', imageResult.errors);
+        }
+      } catch (err) {
+        console.warn('[API] Image generation failed (continuing):', err);
+      }
     }
 
     const elapsed = Date.now() - startTime;

@@ -287,26 +287,58 @@ export async function fetchLatestModuleIllustration(
 ): Promise<ModuleIllustrationRecord | null> {
   const client = getSupabaseAdminClient();
 
-  let query = client
-    .from('module_illustrations')
-    .select('*')
-    .eq('module_id', params.moduleId)
-    .eq('locale', params.locale)
-    .eq('style', params.style)
-    .eq('visual_style', params.visualStyle ?? 'photorealistic')
-    .order('created_at', { ascending: false })
-    .limit(1);
+  const baseQuery = () =>
+    client
+      .from('module_illustrations')
+      .select('*')
+      .eq('module_id', params.moduleId)
+      .eq('locale', params.locale)
+      .eq('style', params.style)
+      .eq('visual_style', params.visualStyle ?? 'photorealistic')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-  if (params.slotId) {
-    query = query.eq('slot_id', params.slotId);
+  const isMissingColumnError = (error: PostgrestError | null, column: string): boolean => {
+    if (!error) return false;
+    const msg = (error.message ?? '').toLowerCase();
+    return (
+      error.code === '42703' ||
+      error.code === 'PGRST204' ||
+      msg.includes(`column module_illustrations.${column} does not exist`) ||
+      msg.includes(`could not find the '${column}' column`)
+    );
+  };
+
+  const runQuery = async (mode: 'slot_column' | 'metadata' | 'no_slot') => {
+    let query = baseQuery();
+
+    if (params.slotId && mode === 'slot_column') {
+      query = query.eq('slot_id', params.slotId);
+    } else if (params.slotId && mode === 'metadata') {
+      // Some deployments store slotId inside the JSON `metadata` instead of a dedicated `slot_id` column.
+      query = query.eq('metadata->>slotId', params.slotId);
+    }
+
+    return query.maybeSingle();
+  };
+
+  // 1) Try exact slot_id column when available.
+  let result = await runQuery('slot_column');
+
+  // 2) Fallback: filter by `metadata.slotId` when the column does not exist.
+  if (params.slotId && isMissingColumnError(result.error, 'slot_id')) {
+    result = await runQuery('metadata');
   }
 
-  const { data, error } = await query.maybeSingle();
+  // 3) Fallback: if nothing found for the slot, return the latest illustration of that style for the module.
+  if (params.slotId && !result.error && !result.data) {
+    result = await runQuery('no_slot');
+  }
 
-  if (error) {
-    console.error('[Illustrations] Failed to fetch metadata', error);
+  if (result.error) {
+    console.error('[Illustrations] Failed to fetch metadata', result.error);
     return null;
   }
 
-  return data as ModuleIllustrationRecord | null;
+  return result.data as ModuleIllustrationRecord | null;
 }
