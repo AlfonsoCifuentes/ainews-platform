@@ -299,7 +299,7 @@ function canonicalizeBoilerplateText(raw: string): string {
 function isBoilerplateHeroLead(text: string): boolean {
   const t = canonicalizeBoilerplateText(text).toLowerCase();
   return (
-    /^este módulo convierte un tema difuso en un modelo mental claro(?: y accionable)?\.?$/.test(t) ||
+    /^este módulo convierte un tema (difuso|confuso) en un modelo mental claro(?: y accionable)?\.?$/.test(t) ||
     /^this module turns a fuzzy topic into a clear(?:,)? usable mental model\.?$/.test(t)
   );
 }
@@ -315,7 +315,7 @@ function isBoilerplateStandfirst(text: string): boolean {
 function isBoilerplateAttribution(text: string): boolean {
   const t = canonicalizeBoilerplateText(text).toLowerCase();
   return (
-    /^[—-]\s*idea ancla del módulo\.?$/.test(t) ||
+    /^[—-]\s*idea ancla (?:del|para este) módulo\.?\"?$/.test(t) ||
     /^[—-]\s*short attribution\.?$/.test(t) ||
     /^[—-]\s*atribuci[oó]n breve\.?$/.test(t)
   );
@@ -324,7 +324,9 @@ function isBoilerplateAttribution(text: string): boolean {
 function isBoilerplateTechInsight(text: string): boolean {
   const t = canonicalizeBoilerplateText(text).toLowerCase();
   return (
-    /^una definición operativa hace un concepto comprobable: qué es, qué observas y qué lo refutaría\.?$/.test(t)
+    /^una definición operativa hace(?: que)? un concepto (?:sea )?comprobable: qué es, qué (?:observas|se observa) y qué lo (?:refutaría|falsearía)\.?$/.test(
+      t
+    )
   );
 }
 
@@ -346,7 +348,7 @@ function stripEditorialBoilerplate(markdown: string): string {
     // - `-- Short attribution`
     // Keep this conservative: only target known placeholder phrases.
     const patterns: RegExp[] = [
-      /(?:\s*[—–-]{1,2}\s*idea ancla del m(?:ó|o)dulo\.?\s*)/gi,
+      /(?:\s*[—–-]{1,2}\s*idea ancla (?:del|para este) m(?:ó|o)dulo\.?\s*)/gi,
       /(?:\s*[—–-]{1,2}\s*short attribution\.?\s*)/gi,
       /(?:\s*[—–-]{1,2}\s*atribuci[oó]n breve\.?\s*)/gi,
     ];
@@ -377,8 +379,12 @@ function stripEditorialBoilerplate(markdown: string): string {
     const line = stripInlineAttribution(postSeparator[i]);
     const trimmed = line.trim();
 
-    // Remove boilerplate TECH INSIGHT tables (one-cell).
-    if (trimmed.startsWith('|') && /TECH INSIGHT/i.test(trimmed) && i + 2 < postSeparator.length) {
+    // Remove boilerplate TECH INSIGHT / PERSPECTIVA TÉCNICA tables (one-cell).
+    if (
+      trimmed.startsWith('|') &&
+      /(TECH INSIGHT|PERSPECTIVA TÉCNICA|PERSPECTIVA TECNICA)/i.test(trimmed) &&
+      i + 2 < postSeparator.length
+    ) {
       const separator = postSeparator[i + 1]?.trim() ?? '';
       const body = postSeparator[i + 2]?.trim() ?? '';
       const isOneCellSeparator = separator === '| :--- |' || /^\|\s*:?-{3,}\s*\|\s*$/.test(separator);
@@ -513,6 +519,22 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       return { index: j, line: lines[j] ?? '' };
     };
 
+    // Fix: run-on "## BordeCasos, limitaciones y consideraciones avanzadas ..." -> canonical heading + paragraph.
+    if (
+      /^borde\s*casos\b[,:\-]?\s*limitaciones\s*y\s*consideraciones\s*avanzadas\b/i.test(headingText)
+    ) {
+      const remainder = headingText
+        .replace(
+          /^borde\s*casos\b[,:\-]?\s*limitaciones\s*y\s*consideraciones\s*avanzadas\b[,:\-]?\s*/i,
+          '',
+        )
+        .trim();
+
+      out.push(`${hashPrefix} Casos Límite, Limitaciones y Consideraciones Avanzadas`);
+      if (remainder) out.push(remainder);
+      continue;
+    }
+
     // Fix: "## Introduction and" + next line "Context ..." -> "## Introduction and Context"
     if (lower === 'introduction and') {
       const next = nextNonEmpty(i + 1);
@@ -529,20 +551,100 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       }
     }
 
-    // Fix: "## Síntesis y" + next line "Conclusión ..." (rare)
-    if (lower === 'síntesis y' || lower === 'sintesis y') {
+    // Fix: "## Introducción y" + next line "Contexto ..." -> "## Introducción y Contexto"
+    if (lower === 'introducción y' || lower === 'introduccion y') {
       const next = nextNonEmpty(i + 1);
       const nextLine = next.line;
       const nextTrim = nextLine.trim();
-      if (isNonStructural(nextLine) && /^conclusi[oó]n\b/i.test(nextTrim)) {
-        out.push(`${hashPrefix} Síntesis y Conclusión`);
-        const rewritten = nextLine.replace(/^(\s*)conclusi[oó]n\b[:\-]?\s*/i, '$1');
+      if (isNonStructural(nextLine) && /^contexto\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Introducción y Contexto`);
+        const rewritten = nextLine.replace(/^(\s*)contexto\b[:\-]?\s*/i, '$1');
         if (rewritten.trim()) {
           out.push(rewritten);
         }
         i = next.index;
         continue;
       }
+    }
+
+    // Fix: "## Síntesis y" + next line "Conclusión ..." (rare)
+    if (lower === 'síntesis y' || lower === 'sintesis y') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^conclusi[oó]n(?:es)?\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Síntesis y Conclusión`);
+        const rewritten = nextLine.replace(/^(\s*)conclusi[oó]n(?:es)?\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Fundacional" + next line "Conceptos ..." -> "## Conceptos Fundamentales"
+    if (lower === 'fundacional') {
+      out.push(`${hashPrefix} Conceptos Fundamentales`);
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^conceptos?\b/i.test(nextTrim)) {
+        const rewritten = nextLine.replace(/^(\s*)conceptos?\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+      }
+      continue;
+    }
+
+    // Fix: "## Núcleo" + next line "Teoría y principios ..." -> "## Teoría y Principios Principales"
+    if (lower === 'núcleo' || lower === 'nucleo') {
+      out.push(`${hashPrefix} Teoría y Principios Principales`);
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^(teoría y principios|teoria y principios)\b/i.test(nextTrim)) {
+        const rewritten = nextLine.replace(/^(\s*)(teoría y principios|teoria y principios)\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+      }
+      continue;
+    }
+
+    // Fix: "## Avanzado" + next line "Análisis profundo ..." -> "## Inmersión Profunda Avanzada"
+    if (lower === 'avanzado') {
+      out.push(`${hashPrefix} Inmersión Profunda Avanzada`);
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^análisis profundo\b/i.test(nextTrim)) {
+        const rewritten = nextLine.replace(/^(\s*)análisis profundo\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+      }
+      continue;
+    }
+
+    // Fix: "## Práctico" + next line "Guía de implementación ..." -> "## Guía Práctica de Implementación"
+    if (lower === 'práctico' || lower === 'practico') {
+      out.push(`${hashPrefix} Guía Práctica de Implementación`);
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^guía de implementación\b/i.test(nextTrim)) {
+        const rewritten = nextLine.replace(/^(\s*)guía de implementación\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+      }
+      continue;
     }
 
     // Fix: "## Synthesis and" + next line "Conclusions ..." -> "## Synthesis and Conclusions"
@@ -632,10 +734,31 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       const nextTrim = nextLine.trim();
       if (isNonStructural(nextLine) && /^cases\b/i.test(nextTrim)) {
         out.push(`${hashPrefix} Edge Cases, Limitations and Advanced Considerations`);
-        const rewritten = nextLine.replace(/^(\s*)cases\b[,:\-]?\s*/i, '$1');
+        let rewritten = nextLine.replace(/^(\s*)cases\b[,:\-]?\s*/i, '$1');
+        rewritten = rewritten.replace(
+          /^(\s*)limitations\b[,:\-]?\s*(?:and\s*)?advanced considerations\b[,:\-]?\s*/i,
+          '$1',
+        );
         if (rewritten.trim()) {
           out.push(rewritten);
         }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: already-canonical edge heading, but paragraph repeats "Limitations, and Advanced Considerations ..."
+    if (/^edge cases\b/i.test(headingText) && /advanced considerations\b/i.test(headingText)) {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^limitations\b/i.test(nextTrim)) {
+        const rewritten = nextLine.replace(
+          /^(\s*)limitations\b[,:\-]?\s*(?:and\s*)?advanced considerations\b[,:\-]?\s*/i,
+          '$1',
+        );
+        out.push(rawLine);
+        if (rewritten.trim()) out.push(rewritten);
         i = next.index;
         continue;
       }
@@ -646,17 +769,31 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       const next = nextNonEmpty(i + 1);
       const nextLine = next.line;
       const nextTrim = nextLine.trim();
-      const worldMatch = nextTrim.match(/^(?:[-*]\s+)?world\b/i);
+      const worldMatch = nextTrim.match(/^(?:[-*]\s+)?(world|mundo)\b/i);
       if (worldMatch) {
         const after = nextNonEmpty(next.index + 1);
         const afterWorldLine = after.line;
         const afterWorldTrim = afterWorldLine.trim();
+
         if (isNonStructural(afterWorldLine) && /^applications and case studies\b/i.test(afterWorldTrim)) {
           out.push(`${hashPrefix} Real-World Applications and Case Studies`);
           const rewritten = afterWorldLine.replace(/^(\s*)applications and case studies\b[:\-]?\s*/i, '$1');
-          if (rewritten.trim()) {
-            out.push(rewritten);
-          }
+          if (rewritten.trim()) out.push(rewritten);
+          i = after.index;
+          continue;
+        }
+
+        if (
+          isNonStructural(afterWorldLine) &&
+          /^aplicaciones\b/i.test(afterWorldTrim) &&
+          /(?:casos?\s+de\s+estudio|estudios?\s+de\s+casos)/i.test(afterWorldTrim)
+        ) {
+          out.push(`${hashPrefix} Aplicaciones Reales y Casos de Estudio`);
+          const rewritten = afterWorldLine.replace(
+            /^(\s*)aplicaciones(?:\s+reales)?\s+y\s+(?:casos?\s+de\s+estudio|estudios?\s+de\s+casos)(?:\b|(?=[A-ZÁÉÍÓÚÑ]))[:\-]?\s*/i,
+            '$1',
+          );
+          if (rewritten.trim()) out.push(rewritten);
           i = after.index;
           continue;
         }
@@ -735,13 +872,6 @@ function getFirstNonEmptyLineIndex(lines: string[]): number {
   return lines.findIndex((l) => l.trim().length > 0);
 }
 
-function defaultStandfirst(locale: 'en' | 'es' | undefined, title: string | undefined): string {
-  if (locale === 'en') {
-    return title ? `**A fast, structured module on ${title}.**` : '**A fast, structured module focused on fundamentals.**';
-  }
-  return title ? `**Un módulo directo y estructurado sobre ${title}.**` : '**Un módulo directo y estructurado para dominar los fundamentos.**';
-}
-
 function hasHeroHeaderBlock(linesAfterTitle: string[]): boolean {
   // Titanium-style hero: time/level/tags line.
   return linesAfterTitle.slice(0, 8).some((l) => l.trim().startsWith('**⏱️'));
@@ -764,7 +894,7 @@ function ensureHookStructure(lines: string[], options: NormalizeEditorialOptions
   // If empty content, synthesize minimal hook.
   if (idx < 0) {
     const safeTitle = (options.title || (locale === 'en' ? 'MODULE' : 'MÓDULO')).trim();
-    return [`# ${safeTitle}`, defaultStandfirst(locale, options.title), '---', ''];
+    return [`# ${safeTitle}`, '---', ''];
   }
 
   const first = lines[idx].trim();
@@ -808,20 +938,25 @@ function ensureHookStructure(lines: string[], options: NormalizeEditorialOptions
   // Hero format uses a meta line + (optional) lead paragraph in a blockquote.
   const hero = hasHeroHeaderBlock(afterTitle);
 
-  // Do NOT auto-inject generic standfirst/lead lines for hero content.
-  // Those phrases are template boilerplate and should not leak into the reader UI.
+  // Only inject a standfirst when we already have a real, non-boilerplate one
+  // (never synthesize generic template copy).
   if (!hero && !hasBoldStandfirst(afterTitle)) {
-    const standfirst = (options.standfirst && options.standfirst.trim().length > 0)
-      ? `**${options.standfirst.trim()}**`
-      : defaultStandfirst(locale, options.title);
+    const standfirstRaw = typeof options.standfirst === 'string' ? options.standfirst.trim() : '';
+    const isCandidate = Boolean(standfirstRaw) && !isBoilerplateStandfirst(standfirstRaw) && !isBoilerplateHeroLead(standfirstRaw);
 
-    // Insert standfirst immediately after H1.
-    const insertAt = (idx2 >= 0 ? idx2 + 1 : 0);
-    // Keep one blank line between title and standfirst.
-    if (lines[insertAt]?.trim().length) {
-      lines.splice(insertAt, 0, '');
+    if (isCandidate) {
+      const standfirst = standfirstRaw.startsWith('**') && standfirstRaw.endsWith('**')
+        ? standfirstRaw
+        : `**${standfirstRaw}**`;
+
+      // Insert standfirst immediately after H1.
+      const insertAt = (idx2 >= 0 ? idx2 + 1 : 0);
+      // Keep one blank line between title and standfirst.
+      if (lines[insertAt]?.trim().length) {
+        lines.splice(insertAt, 0, '');
+      }
+      lines.splice(insertAt + 1, 0, standfirst, '');
     }
-    lines.splice(insertAt + 1, 0, standfirst, '');
   }
 
   // Ensure there is a separator early in the document.
@@ -1221,15 +1356,27 @@ function normalizePullQuoteHeadings(markdown: string): string {
 
 const KNOWN_HEADING_PREFIXES = [
   'Introducción y Contexto',
+  'Introduccion y Contexto',
   'Conceptos Fundamentales',
   'Teoría y Principios Principales',
+  'Teoria y Principios Principales',
   'Inmersión Profunda Avanzada',
+  'Inmersion Profunda Avanzada',
   'Aplicaciones Reales y Casos de Estudio',
   'Guía Práctica de Implementación',
+  'Guia Práctica de Implementación',
+  'Guía Práctica de Implementacion',
+  'Guia Práctica de Implementacion',
   'Casos Límite, Limitaciones y Consideraciones Avanzadas',
+  'Casos Limite, Limitaciones y Consideraciones Avanzadas',
   'Síntesis y Conclusión',
+  'Sintesis y Conclusión',
+  'Síntesis y Conclusion',
+  'Sintesis y Conclusion',
   'Síntesis y Práctica Autónoma',
+  'Sintesis y Práctica Autónoma',
   'Síntesis y Práctica Autonoma',
+  'Sintesis y Práctica Autonoma',
   'Synthesis and Conclusions',
   'Synthesis and Autonomous Practice',
   'Introduction and Context',
