@@ -63,3 +63,8 @@ next-env.d.ts
 
 # Design examples (reference only, not part of build)
 thotnet-core-ejemplo/
+
+# Local debug artifacts / exports
+artifacts/
+app/ejemplo1.pdf
+app/ejemplo2.pdf

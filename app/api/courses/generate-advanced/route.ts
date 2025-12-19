@@ -5,6 +5,7 @@ import { generateCourseWithDetailedPrompts } from '@/lib/ai/course-generator-adv
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
+import { translateMarkdown, translateText } from '@/lib/ai/translator';
 
 export const maxDuration = 300; // 5 minutes - Vercel hobby plan limit
 export const dynamic = 'force-dynamic';
@@ -133,11 +134,17 @@ export async function POST(req: NextRequest) {
     // Step 3: Save to database
     console.log(`${logPrefix} 💾 Step 3/3: Saving to database...`);
 
+    const primaryLocale = params.locale;
+    const secondaryLocale: 'en' | 'es' = primaryLocale === 'en' ? 'es' : 'en';
+
+    const translatedTitle = await translateText(outline.title, primaryLocale, secondaryLocale);
+    const translatedDescription = await translateText(outline.description, primaryLocale, secondaryLocale);
+
     const courseData = {
-      title_en: params.locale === 'en' ? outline.title : outline.title,
-      title_es: params.locale === 'es' ? outline.title : outline.title,
-      description_en: params.locale === 'en' ? outline.description : outline.description,
-      description_es: params.locale === 'es' ? outline.description : outline.description,
+      title_en: primaryLocale === 'en' ? outline.title : translatedTitle,
+      title_es: primaryLocale === 'es' ? outline.title : translatedTitle,
+      description_en: primaryLocale === 'en' ? outline.description : translatedDescription,
+      description_es: primaryLocale === 'es' ? outline.description : translatedDescription,
       difficulty: params.difficulty,
       duration_minutes: generatedModules.reduce((sum, m) => sum + (m.modulePrompt.title.length || 45), 0),
       topics: Array.from(
@@ -159,30 +166,52 @@ export async function POST(req: NextRequest) {
     console.log(`${logPrefix} ✅ Course created: ${courseRecord.id}`);
 
     // Save modules
-    const modulesToInsert = generatedModules.map((m, idx) => {
-      const outlineDescription = outline.modules[idx]?.description ?? outline.description;
-      const normalized = normalizeEditorialMarkdown(m.content.content, {
-        title: m.modulePrompt.title,
-        standfirst: outlineDescription,
-        locale: params.locale,
+    const modulesToInsert = [];
+
+    for (let idx = 0; idx < generatedModules.length; idx += 1) {
+      const moduleEntry = generatedModules[idx];
+      const primaryTitle = moduleEntry.modulePrompt.title;
+      const primaryStandfirst = outline.modules[idx]?.description ?? outline.description;
+
+      const secondaryTitle = await translateText(primaryTitle, primaryLocale, secondaryLocale);
+      const secondaryStandfirst = await translateText(primaryStandfirst, primaryLocale, secondaryLocale);
+
+      const primaryContentRaw = moduleEntry.content.content;
+      const secondaryContentRaw = await translateMarkdown(primaryContentRaw, primaryLocale, secondaryLocale);
+
+      const normalizedPrimary = normalizeEditorialMarkdown(primaryContentRaw, {
+        title: primaryTitle,
+        standfirst: primaryStandfirst,
+        locale: primaryLocale,
       });
 
-      return {
-      course_id: courseRecord.id,
-      order_index: idx,
-      title_en: params.locale === 'en' ? m.modulePrompt.title : m.modulePrompt.title,
-      title_es: params.locale === 'es' ? m.modulePrompt.title : m.modulePrompt.title,
-      content_en: normalized,
-      content_es: normalized,
-      type: 'text',
-      estimated_time: m.modulePrompt.title.length || 45,
-      resources: m.content.resources.map((r) => ({
-        url: r.url,
-        type: r.type,
-        title: r.title
-      }))
-      };
-    });
+      const normalizedSecondary = normalizeEditorialMarkdown(secondaryContentRaw, {
+        title: secondaryTitle,
+        standfirst: secondaryStandfirst,
+        locale: secondaryLocale,
+      });
+
+      const title_en = primaryLocale === 'en' ? primaryTitle : secondaryTitle;
+      const title_es = primaryLocale === 'es' ? primaryTitle : secondaryTitle;
+      const content_en = primaryLocale === 'en' ? normalizedPrimary : normalizedSecondary;
+      const content_es = primaryLocale === 'es' ? normalizedPrimary : normalizedSecondary;
+
+      modulesToInsert.push({
+        course_id: courseRecord.id,
+        order_index: idx,
+        title_en,
+        title_es,
+        content_en,
+        content_es,
+        type: 'text',
+        estimated_time: moduleEntry.modulePrompt.title.length || 45,
+        resources: moduleEntry.content.resources.map((r) => ({
+          url: r.url,
+          type: r.type,
+          title: r.title,
+        })),
+      });
+    }
 
     const { error: modulesError } = await db
       .from('course_modules')

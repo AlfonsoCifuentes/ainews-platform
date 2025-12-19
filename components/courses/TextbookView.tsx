@@ -125,7 +125,7 @@ function InlineFigure({
   const isDiagram = slot.slotType === 'diagram';
 
   const wrapperClassName = isDiagram
-    ? 'my-10 w-full clear-both break-inside-avoid'
+    ? 'my-10 w-full clear-both break-inside-avoid -mx-6 md:-mx-10 lg:-mx-14'
     : 'md:float-right md:w-[320px] md:ml-6 md:mb-4 my-2 break-inside-avoid';
 
   return (

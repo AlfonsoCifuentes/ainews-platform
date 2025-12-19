@@ -24,36 +24,38 @@ export async function GET(req: NextRequest) {
   const { moduleId, locale, style, visualStyle, slotId } = parsed.data;
 
   try {
-    // Try exact style first, then fall back to 'textbook' if not found
-    let record = await fetchLatestModuleIllustration({
-      moduleId,
-      locale,
-      style,
-      visualStyle,
-      slotId: slotId ?? null,
-    });
+    const isDiagram = style === 'diagram';
+
+    // Non-diagram illustrations must be shared across locales (same image in EN/ES).
+    // Diagrams can contain text and must remain locale-specific.
+    const localesToTry: Array<'en' | 'es'> = isDiagram ? [locale] : ['en', 'es'];
+
+    const tryFetch = async (requestedStyle: string, requestedSlotId: string | null) => {
+      for (const candidateLocale of localesToTry) {
+        const found = await fetchLatestModuleIllustration({
+          moduleId,
+          locale: candidateLocale,
+          style: requestedStyle,
+          visualStyle,
+          slotId: requestedSlotId,
+        });
+        if (found) return found;
+      }
+      return null;
+    };
+
+    // Try exact style first.
+    let record = await tryFetch(style, slotId ?? null);
     
     // If no result and style is 'header', try 'textbook' as fallback
     if (!record && style === 'header') {
-      record = await fetchLatestModuleIllustration({
-        moduleId,
-        locale,
-        style: 'textbook',
-        visualStyle,
-        slotId: null, // textbook illustrations don't have slots
-      });
+      record = await tryFetch('textbook', null); // textbook illustrations don't have slots
     }
 
     // If no result and style is 'conceptual', try 'textbook' as a compatibility fallback
     // (older generators only produced textbook illustrations).
     if (!record && style === 'conceptual') {
-      record = await fetchLatestModuleIllustration({
-        moduleId,
-        locale,
-        style: 'textbook',
-        visualStyle,
-        slotId: slotId ?? null,
-      });
+      record = await tryFetch('textbook', slotId ?? null);
     }
 
     if (!record) {

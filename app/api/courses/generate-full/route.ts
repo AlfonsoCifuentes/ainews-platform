@@ -18,6 +18,7 @@ import {
 } from '@/lib/ai/course-generator-textbook';
 import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 import { generateCourseImages } from '@/lib/ai/course-image-generator';
+import { batchTranslate, translateMarkdown, translateText } from '@/lib/ai/translator';
 
 export const maxDuration = 300; // Extended for textbook quality
 export const dynamic = 'force-dynamic';
@@ -56,6 +57,49 @@ interface CourseData {
   description: string;
   objectives: string[];
   modules: Module[];
+}
+
+type Locale = 'en' | 'es';
+
+async function translateCourseDataBundle(course: CourseData, fromLang: Locale, toLang: Locale): Promise<CourseData> {
+  const title = await translateText(course.title, fromLang, toLang);
+  const description = await translateText(course.description, fromLang, toLang);
+
+  const objectives = Array.isArray(course.objectives)
+    ? await batchTranslate(course.objectives, fromLang, toLang, 80)
+    : [];
+
+  const modules: Module[] = [];
+  for (const mod of course.modules ?? []) {
+    const moduleTitle = await translateText(mod.title, fromLang, toLang);
+    const moduleDescription = await translateText(mod.description, fromLang, toLang);
+    const moduleContent = await translateMarkdown(mod.content, fromLang, toLang);
+
+    const keyTakeaways = Array.isArray(mod.keyTakeaways)
+      ? await batchTranslate(mod.keyTakeaways, fromLang, toLang, 60)
+      : [];
+
+    modules.push({
+      ...mod,
+      title: moduleTitle,
+      description: moduleDescription,
+      content: moduleContent,
+      keyTakeaways,
+    });
+  }
+
+  return { ...course, title, description, objectives, modules };
+}
+
+async function buildCourseByLocale(course: CourseData, primaryLocale: Locale): Promise<Record<Locale, CourseData>> {
+  const secondaryLocale: Locale = primaryLocale === 'en' ? 'es' : 'en';
+  try {
+    const translated = await translateCourseDataBundle(course, primaryLocale, secondaryLocale);
+    return primaryLocale === 'en' ? { en: course, es: translated } : { en: translated, es: course };
+  } catch (error) {
+    console.warn('[Translator] Course translation failed, duplicating content', error);
+    return { en: course, es: course };
+  }
 }
 
 // ============================================================================
@@ -810,24 +854,26 @@ async function callOpenAISimple(prompt: string): Promise<string> {
 // ============================================================================
 
 async function saveCourseToDatabase(
-  courseData: CourseData,
+  courseByLocale: Record<Locale, CourseData>,
   params: z.infer<typeof schema>,
   courseId: string
 ): Promise<{ success: boolean; courseId: string; error?: string; moduleIds?: Array<{ id: string; title: string; content: string }> }> {
   const supabase = getSupabaseServerClient();
 
   try {
-    console.log(`[Database] Saving course "${courseData.title}" to database...`);
+    const courseEn = courseByLocale.en;
+    const courseEs = courseByLocale.es;
+    console.log(`[Database] Saving course "${courseByLocale[params.locale].title}" to database...`);
 
     // 1. Insert course record
     const { error: courseError } = await supabase
       .from('courses')
       .insert({
         id: courseId,
-        title_en: params.locale === 'en' ? courseData.title : courseData.title, // Will translate later
-        title_es: params.locale === 'es' ? courseData.title : courseData.title,
-        description_en: params.locale === 'en' ? courseData.description : courseData.description,
-        description_es: params.locale === 'es' ? courseData.description : courseData.description,
+        title_en: courseEn.title,
+        title_es: courseEs.title,
+        description_en: courseEn.description,
+        description_es: courseEs.description,
         difficulty: params.difficulty,
         duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 240,
         topics: [params.topic],
@@ -852,7 +898,7 @@ async function saveCourseToDatabase(
     console.log(`[Database] ✅ Course saved with ID: ${courseId}`);
 
     // 2. Insert modules
-    if (!courseData.modules || courseData.modules.length === 0) {
+    if (!courseEn.modules?.length || !courseEs.modules?.length) {
       return {
         success: true,
         courseId,
@@ -860,26 +906,42 @@ async function saveCourseToDatabase(
       };
     }
 
-    const modulesToInsert = courseData.modules.map((module, index) => {
-      const normalized = normalizeEditorialMarkdown(module.content, {
-        title: module.title,
-        standfirst: module.description,
-        locale: params.locale,
+    const moduleCount = Math.max(courseEn.modules.length, courseEs.modules.length);
+
+    const modulesToInsert = Array.from({ length: moduleCount }).map((_, index) => {
+      const moduleEn = courseEn.modules[index];
+      const moduleEs = courseEs.modules[index];
+      const base = (params.locale === 'es' ? moduleEs : moduleEn) ?? moduleEn ?? moduleEs;
+
+      if (!moduleEn || !moduleEs || !base) {
+        throw new Error(`Course translation mismatch: missing module index ${index}`);
+      }
+
+      const normalizedEn = normalizeEditorialMarkdown(moduleEn.content, {
+        title: moduleEn.title,
+        standfirst: moduleEn.description,
+        locale: 'en',
+      });
+
+      const normalizedEs = normalizeEditorialMarkdown(moduleEs.content, {
+        title: moduleEs.title,
+        standfirst: moduleEs.description,
+        locale: 'es',
       });
 
       return {
       course_id: courseId,
       order_index: index,
-      title_en: params.locale === 'en' ? module.title : module.title,
-      title_es: params.locale === 'es' ? module.title : module.title,
-      content_en: normalized,
-      content_es: normalized,
+      title_en: moduleEn.title,
+      title_es: moduleEs.title,
+      content_en: normalizedEn,
+      content_es: normalizedEs,
       type: 'text' as const,
-      estimated_time: module.estimatedMinutes,
+      estimated_time: base.estimatedMinutes,
       resources: {
-        takeaways: module.keyTakeaways,
-        quiz: module.quiz,
-        links: module.resources
+        takeaways: base.keyTakeaways,
+        quiz: base.quiz,
+        links: base.resources
       }
       };
     });
@@ -889,7 +951,7 @@ async function saveCourseToDatabase(
     const { data: insertedModules, error: modulesError } = await supabase
       .from('course_modules')
       .insert(modulesToInsert)
-      .select('id, title_en, content_en');
+      .select('id, title_en, title_es, content_en, content_es');
 
     if (modulesError) {
       console.error('[Database] ⚠️ Modules insert error (course still saved):', modulesError);
@@ -904,10 +966,10 @@ async function saveCourseToDatabase(
     console.log(`[Database] ✅ All ${modulesToInsert.length} modules saved successfully`);
 
     // Return module IDs for image generation
-    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; content_en: string }) => ({
+    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; title_es: string; content_en: string; content_es: string }) => ({
       id: m.id,
-      title: m.title_en,
-      content: m.content_en || '',
+      title: params.locale === 'es' ? m.title_es : m.title_en,
+      content: (params.locale === 'es' ? m.content_es : m.content_en) || '',
     }));
 
     return {
@@ -976,7 +1038,9 @@ export async function POST(req: NextRequest) {
 
     // 4. Save to database
     console.log('[API] 💾 Saving to database...');
-    const dbResult = await saveCourseToDatabase(courseData, params, courseId);
+    const courseByLocale = await buildCourseByLocale(courseData, params.locale);
+    const localizedCourse = courseByLocale[params.locale];
+    const dbResult = await saveCourseToDatabase(courseByLocale, params, courseId);
 
     if (!dbResult.success) {
       console.error('[API] Database save failed:', dbResult.error);
@@ -990,8 +1054,8 @@ export async function POST(req: NextRequest) {
         const imageResult = await generateCourseImages(
           {
             courseId,
-            title: courseData.title,
-            description: courseData.description,
+            title: localizedCourse.title,
+            description: localizedCourse.description,
             locale: params.locale,
             modules: dbResult.moduleIds,
           },
@@ -1012,7 +1076,7 @@ export async function POST(req: NextRequest) {
     console.log(`[API] Quality: ${params.quality}, Modules: ${courseData.modules?.length || 0}`);
     
     // Calculate total words for textbook quality courses
-    const totalWords = courseData.modules?.reduce((sum, m) => {
+    const totalWords = localizedCourse.modules?.reduce((sum, m) => {
       return sum + (m.content?.split(/\s+/).length || 0);
     }, 0) || 0;
     console.log(`[API] Total words generated: ${totalWords.toLocaleString()}`);
@@ -1021,16 +1085,16 @@ export async function POST(req: NextRequest) {
       success: true,
       data: {
         course_id: courseId,
-        title: courseData.title,
-        description: courseData.description,
-        objectives: courseData.objectives,
-        modules_count: courseData.modules?.length || 0,
-        estimated_total_minutes: courseData.modules
-          ? courseData.modules.reduce((sum, m) => sum + m.estimatedMinutes, 0)
+        title: localizedCourse.title,
+        description: localizedCourse.description,
+        objectives: localizedCourse.objectives,
+        modules_count: localizedCourse.modules?.length || 0,
+        estimated_total_minutes: localizedCourse.modules
+          ? localizedCourse.modules.reduce((sum, m) => sum + m.estimatedMinutes, 0)
           : 0,
         quality: params.quality,
         total_words: totalWords,
-        content: courseData
+        content: localizedCourse
       }
     }, { status: 200 });
 

@@ -290,7 +290,10 @@ function canonicalizeBoilerplateText(raw: string): string {
   // Remove surrounding emphasis markers.
   t = t.replace(/^\*{1,2}/, '').replace(/\*{1,2}$/, '').trim();
 
-  return collapseWhitespace(t.replace(/[“”]/g, '"'));
+  // Normalize common typography (quotes/dashes) to stabilize boilerplate matching.
+  t = t.replace(/[“”«»„]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, '-');
+
+  return collapseWhitespace(t);
 }
 
 function isBoilerplateHeroLead(text: string): boolean {
@@ -334,6 +337,35 @@ function stripEditorialBoilerplate(markdown: string): string {
 
   const out: string[] = [];
 
+  const stripInlineAttribution = (rawLine: string): string => {
+    let next = rawLine;
+
+    // Remove inline placeholder attributions that sometimes get glued to the quote line.
+    // Examples:
+    // - `— Idea ancla del módulo`
+    // - `-- Short attribution`
+    // Keep this conservative: only target known placeholder phrases.
+    const patterns: RegExp[] = [
+      /(?:\s*[—–-]{1,2}\s*idea ancla del m(?:ó|o)dulo\.?\s*)/gi,
+      /(?:\s*[—–-]{1,2}\s*short attribution\.?\s*)/gi,
+      /(?:\s*[—–-]{1,2}\s*atribuci[oó]n breve\.?\s*)/gi,
+    ];
+
+    for (const pattern of patterns) {
+      next = next.replace(pattern, ' ');
+    }
+
+    // Clean up extra whitespace without aggressively altering markdown punctuation.
+    next = next.replace(/[ \t]{2,}/g, ' ').trimEnd();
+
+    // If we removed everything inside an attribution fragment (e.g. "> *— Idea ancla...*"),
+    // drop the now-empty line to avoid rendering stray markers like "* *".
+    const probe = next.replace(/^\s*>\s*/, '').replace(/[*_`"']/g, '').trim();
+    if (!probe) return '';
+
+    return next;
+  };
+
   for (const line of preSeparator) {
     const canonical = canonicalizeBoilerplateText(line);
     if (isBoilerplateHeroLead(canonical)) continue;
@@ -342,7 +374,7 @@ function stripEditorialBoilerplate(markdown: string): string {
   }
 
   for (let i = 0; i < postSeparator.length; i++) {
-    const line = postSeparator[i];
+    const line = stripInlineAttribution(postSeparator[i]);
     const trimmed = line.trim();
 
     // Remove boilerplate TECH INSIGHT tables (one-cell).
@@ -370,6 +402,273 @@ function stripEditorialBoilerplate(markdown: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+function splitInlineMarkdownHeadings(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    // Some generators accidentally emit multiple headings on one line:
+    // `# Module 1 ... ## Introduction and Context ...`
+    // Split those into separate lines so downstream logic can parse them.
+    if (/^#{1,6}\s*\S/.test(trimmed) && /\s#{2,6}\s*\S/.test(line)) {
+      const split = line.replace(/\s(#{2,6}\s*)/g, '\n\n$1');
+      out.push(...split.split('\n'));
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function splitInlineBlockquoteSegments(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    // Some generators glue multiple blockquote lines together:
+    // `> ## "Quote..." > *Attribution*`
+    // Split them so later stages can remove boilerplate attributions cleanly.
+    if (/^\s*>/.test(trimmed) && /\s+>\s*(?=[*#])/.test(line)) {
+      const split = line.replace(/\s+>\s*(?=[*#])/g, '\n> ');
+      out.push(...split.split('\n'));
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function repairBrokenCompoundHeadings(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const isNonStructural = (raw: string): boolean => {
+    const t = raw.trim();
+    return Boolean(t) && !isStructuralLine(t);
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(rawLine);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,6})\s*(.+?)\s*$/);
+    if (!headingMatch) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const hashPrefix = headingMatch[1] ?? '##';
+    const headingText = (headingMatch[2] ?? '').trim();
+    const lower = headingText.toLowerCase();
+
+    const nextNonEmpty = (startIndex: number): { index: number; line: string } => {
+      let j = startIndex;
+      while (j < lines.length && !(lines[j] ?? '').trim()) {
+        j += 1;
+      }
+      return { index: j, line: lines[j] ?? '' };
+    };
+
+    // Fix: "## Introduction and" + next line "Context ..." -> "## Introduction and Context"
+    if (lower === 'introduction and') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^context\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Introduction and Context`);
+        const rewritten = nextLine.replace(/^(\s*)context\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Síntesis y" + next line "Conclusión ..." (rare)
+    if (lower === 'síntesis y' || lower === 'sintesis y') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^conclusi[oó]n\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Síntesis y Conclusión`);
+        const rewritten = nextLine.replace(/^(\s*)conclusi[oó]n\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Synthesis and" + next line "Conclusions ..." -> "## Synthesis and Conclusions"
+    if (lower === 'synthesis and') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^(conclusion|conclusions)\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Synthesis and Conclusions`);
+        const rewritten = nextLine.replace(/^(\s*)(conclusion|conclusions)\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Foundational" + next line "Concepts ..." -> "## Foundational Concepts"
+    if (lower === 'foundational') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^concepts\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Foundational Concepts`);
+        const rewritten = nextLine.replace(/^(\s*)concepts\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Core" + next line "Theory and Principles ..." -> "## Core Theory and Principles"
+    if (lower === 'core') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^theory and principles\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Core Theory and Principles`);
+        const rewritten = nextLine.replace(/^(\s*)theory and principles\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Advanced" + next line "Deep Dive ..." -> "## Advanced Deep Dive"
+    if (lower === 'advanced') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^deep dive\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Advanced Deep Dive`);
+        const rewritten = nextLine.replace(/^(\s*)deep dive\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Practical" + next line "Implementation Guide ..." -> "## Practical Implementation Guide"
+    if (lower === 'practical') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^implementation guide\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Practical Implementation Guide`);
+        const rewritten = nextLine.replace(/^(\s*)implementation guide\b[:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Edge" + next line "Cases, ..." -> full heading.
+    if (lower === 'edge') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      if (isNonStructural(nextLine) && /^cases\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Edge Cases, Limitations and Advanced Considerations`);
+        const rewritten = nextLine.replace(/^(\s*)cases\b[,:\-]?\s*/i, '$1');
+        if (rewritten.trim()) {
+          out.push(rewritten);
+        }
+        i = next.index;
+        continue;
+      }
+    }
+
+    // Fix: "## Real" + "- World" + next line "Applications and Case Studies ..." -> merge into full heading.
+    if (lower === 'real') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+      const worldMatch = nextTrim.match(/^(?:[-*]\s+)?world\b/i);
+      if (worldMatch) {
+        const after = nextNonEmpty(next.index + 1);
+        const afterWorldLine = after.line;
+        const afterWorldTrim = afterWorldLine.trim();
+        if (isNonStructural(afterWorldLine) && /^applications and case studies\b/i.test(afterWorldTrim)) {
+          out.push(`${hashPrefix} Real-World Applications and Case Studies`);
+          const rewritten = afterWorldLine.replace(/^(\s*)applications and case studies\b[:\-]?\s*/i, '$1');
+          if (rewritten.trim()) {
+            out.push(rewritten);
+          }
+          i = after.index;
+          continue;
+        }
+      }
+    }
+
+    out.push(rawLine);
+  }
+
+  return out.join('\n');
+}
+
 function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | undefined): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
@@ -394,7 +693,7 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
     // Accept both plain lines and headings like:
     // - "💡 INSIGHT >> ..."
     // - "### 💡 INSIGHT > > ..."
-    const match = trimmed.match(/^(?:#{1,6}\s*)?(?:[^a-z0-9]*\s*)?insight\s*(?:>>|>\s*>|:|-)\s*(.+)$/i);
+    const match = trimmed.match(/^(?:#{1,6}\s*)?(?:[^a-z0-9]*\s*)?insights?\s*(?:>>|>\s*>|»{1,2}|:|-)\s*(.+)$/i);
     if (!match) {
       out.push(rawLine);
       continue;
@@ -482,7 +781,28 @@ function ensureHookStructure(lines: string[], options: NormalizeEditorialOptions
   }
 
   // Recompute after potential insertion.
-  const idx2 = getFirstNonEmptyLineIndex(lines);
+  let idx2 = getFirstNonEmptyLineIndex(lines);
+
+  // Some legacy content starts directly with a section heading as H1 (e.g. "# Introduction and Context").
+  // Demote that heading and inject the real module title so the reader sees a proper chapter title.
+  if (idx2 >= 0 && typeof options.title === 'string' && options.title.trim().length > 0) {
+    const firstLine = lines[idx2]?.trim() ?? '';
+    const firstText = firstLine.replace(/^#\s+/, '').trim();
+    const desiredTitle = options.title.trim();
+
+    const isH1 = firstLine.startsWith('# ');
+    const isSameAsTitle = firstText.toLowerCase() === desiredTitle.toLowerCase();
+    const isKnownSectionHeading = KNOWN_HEADING_PREFIXES.some(
+      (prefix) => prefix.toLowerCase() === firstText.toLowerCase()
+    );
+
+    if (isH1 && isKnownSectionHeading && !isSameAsTitle) {
+      lines[idx2] = `## ${firstText}`;
+      lines.splice(idx2, 0, `# ${desiredTitle}`, '');
+      idx2 = getFirstNonEmptyLineIndex(lines);
+    }
+  }
+
   const afterTitle = idx2 >= 0 ? lines.slice(idx2 + 1) : lines;
 
   // Hero format uses a meta line + (optional) lead paragraph in a blockquote.
@@ -999,7 +1319,7 @@ function splitRunOnKnownHeadings(markdown: string): string {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    const headingMatch = trimmed.match(/^(#{2,6})\s+(.+)$/);
+    const headingMatch = trimmed.match(/^(#{1,6})\s*(.+)$/);
     if (!headingMatch) {
       out.push(line);
       continue;
@@ -1045,13 +1365,16 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const separatorsFixed = normalizeSeparatorLines(cleaned);
   const listsCleaned = removeEmptyListMarkers(separatorsFixed);
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
-  const unwrapped = unwrapSoftLineBreaks(sidebarFixed);
+  const inlineHeadingsSplit = splitInlineMarkdownHeadings(sidebarFixed);
+  const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
+  const unwrapped = unwrapSoftLineBreaks(blockquotesSplit);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
   const insightsFixed = normalizeInlineInsightMarkers(boilerplateStripped, options.locale);
   const typosFixed = fixCommonTranslationTypos(insightsFixed, options.locale);
   const pullQuotesFixed = normalizePullQuoteHeadings(typosFixed);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
-  const headingsSplit = splitRunOnKnownHeadings(danglingQuotesFixed);
+  const compoundHeadingsRepaired = repairBrokenCompoundHeadings(danglingQuotesFixed);
+  const headingsSplit = splitRunOnKnownHeadings(compoundHeadingsRepaired);
   const inlineListsFixed = normalizeInlineLists(headingsSplit);
   const lines = inlineListsFixed.split('\n');
 

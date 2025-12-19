@@ -17,6 +17,7 @@ import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 import { generateCourseImages } from '@/lib/ai/course-image-generator';
 import { auditEditorialMarkdown, normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
+import { batchTranslate, translateMarkdown, translateText } from '@/lib/ai/translator';
 
 // Course generation + eager image generation can take a while.
 export const maxDuration = 300;
@@ -52,6 +53,53 @@ interface CourseData {
   description: string;
   objectives: string[];
   modules: Module[];
+}
+
+type Locale = 'en' | 'es';
+
+async function translateCourseDataBundle(course: CourseData, fromLang: Locale, toLang: Locale): Promise<CourseData> {
+  const title = await translateText(course.title, fromLang, toLang);
+  const description = await translateText(course.description, fromLang, toLang);
+
+  const objectives = Array.isArray(course.objectives)
+    ? await batchTranslate(course.objectives, fromLang, toLang, 80)
+    : [];
+
+  const modules: Module[] = [];
+  for (const mod of course.modules ?? []) {
+    const moduleTitle = await translateText(mod.title, fromLang, toLang);
+    const moduleDescription = await translateText(mod.description, fromLang, toLang);
+    const moduleContent = await translateMarkdown(mod.content, fromLang, toLang);
+
+    const keyTakeaways = Array.isArray(mod.keyTakeaways)
+      ? await batchTranslate(mod.keyTakeaways, fromLang, toLang, 60)
+      : [];
+
+    modules.push({
+      ...mod,
+      title: moduleTitle,
+      description: moduleDescription,
+      content: moduleContent,
+      keyTakeaways,
+    });
+  }
+
+  return { ...course, title, description, objectives, modules };
+}
+
+async function buildCourseByLocale(
+  course: CourseData,
+  primaryLocale: Locale
+): Promise<Record<Locale, CourseData>> {
+  const secondaryLocale: Locale = primaryLocale === 'en' ? 'es' : 'en';
+
+  try {
+    const translated = await translateCourseDataBundle(course, primaryLocale, secondaryLocale);
+    return primaryLocale === 'en' ? { en: course, es: translated } : { en: translated, es: course };
+  } catch (error) {
+    console.warn('[Translator] Course translation failed, duplicating content', error);
+    return primaryLocale === 'en' ? { en: course, es: course } : { en: course, es: course };
+  }
 }
 
 // Editorial-first prompt aligned to guia_estilo_editorial.md (THOTNET DARK EDITORIAL SPEC v6.0)
@@ -610,7 +658,7 @@ interface SaveResult {
 }
 
 async function saveCourseToDB(
-  course: CourseData,
+  courseByLocale: Record<Locale, CourseData>,
   params: z.infer<typeof schema>,
   courseId: string
 ): Promise<SaveResult> {
@@ -619,13 +667,16 @@ async function saveCourseToDB(
   try {
     console.log('[DB] Saving course to database...');
 
+    const courseEn = courseByLocale.en;
+    const courseEs = courseByLocale.es;
+
     // Insert course
     const { error: courseErr } = await supabase.from('courses').insert({
       id: courseId,
-      title_en: course.title,
-      title_es: course.title,
-      description_en: course.description,
-      description_es: course.description,
+      title_en: courseEn.title,
+      title_es: courseEs.title,
+      description_en: courseEn.description,
+      description_es: courseEs.description,
       difficulty: params.difficulty,
       duration_minutes: params.duration === 'short' ? 45 : params.duration === 'medium' ? 120 : 210,
       topics: [params.topic],
@@ -645,30 +696,42 @@ async function saveCourseToDB(
     console.log('[DB] Course saved');
 
     // Insert modules
-    if (!course.modules?.length) {
+    if (!courseEn.modules?.length || !courseEs.modules?.length) {
       return { success: true, moduleIds: [] };
     }
 
-    const modules = course.modules.map((m, i) => ({
-      course_id: courseId,
-      order_index: i,
-      title_en: m.title,
-      title_es: m.title,
-      content_en: normalizeEditorialMarkdown(m.content, { title: m.title, standfirst: m.description, locale: params.locale }),
-      content_es: normalizeEditorialMarkdown(m.content, { title: m.title, standfirst: m.description, locale: params.locale }),
-      type: 'text' as const,
-      estimated_time: m.estimatedMinutes ?? 30, // Default to 30 minutes if not provided
-      resources: {
-        takeaways: m.keyTakeaways ?? [],
-        quiz: m.quiz ?? [],
-        links: m.resources ?? []
+    const moduleCount = Math.max(courseEn.modules.length, courseEs.modules.length);
+
+    const modules = Array.from({ length: moduleCount }).map((_, i) => {
+      const mEn = courseEn.modules[i];
+      const mEs = courseEs.modules[i];
+      const base = (params.locale === 'es' ? mEs : mEn) ?? mEn ?? mEs;
+
+      if (!mEn || !mEs || !base) {
+        throw new Error(`Course translation mismatch: missing module index ${i}`);
       }
-    }));
+
+      return {
+        course_id: courseId,
+        order_index: i,
+        title_en: mEn.title,
+        title_es: mEs.title,
+        content_en: normalizeEditorialMarkdown(mEn.content, { title: mEn.title, standfirst: mEn.description, locale: 'en' }),
+        content_es: normalizeEditorialMarkdown(mEs.content, { title: mEs.title, standfirst: mEs.description, locale: 'es' }),
+        type: 'text' as const,
+        estimated_time: base.estimatedMinutes ?? 30, // Default to 30 minutes if not provided
+        resources: {
+          takeaways: base.keyTakeaways ?? [],
+          quiz: base.quiz ?? [],
+          links: base.resources ?? []
+        }
+      };
+    });
 
     const { data: insertedModules, error: modulesErr } = await supabase
       .from('course_modules')
       .insert(modules)
-      .select('id, title_en, content_en');
+      .select('id, title_en, title_es, content_en, content_es');
     
     if (modulesErr) {
       console.error('[DB] Modules insert error:', modulesErr.message, modulesErr.details, modulesErr.hint);
@@ -678,10 +741,10 @@ async function saveCourseToDB(
     console.log('[DB] ✅ All saved');
     
     // Return module IDs for image generation
-    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; content_en: string }) => ({
+    const moduleIds = (insertedModules || []).map((m: { id: string; title_en: string; title_es: string; content_en: string; content_es: string }) => ({
       id: m.id,
-      title: m.title_en,
-      content: m.content_en || '',
+      title: params.locale === 'es' ? m.title_es : m.title_en,
+      content: (params.locale === 'es' ? m.content_es : m.content_en) || '',
     }));
     
     return { success: true, moduleIds };
@@ -713,10 +776,12 @@ export async function POST(req: NextRequest) {
     // Generate prompt and call LLM with automatic fallback
     const prompt = generatePrompt(params.topic, params.difficulty, params.duration, params.locale);
     const courseData = await callLLMWithFallback(prompt, params.locale);
+    const courseByLocale = await buildCourseByLocale(courseData, params.locale);
+    const localizedCourse = courseByLocale[params.locale];
 
     // Save to database
     const courseId = crypto.randomUUID();
-    const dbResult = await saveCourseToDB(courseData, params, courseId);
+    const dbResult = await saveCourseToDB(courseByLocale, params, courseId);
 
     if (!dbResult.success) {
       return NextResponse.json({
@@ -733,8 +798,8 @@ export async function POST(req: NextRequest) {
         const imageResult = await generateCourseImages(
           {
             courseId,
-            title: courseData.title,
-            description: courseData.description,
+            title: localizedCourse.title,
+            description: localizedCourse.description,
             locale: params.locale,
             modules: dbResult.moduleIds,
           },
@@ -756,10 +821,10 @@ export async function POST(req: NextRequest) {
       success: true,
       data: {
         course_id: courseId,
-        title: courseData.title,
-        description: courseData.description,
-        modules_count: courseData.modules?.length || 0,
-        content: courseData
+        title: localizedCourse.title,
+        description: localizedCourse.description,
+        modules_count: localizedCourse.modules?.length || 0,
+        content: localizedCourse
       }
     });
   } catch (error) {
