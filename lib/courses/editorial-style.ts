@@ -561,6 +561,14 @@ function repairBrokenCompoundHeadings(markdown: string): string {
   const out: string[] = [];
   let inFence = false;
 
+  const fixCollapsedConjunctions = (text: string): string => {
+    // Fix missing spaces in headings like "Síntesis yConclusiones" / "Synthesis andConclusions".
+    return text
+      .replace(/\b(y|and)(?=(conclusi[oó]n(?:es)?|conclusions?))/gi, '$1 ')
+      .replace(/\b(y)(?=(pr[aá]ctica|aut[oó]noma))/gi, '$1 ')
+      .replace(/\b(and)(?=(autonomous))/gi, '$1 ');
+  };
+
   const isNonStructural = (raw: string): boolean => {
     const t = raw.trim();
     return Boolean(t) && !isStructuralLine(t);
@@ -588,8 +596,10 @@ function repairBrokenCompoundHeadings(markdown: string): string {
     }
 
     const hashPrefix = headingMatch[1] ?? '##';
-    const headingText = (headingMatch[2] ?? '').trim();
+    const headingOriginal = (headingMatch[2] ?? '').trim();
+    const headingText = collapseWhitespace(fixCollapsedConjunctions(headingOriginal));
     const lower = headingText.toLowerCase();
+    const reconstructedHeading = `${hashPrefix} ${headingText}`.trimEnd();
 
     const nextNonEmpty = (startIndex: number): { index: number; line: string } => {
       let j = startIndex;
@@ -598,6 +608,18 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       }
       return { index: j, line: lines[j] ?? '' };
     };
+
+    // Fix: "## Síntesis yConclusiones" / "## Síntesis y Conclusiones" -> canonical heading.
+    if (/^s[ií]ntesis y\s*conclusi[oó]n(?:es)?$/i.test(headingText)) {
+      out.push(`${hashPrefix} Síntesis y Conclusión`);
+      continue;
+    }
+
+    // Fix: "## Synthesis andConclusions" -> canonical heading.
+    if (/^synthesis and\s*conclusions?$/i.test(headingText)) {
+      out.push(`${hashPrefix} Synthesis and Conclusions`);
+      continue;
+    }
 
     // Fix: run-on "## BordeCasos, limitaciones y consideraciones avanzadas ..." -> canonical heading + paragraph.
     if (
@@ -613,6 +635,25 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       out.push(`${hashPrefix} Casos Límite, Limitaciones y Consideraciones Avanzadas`);
       if (remainder) out.push(remainder);
       continue;
+    }
+
+    // Fix: "## Borde" + next line "Casos, limitaciones y consideraciones avanzadas ..." -> canonical heading.
+    if (lower === 'borde') {
+      const next = nextNonEmpty(i + 1);
+      const nextLine = next.line;
+      const nextTrim = nextLine.trim();
+
+      if (isNonStructural(nextLine) && /^casos\b/i.test(nextTrim)) {
+        out.push(`${hashPrefix} Casos Límite, Limitaciones y Consideraciones Avanzadas`);
+        let rewritten = nextLine.replace(/^(\s*)casos\b[,:\-]?\s*/i, '$1');
+        rewritten = rewritten.replace(
+          /^(\s*)limitaciones\s*y\s*consideraciones\s*avanzadas\b[,:\-]?\s*/i,
+          '$1',
+        );
+        if (rewritten.trim()) out.push(rewritten);
+        i = next.index;
+        continue;
+      }
     }
 
     // Fix: "## Introduction and" + next line "Context ..." -> "## Introduction and Context"
@@ -837,7 +878,7 @@ function repairBrokenCompoundHeadings(markdown: string): string {
           /^(\s*)limitations\b[,:\-]?\s*(?:and\s*)?advanced considerations\b[,:\-]?\s*/i,
           '$1',
         );
-        out.push(rawLine);
+        out.push(reconstructedHeading);
         if (rewritten.trim()) out.push(rewritten);
         i = next.index;
         continue;
@@ -880,7 +921,7 @@ function repairBrokenCompoundHeadings(markdown: string): string {
       }
     }
 
-    out.push(rawLine);
+    out.push(headingText === headingOriginal ? rawLine : reconstructedHeading);
   }
 
   return out.join('\n');

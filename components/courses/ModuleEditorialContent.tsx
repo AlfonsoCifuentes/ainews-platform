@@ -178,7 +178,7 @@ function ContentBlockRenderer({ block }: { block: ContentBlock }) {
       );
     case 'paragraph':
       return (
-        <p className="leading-[1.8] text-justify text-muted-foreground" style={{ textIndent: '2em' }}>
+        <p className="leading-[1.85] text-left md:text-justify md:indent-8 hyphens-auto text-muted-foreground">
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -229,8 +229,8 @@ function InlineFigure({
   const isDiagram = slot.slotType === 'diagram';
 
   const wrapperClassName = isDiagram
-    ? 'my-10 w-full clear-both break-inside-avoid'
-    : 'my-8 w-full clear-both break-inside-avoid';
+    ? 'my-8 w-full clear-both break-inside-avoid -mx-4 md:-mx-8 lg:-mx-12'
+    : 'my-6 w-full clear-both break-inside-avoid -mx-2 md:-mx-6 lg:-mx-10';
 
   return (
     <figure className={wrapperClassName}>
@@ -241,6 +241,7 @@ function InlineFigure({
         style={style}
         visualStyle={slot.suggestedVisualStyle}
         slot={slot}
+        autoGenerate={false}
         variant="figure"
         className="p-0 border-0 bg-transparent"
       />
@@ -282,7 +283,7 @@ export function ModuleEditorialContent({
   }, [normalizedContent, integratedSlots]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-5">
       {blocks.map((block, index) => {
         if (block.type === 'figure') {
           const slot = slotsById.get(block.content);

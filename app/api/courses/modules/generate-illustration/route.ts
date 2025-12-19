@@ -45,7 +45,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { content, locale, style, moduleId, visualStyle, slotId, anchor, checksum, promptOverride, negativePromptOverride, metadata, variants, providerOrder } = validated.data;
+    const {
+      content,
+      locale: requestedLocale,
+      style,
+      moduleId,
+      visualStyle,
+      slotId,
+      anchor,
+      checksum,
+      promptOverride,
+      negativePromptOverride,
+      metadata,
+      variants,
+      providerOrder,
+    } = validated.data;
+
+    // Non-diagram images must be shared between locales so EN/ES show the same illustration.
+    // Only text-bearing visuals remain locale-specific.
+    const isTextBearing = style === 'diagram' || style === 'schema' || style === 'infographic';
+    const locale = isTextBearing ? requestedLocale : 'en';
 
     const variantList = resolveVariantList(style, variants);
     const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
@@ -116,6 +135,7 @@ export async function POST(req: NextRequest) {
             ...(metadata ?? {}),
             cascadeAttempts: cascadeResult.attempts,
             locale,
+            requestedLocale,
             style,
             visualStyle: variant,
           },

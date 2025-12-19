@@ -68,8 +68,18 @@ const STYLE_PROMPTS: Record<IllustrationStyle, Record<'en' | 'es', string>> = {
     es: `Crea una impresionante imagen de encabezado cinematográfica para un capítulo de curso. La imagen debe ser fotorrealista o arte digital de alta calidad, mostrando el tema principal en acción. Por ejemplo, si es sobre tatuaje, mostrar manos haciendo trabajo profesional de tatuaje con una máquina de tatuar sobre piel. Si es sobre programación, mostrar visualizaciones elegantes de código. Si es sobre cocina, mostrar manos de un chef preparando comida. Estilo: Iluminación cinematográfica, composición dramática, estilo de fotografía profesional, tonos oscuros y dramáticos con acentos azul/teal. SIN texto ni etiquetas en la imagen. Enfoque en el impacto visual y la emoción.`,
   },
   diagram: {
-    en: `Create a clear technical diagram explaining this concept. Use flowchart elements, boxes with labels, arrows showing relationships and processes. Style: Clean white or light background for maximum clarity, professional technical drawing style like engineering or architecture diagrams. Include legends if needed.`,
-    es: `Crea un diagrama técnico claro explicando este concepto. Usa elementos de diagrama de flujo, cajas con etiquetas, flechas mostrando relaciones y procesos. Estilo: Fondo blanco o claro para máxima claridad, estilo de dibujo técnico profesional como diagramas de ingeniería o arquitectura. Incluye leyendas si es necesario.`,
+    en: `Create a VERY readable didactic diagram (boxes + arrows) explaining this concept.
+Rules:
+- Clean white/light background, high contrast, thick strokes.
+- VERY short labels (1–3 words), BIG typography, no paragraphs, no tiny text.
+- Max 7 boxes. Prefer a simple, linear flow if possible.
+- Avoid numbers, years, and long sentences. Include a legend only if strictly necessary.`,
+    es: `Crea un diagrama didáctico MUY legible (cajas + flechas) que explique este concepto.
+Reglas:
+- Fondo blanco/claro, alto contraste, trazos gruesos.
+- Etiquetas MUY cortas (1–3 palabras), tipografía GRANDE, sin párrafos, sin texto pequeño.
+- Máximo 7 cajas. Si puedes, flujo simple y lineal.
+- Evita números, años y frases largas. Usa leyenda solo si es estrictamente necesario.`,
   },
 };
 

@@ -11,8 +11,10 @@
 import { randomUUID } from 'crypto';
 import { planCourseIllustrations } from './image-plan';
 import type { CourseIllustrationPlan } from './image-plan';
+import { generateIllustrationWithCascade } from '@/lib/ai/image-cascade';
 import { persistModuleIllustration, fetchLatestModuleIllustration } from '@/lib/db/module-illustrations';
 import { copyCourseCoverLocale, persistCourseCoverShared, courseCoverExists } from '@/lib/db/course-covers';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
 
 const RUNWARE_MODEL = process.env.RUNWARE_IMAGE_MODEL || 'runware:97@3';
@@ -59,6 +61,14 @@ interface RunwareResult {
   mimeType?: string;
   error?: string;
 }
+
+type ModuleContentRow = {
+  id: string;
+  title_en: string | null;
+  title_es: string | null;
+  content_en: string | null;
+  content_es: string | null;
+};
 
 async function generateWithRunware(
   prompt: string,
@@ -143,6 +153,32 @@ async function moduleIllustrationExists(
   return !!existing;
 }
 
+async function moduleIllustrationExistsAnyLocale(moduleId: string, style: string): Promise<boolean> {
+  const [en, es] = await Promise.all([
+    moduleIllustrationExists(moduleId, 'en', style),
+    moduleIllustrationExists(moduleId, 'es', style),
+  ]);
+  return en || es;
+}
+
+async function fetchModulesForGeneration(moduleIds: string[]): Promise<ModuleContentRow[]> {
+  if (!moduleIds.length) return [];
+
+  const db = getSupabaseServerClient();
+  const { data, error } = await db
+    .from('course_modules')
+    .select('id, title_en, title_es, content_en, content_es')
+    .in('id', moduleIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as ModuleContentRow[];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return moduleIds.map((id) => byId.get(id)).filter(Boolean) as ModuleContentRow[];
+}
+
 // ============================================================================
 // Main Generator Function
 // ============================================================================
@@ -167,11 +203,10 @@ export async function generateCourseImages(
   console.log(`[CourseImageGenerator] Starting for course: ${input.title}`);
   console.log(`[CourseImageGenerator] ${input.modules.length} modules, locale: ${input.locale}`);
 
-  // Skip if no Runware API key
-  if (!process.env.RUNWARE_API_KEY) {
-    console.warn('[CourseImageGenerator] RUNWARE_API_KEY not configured, skipping image generation');
+  const hasRunware = Boolean(process.env.RUNWARE_API_KEY);
+  if (!hasRunware) {
+    console.warn('[CourseImageGenerator] RUNWARE_API_KEY not configured; cover generation may be skipped.');
     result.errors.push('RUNWARE_API_KEY not configured');
-    return result;
   }
 
   try {
@@ -267,86 +302,158 @@ export async function generateCourseImages(
       } else if (hasEn && hasEs) {
         console.log('[CourseImageGenerator] Cover already exists for en+es, skipping');
       } else {
-        console.log('[CourseImageGenerator] Generating cover (shared en+es)...');
-        const coverPrompt = enforceNoTextCoverPrompt(plan.courseCover.prompt);
-        const coverResult = await generateWithRunware(coverPrompt, COURSE_COVER_NEGATIVE_PROMPT, 768, 512);
-
-        if (coverResult.success && coverResult.base64Data) {
-          try {
-            const saved = await persistCourseCoverShared({
-              courseId: input.courseId,
-              locales: ['en', 'es'],
-              prompt: coverPrompt.slice(0, 2000),
-              model: RUNWARE_MODEL,
-              provider: 'runware',
-              base64Data: coverResult.base64Data,
-              mimeType: coverResult.mimeType || 'image/webp',
-              source: 'api',
-            });
-            result.coverGenerated = saved.length > 0;
-            result.coverUrl = saved[0]?.image_url;
-            console.log('[CourseImageGenerator] Shared cover saved for en+es');
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            result.errors.push(`Cover persist failed: ${msg}`);
-            console.error('[CourseImageGenerator] Cover persist failed:', msg);
-          }
+        if (!hasRunware) {
+          console.warn('[CourseImageGenerator] Skipping cover generation (Runware unavailable)');
         } else {
-          result.errors.push(`Cover generation failed: ${coverResult.error}`);
-          console.error('[CourseImageGenerator] Cover generation failed:', coverResult.error);
+          console.log('[CourseImageGenerator] Generating cover (shared en+es)...');
+          const coverPrompt = enforceNoTextCoverPrompt(plan.courseCover.prompt);
+          const coverResult = await generateWithRunware(coverPrompt, COURSE_COVER_NEGATIVE_PROMPT, 768, 512);
+
+          if (coverResult.success && coverResult.base64Data) {
+            try {
+              const saved = await persistCourseCoverShared({
+                courseId: input.courseId,
+                locales: ['en', 'es'],
+                prompt: coverPrompt.slice(0, 2000),
+                model: RUNWARE_MODEL,
+                provider: 'runware',
+                base64Data: coverResult.base64Data,
+                mimeType: coverResult.mimeType || 'image/webp',
+                source: 'api',
+              });
+              result.coverGenerated = saved.length > 0;
+              result.coverUrl = saved[0]?.image_url;
+              console.log('[CourseImageGenerator] Shared cover saved for en+es');
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              result.errors.push(`Cover persist failed: ${msg}`);
+              console.error('[CourseImageGenerator] Cover persist failed:', msg);
+            }
+          } else {
+            result.errors.push(`Cover generation failed: ${coverResult.error}`);
+            console.error('[CourseImageGenerator] Cover generation failed:', coverResult.error);
+          }
         }
       }
     }
 
-    // Step 3: Generate module images
-    for (const modulePlan of plan.modules) {
-      result.modulesProcessed++;
+    // Step 3: Generate module illustrations eagerly (integrated reading experience)
+    // - Conceptual/textbook/header images are shared across locales.
+    // - Diagram/schema/infographic images remain locale-specific (text-bearing).
+    const moduleIds = input.modules.map((m) => m.id).filter(Boolean);
 
-      const mod = input.modules.find((m) => m.id === modulePlan.moduleId)
-        ?? input.modules.find((m) => m.title === modulePlan.moduleTitle);
+    let moduleRows: ModuleContentRow[] = [];
+    try {
+      moduleRows = await fetchModulesForGeneration(moduleIds);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[CourseImageGenerator] Failed to fetch module contents from DB:', msg);
+      result.errors.push(`Module fetch failed: ${msg}`);
+      moduleRows = input.modules.map((m) => ({
+        id: m.id,
+        title_en: input.locale === 'en' ? m.title : null,
+        title_es: input.locale === 'es' ? m.title : null,
+        content_en: input.locale === 'en' ? m.content : null,
+        content_es: input.locale === 'es' ? m.content : null,
+      }));
+    }
 
-      if (!mod) {
-        result.errors.push(`Module not found: ${modulePlan.moduleTitle}`);
-        continue;
-      }
+    for (const moduleRow of moduleRows) {
+      result.modulesProcessed += 1;
 
-      // Generate general image with Runware
-      const generalPrompt = modulePlan.images[0]?.prompt;
-      if (generalPrompt) {
-        const exists = await moduleIllustrationExists(mod.id, input.locale, 'textbook');
+      const contentEn = String(moduleRow.content_en ?? '').trim();
+      const contentEs = String(moduleRow.content_es ?? '').trim();
+      const titleEn = String(moduleRow.title_en ?? '').trim();
+      const titleEs = String(moduleRow.title_es ?? '').trim();
 
-        if (exists) {
-          console.log(`[CourseImageGenerator] Module ${mod.id} image exists, skipping`);
-        } else {
-          console.log(`[CourseImageGenerator] Generating image for: ${mod.title.slice(0, 40)}...`);
-          const imgResult = await generateWithRunware(generalPrompt, undefined, 512, 512);
+      const conceptualExists = await moduleIllustrationExistsAnyLocale(moduleRow.id, 'conceptual');
+      if (!conceptualExists) {
+        const baseContent = contentEn || contentEs;
+        const subject = titleEn || titleEs || input.title;
+        if (baseContent) {
+          console.log(`[CourseImageGenerator] Generating conceptual illustration for module: ${subject.slice(0, 60)}...`);
+          const cascadeResult = await generateIllustrationWithCascade({
+            moduleContent: `${subject}\n\n${baseContent}`.slice(0, 6000),
+            locale: 'en',
+            style: 'conceptual',
+            visualStyle: 'photorealistic',
+          });
 
-          if (imgResult.success && imgResult.base64Data) {
-            try {
-              await persistModuleIllustration({
-                moduleId: mod.id,
-                locale: input.locale,
-                style: 'textbook',
-                visualStyle: 'photorealistic',
-                model: RUNWARE_MODEL,
-                provider: 'runware',
-                prompt: generalPrompt.slice(0, 2000),
-                base64Data: imgResult.base64Data,
-                mimeType: imgResult.mimeType || 'image/webp',
-                source: 'api',
-                metadata: {},
-              });
-              result.modulesGenerated++;
-              console.log(`[CourseImageGenerator] Module image saved`);
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              result.errors.push(`Module ${mod.id} persist failed: ${msg}`);
+          if (cascadeResult.success && cascadeResult.images.length) {
+            const image = cascadeResult.images[0];
+            const saved = await persistModuleIllustration({
+              moduleId: moduleRow.id,
+              locale: 'en',
+              style: 'conceptual',
+              visualStyle: 'photorealistic',
+              model: cascadeResult.model,
+              provider: cascadeResult.provider,
+              base64Data: image.base64Data,
+              mimeType: image.mimeType,
+              prompt: cascadeResult.prompt.slice(0, 2000),
+              source: 'api',
+              metadata: {
+                kind: 'conceptual',
+                sharedAcrossLocales: true,
+                courseId: input.courseId,
+              },
+            });
+
+            if (saved) {
+              result.modulesGenerated += 1;
             }
           } else {
-            result.errors.push(`Module ${mod.id} generation failed: ${imgResult.error}`);
+            result.errors.push(`Module ${moduleRow.id} conceptual generation failed: ${cascadeResult.error ?? 'No image'}`);
           }
         }
       }
+
+      const ensureDiagram = async (locale: 'en' | 'es', content: string, title: string) => {
+        if (!content) return;
+        const exists = await moduleIllustrationExists(moduleRow.id, locale, 'diagram');
+        if (exists) return;
+
+        console.log(`[CourseImageGenerator] Generating diagram (${locale}) for module: ${title.slice(0, 60)}...`);
+        const cascadeResult = await generateIllustrationWithCascade({
+          moduleContent: `${title}\n\n${content}`.slice(0, 6000),
+          locale,
+          style: 'diagram',
+          visualStyle: 'photorealistic',
+          providerOrder: ['gemini'],
+        });
+
+        if (!cascadeResult.success || !cascadeResult.images.length) {
+          result.errors.push(`Module ${moduleRow.id} diagram (${locale}) failed: ${cascadeResult.error ?? 'No image'}`);
+          return;
+        }
+
+        const image = cascadeResult.images[0];
+        const saved = await persistModuleIllustration({
+          moduleId: moduleRow.id,
+          locale,
+          style: 'diagram',
+          visualStyle: 'photorealistic',
+          model: cascadeResult.model,
+          provider: cascadeResult.provider,
+          base64Data: image.base64Data,
+          mimeType: image.mimeType,
+          prompt: cascadeResult.prompt.slice(0, 2000),
+          source: 'api',
+          metadata: {
+            kind: 'diagram',
+            sharedAcrossLocales: false,
+            courseId: input.courseId,
+            text: image.text ?? null,
+          },
+        });
+
+        if (saved) {
+          result.modulesGenerated += 1;
+        }
+      };
+
+      await ensureDiagram('en', contentEn, titleEn || titleEs || input.title);
+      await ensureDiagram('es', contentEs, titleEs || titleEn || input.title);
     }
 
     console.log(`[CourseImageGenerator] Complete: cover=${result.coverGenerated}, modules=${result.modulesGenerated}/${result.modulesProcessed}`);

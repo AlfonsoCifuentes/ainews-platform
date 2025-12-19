@@ -24,11 +24,11 @@ export async function GET(req: NextRequest) {
   const { moduleId, locale, style, visualStyle, slotId } = parsed.data;
 
   try {
-    const isDiagram = style === 'diagram';
+    const isTextBearing = style === 'diagram' || style === 'schema' || style === 'infographic';
 
     // Non-diagram illustrations must be shared across locales (same image in EN/ES).
     // Diagrams can contain text and must remain locale-specific.
-    const localesToTry: Array<'en' | 'es'> = isDiagram ? [locale] : ['en', 'es'];
+    const localesToTry: Array<'en' | 'es'> = isTextBearing ? [locale] : ['en', 'es'];
 
     const tryFetch = async (requestedStyle: string, requestedSlotId: string | null) => {
       for (const candidateLocale of localesToTry) {

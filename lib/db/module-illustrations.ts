@@ -232,6 +232,7 @@ export async function persistModuleIllustration(
   ): Promise<{ data: ModuleIllustrationRecord | null; error: PostgrestError | null }> {
     const attemptPayload: Record<string, unknown> = { ...basePayload };
     let lastError: PostgrestError | null = null;
+    let didSanitizeJson = false;
 
     for (let i = 0; i < 6; i += 1) {
       const res =
@@ -244,9 +245,18 @@ export async function persistModuleIllustration(
       }
 
       lastError = res.error;
-      if (res.error.code !== 'PGRST204') {
-        break;
+
+      // Some upstream content/prompts can contain characters that PostgREST fails to parse/roundtrip.
+      // When that happens, strip optional JSON/text fields and retry once to avoid losing the image.
+      if (!didSanitizeJson && (res.error.code === 'PGRST102' || /invalid json/i.test(res.error.message ?? ''))) {
+        didSanitizeJson = true;
+        attemptPayload.metadata = {};
+        attemptPayload.anchor = null;
+        attemptPayload.prompt_summary = null;
+        continue;
       }
+
+      if (res.error.code !== 'PGRST204') break;
 
       const msg = res.error.message ?? '';
       const match = msg.match(/Could not find the '([^']+)' column/i);

@@ -207,8 +207,8 @@ function InlineFigure({
   const isDiagram = slot.slotType === 'diagram';
 
   const wrapperClassName = isDiagram
-    ? 'my-10 w-full clear-both break-inside-avoid -mx-6 md:-mx-10 lg:-mx-14'
-    : 'my-8 w-full clear-both break-inside-avoid -mx-6 md:-mx-10 lg:-mx-14';
+    ? 'my-8 w-full clear-both break-inside-avoid -mx-6 md:-mx-10 lg:-mx-14'
+    : 'my-6 w-full clear-both break-inside-avoid -mx-6 md:-mx-10 lg:-mx-14';
 
   return (
     <figure className={wrapperClassName}>
@@ -219,6 +219,7 @@ function InlineFigure({
         style={style}
         visualStyle={slot.suggestedVisualStyle}
         slot={slot}
+        autoGenerate={false}
         variant="figure"
         className="p-0 border-0 bg-transparent"
       />
@@ -565,7 +566,7 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
       );
     case 'paragraph':
       return (
-        <p className="leading-[1.8] text-justify text-muted-foreground" style={{ textIndent: '2em' }}>
+        <p className="leading-[1.85] text-left md:text-justify md:indent-8 hyphens-auto text-muted-foreground">
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -832,7 +833,7 @@ export function TextbookView({
           </div>
         )}
 
-        <div className="space-y-6 text-white pb-6">
+        <div className="space-y-4 md:space-y-5 text-white pb-6">
           {page.content.map((block, i) => {
             if (block.type === 'figure') {
               const slotId = block.content;
