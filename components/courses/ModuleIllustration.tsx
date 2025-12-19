@@ -399,7 +399,7 @@ export function ModuleIllustration({
         <div
           className={cn(
             'relative overflow-hidden rounded-xl border border-white/10 bg-black/40',
-            isDiagram ? 'aspect-[4/3]' : 'aspect-video'
+            isDiagram ? 'aspect-square' : 'aspect-video'
           )}
         >
           <AnimatePresence mode="wait">

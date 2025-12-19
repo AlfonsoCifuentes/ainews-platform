@@ -91,6 +91,7 @@ function injectVisualFigures(blocks: ContentBlock[], slots: ModuleVisualSlot[]):
 
 function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string): ModuleVisualSlot[] {
   const slots = allSlots.filter((slot) => slot.slotType !== 'header');
+  const diagram = slots.find((slot) => slot.slotType === 'diagram') ?? null;
   const inlineSlots = slots.filter((slot) => slot.slotType === 'inline');
 
   const bestInline =
@@ -103,10 +104,7 @@ function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string
     inlineSlots[0] ??
     null;
 
-  if (bestInline) return [bestInline];
-
-  const diagram = slots.find((slot) => slot.slotType === 'diagram') ?? null;
-  return diagram ? [diagram] : [];
+  return [diagram, bestInline].filter(Boolean) as ModuleVisualSlot[];
 }
 
 function InlineFigure({
@@ -127,7 +125,7 @@ function InlineFigure({
   const isDiagram = slot.slotType === 'diagram';
 
   const wrapperClassName = isDiagram
-    ? 'my-10 w-full break-inside-avoid'
+    ? 'my-10 w-full clear-both break-inside-avoid'
     : 'md:float-right md:w-[320px] md:ml-6 md:mb-4 my-2 break-inside-avoid';
 
   return (

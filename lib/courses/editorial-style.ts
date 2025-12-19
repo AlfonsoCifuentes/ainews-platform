@@ -391,7 +391,10 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
       continue;
     }
 
-    const match = trimmed.match(/^(?:[💡🧠✨⚡️]\s*)?insight\s*(?:>>|>\s*>|:|-)\s*(.+)$/i);
+    // Accept both plain lines and headings like:
+    // - "💡 INSIGHT >> ..."
+    // - "### 💡 INSIGHT > > ..."
+    const match = trimmed.match(/^(?:#{1,6}\s*)?(?:[^a-z0-9]*\s*)?insight\s*(?:>>|>\s*>|:|-)\s*(.+)$/i);
     if (!match) {
       out.push(rawLine);
       continue;
@@ -411,7 +414,9 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
     const calloutBody = body || payload;
 
     if (out.length && out[out.length - 1]?.trim()) out.push('');
-    out.push(`:::key-concept[${calloutTitle}]`);
+
+    // NOTE: `keyconcept` is used (no hyphen) because some parsers only accept `\\w+` for callout types.
+    out.push(`:::keyconcept[${calloutTitle}]`);
     out.push(calloutBody);
     out.push(':::');
     out.push('');
