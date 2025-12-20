@@ -6,7 +6,6 @@ import { copyCourseCoverLocale, courseCoverExists, persistCourseCoverShared } fr
 import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
 
 const GENERAL_ORDER: ImageProviderName[] = ['runware', 'huggingface', 'qwen'];
-const DIAGRAM_ORDER: ImageProviderName[] = ['gemini'];
 
 type Locale = 'en' | 'es';
 
@@ -44,12 +43,12 @@ function moduleContent(raw: string | null | undefined) {
   return (raw ?? '').slice(0, 6000);
 }
 
-async function generateModuleImage(moduleId: string, prompt: string, locale: Locale, style: 'textbook' | 'diagram') {
-  const order = style === 'diagram' ? DIAGRAM_ORDER : GENERAL_ORDER;
+async function generateModuleImage(moduleId: string, prompt: string, locale: Locale) {
+  const order = GENERAL_ORDER;
   const cascade = await generateIllustrationWithCascade({
     moduleContent: prompt,
     locale,
-    style,
+    style: 'textbook',
     visualStyle: 'photorealistic',
     providerOrder: order,
     promptOverride: prompt,
@@ -63,7 +62,7 @@ async function generateModuleImage(moduleId: string, prompt: string, locale: Loc
   return persistModuleIllustration({
     moduleId,
     locale,
-    style,
+    style: 'textbook',
     visualStyle: 'photorealistic',
     model: cascade.model,
     provider: cascade.provider,
@@ -154,11 +153,7 @@ export async function generateIllustrationsForCourse(courseId: string) {
     if (!moduleEntry) continue;
 
     if (modulePlan.images?.length) {
-      await generateModuleImage(moduleEntry.id, modulePlan.images[0].prompt, locale, 'textbook');
-    }
-
-    if (modulePlan.diagrams?.length) {
-      await generateModuleImage(moduleEntry.id, modulePlan.diagrams[0].prompt, locale, 'diagram');
+      await generateModuleImage(moduleEntry.id, modulePlan.images[0].prompt, locale);
     }
   }
 }

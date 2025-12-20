@@ -377,6 +377,11 @@ async function generateSupportingSlots(module: ModuleRow, locale: Locale): Promi
   }
 
   for (const slot of slots) {
+    if (slot.slot_type === 'diagram') {
+      console.log(`Skipping diagram slot ${slot.id} (diagram generation disabled).`);
+      continue;
+    }
+
     const style = slot.slot_type === 'diagram' ? 'diagram' : 'conceptual';
     const variants = style === 'diagram' ? ['photorealistic'] : VARIANT_STYLES;
     const prompt = buildSlotPromptContext(module, locale, slot);

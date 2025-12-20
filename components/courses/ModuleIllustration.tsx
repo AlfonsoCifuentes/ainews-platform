@@ -282,6 +282,10 @@ export function ModuleIllustration({
         ? generationContent.slice(0, 6000)
         : generationContent;
 
+      if (style === 'diagram' || slot?.slotType === 'diagram') {
+        throw new Error(locale === 'es' ? 'La generación de diagramas está desactivada.' : 'Diagram generation is disabled.');
+      }
+
       const response = await fetch('/api/courses/modules/generate-illustration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,10 +299,7 @@ export function ModuleIllustration({
           promptOverride: slotPromptOverrides.promptOverride,
           negativePromptOverride: slotPromptOverrides.negativePromptOverride,
           providerOrder:
-            style === 'diagram' ||
-            style === 'schema' ||
-            style === 'infographic' ||
-            slot?.slotType === 'diagram'
+            style === 'schema' || style === 'infographic'
               ? ['gemini']
               : ['runware', 'gemini'],
           slotId: slot?.id,

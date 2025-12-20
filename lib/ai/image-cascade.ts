@@ -46,16 +46,27 @@ export async function generateIllustrationWithCascade(
         options.visualStyle ?? 'photorealistic'
       );
 
+  if (options.style === 'diagram') {
+    return {
+      success: false,
+      images: [],
+      model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
+      error: 'Diagram generation is disabled',
+      attempts: [],
+      prompt,
+    };
+  }
+
   const providerOrder: ImageProviderName[] = options.providerOrder && options.providerOrder.length > 0
     ? options.providerOrder
-    : options.style === 'diagram' || options.style === 'schema' || options.style === 'infographic'
+    : options.style === 'schema' || options.style === 'infographic'
       ? ['gemini']
       : DEFAULT_PROVIDER_ORDER;
 
   const attempts: CascadeAttempt[] = [];
   const dimensions = resolveDimensionsForStyle(options.style);
   const negativePrompt = options.negativePromptOverride
-    ?? (options.style === 'diagram' || options.style === 'schema' || options.style === 'infographic'
+    ?? (options.style === 'schema' || options.style === 'infographic'
       ? undefined
       : DEFAULT_NON_DIAGRAM_NEGATIVE_PROMPT);
 

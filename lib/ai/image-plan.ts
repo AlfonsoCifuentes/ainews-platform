@@ -25,7 +25,7 @@ export interface ModuleImagePlan {
   moduleId: string;
   moduleTitle: string;
   images: ImagePrompt[]; // non-Gemini images (Runware/HF/Qwen)
-  diagrams: ImagePrompt[]; // prompts intended for Gemini 3 Image diagrams
+  diagrams: ImagePrompt[]; // deprecated (diagrams disabled); keep for backwards compatibility
 }
 
 export interface CourseIllustrationPlan {
@@ -59,11 +59,10 @@ function buildPrompt(input: CoursePlanInput) {
 Return concise JSON. Constraints:
 - At least 1 image prompt per module (non-Gemini provider like Runware/HF/Qwen). Keep density low: max 2 prompts per module.
 - For module "images" (non-Gemini): DO NOT request infographics, diagrams, flowcharts, charts, UI screenshots, arrows/boxes/labels, or schematic layouts. These must look like photographs or rich editorial illustrations (non-schematic), with "no text".
-- Diagram prompts (for Gemini 3 Image) only when a diagram truly clarifies something; 0-1 per module is okay.
+- Diagrams are disabled: always return an empty "diagrams" array for every module.
 - Course cover prompt: single image. ABSOLUTELY NO text/letters/typography/logos/watermarks. Conveys the course essence.
-- Prompts must be short, direct, and visual. Avoid camera jargon unless helpful. Include subject, mood, setting. Prefer "no text" unless it's explicitly a diagram.
+- Prompts must be short, direct, and visual. Avoid camera jargon unless helpful. Include subject, mood, setting. Prefer "no text".
 - Color: avoid a monotonous "always blue" look. Keep a dark, UI-friendly base, but choose accent colors that fit the topic (e.g., teal/amber/red/green/purple are OK). Use blue only when it makes sense; do not force it.
-- Diagram prompts must explicitly mention it's a diagram/flow/schematic. Clean, high-contrast, dark UI friendly. Minimal labels are allowed for diagrams.
 
 Course: ${title}
 Description: ${description ?? 'n/a'}
@@ -129,7 +128,7 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
     images: m.images.length
       ? m.images.slice(0, 2)
       : [{ prompt: `Signature visual for ${m.moduleTitle}, no text, dark high-contrast palette with topic-appropriate accent colors` }],
-    diagrams: (m.diagrams || []).slice(0, 1),
+    diagrams: [],
   }));
 
   return parsed;

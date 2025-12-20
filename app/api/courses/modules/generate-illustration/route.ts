@@ -61,14 +61,25 @@ export async function POST(req: NextRequest) {
       providerOrder,
     } = validated.data;
 
+    if (style === 'diagram') {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'DIAGRAMS_DISABLED',
+          error: 'Diagram generation has been disabled for new content.',
+        },
+        { status: 200 }
+      );
+    }
+
     // Non-diagram images must be shared between locales so EN/ES show the same illustration.
     // Only text-bearing visuals remain locale-specific.
-    const isTextBearing = style === 'diagram' || style === 'schema' || style === 'infographic';
+    const isTextBearing = style === 'schema' || style === 'infographic';
     const locale = isTextBearing ? requestedLocale : 'en';
 
     const variantList = resolveVariantList(style, variants);
     const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
-      style === 'diagram' || style === 'schema' || style === 'infographic' ? ['gemini'] : ['runware', 'gemini'];
+      style === 'schema' || style === 'infographic' ? ['gemini'] : ['runware', 'gemini'];
     const order: NonNullable<GenerateIllustrationRequest['providerOrder']> =
       providerOrder && providerOrder.length ? providerOrder : defaultOrder;
     console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);

@@ -284,9 +284,9 @@ function buildHeuristicSlots(args: {
   const blocks = parseContentIntoBlocks(normalizedContent);
   const total = blocks.length || 1;
 
-  const inlineA = Math.max(2, Math.floor(total * 0.18));
+  const inlineA = Math.max(2, Math.floor(total * 0.26));
   const diagram = Math.max(3, Math.floor(total * 0.36));
-  const inlineB = Math.max(4, Math.floor(total * 0.62));
+  const inlineB = Math.max(inlineA + 4, Math.floor(total * 0.68));
 
   const languageLabel = args.locale === 'es' ? 'Spanish' : 'English';
   const noTextNegative = args.locale === 'es'
@@ -391,7 +391,7 @@ function buildHeuristicSlots(args: {
       model: null,
       confidence: 0.5,
     },
-  ];
+  ].filter((slot) => slot.slotType !== 'diagram');
 }
 
 export async function GET(request: NextRequest) {
@@ -454,7 +454,6 @@ export async function GET(request: NextRequest) {
             // Replacing slots would orphan previously generated illustrations (slot_id set null).
             const plannedByType = new Map<string, typeof planned>();
             plannedByType.set('header', planned.filter((s) => s.slotType === 'header'));
-            plannedByType.set('diagram', planned.filter((s) => s.slotType === 'diagram'));
             plannedByType.set('inline', planned.filter((s) => s.slotType === 'inline'));
 
             const updatedLocal = [...allExisting];
@@ -511,6 +510,35 @@ export async function GET(request: NextRequest) {
         }
       } catch (ensureError) {
         console.warn('[API/visual-slots] ensure failed, returning empty', ensureError);
+      }
+    }
+
+    if (slots.some((slot) => slot.slotType === 'diagram')) {
+      // Diagrams are deprecated and should only render when an actual diagram image exists.
+      // If the image is missing (common in older courses), hide the slot to avoid placeholders.
+      try {
+        const db = getSupabaseServerClient();
+        const { data, error } = await db
+          .from('module_illustrations')
+          .select('id, image_url')
+          .eq('module_id', params.moduleId)
+          .eq('locale', params.locale)
+          .eq('style', 'diagram')
+          .limit(1);
+
+        const hasDiagram =
+          !error &&
+          Array.isArray(data) &&
+          data.length > 0 &&
+          typeof (data[0] as { image_url?: unknown } | null)?.image_url === 'string' &&
+          ((data[0] as { image_url?: string } | null)?.image_url ?? '').trim().length > 0;
+
+        if (!hasDiagram) {
+          slots = slots.filter((slot) => slot.slotType !== 'diagram');
+        }
+      } catch (diagramError) {
+        console.warn('[API/visual-slots] diagram existence check failed, hiding diagram slots', diagramError);
+        slots = slots.filter((slot) => slot.slotType !== 'diagram');
       }
     }
 

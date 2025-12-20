@@ -442,52 +442,6 @@ export async function generateCourseImages(
         }
       }
 
-      const ensureDiagram = async (locale: 'en' | 'es', content: string, title: string) => {
-        if (!content) return;
-        const exists = await moduleIllustrationExists(moduleRow.id, locale, 'diagram');
-        if (exists) return;
-
-        console.log(`[CourseImageGenerator] Generating diagram (${locale}) for module: ${title.slice(0, 60)}...`);
-        const cascadeResult = await generateIllustrationWithCascade({
-          moduleContent: `${title}\n\n${content}`.slice(0, 6000),
-          locale,
-          style: 'diagram',
-          visualStyle: 'photorealistic',
-          providerOrder: ['gemini'],
-        });
-
-        if (!cascadeResult.success || !cascadeResult.images.length) {
-          result.errors.push(`Module ${moduleRow.id} diagram (${locale}) failed: ${cascadeResult.error ?? 'No image'}`);
-          return;
-        }
-
-        const image = cascadeResult.images[0];
-        const saved = await persistModuleIllustration({
-          moduleId: moduleRow.id,
-          locale,
-          style: 'diagram',
-          visualStyle: 'photorealistic',
-          model: cascadeResult.model,
-          provider: cascadeResult.provider,
-          base64Data: image.base64Data,
-          mimeType: image.mimeType,
-          prompt: cascadeResult.prompt.slice(0, 2000),
-          source: 'api',
-          metadata: {
-            kind: 'diagram',
-            sharedAcrossLocales: false,
-            courseId: input.courseId,
-            text: image.text ?? null,
-          },
-        });
-
-        if (saved) {
-          result.modulesGenerated += 1;
-        }
-      };
-
-      await ensureDiagram('en', contentEn, titleEn || titleEs || input.title);
-      await ensureDiagram('es', contentEs, titleEs || titleEn || input.title);
     }
 
     console.log(`[CourseImageGenerator] Complete: cover=${result.coverGenerated}, modules=${result.modulesGenerated}/${result.modulesProcessed}`);

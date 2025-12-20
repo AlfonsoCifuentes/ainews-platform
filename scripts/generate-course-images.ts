@@ -17,8 +17,6 @@ import { createClient } from '@supabase/supabase-js';
 import { planCourseIllustrations } from '../lib/ai/image-plan';
 import { persistModuleIllustration } from '../lib/db/module-illustrations';
 import { copyCourseCoverLocale, persistCourseCoverShared } from '../lib/db/course-covers';
-import { getGeminiImageClient } from '../lib/ai/gemini-image';
-import { GEMINI_MODELS } from '../lib/ai/model-versions';
 
 // ============================================================================
 // Types
@@ -164,42 +162,6 @@ async function generateWithRunware(prompt: string, width: number, height: number
 }
 
 // ============================================================================
-// Gemini Image Generation (ONLY for diagrams & schemas)
-// ============================================================================
-
-interface GeminiResult {
-  success: boolean;
-  base64Data?: string;
-  mimeType?: string;
-  error?: string;
-}
-
-async function generateDiagramWithGemini(prompt: string): Promise<GeminiResult> {
-  console.log(`  [Gemini] Generating diagram...`);
-
-  try {
-    const client = getGeminiImageClient();
-    const result = await client.generateImage(prompt, {
-      model: GEMINI_MODELS.GEMINI_3_PRO_IMAGE,
-      aspectRatio: '4:3',
-      imageSize: '1K',
-    });
-
-    if (!result.success || !result.images.length) {
-      return { success: false, error: result.error || 'Gemini returned no image' };
-    }
-
-    return {
-      success: true,
-      base64Data: result.images[0].base64Data,
-      mimeType: result.images[0].mimeType,
-    };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-// ============================================================================
 // Course Processing
 // ============================================================================
 
@@ -322,7 +284,7 @@ async function processCourse(course: CourseRecord) {
     }
 
     // Generate diagram with Gemini (only if planned)
-    const diagramPrompt = modulePlan.diagrams[0]?.prompt;
+    const diagramPrompt = null;
     if (diagramPrompt) {
       // Check if diagram already exists
       if (await moduleIllustrationExists(mod.id, locale, 'diagram')) {
@@ -361,7 +323,7 @@ async function main() {
   console.log('🚀 Course Image Generation Script');
   console.log('================================');
   console.log(`Runware model: ${RUNWARE_MODEL}`);
-  console.log(`Gemini model: ${GEMINI_MODELS.GEMINI_3_PRO_IMAGE} (diagrams only)`);
+  console.log('Diagrams: disabled (existing diagrams preserved)');
 
   const supabase = getSupabase();
   const { data, error } = await supabase
