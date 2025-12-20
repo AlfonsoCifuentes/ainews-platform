@@ -590,7 +590,7 @@ const ModulePlanSchema = z.object({
       title: z.string().min(6),
       brief: z.string().min(60),
       deliverable: z.string().min(20),
-      steps: z.array(z.string().min(8)).min(5).max(12),
+      steps: z.array(z.string().min(8)).min(3).max(12),
     })
     .optional(),
 });
@@ -606,7 +606,7 @@ const ModuleMetaSchema = z.object({
         explanation: z.string().min(80),
       })
     )
-    .min(6)
+    .min(4)
     .max(10),
   resources: z.array(z.string().min(6)).min(4).max(12),
   estimatedMinutes: z.number().int().min(10).max(180).optional(),
@@ -625,6 +625,11 @@ function resolveTargetWords(duration: string, quality: 'standard' | 'textbook'):
     return duration === 'short' ? 4500 : duration === 'medium' ? 6500 : 8500;
   }
   return duration === 'short' ? 1200 : duration === 'medium' ? 1600 : 2000;
+}
+
+function resolveTextbookPartCount(targetWords: number): number {
+  const safeWords = Number.isFinite(targetWords) ? targetWords : 0;
+  return Math.max(3, Math.min(5, Math.ceil(safeWords / 1800)));
 }
 
 function countWords(text: string): number {
@@ -913,7 +918,7 @@ Devuelve EXACTAMENTE este JSON:
     "title": "Título del mini-proyecto",
     "brief": "Contexto y objetivo del mini-proyecto (2-4 frases)",
     "deliverable": "Qué debe entregar el alumno",
-    "steps": ["Paso 1", "Paso 2"]
+    "steps": ["Paso 1", "Paso 2", "Paso 3", "Paso 4", "Paso 5"]
   }
 }
 
@@ -944,7 +949,7 @@ Return EXACTLY this JSON:
     "title": "Mini-project title",
     "brief": "2-4 sentences of context and goal",
     "deliverable": "What the learner must produce",
-    "steps": ["Step 1", "Step 2"]
+    "steps": ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"]
   }
 }`;
 }
@@ -1005,9 +1010,11 @@ OBJETIVO DE LONGITUD PARA ESTA PARTE: ~${args.partTargetWords} palabras
 
 Reglas (estrictas):
 - Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Esta parte debe tener al menos ~${Math.round(args.partTargetWords * 0.85)} palabras (si te quedas corto, sigue escribiendo).
 - Evita muros de texto: máximo 3 párrafos seguidos sin un “widget” (lista, tabla, quote, código, etc.).
 - Código: usa fences con lenguaje (por ejemplo: ts, python). No uses Mermaid.
 - Nada de headings genéricos/plantilla.
+- No pongas títulos de sección en blockquote (evita "> ### ..."). Usa headings normales "##".
 - Prohibido incluir frases meta o “instrucciones para IA” (ni variantes cercanas): ${banned.map((p) => `"${p}"`).join(', ')}.
 
 ${includeHook ? `Estructura del inicio (solo en esta parte):
@@ -1042,9 +1049,11 @@ TARGET LENGTH FOR THIS PART: ~${args.partTargetWords} words
 
 Rules (strict):
 - Return ONLY Markdown (no JSON, no fences, no commentary).
+- This part must be at least ~${Math.round(args.partTargetWords * 0.85)} words (if you’re short, keep writing).
 - Avoid walls of text: max 3 plain paragraphs in a row without a “widget” (list, table, quote, code, etc.).
 - Code: always use fenced blocks with a language (e.g. ts, python). No Mermaid.
 - Avoid generic/template headings.
+- Do not put section titles inside blockquotes (avoid \"> ### ...\"). Use normal \"##\" headings.
 - Forbidden meta/instructional phrases (or close variants): ${banned.map((p) => `"${p}"`).join(', ')}.
 
 ${includeHook ? `Opening structure (only in this part):
@@ -1070,6 +1079,94 @@ ${isLast && args.capstone ? `At the end of this part, add a section "## Guided m
 Then end with a short "## Practice" section with 4-6 exercises (no long solutions).` : ''}`;
 }
 
+function buildModuleContentPartRepairPrompt(args: {
+  draft: string;
+  currentWords: number;
+  courseTitle: string;
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  estimatedMinutes: number;
+  locale: 'en' | 'es';
+  partIndex: number;
+  partCount: number;
+  partTargetWords: number;
+  sections: ModulePlanSection[];
+  capstone?: ModulePlan['capstone'];
+}): string {
+  const includeHook = args.partIndex === 0;
+  const isLast = args.partIndex === args.partCount - 1;
+  const minWords = Math.round(args.partTargetWords * 0.85);
+
+  const sectionsList = args.sections
+    .map((s, idx) => `${idx + 1}. ${s.heading} — ${s.goal} (~${s.targetWords} words)`)
+    .join('\n');
+
+  if (args.locale === 'es') {
+    return `Tu borrador para esta parte es demasiado corto o está mal maquetado.
+
+Reescribe esta parte (no la resumas), ampliando y mejorando el contenido.
+
+CURSO: "${args.courseTitle}"
+MÓDULO: "${args.moduleTitle}"
+NIVEL: ${args.difficulty}
+PARTE: ${args.partIndex + 1}/${args.partCount}
+OBJETIVO: ~${args.partTargetWords} palabras (mínimo ~${minWords})
+BORRADOR ACTUAL: ~${args.currentWords} palabras
+
+Reglas (estrictas):
+- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Mantén el orden y los headings: usa "## {heading}" exactamente.
+- No pongas títulos dentro de blockquotes (evita "> ### ...").
+${includeHook ? `- Esta parte DEBE incluir el hook completo (H1 + meta + standfirst + --- + pull quote + tabla TECH INSIGHT).` : `- NO repitas el hook; empieza directamente con el primer "##" que te corresponda.`}
+- Aporta profundidad: explicación + ejemplo trabajado + mini ejercicio o checklist por sección.
+- Evita frases meta/instrucciones para IA.
+
+Secciones a escribir (en este orden):
+${sectionsList}
+
+${isLast && args.capstone ? `Al final incluye "## Proyecto guiado: ${args.capstone.title}" y luego "## Práctica" (4-6 ejercicios).` : ''}
+
+BORRADOR (para mejorar; NO lo copies tal cual):
+<BEGIN_DRAFT>
+${args.draft.trim()}
+<END_DRAFT>
+
+Ahora devuelve la versión corregida y ampliada de esta parte.`;
+  }
+
+  return `Your draft for this part is too short or poorly formatted.
+
+Rewrite this part (not a summary), expanding and improving it.
+
+COURSE: "${args.courseTitle}"
+MODULE: "${args.moduleTitle}"
+LEVEL: ${args.difficulty}
+PART: ${args.partIndex + 1}/${args.partCount}
+TARGET: ~${args.partTargetWords} words (minimum ~${minWords})
+CURRENT DRAFT: ~${args.currentWords} words
+
+Rules (strict):
+- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Keep the same order and section headings: use "## {heading}" exactly.
+- Do not put section titles inside blockquotes (avoid "> ### ...").
+${includeHook ? `- This part MUST include the full hook (H1 + meta + standfirst + --- + pull quote + TECH INSIGHT table).` : `- Do NOT repeat the hook; start directly with the first required "##" section.`}
+- Add depth: explanation + worked example + mini exercise or checklist per section.
+- Avoid meta/AI-instructional phrasing.
+
+Sections to write (in this order):
+${sectionsList}
+
+${isLast && args.capstone ? `At the end include "## Guided mini-project: ${args.capstone.title}" and then "## Practice" (4-6 exercises).` : ''}
+
+DRAFT (to improve; do NOT copy verbatim):
+<BEGIN_DRAFT>
+${args.draft.trim()}
+<END_DRAFT>
+
+Now return the corrected, expanded version of this part.`;
+}
+
 function buildModuleExpansionPrompt(args: {
   courseTitle: string;
   moduleTitle: string;
@@ -1079,6 +1176,7 @@ function buildModuleExpansionPrompt(args: {
   existingHeadings: string[];
 }): string {
   const headings = args.existingHeadings.map((h) => `- ${h}`).join('\n');
+  const newWords = Math.max(1200, Math.min(args.missingWords, 2600));
 
   if (args.locale === 'es') {
     return `El módulo está demasiado corto. Añade contenido NUEVO para enriquecerlo.
@@ -1091,6 +1189,7 @@ FALTAN APROX.: ${args.missingWords} palabras
 Reglas:
 - Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
 - NO repitas el título ni el hook.
+- Escribe al menos ~${newWords} palabras NUEVAS (no un resumen), repartidas en 2-3 secciones (ideal: 900-1400 palabras por sección).
 - Añade 2-3 secciones nuevas con títulos específicos y relacionados con el tema.
 - Incluye al menos 2 ejemplos trabajados y una lista de “errores comunes”.
 - No uses títulos genéricos como "Síntesis", "Fundacional", etc.
@@ -1109,6 +1208,7 @@ MISSING APPROX.: ${args.missingWords} words
 Rules:
 - Return ONLY Markdown (no JSON, no fences, no commentary).
 - Do NOT repeat the title or hook.
+- Write at least ~${newWords} NEW words (not a summary), across 2-3 new sections (ideal: 900-1400 words per section).
 - Add 2-3 new sections with specific, topic-relevant titles.
 - Include at least 2 worked examples and a “common pitfalls” list.
 - Avoid generic headings like "Synthesis", "Foundational", etc.
@@ -1240,7 +1340,8 @@ async function generateTextbookModuleWithGPT4o(args: {
       return arr.findIndex((x) => x.heading.toLowerCase() === key) === idx;
     });
 
-  const parts = splitSectionsIntoParts(normalizedSections, 3);
+  const partCount = resolveTextbookPartCount(targetWords);
+  const parts = splitSectionsIntoParts(normalizedSections, partCount);
   const plannedWords = normalizedSections.reduce((sum, s) => sum + (s.targetWords ?? 0), 0) || targetWords;
 
   const partTargets = parts.map((p) => {
@@ -1274,7 +1375,38 @@ async function generateTextbookModuleWithGPT4o(args: {
       { maxTokens: 6200, temperature: 0.75 }
     );
 
-    contentParts.push(partMarkdown.trim());
+    let part = partMarkdown.trim();
+    const words = countWords(part);
+    const target = partTargets[i] ?? Math.round(targetWords / Math.max(1, parts.length));
+    const minPartWords = Math.max(600, Math.round(target * 0.75));
+
+    if (words > 0 && words < minPartWords) {
+      const repaired = await callOpenAI(
+        buildModuleContentPartRepairPrompt({
+          draft: part,
+          currentWords: words,
+          courseTitle: args.courseTitle,
+          moduleTitle: args.moduleTitle,
+          moduleDescription: args.moduleDescription,
+          difficulty: args.difficulty,
+          estimatedMinutes,
+          locale: args.locale,
+          partIndex: i,
+          partCount: parts.length,
+          partTargetWords: target,
+          sections: sectionGroup,
+          capstone: plan.capstone,
+        }),
+        { maxTokens: 6800, temperature: 0.6 }
+      );
+
+      const repairedTrimmed = repaired.trim();
+      if (countWords(repairedTrimmed) > words) {
+        part = repairedTrimmed;
+      }
+    }
+
+    contentParts.push(part);
   }
 
   let content = contentParts.filter(Boolean).join('\n\n').trim();
@@ -1285,9 +1417,11 @@ async function generateTextbookModuleWithGPT4o(args: {
   });
 
   const existingHeadings = normalizedSections.map((s) => s.heading).filter(Boolean);
-  const currentWords = countWords(content);
   const minWords = Math.round(targetWords * 0.85);
-  if (currentWords > 0 && currentWords < minWords) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const currentWords = countWords(content);
+    if (currentWords <= 0 || currentWords >= minWords) break;
+
     const missingWords = minWords - currentWords;
     const expansion = await callOpenAI(
       buildModuleExpansionPrompt({
@@ -1298,7 +1432,7 @@ async function generateTextbookModuleWithGPT4o(args: {
         missingWords,
         existingHeadings,
       }),
-      { maxTokens: 4200, temperature: 0.75 }
+      { maxTokens: 5200, temperature: 0.75 }
     );
 
     content = normalizeEditorialMarkdown(`${content.trim()}\n\n${expansion.trim()}\n`, {
@@ -1883,6 +2017,17 @@ export async function POST(req: NextRequest) {
 
     let courseData: CourseData;
 
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'OPENAI_API_KEY not configured',
+          details: 'Set OPENAI_API_KEY in your environment (Vercel) to enable GPT-4o course generation.',
+        },
+        { status: 500 }
+      );
+    }
+
     // 2. Generate course based on quality setting
     if (process.env.OPENAI_API_KEY) {
       console.log(`[API] 🤖 Using GPT-4o generation (quality=${params.quality})...`);
@@ -1896,16 +2041,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (err) {
         console.warn('[API] GPT-4o generation failed:', err);
-        if (params.quality !== 'textbook') {
-          throw err;
-        }
-        console.warn('[API] Falling back to legacy textbook generator...');
-        courseData = await generateTextbookCourse(
-          params.topic,
-          params.difficulty,
-          params.duration,
-          params.locale
-        );
+        throw err;
       }
     } else {
       console.warn('[API] OPENAI_API_KEY missing. Falling back to legacy textbook generator...');
@@ -1965,6 +2101,39 @@ export async function POST(req: NextRequest) {
     }, 0) || 0;
     console.log(`[API] Total words generated: ${totalWords.toLocaleString()}`);
 
+    const moduleWordCounts = (localizedCourse.modules ?? []).map((m) => ({
+      title: m.title,
+      words: (m.content?.split(/\s+/).filter(Boolean).length || 0),
+    }));
+
+    try {
+      const supabase = getSupabaseServerClient();
+      await supabase.from('ai_system_logs').insert({
+        action_type: 'course_generation',
+        model_used: 'gpt-4o',
+        input_tokens: 0,
+        output_tokens: 0,
+        success: true,
+        error_message: null,
+        execution_time: duration,
+        cost: 0,
+        metadata: {
+          endpoint: '/api/courses/generate-full',
+          course_id: courseId,
+          topic: params.topic,
+          difficulty: params.difficulty,
+          duration: params.duration,
+          locale: params.locale,
+          quality: params.quality,
+          modules_count: localizedCourse.modules?.length || 0,
+          total_words: totalWords,
+          module_words: moduleWordCounts,
+        },
+      });
+    } catch (logError) {
+      console.warn('[API] Failed to write ai_system_logs (continuing):', logError);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -1973,6 +2142,9 @@ export async function POST(req: NextRequest) {
         description: localizedCourse.description,
         objectives: localizedCourse.objectives,
         modules_count: localizedCourse.modules?.length || 0,
+        estimated_duration_minutes: localizedCourse.modules
+          ? localizedCourse.modules.reduce((sum, m) => sum + m.estimatedMinutes, 0)
+          : 0,
         estimated_total_minutes: localizedCourse.modules
           ? localizedCourse.modules.reduce((sum, m) => sum + m.estimatedMinutes, 0)
           : 0,
@@ -2009,3 +2181,10 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+
+// Expose a minimal, explicit surface for scripts/admin tooling.
+// Not used by the Next.js route matcher.
+export const __internal = {
+  generateCourseWithGPT4o,
+  buildCourseByLocale,
+};
