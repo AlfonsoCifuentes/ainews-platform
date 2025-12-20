@@ -294,7 +294,13 @@ export function ModuleIllustration({
           variants: VARIANT_STYLES,
           promptOverride: slotPromptOverrides.promptOverride,
           negativePromptOverride: slotPromptOverrides.negativePromptOverride,
-          providerOrder: slot?.slotType === 'diagram' ? ['gemini'] : ['runware', 'gemini'],
+          providerOrder:
+            style === 'diagram' ||
+            style === 'schema' ||
+            style === 'infographic' ||
+            slot?.slotType === 'diagram'
+              ? ['gemini']
+              : ['runware', 'gemini'],
           slotId: slot?.id,
           anchor: slot
             ? {
@@ -455,7 +461,7 @@ export function ModuleIllustration({
                   alt={slot?.heading || 'AI-generated educational illustration'}
                   fill
                   className={isDiagram ? 'object-contain' : 'object-cover'}
-                  sizes={isDiagram ? '(max-width: 768px) 100vw, 900px' : '(max-width: 768px) 100vw, 600px'}
+                  sizes={isDiagram ? '(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1400px' : '(max-width: 768px) 100vw, 600px'}
                   unoptimized={imageSource.startsWith('data:')}
                 />
                 {!isDiagram && (

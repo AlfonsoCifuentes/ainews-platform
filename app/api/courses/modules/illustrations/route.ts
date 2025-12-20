@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
 
     // Try exact style first.
     let record = await tryFetch(style, slotId ?? null);
+
+    // If a slot-specific illustration doesn't exist yet, fall back to the module-level illustration.
+    // This is important for eagerly generated images (which are stored without a slot_id).
+    if (!record && slotId) {
+      record = await tryFetch(style, null);
+    }
     
     // If no result and style is 'header', try 'textbook' as fallback
     if (!record && style === 'header') {
@@ -56,6 +62,9 @@ export async function GET(req: NextRequest) {
     // (older generators only produced textbook illustrations).
     if (!record && style === 'conceptual') {
       record = await tryFetch('textbook', slotId ?? null);
+      if (!record && slotId) {
+        record = await tryFetch('textbook', null);
+      }
     }
 
     if (!record) {

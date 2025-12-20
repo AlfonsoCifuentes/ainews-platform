@@ -58,6 +58,7 @@ function buildPrompt(input: CoursePlanInput) {
   return `You are an illustration planning assistant. Work in ${lang}. Avoid using Gemini for planning; you only output prompts.
 Return concise JSON. Constraints:
 - At least 1 image prompt per module (non-Gemini provider like Runware/HF/Qwen). Keep density low: max 2 prompts per module.
+- For module "images" (non-Gemini): DO NOT request infographics, diagrams, flowcharts, charts, UI screenshots, arrows/boxes/labels, or schematic layouts. These must look like photographs or rich editorial illustrations (non-schematic), with "no text".
 - Diagram prompts (for Gemini 3 Image) only when a diagram truly clarifies something; 0-1 per module is okay.
 - Course cover prompt: single image. ABSOLUTELY NO text/letters/typography/logos/watermarks. Conveys the course essence.
 - Prompts must be short, direct, and visual. Avoid camera jargon unless helpful. Include subject, mood, setting. Prefer "no text" unless it's explicitly a diagram.

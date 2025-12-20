@@ -422,6 +422,19 @@ function stripEditorialBoilerplate(markdown: string): string {
   const stripInlineAttribution = (rawLine: string): string => {
     let next = rawLine;
 
+    // Remove the most common prompt boilerplate even if it gets glued into other lines.
+    // Keep this targeted to phrases we never want to show to readers.
+    const boilerplatePatterns: RegExp[] = [
+      /\beste m(?:ó|o)dulo convierte un tema (?:difuso|confuso) en un modelo mental claro(?: y accionable)?\.?/gi,
+      /\bthis module turns a fuzzy topic into a clear(?:,)? usable mental model\.?/gi,
+      /\bun m(?:ó|o)dulo (?:directo|r(?:á|a)pido|rapido) y estructurado sobre[^.\n]{6,200}\.?/gi,
+      /\ba (?:fast|direct),?\s*structured module on[^.\n]{6,200}\.?/gi,
+    ];
+
+    for (const pattern of boilerplatePatterns) {
+      next = next.replace(pattern, ' ');
+    }
+
     // Remove inline placeholder attributions that sometimes get glued to the quote line.
     // Examples:
     // - `— Idea ancla del módulo`
@@ -479,12 +492,86 @@ function stripEditorialBoilerplate(markdown: string): string {
     }
 
     const canonical = canonicalizeBoilerplateText(trimmed);
+    if (isBoilerplateHeroLead(canonical)) continue;
+    if (isBoilerplateStandfirst(canonical)) continue;
     if (isBoilerplateAttribution(canonical)) continue;
 
     out.push(line);
   }
 
   // Avoid excessive blank space when we removed boilerplate lines/blocks.
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function stripBoilerplateBlockquoteCallouts(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const normalizeForMatch = (input: string): string =>
+    canonicalizeBoilerplateText(input)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(rawLine);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(rawLine);
+      continue;
+    }
+
+    if (!trimmed.startsWith('>')) {
+      out.push(rawLine);
+      continue;
+    }
+
+    // Gather contiguous blockquote block.
+    const blockLines: string[] = [rawLine];
+    let j = i + 1;
+    while (j < lines.length && (lines[j] ?? '').trim().startsWith('>')) {
+      blockLines.push(lines[j] ?? '');
+      j += 1;
+    }
+
+    const blockText = blockLines
+      .map((l) => l.replace(/^\s*>\s?/, ''))
+      .join('\n')
+      .trim();
+
+    const firstNonEmpty = blockLines
+      .map((l) => l.replace(/^\s*>\s?/, '').trim())
+      .find((l) => Boolean(l)) ?? '';
+    const title = firstNonEmpty.replace(/^#{1,6}\s*/, '').trim();
+
+    const titleNorm = normalizeForMatch(title);
+    const bodyNorm = normalizeForMatch(blockText);
+
+    const isTemplateTitle = /^(distincion clave|punto clave|key insight|patron|pattern)\b/i.test(titleNorm);
+    const isTemplateBody =
+      /(afirmacion|claim|assertion)\s*(?:≠|!=)\s*(evidencia|evidence)/i.test(bodyNorm) ||
+      /(definicion|definition)\s*(?:→|->)\s*observables?/i.test(bodyNorm) ||
+      /(contraejemplos|counterexamples)/i.test(bodyNorm) ||
+      /(incertidumbre|uncertainty)/i.test(bodyNorm);
+
+    if (isTemplateTitle && isTemplateBody) {
+      // Drop entire blockquote callout.
+      i = j - 1;
+      continue;
+    }
+
+    out.push(...blockLines);
+    i = j - 1;
+  }
+
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
@@ -934,6 +1021,44 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
 
   const defaultTitle = locale === 'es' ? 'Punto clave' : 'Key insight';
 
+  const stripMetaParentheticals = (input: string): string => {
+    const s = String(input ?? '');
+    return s
+      .replace(/\(([^)]*)\)/g, (full, inner) => {
+        const t = String(inner ?? '').toLowerCase();
+        if (/(incertidumbre|uncertainty|explicit|sigue|follow)/i.test(t)) return '';
+        return full;
+      })
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
+  const normalizeForMatch = (input: string): string =>
+    stripMetaParentheticals(input)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const humanizeInsight = (title: string, body: string): string => {
+    const t = normalizeForMatch(title);
+    const b = normalizeForMatch(body);
+    const combined = `${t} ${b}`.trim();
+
+    if (/(distincion clave|key insight|punto clave)/i.test(combined) && /(afirmacion|claim|assertion)/i.test(combined) && /(evidencia|evidence)/i.test(combined)) {
+      return locale === 'es'
+        ? 'Una afirmación no es evidencia. Indica qué observarías para respaldarla y qué la refutaría.'
+        : 'A claim is not evidence. State what you would observe to support it and what would falsify it.';
+    }
+
+    if (/(patron|pattern)/i.test(combined) && /(definicion|definition)/i.test(combined) && /(observables?)/i.test(combined) && /(contraejemplos|counterexamples)/i.test(combined)) {
+      return locale === 'es'
+        ? 'Sigue este patrón: define el concepto, lista señales observables y añade contraejemplos.'
+        : 'Use this pattern: define the concept, list observable signals, and add counterexamples.';
+    }
+
+    return stripMetaParentheticals(body);
+  };
+
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
 
@@ -977,11 +1102,20 @@ function normalizeInlineInsightMarkers(markdown: string, locale: 'en' | 'es' | u
 
     if (out.length && out[out.length - 1]?.trim()) out.push('');
 
-    // NOTE: `keyconcept` is used (no hyphen) because some parsers only accept `\\w+` for callout types.
-    out.push(`:::keyconcept[${calloutTitle}]`);
-    out.push(calloutBody);
-    out.push(':::');
-    out.push('');
+    // Rewrite as a natural inline note instead of a callout box to avoid "prompt-y" UI artifacts.
+    const cleanTitle = stripMetaParentheticals(calloutTitle);
+    const cleanBody = humanizeInsight(cleanTitle, calloutBody);
+
+    if (cleanTitle && cleanBody) {
+      out.push(`**${cleanTitle}:** ${cleanBody}`);
+      out.push('');
+      continue;
+    }
+
+    if (cleanBody) {
+      out.push(cleanBody);
+      out.push('');
+    }
   }
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
@@ -1642,7 +1776,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
   const unwrapped = unwrapSoftLineBreaks(blockquotesSplit);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
-  const insightsFixed = normalizeInlineInsightMarkers(boilerplateStripped, options.locale);
+  const boilerplateCalloutsStripped = stripBoilerplateBlockquoteCallouts(boilerplateStripped);
+  const insightsFixed = normalizeInlineInsightMarkers(boilerplateCalloutsStripped, options.locale);
   const insightsCalloutsStripped = stripBoilerplateKeyConceptCallouts(insightsFixed);
   const typosFixed = fixCommonTranslationTypos(insightsCalloutsStripped, options.locale);
   const pullQuotesFixed = normalizePullQuoteHeadings(typosFixed);

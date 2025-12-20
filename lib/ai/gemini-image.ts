@@ -123,14 +123,20 @@ Generate a visually striking image that immediately communicates what this chapt
       ? '\n\nRegla estricta: NO incluyas texto legible, letras, palabras, tipografías, números, subtítulos, marcas de agua ni logotipos.'
       : '\n\nHard rule: Do NOT include readable text, letters, words, typography, numbers, captions, watermarks, or logos.');
 
+  const noSchematicRule = style === 'diagram' || style === 'schema'
+    ? ''
+    : (locale === 'es'
+      ? '\n\nEvita el estilo de infografía/diagrama: nada de flechas, cajas, etiquetas, gráficos, ejes, UI/screenshot ni composición esquemática. Debe parecer una foto o una ilustración editorial (no un esquema).'
+      : '\n\nAvoid infographic/diagram style: no arrows, boxes, labels, charts, axes, UI/screenshot, or schematic composition. It must look like an editorial photo or illustration (not a schematic).');
+
   return `${stylePrompt}
 
 Content to illustrate:
 ${contentSummary}
 
-Important: The image should be self-explanatory and enhance understanding of the topic. Use visual metaphors and friendly characters to make complex concepts accessible.
+Important: The image should be self-explanatory and enhance understanding of the topic. Use a clear visual metaphor in a realistic scene that matches the chapter, with strong subject focus and clean negative space.
 
-Visual aesthetic: ${visualPrompt}${noTextRule}`;
+Visual aesthetic: ${visualPrompt}${noTextRule}${noSchematicRule}`;
 }
 
 // ============================================================================

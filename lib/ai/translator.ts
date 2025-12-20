@@ -19,6 +19,85 @@ function normalizeNewlines(text: string): string {
   return String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
+function normalizeForSimilarity(text: string): string {
+  return String(text ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\u00f1\u00d1\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function translationLikelyFailed(input: string, output: string, fromLang: Locale, toLang: Locale): boolean {
+  if (fromLang === toLang) return false;
+  const a = normalizeForSimilarity(input);
+  const b = normalizeForSimilarity(output);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  // For longer chunks, also treat near-identical output as failure (common when upstream blocks/rate-limits).
+  if (a.length >= 220 && b.length >= 220) {
+    const aWords = new Set(a.split(' ').filter(Boolean));
+    const bWords = new Set(b.split(' ').filter(Boolean));
+    const intersection = [...aWords].filter((w) => bWords.has(w)).length;
+    const overlap = intersection / Math.max(1, Math.min(aWords.size, bWords.size));
+    if (overlap >= 0.94) return true;
+  }
+
+  return false;
+}
+
+async function translateWithOpenAI(text: string, fromLang: Locale, toLang: Locale): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  const model = process.env.OPENAI_TRANSLATION_MODEL || 'gpt-4o-mini';
+
+  const system = `You are a professional translator. Translate faithfully, preserving meaning, tone, and formatting.
+Rules:
+- Output ONLY the translated text (no quotes, no commentary).
+- Preserve any tokens like __TN_CODE_0__, __TN_URL_3__, __TN_INLINE_2__, __TN_CALLOUT_1__ exactly.
+- Preserve Markdown formatting and line breaks as much as possible.
+`;
+
+  const user = `Translate from ${fromLang} to ${toLang}. Return ONLY the translation.
+
+TEXT:
+${text}`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.2,
+      max_tokens: 6000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI translation error ${response.status}: ${errorText.slice(0, 200)}`);
+  }
+
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenAI translation returned empty content');
+  return content.trim();
+}
+
 async function translateTextRaw(
   text: string,
   fromLang: Locale,
@@ -85,7 +164,17 @@ export async function translateText(
 
     for (let i = 0; i < parts.length; i += 1) {
       const part = parts[i] ?? '';
-      const translated = await translateTextRaw(part, fromLang, toLang);
+      let translated = await translateTextRaw(part, fromLang, toLang);
+
+      // If Google translation fails silently (often returns unchanged text), fall back to GPT translation.
+      if (translationLikelyFailed(part, translated, fromLang, toLang) && process.env.OPENAI_API_KEY) {
+        try {
+          translated = await translateWithOpenAI(part, fromLang, toLang);
+        } catch (fallbackError) {
+          console.warn('[Translator] OpenAI fallback failed; keeping original chunk', fallbackError);
+        }
+      }
+
       out.push(translated);
       if (delayMs > 0 && i < parts.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -267,7 +356,17 @@ export async function batchTranslate(
   for (const text of texts) {
     try {
       const result = await translate(text, { from: fromLang, to: toLang });
-      results.push(result.text);
+      let translated = result.text;
+
+      if (translationLikelyFailed(text, translated, fromLang, toLang) && process.env.OPENAI_API_KEY) {
+        try {
+          translated = await translateWithOpenAI(text, fromLang, toLang);
+        } catch (fallbackError) {
+          console.warn('[Translator] OpenAI fallback failed in batch; keeping original item', fallbackError);
+        }
+      }
+
+      results.push(translated);
       
       // Small delay between requests to be respectful
       if (delayMs > 0) {
@@ -275,7 +374,18 @@ export async function batchTranslate(
       }
     } catch (error) {
       console.error('[Translator] Error in batch translation:', error);
-      results.push(text); // Keep original on error
+      // Keep original on error, but attempt GPT fallback if available.
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const fallback = await translateWithOpenAI(text, fromLang, toLang);
+          results.push(fallback);
+        } catch (fallbackError) {
+          console.warn('[Translator] OpenAI fallback failed after batch error; keeping original', fallbackError);
+          results.push(text);
+        }
+      } else {
+        results.push(text);
+      }
     }
   }
 

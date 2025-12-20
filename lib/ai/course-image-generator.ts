@@ -62,6 +62,33 @@ interface RunwareResult {
   error?: string;
 }
 
+const COURSE_ILLUSTRATION_NEGATIVE_PROMPT = [
+  // Text/branding
+  'text',
+  'letters',
+  'typography',
+  'caption',
+  'subtitle',
+  'watermark',
+  'logo',
+  // Diagram/infographic look (Runware must not produce diagrams)
+  'infographic',
+  'diagram',
+  'flowchart',
+  'chart',
+  'graph',
+  'axes',
+  'labels',
+  'arrows',
+  'boxes',
+  'schematic',
+  'blueprint',
+  'wireframe',
+  'ui',
+  'interface',
+  'screenshot',
+].join(', ');
+
 type ModuleContentRow = {
   id: string;
   title_en: string | null;
@@ -254,6 +281,7 @@ export async function generateCourseImages(
         })());
 
     console.log(`[CourseImageGenerator] Plan ready: cover + ${plan.modules.length} module plans`);
+    const planByModuleId = new Map(plan.modules.map((m) => [m.moduleId, m]));
 
     // Step 2: Generate course cover
     if (plan.courseCover?.prompt) {
@@ -372,11 +400,17 @@ export async function generateCourseImages(
         const subject = titleEn || titleEs || input.title;
         if (baseContent) {
           console.log(`[CourseImageGenerator] Generating conceptual illustration for module: ${subject.slice(0, 60)}...`);
+          const plannedPrompt = planByModuleId.get(moduleRow.id)?.images?.[0]?.prompt?.trim();
+          const promptOverride = plannedPrompt
+            ? `${plannedPrompt}. Photorealistic editorial illustration/photo, cinematic lighting, dark-mode friendly, no text, no infographic, not a diagram.`
+            : undefined;
           const cascadeResult = await generateIllustrationWithCascade({
             moduleContent: `${subject}\n\n${baseContent}`.slice(0, 6000),
             locale: 'en',
             style: 'conceptual',
             visualStyle: 'photorealistic',
+            ...(promptOverride ? { promptOverride } : {}),
+            negativePromptOverride: COURSE_ILLUSTRATION_NEGATIVE_PROMPT,
           });
 
           if (cascadeResult.success && cascadeResult.images.length) {

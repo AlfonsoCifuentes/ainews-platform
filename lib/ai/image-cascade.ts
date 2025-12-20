@@ -31,6 +31,9 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
 // Prefer Runware as the cheap default, then Gemini as precision fallback.
 export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runware', 'gemini'];
 
+const DEFAULT_NON_DIAGRAM_NEGATIVE_PROMPT =
+  'text, letters, typography, caption, subtitle, watermark, logo, infographic, diagram, flowchart, chart, graph, axes, labels, arrows, boxes, schematic, blueprint, wireframe, ui, interface, screenshot';
+
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions
 ): Promise<IllustrationCascadeResult> {
@@ -45,19 +48,23 @@ export async function generateIllustrationWithCascade(
 
   const providerOrder: ImageProviderName[] = options.providerOrder && options.providerOrder.length > 0
     ? options.providerOrder
-    : options.style === 'diagram' || options.style === 'schema'
+    : options.style === 'diagram' || options.style === 'schema' || options.style === 'infographic'
       ? ['gemini']
       : DEFAULT_PROVIDER_ORDER;
 
   const attempts: CascadeAttempt[] = [];
   const dimensions = resolveDimensionsForStyle(options.style);
+  const negativePrompt = options.negativePromptOverride
+    ?? (options.style === 'diagram' || options.style === 'schema' || options.style === 'infographic'
+      ? undefined
+      : DEFAULT_NON_DIAGRAM_NEGATIVE_PROMPT);
 
   for (const provider of providerOrder) {
     try {
       const result = provider === 'gemini'
         ? await generateWithGemini(prompt, dimensions)
         : provider === 'runware'
-        ? await generateWithRunware(prompt, options.negativePromptOverride, dimensions)
+        ? await generateWithRunware(prompt, negativePrompt, dimensions)
         : provider === 'qwen'
         ? await generateWithQwen(prompt, dimensions)
         : await generateWithHuggingFace(prompt, dimensions);
@@ -446,11 +453,12 @@ function resolveDimensionsForStyle(style: IllustrationStyle) {
       // Runware requires multiples of 64.
       return { width: 1344, height: 768, aspectRatio: '16:9' as const };
     case 'diagram':
-      return { width: 1024, height: 768, aspectRatio: '4:3' as const };
+      // Diagrams contain text; request a larger render so labels stay readable.
+      return { width: 1440, height: 1080, aspectRatio: '4:3' as const };
     case 'infographic':
       return { width: 1152, height: 768, aspectRatio: '3:2' as const };
     case 'schema':
-      return { width: 1024, height: 768, aspectRatio: '4:3' as const };
+      return { width: 1440, height: 1080, aspectRatio: '4:3' as const };
     default:
       return { width: 1024, height: 576, aspectRatio: '16:9' as const };
   }

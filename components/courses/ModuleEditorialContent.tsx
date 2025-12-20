@@ -229,8 +229,8 @@ function InlineFigure({
   const isDiagram = slot.slotType === 'diagram';
 
   const wrapperClassName = isDiagram
-    ? 'my-8 w-full clear-both break-inside-avoid -mx-4 md:-mx-8 lg:-mx-12'
-    : 'my-6 w-full clear-both break-inside-avoid -mx-2 md:-mx-6 lg:-mx-10';
+    ? 'my-8 w-full clear-both break-inside-avoid -mx-6 md:-mx-8'
+    : 'my-6 w-full clear-both break-inside-avoid -mx-6 md:-mx-8';
 
   return (
     <figure className={wrapperClassName}>
@@ -299,7 +299,11 @@ export function ModuleEditorialContent({
             />
           );
         }
-        return <ContentBlockRenderer key={`${block.type}-${index}`} block={block} />;
+        return (
+          <div key={`${block.type}-${index}`} className="mx-auto max-w-[72ch]">
+            <ContentBlockRenderer block={block} />
+          </div>
+        );
       })}
     </div>
   );

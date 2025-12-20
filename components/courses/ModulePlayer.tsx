@@ -686,15 +686,13 @@ export function ModulePlayer({
             </div>
           ) : normalizedContent && normalizedContent.trim() ? (
             <>
-              <div className="mx-auto max-w-[72ch]">
-                <ModuleEditorialContent
-                  moduleId={module.id}
-                  locale={locale}
-                  normalizedContent={normalizedContent}
-                  moduleTitle={title}
-                  visualSlots={visualSlots}
-                />
-              </div>
+              <ModuleEditorialContent
+                moduleId={module.id}
+                locale={locale}
+                normalizedContent={normalizedContent}
+                moduleTitle={title}
+                visualSlots={visualSlots}
+              />
             </>
           ) : (
             <div className="text-center py-12" style={{ color: BRUTALIST.textMuted }}>

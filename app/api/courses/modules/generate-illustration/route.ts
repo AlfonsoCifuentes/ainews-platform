@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const variantList = resolveVariantList(style, variants);
     const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
-      style === 'diagram' || style === 'schema' ? ['gemini'] : ['runware', 'gemini'];
+      style === 'diagram' || style === 'schema' || style === 'infographic' ? ['gemini'] : ['runware', 'gemini'];
     const order: NonNullable<GenerateIllustrationRequest['providerOrder']> =
       providerOrder && providerOrder.length ? providerOrder : defaultOrder;
     console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);

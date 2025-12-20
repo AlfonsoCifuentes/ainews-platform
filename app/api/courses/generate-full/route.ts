@@ -106,7 +106,7 @@ async function buildCourseByLocale(course: CourseData, primaryLocale: Locale): P
 // PROMPTS
 // ============================================================================
 
-const COURSE_PROMPT_EN = (topic: string, difficulty: string, duration: string): string => {
+const _COURSE_PROMPT_EN = (topic: string, difficulty: string, duration: string): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
   const contentWordCount = duration === 'short' ? 3000 : duration === 'medium' ? 3500 : 4000;
   
@@ -306,7 +306,7 @@ FINAL NON-NEGOTIABLE REQUIREMENTS:
 Remember: You are writing the definitive textbook on this topic. Write like the veteran expert you are.`;
 };
 
-const COURSE_PROMPT_ES = (topic: string, difficulty: string, duration: string): string => {
+const _COURSE_PROMPT_ES = (topic: string, difficulty: string, duration: string): string => {
   const moduleCount = duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
   const contentWordCount = duration === 'short' ? 3000 : duration === 'medium' ? 3500 : 4000;
   
@@ -509,13 +509,13 @@ Recuerda: Estás escribiendo el libro de texto definitivo sobre este tema. Escri
 // OPENAI GENERATION
 // ============================================================================
 
-async function generateWithOpenAI(prompt: string): Promise<CourseData> {
+async function callOpenAI(prompt: string, options: { maxTokens: number; temperature?: number }): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  console.log('[OpenAI] Calling GPT-4o for course generation...');
+  const temperature = Number.isFinite(options.temperature) ? options.temperature : 0.7;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -529,8 +529,8 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
         role: 'user', 
         content: prompt 
       }],
-      temperature: 0.7,
-      max_tokens: 4000
+      temperature,
+      max_tokens: options.maxTokens
     })
   });
 
@@ -547,13 +547,300 @@ async function generateWithOpenAI(prompt: string): Promise<CourseData> {
     throw new Error('No content returned from OpenAI');
   }
 
-  // Use robust JSON fixing utility
-  const fixed = sanitizeAndFixJSON(content);
-  const parsed = parseJSON<CourseData>(fixed, 'generate-full course');
-  console.log('[OpenAI] ✅ Successfully parsed course structure');
-  console.log(`[OpenAI] Course title: "${parsed.title}"`);
-  console.log(`[OpenAI] Modules: ${parsed.modules?.length || 0}`);
-  return parsed;
+  return content;
+}
+
+const CourseOutlineSchema = z.object({
+  title: z.string().min(4),
+  description: z.string().min(20),
+  objectives: z.array(z.string()).min(5).max(10),
+  modules: z.array(z.object({
+    title: z.string().min(4),
+    description: z.string().min(12),
+    tags: z.array(z.string()).optional(),
+  })).min(3).max(10),
+});
+
+const ModuleBundleSchema = z.object({
+  content: z.string().min(800),
+  keyTakeaways: z.array(z.string()).min(4).max(16),
+  quiz: z.array(z.object({
+    question: z.string().min(12),
+    options: z.array(z.string()).length(4),
+    correctAnswer: z.number().int().min(0).max(3),
+    explanation: z.string().min(60),
+  })).min(4).max(6),
+  resources: z.array(z.string()).min(3).max(10),
+  estimatedMinutes: z.number().int().min(10).max(120).optional(),
+});
+
+function resolveModuleCount(duration: string): number {
+  return duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
+}
+
+function resolveEstimatedMinutes(duration: string): number {
+  return duration === 'short' ? 30 : duration === 'medium' ? 45 : 60;
+}
+
+function resolveTargetWords(duration: string, quality: 'standard' | 'textbook'): number {
+  if (quality === 'textbook') {
+    return duration === 'short' ? 1800 : duration === 'medium' ? 2300 : 2800;
+  }
+  return duration === 'short' ? 1200 : duration === 'medium' ? 1600 : 2000;
+}
+
+function buildOutlinePrompt(args: {
+  topic: string;
+  difficulty: string;
+  duration: string;
+  locale: 'en' | 'es';
+  quality: 'standard' | 'textbook';
+}): string {
+  const moduleCount = resolveModuleCount(args.duration);
+
+  if (args.locale === 'es') {
+    return `Eres un autor de libros de texto y editor senior. Devuelve SOLO JSON válido.
+
+Diseña el plan de un curso de ${moduleCount} módulos sobre:
+TEMA: "${args.topic}"
+NIVEL: ${args.difficulty}
+CALIDAD: ${args.quality}
+
+Requisitos:
+- Nada de frases meta tipo "este módulo convierte..." ni menciones a IA.
+- Evita títulos genéricos tipo "Fundacional", "Núcleo", "Síntesis y Conclusión".
+- El temario debe sonar humano, no robótico, y tener progresión clara.
+
+Devuelve EXACTAMENTE este JSON:
+{
+  "title": "string",
+  "description": "2-3 frases",
+  "objectives": ["6-8 objetivos accionables"],
+  "modules": [
+    {
+      "title": "título del módulo (sin prefijo Módulo 1)",
+      "description": "1-2 frases",
+      "tags": ["AI", "Curso", "..."]
+    }
+  ]
+}
+
+El array "modules" debe tener EXACTAMENTE ${moduleCount} elementos.`;
+  }
+
+  return `You are a senior textbook author and editor. Return ONLY valid JSON.
+
+Design a ${moduleCount}-module course plan about:
+TOPIC: "${args.topic}"
+LEVEL: ${args.difficulty}
+QUALITY: ${args.quality}
+
+Requirements:
+- No meta phrases like "this module turns..." and no mentions of AI.
+- Avoid generic titles like "Foundational", "Core", "Synthesis and Conclusions".
+- Make it sound human and engaging, with clear progression.
+
+Return EXACTLY this JSON:
+{
+  "title": "string",
+  "description": "2-3 sentences",
+  "objectives": ["6-8 actionable objectives"],
+  "modules": [
+    {
+      "title": "module title (no 'Module 1' prefix)",
+      "description": "1-2 sentences",
+      "tags": ["AI", "Course", "..."]
+    }
+  ]
+}
+
+The "modules" array MUST have EXACTLY ${moduleCount} items.`;
+}
+
+function buildModulePrompt(args: {
+  courseTitle: string;
+  courseDescription: string;
+  objectives: string[];
+  moduleIndex: number;
+  moduleCount: number;
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  duration: string;
+  locale: 'en' | 'es';
+  quality: 'standard' | 'textbook';
+}): string {
+  const estimatedMinutes = resolveEstimatedMinutes(args.duration);
+  const targetWords = resolveTargetWords(args.duration, args.quality);
+
+  const bannedPhrases = args.locale === 'es'
+    ? [
+        'Este módulo convierte un tema',
+        'Un módulo directo y estructurado',
+        'INSIGHT >>',
+        'Distinción clave:',
+        'Patrón:',
+        'Síntesis y Conclusión',
+        'Fundacional',
+        'Núcleo',
+        'Avanzado',
+      ]
+    : [
+        'This module turns',
+        'A direct, structured module',
+        'INSIGHT >>',
+        'Key insight:',
+        'Pattern:',
+        'Synthesis and Conclusion',
+        'Foundational',
+        'Core',
+        'Advanced',
+      ];
+
+  if (args.locale === 'es') {
+    return `Escribe el MÓDULO ${args.moduleIndex + 1}/${args.moduleCount} del curso:
+TÍTULO DEL CURSO: "${args.courseTitle}"
+DESCRIPCIÓN DEL CURSO: "${args.courseDescription}"
+OBJETIVOS DEL CURSO: ${args.objectives.map((o) => `- ${o}`).join('\n')}
+
+MÓDULO: "${args.moduleTitle}"
+RESUMEN DEL MÓDULO: "${args.moduleDescription}"
+NIVEL: ${args.difficulty}
+TIEMPO ESTIMADO: ${estimatedMinutes} min
+OBJETIVO DE LONGITUD: ~${targetWords} palabras (contenido real, no headers)
+
+Devuelve SOLO JSON válido con esta forma:
+{
+  "content": "MARKDOWN",
+  "keyTakeaways": ["..."],
+  "quiz": [
+    { "question": "...", "options": ["A","B","C","D"], "correctAnswer": 0, "explanation": "60+ palabras" }
+  ],
+  "resources": ["..."],
+  "estimatedMinutes": ${estimatedMinutes}
+}
+
+Reglas de contenido (MARKDOWN):
+- Empieza con: # ${args.moduleTitle}
+- Segunda línea: **⏱️ Tiempo:** ${estimatedMinutes} min | **📊 Nivel:** ${args.difficulty} | **🏷️ Tags:** \`AI\` \`Curso\` (añade 1-3 tags relevantes)
+- Luego un standfirst corto en blockquote: > **...**
+- Luego un separador: ---
+- 4-6 secciones con títulos descriptivos (##). Evita headings plantilla.
+- Incluye al menos 2 ejemplos concretos y 1 mini caso realista (sin citas falsas).
+- Incluye 1 ejercicio práctico breve al final (sin soluciones largas).
+- Evita muros de texto: párrafos de 2-5 frases, con transiciones naturales.
+
+Prohibido incluir estas frases/formatos (ni similares): ${bannedPhrases.map((p) => `"${p}"`).join(', ')}
+
+IMPORTANTE: el contenido debe ser natural, editorial y legible; nada de texto robótico o “plantilla”.`;
+  }
+
+  return `Write MODULE ${args.moduleIndex + 1}/${args.moduleCount} of the course:
+COURSE TITLE: "${args.courseTitle}"
+COURSE DESCRIPTION: "${args.courseDescription}"
+COURSE OBJECTIVES:\n${args.objectives.map((o) => `- ${o}`).join('\n')}
+
+MODULE: "${args.moduleTitle}"
+MODULE SUMMARY: "${args.moduleDescription}"
+LEVEL: ${args.difficulty}
+ESTIMATED TIME: ${estimatedMinutes} min
+TARGET LENGTH: ~${targetWords} words (real content, not headers)
+
+Return ONLY valid JSON with this shape:
+{
+  "content": "MARKDOWN",
+  "keyTakeaways": ["..."],
+  "quiz": [
+    { "question": "...", "options": ["A","B","C","D"], "correctAnswer": 0, "explanation": "60+ words" }
+  ],
+  "resources": ["..."],
+  "estimatedMinutes": ${estimatedMinutes}
+}
+
+Markdown rules:
+- Start with: # ${args.moduleTitle}
+- Second line: **⏱️ Time:** ${estimatedMinutes} min | **📊 Level:** ${args.difficulty} | **🏷️ Tags:** \`AI\` \`Course\` (add 1-3 relevant tags)
+- Then a short standfirst in a blockquote: > **...**
+- Then a separator: ---
+- 4-6 sections with descriptive headings (##). Avoid template headings.
+- Include at least 2 concrete examples and 1 small realistic case (no fake citations).
+- Include 1 short practical exercise at the end (no long solutions).
+- Avoid walls of text: 2-5 sentences per paragraph, with natural transitions.
+
+Forbidden phrases/formats (or close variants): ${bannedPhrases.map((p) => `"${p}"`).join(', ')}
+
+IMPORTANT: make it human, editorial, and pleasant to read (not robotic).`;
+}
+
+async function generateCourseWithGPT4o(args: {
+  topic: string;
+  difficulty: string;
+  duration: string;
+  locale: 'en' | 'es';
+  quality: 'standard' | 'textbook';
+}): Promise<CourseData> {
+  const moduleCount = resolveModuleCount(args.duration);
+
+  console.log(`[OpenAI] Generating course outline with GPT-4o (modules=${moduleCount}, locale=${args.locale}, quality=${args.quality})...`);
+
+  const outlineRaw = await callOpenAI(buildOutlinePrompt(args), { maxTokens: 1200, temperature: 0.4 });
+  const outlineFixed = sanitizeAndFixJSON(outlineRaw);
+  const outlineParsed = parseJSON<z.infer<typeof CourseOutlineSchema>>(outlineFixed, 'gpt4o course outline');
+  const outline = CourseOutlineSchema.parse(outlineParsed);
+
+  const modulesOutline = outline.modules.slice(0, moduleCount);
+  if (modulesOutline.length !== moduleCount) {
+    throw new Error(`Outline returned ${modulesOutline.length} modules, expected ${moduleCount}`);
+  }
+
+  const modules: Module[] = [];
+
+  for (let i = 0; i < moduleCount; i += 1) {
+    const entry = modulesOutline[i];
+    const moduleTitleBase = entry.title.trim();
+    const moduleTitle = args.locale === 'es'
+      ? `Módulo ${i + 1}: ${moduleTitleBase}`
+      : `Module ${i + 1}: ${moduleTitleBase}`;
+
+    console.log(`[OpenAI] Generating module ${i + 1}/${moduleCount}: ${moduleTitleBase}...`);
+
+    const moduleRaw = await callOpenAI(buildModulePrompt({
+      courseTitle: outline.title,
+      courseDescription: outline.description,
+      objectives: outline.objectives,
+      moduleIndex: i,
+      moduleCount,
+      moduleTitle,
+      moduleDescription: entry.description,
+      difficulty: args.difficulty,
+      duration: args.duration,
+      locale: args.locale,
+      quality: args.quality,
+    }), { maxTokens: args.quality === 'textbook' ? 6500 : 5200, temperature: 0.7 });
+
+    const moduleFixed = sanitizeAndFixJSON(moduleRaw);
+    const moduleParsed = parseJSON<z.infer<typeof ModuleBundleSchema>>(moduleFixed, `gpt4o module ${i + 1}`);
+    const bundle = ModuleBundleSchema.parse(moduleParsed);
+
+    modules.push({
+      title: moduleTitle,
+      description: entry.description,
+      content: bundle.content,
+      keyTakeaways: bundle.keyTakeaways,
+      estimatedMinutes: bundle.estimatedMinutes ?? resolveEstimatedMinutes(args.duration),
+      quiz: bundle.quiz,
+      resources: bundle.resources,
+    });
+  }
+
+  console.log('[OpenAI] ✅ Course generated');
+
+  return {
+    title: outline.title,
+    description: outline.description,
+    objectives: outline.objectives,
+    modules,
+  };
 }
 
 // ============================================================================
@@ -1015,22 +1302,37 @@ export async function POST(req: NextRequest) {
     let courseData: CourseData;
 
     // 2. Generate course based on quality setting
-    if (params.quality === 'textbook') {
-      // NEW: Use textbook-quality generation system
-      console.log('[API] 📚 Using TEXTBOOK quality generation (20x more extensive)...');
+    if (process.env.OPENAI_API_KEY) {
+      console.log(`[API] 🤖 Using GPT-4o generation (quality=${params.quality})...`);
+      try {
+        courseData = await generateCourseWithGPT4o({
+          topic: params.topic,
+          difficulty: params.difficulty,
+          duration: params.duration,
+          locale: params.locale,
+          quality: params.quality,
+        });
+      } catch (err) {
+        console.warn('[API] GPT-4o generation failed:', err);
+        if (params.quality !== 'textbook') {
+          throw err;
+        }
+        console.warn('[API] Falling back to legacy textbook generator...');
+        courseData = await generateTextbookCourse(
+          params.topic,
+          params.difficulty,
+          params.duration,
+          params.locale
+        );
+      }
+    } else {
+      console.warn('[API] OPENAI_API_KEY missing. Falling back to legacy textbook generator...');
       courseData = await generateTextbookCourse(
         params.topic,
         params.difficulty,
         params.duration,
         params.locale
       );
-    } else {
-      // LEGACY: Use standard OpenAI generation
-      console.log('[API] 📝 Using STANDARD generation...');
-      const prompt = params.locale === 'es'
-        ? COURSE_PROMPT_ES(params.topic, params.difficulty, params.duration)
-        : COURSE_PROMPT_EN(params.topic, params.difficulty, params.duration);
-      courseData = await generateWithOpenAI(prompt);
     }
 
     // 3. Create course ID
@@ -1059,7 +1361,7 @@ export async function POST(req: NextRequest) {
             locale: params.locale,
             modules: dbResult.moduleIds,
           },
-          { useLLMPlan: false }
+          { useLLMPlan: true }
         );
 
         if (imageResult.errors.length > 0) {
