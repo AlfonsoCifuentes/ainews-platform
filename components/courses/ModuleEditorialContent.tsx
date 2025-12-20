@@ -142,7 +142,7 @@ function injectFigureBlocks(blocks: ContentBlock[], slots: ModuleVisualSlot[]): 
   return next;
 }
 
-function ContentBlockRenderer({ block }: { block: ContentBlock }) {
+function ContentBlockRenderer({ block, locale }: { block: ContentBlock; locale: 'en' | 'es' }) {
   const isDark = true;
 
   switch (block.type) {
@@ -200,7 +200,7 @@ function ContentBlockRenderer({ block }: { block: ContentBlock }) {
     case 'exercise':
     case 'summary':
     case 'callout':
-      return <CalloutBox type={block.type} content={block.content} isDark={isDark} />;
+      return <CalloutBox type={block.type} content={block.content} isDark={isDark} locale={locale} />;
     case 'figure':
       return null;
     default:
@@ -301,7 +301,7 @@ export function ModuleEditorialContent({
         }
         return (
           <div key={`${block.type}-${index}`} className="mx-auto max-w-[72ch]">
-            <ContentBlockRenderer block={block} />
+            <ContentBlockRenderer block={block} locale={locale} />
           </div>
         );
       })}

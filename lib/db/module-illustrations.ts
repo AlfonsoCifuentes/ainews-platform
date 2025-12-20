@@ -310,16 +310,21 @@ export async function fetchLatestModuleIllustration(
 ): Promise<ModuleIllustrationRecord | null> {
   const client = getSupabaseAdminClient();
 
-  const baseQuery = () =>
-    client
+  const baseQuery = () => {
+    let query = client
       .from('module_illustrations')
       .select('*')
       .eq('module_id', params.moduleId)
       .eq('locale', params.locale)
-      .eq('style', params.style)
-      .eq('visual_style', params.visualStyle ?? 'photorealistic')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .eq('style', params.style);
+
+    // `visual_style` is a preference. If none is specified, return the latest illustration regardless of style.
+    if (params.visualStyle) {
+      query = query.eq('visual_style', params.visualStyle);
+    }
+
+    return query.order('created_at', { ascending: false }).limit(1);
+  };
 
   const isMissingColumnError = (error: PostgrestError | null, column: string): boolean => {
     if (!error) return false;

@@ -346,15 +346,18 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       continue;
     }
 
-    if (line.startsWith('> ')) {
+    if (line.startsWith('>')) {
       const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('> ')) {
-        quoteLines.push(lines[i].trim().slice(2));
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        const raw = lines[i].trim();
+        // Support blockquotes with or without a space after ">".
+        // Also treat a bare ">" line as an intentional blank line within the quote.
+        quoteLines.push(raw.replace(/^>\s?/, ''));
         i++;
       }
 
-      const first = quoteLines[0]?.trim() ?? '';
-      const isPullQuote = first.startsWith('##') || first.startsWith('## ');
+      const firstMeaningful = quoteLines.find((l) => l.trim().length > 0)?.trim() ?? '';
+      const isPullQuote = firstMeaningful.startsWith('##') || firstMeaningful.startsWith('## ');
       if (isPullQuote) {
         blocks.push({ type: 'quote', content: quoteLines.join('\n') });
         continue;
@@ -367,10 +370,11 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       }
 
       // Insight Card pattern: first line is a markdown heading ("### ...").
-      const calloutHeadingMatch = first.match(/^###\s*(.+)$/);
+      const calloutHeadingMatch = firstMeaningful.match(/^###\s*(.+)$/);
       if (calloutHeadingMatch) {
         const title = calloutHeadingMatch[1].trim();
-        const body = quoteLines.slice(1).join('\n').trim();
+        const firstIndex = quoteLines.findIndex((l) => l.trim().length > 0);
+        const body = quoteLines.slice(Math.max(firstIndex + 1, 1)).join('\n').trim();
         const titleLower = title.toLowerCase();
 
         const calloutType: ContentBlock['type'] =
@@ -532,7 +536,15 @@ const MAX_BLOCKS_PER_PAGE = 8;
 // CONTENT BLOCK RENDERER
 // ============================================================================
 
-function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: boolean }) {
+function ContentBlockRenderer({
+  block,
+  isDark,
+  locale,
+}: {
+  block: ContentBlock;
+  isDark: boolean;
+  locale: 'en' | 'es';
+}) {
   switch (block.type) {
     case 'heading1':
       return (
@@ -588,7 +600,9 @@ function ContentBlockRenderer({ block, isDark }: { block: ContentBlock; isDark: 
     case 'exercise':
     case 'summary':
     case 'callout':
-      return <CalloutBox type={block.type} content={block.content} isDark={isDark} />;
+      return (
+        <CalloutBox type={block.type} content={block.content} isDark={isDark} locale={locale} />
+      );
     case 'figure':
       // Figure blocks are injected later where we have module context.
       return null;
@@ -850,7 +864,9 @@ export function TextbookView({
                 />
               );
             }
-            return <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} />;
+            return (
+              <ContentBlockRenderer key={i} block={block} isDark={isDarkMode} locale={locale} />
+            );
           })}
         </div>
 

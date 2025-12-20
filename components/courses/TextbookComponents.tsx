@@ -38,6 +38,7 @@ interface CalloutBoxProps {
   type: string;
   content: string;
   isDark: boolean;
+  locale: 'en' | 'es';
 }
 
 type CalloutBodyBlock =
@@ -89,7 +90,7 @@ function parseCalloutBody(content: string): CalloutBodyBlock[] {
   return blocks;
 }
 
-export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
+export function CalloutBox({ type, content, isDark, locale }: CalloutBoxProps) {
   const configs: Record<string, { 
     icon: React.ReactNode; 
     title: string; 
@@ -168,7 +169,20 @@ export function CalloutBox({ type, content, isDark }: CalloutBoxProps) {
   
   // Parse content for title if it starts with **title**
   const titleMatch = content.match(/^\*\*([^*]+)\*\*\n\n?([\s\S]*)/);
-  const displayTitle = titleMatch ? titleMatch[1] : config.title;
+
+  const localizedTitles: Record<string, { en: string; es: string }> = {
+    didyouknow: { en: 'Did you know?', es: '¿Sabías que?' },
+    warning: { en: 'Warning', es: 'Advertencia' },
+    tip: { en: 'Tip', es: 'Consejo' },
+    'key-concept': { en: 'Key concept', es: 'Concepto clave' },
+    example: { en: 'Example', es: 'Ejemplo' },
+    exercise: { en: 'Exercise', es: 'Ejercicio' },
+    summary: { en: 'Summary', es: 'Resumen' },
+    callout: { en: 'Note', es: 'Nota' },
+  };
+
+  const fallbackTitle = localizedTitles[type]?.[locale] ?? localizedTitles.callout[locale];
+  const displayTitle = titleMatch ? titleMatch[1] : fallbackTitle;
   const displayContent = titleMatch ? titleMatch[2] : content;
   const bodyBlocks = parseCalloutBody(displayContent);
 

@@ -415,3 +415,15 @@
   background-size: 200% auto;
   animation: gradient 3s ease infinite;
 }
+
+/* Print/PDF exports */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

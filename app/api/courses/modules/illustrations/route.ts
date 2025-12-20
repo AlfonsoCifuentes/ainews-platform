@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { fetchLatestModuleIllustration } from '@/lib/db/module-illustrations';
-import { VISUAL_STYLES } from '@/lib/types/illustrations';
+import { VISUAL_STYLES, type VisualStyle } from '@/lib/types/illustrations';
 
 const QuerySchema = z.object({
   moduleId: z.string().uuid(),
@@ -30,13 +30,23 @@ export async function GET(req: NextRequest) {
     // Diagrams can contain text and must remain locale-specific.
     const localesToTry: Array<'en' | 'es'> = isTextBearing ? [locale] : ['en', 'es'];
 
-    const tryFetch = async (requestedStyle: string, requestedSlotId: string | null) => {
+    const visualStylesToTry: Array<VisualStyle | undefined> = [
+      visualStyle,
+      ...(visualStyle !== 'photorealistic' ? (['photorealistic'] as const) : []),
+      undefined,
+    ];
+
+    const tryFetch = async (
+      requestedStyle: string,
+      requestedSlotId: string | null,
+      requestedVisualStyle: VisualStyle | undefined
+    ) => {
       for (const candidateLocale of localesToTry) {
         const found = await fetchLatestModuleIllustration({
           moduleId,
           locale: candidateLocale,
           style: requestedStyle,
-          visualStyle,
+          visualStyle: requestedVisualStyle,
           slotId: requestedSlotId,
         });
         if (found) return found;
@@ -44,23 +54,31 @@ export async function GET(req: NextRequest) {
       return null;
     };
 
+    const tryFetchWithFallbackVisualStyle = async (requestedStyle: string, requestedSlotId: string | null) => {
+      for (const candidateVisualStyle of visualStylesToTry) {
+        const found = await tryFetch(requestedStyle, requestedSlotId, candidateVisualStyle);
+        if (found) return found;
+      }
+      return null;
+    };
+
     // Try exact style first.
-    let record = await tryFetch(style, slotId ?? null);
+    let record = await tryFetchWithFallbackVisualStyle(style, slotId ?? null);
 
     // If a slot-specific illustration doesn't exist yet, fall back to the module-level illustration.
     // This is important for eagerly generated images (which are stored without a slot_id).
     if (!record && slotId) {
-      record = await tryFetch(style, null);
+      record = await tryFetchWithFallbackVisualStyle(style, null);
     }
     
     // If no result and style is 'header', try 'textbook' as fallback
     if (!record && style === 'header') {
-      record = await tryFetch('textbook', null); // textbook illustrations don't have slots
+      record = await tryFetchWithFallbackVisualStyle('textbook', null); // textbook illustrations don't have slots
       if (!record) {
         // Prefer a module-level conceptual illustration when present.
-        record = await tryFetch('conceptual', slotId ?? null);
+        record = await tryFetchWithFallbackVisualStyle('conceptual', slotId ?? null);
         if (!record && slotId) {
-          record = await tryFetch('conceptual', null);
+          record = await tryFetchWithFallbackVisualStyle('conceptual', null);
         }
       }
     }
@@ -68,18 +86,18 @@ export async function GET(req: NextRequest) {
     // If no result and style is 'textbook', try 'conceptual' as fallback
     // (new generators often store only conceptual illustrations and the UI can reuse them).
     if (!record && style === 'textbook') {
-      record = await tryFetch('conceptual', slotId ?? null);
+      record = await tryFetchWithFallbackVisualStyle('conceptual', slotId ?? null);
       if (!record && slotId) {
-        record = await tryFetch('conceptual', null);
+        record = await tryFetchWithFallbackVisualStyle('conceptual', null);
       }
     }
 
     // If no result and style is 'conceptual', try 'textbook' as a compatibility fallback
     // (older generators only produced textbook illustrations).
     if (!record && style === 'conceptual') {
-      record = await tryFetch('textbook', slotId ?? null);
+      record = await tryFetchWithFallbackVisualStyle('textbook', slotId ?? null);
       if (!record && slotId) {
-        record = await tryFetch('textbook', null);
+        record = await tryFetchWithFallbackVisualStyle('textbook', null);
       }
     }
 

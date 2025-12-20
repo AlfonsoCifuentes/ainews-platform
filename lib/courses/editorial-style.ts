@@ -519,6 +519,29 @@ function stripEditorialBoilerplate(markdown: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+function stripMetaListItems(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      out.push(line);
+      continue;
+    }
+
+    const withoutBullet = trimmed.replace(/^[-*•]\s+/, '');
+
+    // Drop metadata-like bullet points that sometimes leak from prompts into the reader UI.
+    if (/^(etiquetas?|tags?|labels?)\s*:/i.test(withoutBullet)) continue;
+    if (/^(valor|value)\s*:/i.test(withoutBullet)) continue;
+
+    out.push(line);
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 function stripBoilerplateBlockquoteCallouts(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
@@ -1796,7 +1819,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const insightsFixed = normalizeInlineInsightMarkers(boilerplateCalloutsStripped, options.locale);
   const insightsCalloutsStripped = stripBoilerplateKeyConceptCallouts(insightsFixed);
   const typosFixed = fixCommonTranslationTypos(insightsCalloutsStripped, options.locale);
-  const pullQuotesFixed = normalizePullQuoteHeadings(typosFixed);
+  const metaStripped = stripMetaListItems(typosFixed);
+  const pullQuotesFixed = normalizePullQuoteHeadings(metaStripped);
   const danglingQuotesFixed = removeDanglingQuoteHeadings(pullQuotesFixed);
   const compoundHeadingsRepaired = repairBrokenCompoundHeadings(danglingQuotesFixed);
   const headingsSplit = splitRunOnKnownHeadings(compoundHeadingsRepaired);

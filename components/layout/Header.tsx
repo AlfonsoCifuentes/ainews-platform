@@ -71,7 +71,7 @@ export function Header() {
 
   return (
     <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 px-2 md:px-4 py-3 transition-all duration-500 ${
+      className={`no-print fixed top-0 left-0 right-0 z-50 px-2 md:px-4 py-3 transition-all duration-500 ${
         scrolled ? 'bg-black/90 backdrop-blur-lg border-b border-white/5 py-2' : 'bg-transparent'
       }`}
       initial={{ y: -100 }}

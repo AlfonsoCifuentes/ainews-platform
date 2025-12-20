@@ -12,7 +12,7 @@ export function Footer() {
   if (isBookMode) return null;
 
   return (
-    <footer className="bg-black pt-24 pb-12 border-t border-[#1F1F1F] relative z-20">
+    <footer className="no-print bg-black pt-24 pb-12 border-t border-[#1F1F1F] relative z-20">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-24">
           <div>
