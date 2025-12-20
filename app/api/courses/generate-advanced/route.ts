@@ -6,6 +6,7 @@ import { categorizeCourse } from '@/lib/ai/course-categorizer';
 import { sanitizeAndFixJSON, parseJSON } from '@/lib/utils/json-fixer';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
 import { translateMarkdown, translateText } from '@/lib/ai/translator';
+import { generateCourseImages } from '@/lib/ai/course-image-generator';
 
 export const maxDuration = 300; // 5 minutes - Vercel hobby plan limit
 export const dynamic = 'force-dynamic';
@@ -213,14 +214,63 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { error: modulesError } = await db
+    const { data: insertedModules, error: modulesError } = await db
       .from('course_modules')
-      .insert(modulesToInsert);
+      .insert(modulesToInsert)
+      .select('id,title_en,title_es,content_en,content_es');
 
     if (modulesError) throw modulesError;
 
     console.log(`${logPrefix} ✅ All ${modulesToInsert.length} modules saved`);
     console.log(`${logPrefix} ✅ COURSE GENERATION COMPLETE!`);
+
+    // Generate cover + module illustrations eagerly so the reading experience is ready immediately.
+    // Errors are logged but do not fail course creation.
+    type InsertedModuleForImages = {
+      id: string;
+      title_en: string | null;
+      title_es: string | null;
+      content_en: string | null;
+      content_es: string | null;
+    };
+
+    const moduleIdsForImages = (insertedModules ?? []).map((row) => {
+      const typed = row as InsertedModuleForImages;
+      return {
+        id: String(typed.id ?? ''),
+        title:
+          params.locale === 'es'
+            ? String(typed.title_es ?? typed.title_en ?? '')
+            : String(typed.title_en ?? typed.title_es ?? ''),
+        content:
+          params.locale === 'es'
+            ? String(typed.content_es ?? typed.content_en ?? '')
+            : String(typed.content_en ?? typed.content_es ?? ''),
+      };
+    });
+
+    if (moduleIdsForImages.length) {
+      console.log(`${logPrefix} Generating course images (cover + module illustrations)...`);
+      try {
+        const imageResult = await generateCourseImages(
+          {
+            courseId: courseRecord.id,
+            title: params.locale === 'es' ? courseData.title_es : courseData.title_en,
+            description:
+              params.locale === 'es' ? courseData.description_es : courseData.description_en,
+            locale: params.locale,
+            modules: moduleIdsForImages,
+          },
+          { useLLMPlan: false }
+        );
+
+        if (imageResult.errors.length > 0) {
+          console.warn(`${logPrefix} Image generation completed with warnings:`, imageResult.errors);
+        }
+      } catch (err) {
+        console.warn(`${logPrefix} Image generation failed (continuing):`, err);
+      }
+    }
 
     return NextResponse.json(
       {

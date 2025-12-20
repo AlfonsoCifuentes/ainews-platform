@@ -30,6 +30,7 @@ interface CourseCoverRecord {
 
 let supabaseAdmin: SupabaseClient | null = null;
 let bucketEnsured = false;
+let canManageBucket = false;
 
 function getSupabaseAdminClient(): SupabaseClient {
   if (typeof window !== 'undefined') {
@@ -39,12 +40,19 @@ function getSupabaseAdminClient(): SupabaseClient {
   if (!supabaseAdmin) {
     const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const apiKey = serviceKey || anonKey;
 
-    if (!url || !serviceKey) {
-      throw new Error('Supabase admin credentials missing for course covers');
+    if (!url || !apiKey) {
+      throw new Error('Supabase credentials missing for course covers');
     }
 
-    supabaseAdmin = createClient(url, serviceKey, {
+    canManageBucket = Boolean(serviceKey);
+    if (!serviceKey) {
+      console.warn('[CourseCover] SUPABASE_SERVICE_ROLE_KEY missing; falling back to anon key (may be limited by policies).');
+    }
+
+    supabaseAdmin = createClient(url, apiKey, {
       auth: { persistSession: false },
       global: { headers: { 'X-Client-Info': 'ThotNet-CourseCovers' } },
     });
@@ -55,6 +63,11 @@ function getSupabaseAdminClient(): SupabaseClient {
 
 async function ensureBucket(client: SupabaseClient) {
   if (bucketEnsured) return;
+  if (!canManageBucket) {
+    // Assume the bucket exists already; without service role we cannot create/manage it.
+    bucketEnsured = true;
+    return;
+  }
   const { data, error } = await client.storage.getBucket(BUCKET_NAME);
   if (error || !data) {
     const { error: createError } = await client.storage.createBucket(BUCKET_NAME, {

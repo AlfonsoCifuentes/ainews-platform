@@ -9,6 +9,7 @@ import {
 } from '@/lib/ai/llm-client';
 import { categorizeCourse } from '@/lib/ai/course-categorizer';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
+import { generateCourseImages } from '@/lib/ai/course-image-generator';
 
 // Configure function timeout for Vercel (max 300s on Pro plan, 10s on Hobby)
 export const maxDuration = 300; // 5 minutes
@@ -546,6 +547,7 @@ Remember: You are writing for intelligent, motivated learners pursuing professio
     console.log(`${logPrefix} ✅ Course inserted successfully! ID: ${course.id}`);
 
     console.log(`${logPrefix} ⏳ Step 8/8: Inserting ${generatedModules.length} modules...`);
+    const moduleIdsForImages: Array<{ id: string; title: string; content: string }> = [];
     for (let i = 0; i < generatedModules.length; i += 1) {
       const moduleData = generatedModules[i];
       const resources = normalizeResources(moduleData.content.resources);
@@ -586,7 +588,7 @@ Remember: You are writing for intelligent, motivated learners pursuing professio
       console.log(`${logPrefix}    Content lengths: EN=${moduleRecord.content_en.length}, ES=${moduleRecord.content_es.length}`);
       console.log(`${logPrefix}    Resources: ${resources.length}, Estimated time: ${moduleRecord.estimated_time} min`);
 
-      const { error: moduleError } = await db
+      const { data: insertedModule, error: moduleError } = await db
         .from('course_modules')
         .insert(moduleRecord)
         .select('id')
@@ -600,11 +602,42 @@ Remember: You are writing for intelligent, motivated learners pursuing professio
         console.error(`${logPrefix} Error hint:`, moduleError.hint);
         throw new Error(`Module insert failed: ${moduleError.message || JSON.stringify(moduleError)}`);
       }
+
+      if (insertedModule?.id) {
+        const titleForLocale = params.locale === 'es' ? titleEs : titleEn;
+        const contentForLocale = params.locale === 'es' ? contentEs : contentEn;
+        moduleIdsForImages.push({ id: insertedModule.id, title: titleForLocale, content: contentForLocale });
+      }
       
       console.log(`${logPrefix} ✅ Module ${i + 1}/${generatedModules.length} inserted successfully`);
     }
 
     console.log(`${logPrefix} ✅ All modules inserted successfully!`);
+
+    // Generate cover + module illustrations eagerly so the reading experience is ready immediately.
+    // Errors are logged but do not fail course creation.
+    if (moduleIdsForImages.length) {
+      console.log(`${logPrefix} 🎨 Generating course images (cover + module illustrations)...`);
+      try {
+        const localized = courseByLocale[params.locale];
+        const imageResult = await generateCourseImages(
+          {
+            courseId: course.id,
+            title: localized.title,
+            description: localized.description,
+            locale: params.locale,
+            modules: moduleIdsForImages,
+          },
+          { useLLMPlan: false }
+        );
+
+        if (imageResult.errors.length > 0) {
+          console.warn(`${logPrefix} ⚠️ Image generation completed with warnings:`, imageResult.errors);
+        }
+      } catch (err) {
+        console.warn(`${logPrefix} ⚠️ Image generation failed (continuing):`, err);
+      }
+    }
     
     console.log(`${logPrefix} 📊 Logging AI system activity...`);
     await db.from('ai_system_logs').insert({

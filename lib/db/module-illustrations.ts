@@ -55,6 +55,7 @@ export interface FetchModuleIllustrationInput {
 
 let supabaseAdmin: SupabaseClient | null = null;
 let bucketEnsured = false;
+let canManageBucket = false;
 
 function getSupabaseAdminClient(): SupabaseClient {
   if (typeof window !== 'undefined') {
@@ -65,14 +66,21 @@ function getSupabaseAdminClient(): SupabaseClient {
     const url =
       process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const apiKey = serviceKey || anonKey;
 
-    if (!url || !serviceKey) {
+    if (!url || !apiKey) {
       throw new Error(
-        'Supabase admin credentials missing. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+        'Supabase credentials missing. Please set SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY.'
       );
     }
 
-    supabaseAdmin = createClient(url, serviceKey, {
+    canManageBucket = Boolean(serviceKey);
+    if (!serviceKey) {
+      console.warn('[Illustrations] SUPABASE_SERVICE_ROLE_KEY missing; falling back to anon key (may be limited by policies).');
+    }
+
+    supabaseAdmin = createClient(url, apiKey, {
       auth: { persistSession: false },
       global: { headers: { 'X-Client-Info': 'ThotNet-Illustrations' } },
     });
@@ -83,6 +91,11 @@ function getSupabaseAdminClient(): SupabaseClient {
 
 async function ensureBucketExists(client: SupabaseClient) {
   if (bucketEnsured) return;
+  if (!canManageBucket) {
+    // Assume bucket exists; without service role we cannot create/update it.
+    bucketEnsured = true;
+    return;
+  }
 
   try {
     const { error } = await client.storage.getBucket(BUCKET_NAME);

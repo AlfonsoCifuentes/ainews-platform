@@ -56,6 +56,22 @@ export async function GET(req: NextRequest) {
     // If no result and style is 'header', try 'textbook' as fallback
     if (!record && style === 'header') {
       record = await tryFetch('textbook', null); // textbook illustrations don't have slots
+      if (!record) {
+        // Prefer a module-level conceptual illustration when present.
+        record = await tryFetch('conceptual', slotId ?? null);
+        if (!record && slotId) {
+          record = await tryFetch('conceptual', null);
+        }
+      }
+    }
+
+    // If no result and style is 'textbook', try 'conceptual' as fallback
+    // (new generators often store only conceptual illustrations and the UI can reuse them).
+    if (!record && style === 'textbook') {
+      record = await tryFetch('conceptual', slotId ?? null);
+      if (!record && slotId) {
+        record = await tryFetch('conceptual', null);
+      }
     }
 
     // If no result and style is 'conceptual', try 'textbook' as a compatibility fallback
