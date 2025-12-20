@@ -114,16 +114,26 @@ export function auditEditorialMarkdown(markdown: string): EditorialStyleIssue[] 
   }
 
   // Code fences should specify language
-  const fenceRegex = /```([^\n\r]*)/g;
-  let fenceMatch: RegExpExecArray | null;
-  while ((fenceMatch = fenceRegex.exec(markdown)) !== null) {
-    const lang = (fenceMatch[1] ?? '').trim();
-    if (!lang) {
-      issues.push({
-        code: 'code_fence_missing_language',
-        message: 'Found a code fence without a language (```python, ```ts, etc.).',
-      });
-      break;
+  {
+    const fenceLines = markdown.split(/\r?\n/);
+    let inFence = false;
+    for (const rawLine of fenceLines) {
+      const t = rawLine.trim();
+      if (!t.startsWith('```')) continue;
+
+      const info = t.slice(3).trim();
+      if (!inFence) {
+        if (!info) {
+          issues.push({
+            code: 'code_fence_missing_language',
+            message: 'Found an opening code fence without a language (```python, ```ts, etc.).',
+          });
+          break;
+        }
+        inFence = true;
+      } else {
+        inFence = false;
+      }
     }
   }
 
@@ -221,6 +231,277 @@ function fixSidebarTableArtifacts(markdown: string): string {
   }
 
   return out.join('\n');
+}
+
+function inferCodeFenceLanguageFromSample(sample: string): string {
+  const s = normalizeNewlines(sample ?? '').trim();
+  if (!s) return 'text';
+
+  const head = s.split('\n').slice(0, 40).join('\n');
+
+  // SQL
+  if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/im.test(head)) return 'sql';
+
+  // JSON
+  if ((/^\s*[{[]/.test(head) && /"\s*:\s*/.test(head)) || /^\s*\{[\s\S]*\}\s*$/.test(head)) return 'json';
+
+  // Python
+  if (
+    /^\s*(from|import)\s+[a-zA-Z0-9_.]+/m.test(head) ||
+    /^\s*def\s+[a-zA-Z0-9_]+\s*\(/m.test(head) ||
+    /^\s*class\s+[a-zA-Z0-9_]+\s*[:(]/m.test(head) ||
+    /\bself\./.test(head)
+  ) {
+    return 'python';
+  }
+
+  // TS/JS
+  if (
+    /^\s*(import|export|const|let|var|function|class|interface|type|enum)\b/m.test(head) ||
+    /=>/.test(head) ||
+    /\b(console\.log|await|async|return)\b/.test(head)
+  ) {
+    return 'ts';
+  }
+
+  // Shell
+  if (
+    /^\s*(npm|npx|pnpm|yarn|git|curl|docker|kubectl|python|node)\b/m.test(head) ||
+    /^\s*\$+\s*\w+/.test(head)
+  ) {
+    return 'bash';
+  }
+
+  return 'text';
+}
+
+function isLikelyCodeLine(rawLine: string): boolean {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return false;
+
+  // Avoid hijacking real markdown structure.
+  if (isStructuralLine(t)) return false;
+  if (t.startsWith('- ') || t.startsWith('* ') || /^\d+\.\s/.test(t)) return false;
+
+  if (/^(const|let|var|import|export|function|class|interface|type|enum)\b/.test(t)) return true;
+  if (/^(def|from|import)\b/.test(t)) return true;
+  if (/^(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(t)) return true;
+  if (/^(npm|npx|pnpm|yarn|git|curl|docker|kubectl)\b/i.test(t)) return true;
+  if (/^\$+\s*\w+/.test(t)) return true;
+
+  const symbolCount = (t.match(/[=();{}[\]<>]/g) ?? []).length;
+  if (symbolCount >= 4) return true;
+  if (/(=>|==|!=|<=|>=|:=)/.test(t)) return true;
+
+  return false;
+}
+
+function normalizeBrokenCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const getNextNonEmpty = (startIndex: number): string => {
+    for (let i = startIndex; i < lines.length; i++) {
+      const t = (lines[i] ?? '').trim();
+      if (t) return t;
+    }
+    return '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
+    const fenceMatch = trimmed.match(/^```(?:\s*([A-Za-z0-9_-]+))?.*$/);
+    if (!fenceMatch || !trimmed.startsWith('```')) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const indent = rawLine.match(/^\s*/)?.[0] ?? '';
+    const info = (fenceMatch[1] ?? '').trim();
+
+    if (!inFence) {
+      const sampleLines: string[] = [];
+      for (let j = i + 1; j < lines.length && sampleLines.length < 30; j++) {
+        const t = (lines[j] ?? '').trim();
+        if (t.startsWith('```')) break;
+        sampleLines.push(lines[j] ?? '');
+      }
+      const lang = info || inferCodeFenceLanguageFromSample(sampleLines.join('\n')) || 'text';
+      out.push(`${indent}\`\`\`${lang}`);
+      inFence = true;
+      continue;
+    }
+
+    // We are inside a fence. The closing fence must be a plain ``` (no info string).
+    // Some generators incorrectly emit ` ```python` as a closing fence. Decide whether it's:
+    // - a broken closing fence (followed by prose) OR
+    // - a missing close + new fence opening (followed by code).
+    const nextNonEmpty = getNextNonEmpty(i + 1);
+    const looksLikeNewCodeBlock = Boolean(info) && Boolean(nextNonEmpty) && isLikelyCodeLine(nextNonEmpty);
+
+    out.push(`${indent}\`\`\``);
+    inFence = false;
+
+    if (looksLikeNewCodeBlock) {
+      out.push(`${indent}\`\`\`${info}`);
+      inFence = true;
+    }
+  }
+
+  if (inFence) out.push('```');
+  return out.join('\n');
+}
+
+function looksLikeCodeFenceContent(blockLines: string[], lang: string): boolean {
+  const normalizedLang = (lang ?? '').trim().toLowerCase();
+  const content = blockLines.join('\n');
+  const lines = blockLines
+    .map((l) => String(l ?? '').trim())
+    .filter(Boolean)
+    .slice(0, 120);
+
+  let markdownScore = 0;
+  let codeScore = 0;
+
+  for (const line of lines) {
+    if (/^#{1,6}\s+\S/.test(line)) markdownScore += 3;
+    if (/^>\s+/.test(line)) markdownScore += 2;
+    if (/^([-*]|\d+\.)\s+/.test(line)) markdownScore += 2;
+    if (/^\|.+\|$/.test(line)) markdownScore += 2;
+    if (/\b(ejercicio|practice|responde|pregunta|tarea)\b/i.test(line)) markdownScore += 2;
+    if (line.split(/\s+/).filter(Boolean).length >= 12 && /[.!?]$/.test(line)) markdownScore += 1;
+
+    if (isLikelyCodeLine(line)) codeScore += 3;
+    if (/[{};]/.test(line)) codeScore += 1;
+    if (/(=>|==|!=|<=|>=|:=)/.test(line)) codeScore += 2;
+    if (/"\s*:\s*/.test(line)) codeScore += 3;
+  }
+
+  if (['ts', 'tsx', 'js', 'javascript', 'typescript', 'python', 'py', 'sql', 'json', 'bash', 'sh', 'shell'].includes(normalizedLang)) {
+    // Trust explicit code languages unless it's clearly markdown/prose.
+    return markdownScore < 6 || codeScore >= 3;
+  }
+
+  // For unknown/text blocks, require some clear code signal.
+  if (codeScore >= 4) return true;
+  if (markdownScore >= 6 && codeScore <= 2) return false;
+
+  // Fallback: detect some typical code punctuation density.
+  const symbolDensity = (content.match(/[=();{}[\]<>]/g) ?? []).length / Math.max(1, content.length);
+  return symbolDensity > 0.01;
+}
+
+function unwrapNonCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
+    const openMatch = trimmed.match(/^```(?:\s*([A-Za-z0-9_-]+))?.*$/);
+
+    if (!openMatch || !trimmed.startsWith('```')) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const lang = (openMatch[1] ?? '').trim();
+    const blockLines: string[] = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const t = (lines[j] ?? '').trim();
+      if (t === '```') break;
+      blockLines.push(lines[j] ?? '');
+    }
+
+    const hasClosing = j < lines.length && (lines[j] ?? '').trim() === '```';
+
+    // If it's unclosed, keep as-is; another stage will close it.
+    if (!hasClosing) {
+      out.push(rawLine, ...blockLines);
+      i = j - 1;
+      continue;
+    }
+
+    if (!looksLikeCodeFenceContent(blockLines, lang)) {
+      out.push(...blockLines);
+      i = j;
+      continue;
+    }
+
+    const safeLang = lang || inferCodeFenceLanguageFromSample(blockLines.join('\n')) || 'text';
+    out.push(`\`\`\`${safeLang}`, ...blockLines, '```');
+    i = j;
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function wrapBareCodeRunsOutsideFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  let run: string[] = [];
+  const flush = () => {
+    if (!run.length) return;
+
+    // Trim blank lines around the run.
+    let start = 0;
+    while (start < run.length && !String(run[start]).trim()) start += 1;
+    let end = run.length - 1;
+    while (end >= start && !String(run[end]).trim()) end -= 1;
+
+    const core = run.slice(start, end + 1);
+    const nonEmpty = core.filter((l) => String(l ?? '').trim()).length;
+
+    // Only wrap multi-line code runs to avoid damaging prose.
+    if (nonEmpty >= 2) {
+      const lang = inferCodeFenceLanguageFromSample(core.join('\n')) || 'text';
+      out.push('```' + lang, ...core, '```');
+    } else {
+      out.push(...run);
+    }
+
+    run = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = (line ?? '').trim();
+    if (trimmed.startsWith('```')) {
+      flush();
+      out.push(line);
+      inFence = !inFence;
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    if (run.length > 0) {
+      if (!trimmed || isLikelyCodeLine(line)) {
+        run.push(line);
+        continue;
+      }
+      flush();
+      out.push(line);
+      continue;
+    }
+
+    if (isLikelyCodeLine(line)) {
+      run.push(line);
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  flush();
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 function stripPromptArtifacts(markdown: string): string {
@@ -418,6 +699,7 @@ function stripEditorialBoilerplate(markdown: string): string {
   const postSeparator = separatorIndex >= 0 ? lines.slice(separatorIndex) : [];
 
   const out: string[] = [];
+  let inFence = false;
 
   const stripInlineAttribution = (rawLine: string): string => {
     let next = rawLine;
@@ -469,7 +751,23 @@ function stripEditorialBoilerplate(markdown: string): string {
   }
 
   for (let i = 0; i < postSeparator.length; i++) {
-    const line = stripInlineAttribution(postSeparator[i]);
+    const rawLine = postSeparator[i] ?? '';
+    const rawTrimmed = rawLine.trim();
+
+    // Never strip boilerplate inside fenced code blocks.
+    if (rawTrimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(rawLine);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(rawLine);
+      continue;
+    }
+
+    const line = stripInlineAttribution(rawLine);
+    if (!line) continue;
     const trimmed = line.trim();
 
     // Remove boilerplate TECH INSIGHT / PERSPECTIVA TÉCNICA tables (one-cell).
@@ -1813,7 +2111,10 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const sidebarFixed = fixSidebarTableArtifacts(listsCleaned);
   const inlineHeadingsSplit = splitInlineMarkdownHeadings(sidebarFixed);
   const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
-  const unwrapped = unwrapSoftLineBreaks(blockquotesSplit);
+  const fencesRepaired = normalizeBrokenCodeFences(blockquotesSplit);
+  const nonCodeUnwrapped = unwrapNonCodeFences(fencesRepaired);
+  const bareCodeWrapped = wrapBareCodeRunsOutsideFences(nonCodeUnwrapped);
+  const unwrapped = unwrapSoftLineBreaks(bareCodeWrapped);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
   const boilerplateCalloutsStripped = stripBoilerplateBlockquoteCallouts(boilerplateStripped);
   const insightsFixed = normalizeInlineInsightMarkers(boilerplateCalloutsStripped, options.locale);
@@ -1834,3 +2135,12 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const joined = listed.join('\n').replace(/[ \t]+$/gm, '');
   return joined.trim() ? `${joined.trim()}\n` : '';
 }
+
+export const __internal = {
+  inferCodeFenceLanguageFromSample,
+  isLikelyCodeLine,
+  normalizeBrokenCodeFences,
+  looksLikeCodeFenceContent,
+  unwrapNonCodeFences,
+  wrapBareCodeRunsOutsideFences,
+};

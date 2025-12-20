@@ -1009,10 +1009,10 @@ NIVEL: ${args.difficulty}
 OBJETIVO DE LONGITUD PARA ESTA PARTE: ~${args.partTargetWords} palabras
 
 Reglas (estrictas):
-- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Devuelve SOLO Markdown (no JSON). No envuelvas toda la respuesta en un único bloque de código.
 - Esta parte debe tener al menos ~${Math.round(args.partTargetWords * 0.85)} palabras (si te quedas corto, sigue escribiendo).
 - Evita muros de texto: máximo 3 párrafos seguidos sin un “widget” (lista, tabla, quote, código, etc.).
-- Código: usa fences con lenguaje (por ejemplo: ts, python). No uses Mermaid.
+- Código: usa fences con lenguaje (por ejemplo: ts, python) y cierra con una línea de 3 backticks sola (sin lenguaje). No metas texto normal ni ejercicios dentro de bloques de código. No uses Mermaid.
 - Nada de headings genéricos/plantilla.
 - No pongas títulos de sección en blockquote (evita "> ### ..."). Usa headings normales "##".
 - Prohibido incluir frases meta o “instrucciones para IA” (ni variantes cercanas): ${banned.map((p) => `"${p}"`).join(', ')}.
@@ -1048,10 +1048,10 @@ LEVEL: ${args.difficulty}
 TARGET LENGTH FOR THIS PART: ~${args.partTargetWords} words
 
 Rules (strict):
-- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Return ONLY Markdown (no JSON). Do NOT wrap the entire response in a single code block.
 - This part must be at least ~${Math.round(args.partTargetWords * 0.85)} words (if you’re short, keep writing).
 - Avoid walls of text: max 3 plain paragraphs in a row without a “widget” (list, table, quote, code, etc.).
-- Code: always use fenced blocks with a language (e.g. ts, python). No Mermaid.
+- Code: always use fenced blocks with a language (e.g. ts, python) and close with a plain line of three backticks (no language). Never put prose/exercises inside code blocks. No Mermaid.
 - Avoid generic/template headings.
 - Do not put section titles inside blockquotes (avoid \"> ### ...\"). Use normal \"##\" headings.
 - Forbidden meta/instructional phrases (or close variants): ${banned.map((p) => `"${p}"`).join(', ')}.
@@ -1115,11 +1115,12 @@ OBJETIVO: ~${args.partTargetWords} palabras (mínimo ~${minWords})
 BORRADOR ACTUAL: ~${args.currentWords} palabras
 
 Reglas (estrictas):
-- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Devuelve SOLO Markdown (no JSON). No envuelvas toda la respuesta en un único bloque de código.
 - Mantén el orden y los headings: usa "## {heading}" exactamente.
 - No pongas títulos dentro de blockquotes (evita "> ### ...").
 ${includeHook ? `- Esta parte DEBE incluir el hook completo (H1 + meta + standfirst + --- + pull quote + tabla TECH INSIGHT).` : `- NO repitas el hook; empieza directamente con el primer "##" que te corresponda.`}
 - Aporta profundidad: explicación + ejemplo trabajado + mini ejercicio o checklist por sección.
+- Si incluyes código/comandos: usa bloques con fences y lenguaje, y cierra con una línea de 3 backticks sola (sin lenguaje). No metas texto normal ni ejercicios dentro del bloque.
 - Evita frases meta/instrucciones para IA.
 
 Secciones a escribir (en este orden):
@@ -1147,11 +1148,12 @@ TARGET: ~${args.partTargetWords} words (minimum ~${minWords})
 CURRENT DRAFT: ~${args.currentWords} words
 
 Rules (strict):
-- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Return ONLY Markdown (no JSON). Do NOT wrap the entire response in a single code block.
 - Keep the same order and section headings: use "## {heading}" exactly.
 - Do not put section titles inside blockquotes (avoid "> ### ...").
 ${includeHook ? `- This part MUST include the full hook (H1 + meta + standfirst + --- + pull quote + TECH INSIGHT table).` : `- Do NOT repeat the hook; start directly with the first required "##" section.`}
 - Add depth: explanation + worked example + mini exercise or checklist per section.
+- If you include code/commands: use fenced code blocks with a language and close with a plain line of three backticks (no language). Never put prose/exercises inside code blocks.
 - Avoid meta/AI-instructional phrasing.
 
 Sections to write (in this order):
@@ -1187,11 +1189,12 @@ RESUMEN: "${args.moduleDescription}"
 FALTAN APROX.: ${args.missingWords} palabras
 
 Reglas:
-- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Devuelve SOLO Markdown (no JSON). No envuelvas toda la respuesta en un único bloque de código.
 - NO repitas el título ni el hook.
 - Escribe al menos ~${newWords} palabras NUEVAS (no un resumen), repartidas en 2-3 secciones (ideal: 900-1400 palabras por sección).
 - Añade 2-3 secciones nuevas con títulos específicos y relacionados con el tema.
 - Incluye al menos 2 ejemplos trabajados y una lista de “errores comunes”.
+- Si incluyes código/comandos: usa bloques con fences y lenguaje, y cierra con una línea de 3 backticks sola (sin lenguaje).
 - No uses títulos genéricos como "Síntesis", "Fundacional", etc.
 
 Headings existentes (no repetir):
@@ -1206,11 +1209,12 @@ SUMMARY: "${args.moduleDescription}"
 MISSING APPROX.: ${args.missingWords} words
 
 Rules:
-- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Return ONLY Markdown (no JSON). Do NOT wrap the entire response in a single code block.
 - Do NOT repeat the title or hook.
 - Write at least ~${newWords} NEW words (not a summary), across 2-3 new sections (ideal: 900-1400 words per section).
 - Add 2-3 new sections with specific, topic-relevant titles.
 - Include at least 2 worked examples and a “common pitfalls” list.
+- If you include code/commands: use fenced code blocks with a language and close with a plain line of three backticks (no language).
 - Avoid generic headings like "Synthesis", "Foundational", etc.
 
 Existing headings (do not repeat):
