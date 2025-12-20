@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, BookOpenCheck, ListTree, Lock, X, FlaskConical } from 'lucide-react';
 import type { NormalizedModule } from '@/lib/courses/normalize';
@@ -61,7 +61,6 @@ export function CourseLearnExperience({
 	const [bookMode, setBookMode] = useState(true);
 	const [indexOpen, setIndexOpen] = useState(false);
 	const [bookContent, setBookContent] = useState(() => (locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
-	const [isGeneratingBookContent, setIsGeneratingBookContent] = useState(false);
 	const [isCompletingBook, setIsCompletingBook] = useState(false);
 	const [localCompletion, setLocalCompletion] = useState<Record<string, boolean>>({});
 	const router = useRouter();
@@ -114,50 +113,8 @@ export function CourseLearnExperience({
 		setBookContent((locale === 'en' ? currentModule.content_en : currentModule.content_es) || '');
 	}, [currentModule.id, currentModule.content_en, currentModule.content_es, locale]);
 
-	const isPlaceholderContent = useCallback((text?: string | null) => {
-		const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
-		if (!text) return true;
-		const trimmed = text.trim();
-		if (!trimmed) return true;
-		if (trimmed.length < 60 && placeholderRegex.test(trimmed)) return true;
-		return false;
-	}, []);
-
-	// Auto-generate longform content when book mode is active and module text is missing/placeholder
-	useEffect(() => {
-		if (!bookMode) return;
-		if (isGeneratingBookContent) return;
-		if (!isPlaceholderContent(bookContent)) return;
-
-		const generateContent = async () => {
-			setIsGeneratingBookContent(true);
-			try {
-				const response = await fetch('/api/courses/modules/generate-content', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ moduleId: currentModule.id, courseId, locale }),
-				});
-
-				if (!response.ok) {
-					const errorText = await response.text();
-					throw new Error(errorText || 'Failed to generate content');
-				}
-
-				const data = await response.json();
-				if (data?.success && data?.data?.content) {
-					setBookContent(data.data.content);
-					showToast(locale === 'en' ? 'Module content generated' : 'Contenido del módulo generado', 'success');
-				}
-			} catch (error) {
-				console.error('[CourseLearnExperience] Failed to generate book content', error);
-				showToast(locale === 'en' ? 'Failed to generate content' : 'Error al generar contenido', 'error');
-			} finally {
-				setIsGeneratingBookContent(false);
-			}
-		};
-
-		generateContent();
-	}, [bookContent, bookMode, courseId, currentModule.id, isGeneratingBookContent, locale, showToast, isPlaceholderContent]);
+	// NOTE: Do not auto-generate content on page view.
+	// Courses must be generated fully at creation time; missing content can be backfilled via admin/tools.
 
 	const navigationState = useMemo(() => {
 		const completionMap: Record<string, boolean> = {};
@@ -391,11 +348,9 @@ export function CourseLearnExperience({
 
 	const resolvedBookContent = localizedBookContent.trim()
 		? localizedBookContent
-		: isGeneratingBookContent
-			? (locale === 'en' ? 'Generating module content...' : 'Generando contenido del módulo...')
-			: (locale === 'en'
-				? 'Module content is being prepared. Please check back soon.'
-				: 'El contenido del módulo se está preparando. Por favor, vuelve pronto.');
+		: (locale === 'en'
+			? 'Module content is being prepared. Please check back soon.'
+			: 'El contenido del módulo se está preparando. Por favor, vuelve pronto.');
 
 	const BookSpread = (
 		<section className="relative z-10 pb-24" style={{ backgroundColor: BRUTALIST.bg }}>

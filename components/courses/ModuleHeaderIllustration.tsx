@@ -8,8 +8,6 @@ import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { useUser } from '@/lib/hooks/useUser';
 import { normalizeVisualStyle, type VisualStyle } from '@/lib/types/illustrations';
 
-const VARIANT_STYLES: VisualStyle[] = ['photorealistic', 'anime'];
-
 interface ModuleHeaderIllustrationProps {
   moduleId: string;
   courseTitle: string;
@@ -151,57 +149,13 @@ export function ModuleHeaderIllustration({
         return;
       }
 
-      try {
-        const response = await fetch('/api/courses/modules/generate-illustration', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: generationContent,
-            locale,
-            style: 'header',
-            moduleId,
-            visualStyle: resolvedVisualStyle,
-            variants: VARIANT_STYLES,
-            slotId: headerSlot?.id,
-            anchor: headerSlot
-              ? {
-                  slotType: headerSlot.slotType,
-                  blockIndex: headerSlot.blockIndex,
-                  heading: headerSlot.heading,
-                }
-              : undefined,
-            metadata: headerSlot
-              ? {
-                  reason: headerSlot.reason,
-                  summary: headerSlot.summary,
-                  confidence: headerSlot.confidence,
-                }
-              : undefined,
-          }),
+      // Never generate images on page view. Images must be created at course creation time.
+      if (!cancelled) {
+        setState({
+          loading: false,
+          error: locale === 'en' ? 'No illustration available yet' : 'Aún no hay ilustración disponible',
+          imageUrl: null,
         });
-
-        const data = await response.json();
-        if (!data.success) {
-          throw new Error(data.error || 'Generation failed');
-        }
-
-        const variants = (data.variants ?? []) as Array<{ visualStyle: string; url?: string | null }>;
-        const preferred = variants.find((entry) => entry.visualStyle === resolvedVisualStyle) ?? variants[0] ?? data.primary;
-        const imageUrl = preferred?.url ?? data.primary?.url ?? null;
-
-        if (!imageUrl) {
-          throw new Error('No image returned by cascade');
-        }
-
-        persistCache(imageUrl);
-        if (!cancelled) {
-          setState({ loading: false, error: null, imageUrl });
-        }
-      } catch (error) {
-        console.error('[ModuleHeaderIllustration] Generation failed', error);
-        if (!cancelled) {
-          setState({ loading: false, error: 'Failed to generate illustration', imageUrl: null });
-        }
       }
     };
 

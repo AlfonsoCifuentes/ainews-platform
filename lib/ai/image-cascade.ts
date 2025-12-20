@@ -28,8 +28,8 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
   prompt: string;
 }
 
-// Prefer Runware as the cheap default, then Gemini as precision fallback.
-export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runware', 'gemini'];
+// Prefer Runware as the default (we avoid expensive image providers by default).
+export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runware'];
 
 const DEFAULT_NON_DIAGRAM_NEGATIVE_PROMPT =
   'text, letters, typography, caption, subtitle, watermark, logo, infographic, diagram, flowchart, chart, graph, axes, labels, arrows, boxes, schematic, blueprint, wireframe, ui, interface, screenshot';

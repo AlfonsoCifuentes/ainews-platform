@@ -574,6 +574,44 @@ const ModuleBundleSchema = z.object({
   estimatedMinutes: z.number().int().min(10).max(120).optional(),
 });
 
+const ModulePlanSchema = z.object({
+  sections: z
+    .array(
+      z.object({
+        heading: z.string().min(6),
+        goal: z.string().min(20),
+        targetWords: z.number().int().min(250).max(2500),
+      })
+    )
+    .min(10)
+    .max(16),
+  capstone: z
+    .object({
+      title: z.string().min(6),
+      brief: z.string().min(60),
+      deliverable: z.string().min(20),
+      steps: z.array(z.string().min(8)).min(5).max(12),
+    })
+    .optional(),
+});
+
+const ModuleMetaSchema = z.object({
+  keyTakeaways: z.array(z.string().min(8)).min(6).max(16),
+  quiz: z
+    .array(
+      z.object({
+        question: z.string().min(12),
+        options: z.array(z.string()).length(4),
+        correctAnswer: z.number().int().min(0).max(3),
+        explanation: z.string().min(80),
+      })
+    )
+    .min(6)
+    .max(10),
+  resources: z.array(z.string().min(6)).min(4).max(12),
+  estimatedMinutes: z.number().int().min(10).max(180).optional(),
+});
+
 function resolveModuleCount(duration: string): number {
   return duration === 'short' ? 3 : duration === 'medium' ? 5 : 7;
 }
@@ -584,9 +622,21 @@ function resolveEstimatedMinutes(duration: string): number {
 
 function resolveTargetWords(duration: string, quality: 'standard' | 'textbook'): number {
   if (quality === 'textbook') {
-    return duration === 'short' ? 1800 : duration === 'medium' ? 2300 : 2800;
+    return duration === 'short' ? 4500 : duration === 'medium' ? 6500 : 8500;
   }
   return duration === 'short' ? 1200 : duration === 'medium' ? 1600 : 2000;
+}
+
+function countWords(text: string): number {
+  const stripped = String(text ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`\n\r]*`/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!stripped) return 0;
+  return stripped.split(' ').filter(Boolean).length;
 }
 
 function buildOutlinePrompt(args: {
@@ -772,6 +822,520 @@ Forbidden phrases/formats (or close variants): ${bannedPhrases.map((p) => `"${p}
 IMPORTANT: make it human, editorial, and pleasant to read (not robotic).`;
 }
 
+type ModulePlan = z.infer<typeof ModulePlanSchema>;
+type ModulePlanSection = ModulePlan['sections'][number];
+
+function splitSectionsIntoParts(sections: ModulePlanSection[], partCount: number): ModulePlanSection[][] {
+  const safePartCount = Math.max(1, Math.min(5, Math.floor(partCount)));
+  if (sections.length === 0) return Array.from({ length: safePartCount }, () => []);
+  if (safePartCount === 1) return [sections];
+
+  const totalWords = sections.reduce((sum, s) => sum + (s.targetWords ?? 0), 0);
+  const targetPerPart = totalWords > 0 ? totalWords / safePartCount : sections.length / safePartCount;
+
+  const parts: ModulePlanSection[][] = [];
+  let current: ModulePlanSection[] = [];
+  let currentScore = 0;
+
+  for (const section of sections) {
+    const score = totalWords > 0 ? (section.targetWords ?? 0) : 1;
+
+    if (
+      parts.length < safePartCount - 1 &&
+      current.length >= 2 &&
+      currentScore >= targetPerPart
+    ) {
+      parts.push(current);
+      current = [];
+      currentScore = 0;
+    }
+
+    current.push(section);
+    currentScore += score;
+  }
+
+  if (current.length) parts.push(current);
+
+  while (parts.length < safePartCount) parts.push([]);
+
+  if (parts.length > safePartCount) {
+    const head = parts.slice(0, safePartCount - 1);
+    const tail = parts.slice(safePartCount - 1).flat();
+    return [...head, tail];
+  }
+
+  return parts;
+}
+
+function buildModulePlanPrompt(args: {
+  courseTitle: string;
+  courseDescription: string;
+  objectives: string[];
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  duration: string;
+  locale: 'en' | 'es';
+  targetWords: number;
+}): string {
+  const common = [
+    `COURSE: "${args.courseTitle}"`,
+    `COURSE DESCRIPTION: "${args.courseDescription}"`,
+    `MODULE: "${args.moduleTitle}"`,
+    `MODULE SUMMARY: "${args.moduleDescription}"`,
+    `LEVEL: ${args.difficulty}`,
+    `TARGET TOTAL LENGTH: ~${args.targetWords} words (±10%)`,
+  ].join('\n');
+
+  const objectives = (args.objectives ?? []).map((o) => `- ${o}`).join('\n');
+
+  if (args.locale === 'es') {
+    return `Eres un autor de libros de texto y editor senior. Devuelve SOLO JSON válido (sin markdown fences).
+
+Diseña la tabla de contenidos (TOC) del módulo como un capítulo de libro paso a paso.
+
+${common}
+OBJETIVOS DEL CURSO:
+${objectives}
+
+Requisitos:
+- 10 a 16 secciones con títulos específicos (nada genérico tipo "Fundacional", "Núcleo", "Avanzado", "Síntesis y Conclusión").
+- Cada sección debe ser útil y práctica: combina explicación, ejemplo trabajado y/o mini-ejercicio.
+- Incluye: fundamentos, procedimiento paso a paso, errores comunes, checklist, mini-proyecto guiado y ejercicios de práctica.
+- Nada de frases meta ("Este módulo convierte..."), ni menciones a IA.
+
+Devuelve EXACTAMENTE este JSON:
+{
+  "sections": [
+    { "heading": "...", "goal": "Qué aprende el lector", "targetWords": 600 }
+  ],
+  "capstone": {
+    "title": "Título del mini-proyecto",
+    "brief": "Contexto y objetivo del mini-proyecto (2-4 frases)",
+    "deliverable": "Qué debe entregar el alumno",
+    "steps": ["Paso 1", "Paso 2"]
+  }
+}
+
+Notas:
+- En "heading" NO incluyas el prefijo "##" en el texto (solo el título).`;
+  }
+
+  return `You are a senior textbook author and editor. Return ONLY valid JSON (no markdown fences).
+
+Design the module table of contents as a step-by-step textbook chapter.
+
+${common}
+COURSE OBJECTIVES:
+${objectives}
+
+Requirements:
+- 10 to 16 sections with specific titles (avoid generic titles like "Foundational", "Core", "Advanced", "Synthesis and Conclusion").
+- Each section must be practical: mix explanation + worked example and/or mini exercise.
+- Include: fundamentals, step-by-step procedure, common pitfalls, checklists, a guided mini-project, and practice exercises.
+- No meta phrases ("This module turns...") and no mentions of AI.
+
+Return EXACTLY this JSON:
+{
+  "sections": [
+    { "heading": "...", "goal": "What the learner will be able to do", "targetWords": 600 }
+  ],
+  "capstone": {
+    "title": "Mini-project title",
+    "brief": "2-4 sentences of context and goal",
+    "deliverable": "What the learner must produce",
+    "steps": ["Step 1", "Step 2"]
+  }
+}`;
+}
+
+function buildModuleContentPartPrompt(args: {
+  courseTitle: string;
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  estimatedMinutes: number;
+  locale: 'en' | 'es';
+  partIndex: number;
+  partCount: number;
+  partTargetWords: number;
+  sections: ModulePlanSection[];
+  capstone?: ModulePlan['capstone'];
+}): string {
+  const includeHook = args.partIndex === 0;
+  const isLast = args.partIndex === args.partCount - 1;
+
+  const banned = args.locale === 'es'
+    ? [
+        'Este módulo convierte un tema',
+        'Un módulo directo y estructurado',
+        'Idea ancla del módulo',
+        'INSIGHT >>',
+        'Distinción clave:',
+        'Patrón:',
+        'Síntesis y Conclusión',
+        'Fundacional',
+        'Núcleo',
+        'Avanzado',
+      ]
+    : [
+        'This module turns',
+        'A direct, structured module',
+        'Module anchor idea',
+        'INSIGHT >>',
+        'Key insight:',
+        'Pattern:',
+        'Synthesis and Conclusion',
+        'Foundational',
+        'Core',
+        'Advanced',
+      ];
+
+  const sectionsList = args.sections
+    .map((s, idx) => `${idx + 1}. ${s.heading} — ${s.goal} (~${s.targetWords} words)`)
+    .join('\n');
+
+  if (args.locale === 'es') {
+    return `Escribe contenido en Markdown para el módulo (parte ${args.partIndex + 1}/${args.partCount}).
+
+CURSO: "${args.courseTitle}"
+MÓDULO: "${args.moduleTitle}"
+NIVEL: ${args.difficulty}
+OBJETIVO DE LONGITUD PARA ESTA PARTE: ~${args.partTargetWords} palabras
+
+Reglas (estrictas):
+- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- Evita muros de texto: máximo 3 párrafos seguidos sin un “widget” (lista, tabla, quote, código, etc.).
+- Código: usa fences con lenguaje (por ejemplo: ts, python). No uses Mermaid.
+- Nada de headings genéricos/plantilla.
+- Prohibido incluir frases meta o “instrucciones para IA” (ni variantes cercanas): ${banned.map((p) => `"${p}"`).join(', ')}.
+
+${includeHook ? `Estructura del inicio (solo en esta parte):
+1) Primera línea: # ${args.moduleTitle}
+2) Segunda línea: **Tiempo:** ${args.estimatedMinutes} min | **Nivel:** ${args.difficulty} | **Tags:** \`Curso\` \`AI\` (añade 1-3 tags relevantes)
+3) Un standfirst corto en blockquote: > **...**
+4) Un separador: ---
+5) Incluye 1 pull quote con este formato: > ## "..." y una línea opcional de contexto.
+6) Incluye 1 caja lateral como tabla de 1 celda:
+   | 💡 TECH INSIGHT: Título específico |
+   | :--- |
+   | Texto breve y útil (2-4 frases). |
+` : `NO repitas el título, meta, standfirst ni separador. Empieza directamente con el primer "##" que te corresponda.`}
+
+Secciones a escribir (en este orden, usando "## {heading}" exactamente):
+${sectionsList}
+
+${isLast && args.capstone ? `Al final de esta parte, añade una sección "## Proyecto guiado: ${args.capstone.title}" e incluye:
+- Contexto: ${args.capstone.brief}
+- Entregable: ${args.capstone.deliverable}
+- Pasos numerados: ${args.capstone.steps.map((s) => s.trim()).filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+Y termina con una sección breve de "## Práctica" con 4-6 ejercicios sin solución larga.` : ''}`;
+  }
+
+  return `Write Markdown content for the module (part ${args.partIndex + 1}/${args.partCount}).
+
+COURSE: "${args.courseTitle}"
+MODULE: "${args.moduleTitle}"
+LEVEL: ${args.difficulty}
+TARGET LENGTH FOR THIS PART: ~${args.partTargetWords} words
+
+Rules (strict):
+- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Avoid walls of text: max 3 plain paragraphs in a row without a “widget” (list, table, quote, code, etc.).
+- Code: always use fenced blocks with a language (e.g. ts, python). No Mermaid.
+- Avoid generic/template headings.
+- Forbidden meta/instructional phrases (or close variants): ${banned.map((p) => `"${p}"`).join(', ')}.
+
+${includeHook ? `Opening structure (only in this part):
+1) First line: # ${args.moduleTitle}
+2) Second line: **Time:** ${args.estimatedMinutes} min | **Level:** ${args.difficulty} | **Tags:** \`Course\` \`AI\` (add 1-3 relevant tags)
+3) A short standfirst in a blockquote: > **...**
+4) A separator: ---
+5) Include 1 pull quote using: > ## "..." and an optional context line.
+6) Include 1 sidebar as a 1-cell table:
+   | 💡 TECH INSIGHT: Specific title |
+   | :--- |
+   | 2-4 useful sentences. |
+` : `Do NOT repeat title/meta/standfirst/separator. Start directly with the first required "##" section.`}
+
+Sections to write (in order, using "## {heading}" exactly):
+${sectionsList}
+
+${isLast && args.capstone ? `At the end of this part, add a section "## Guided mini-project: ${args.capstone.title}" and include:
+- Context: ${args.capstone.brief}
+- Deliverable: ${args.capstone.deliverable}
+- Numbered steps: ${args.capstone.steps.map((s) => s.trim()).filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+Then end with a short "## Practice" section with 4-6 exercises (no long solutions).` : ''}`;
+}
+
+function buildModuleExpansionPrompt(args: {
+  courseTitle: string;
+  moduleTitle: string;
+  moduleDescription: string;
+  locale: 'en' | 'es';
+  missingWords: number;
+  existingHeadings: string[];
+}): string {
+  const headings = args.existingHeadings.map((h) => `- ${h}`).join('\n');
+
+  if (args.locale === 'es') {
+    return `El módulo está demasiado corto. Añade contenido NUEVO para enriquecerlo.
+
+CURSO: "${args.courseTitle}"
+MÓDULO: "${args.moduleTitle}"
+RESUMEN: "${args.moduleDescription}"
+FALTAN APROX.: ${args.missingWords} palabras
+
+Reglas:
+- Devuelve SOLO Markdown (sin JSON, sin fences, sin comentarios).
+- NO repitas el título ni el hook.
+- Añade 2-3 secciones nuevas con títulos específicos y relacionados con el tema.
+- Incluye al menos 2 ejemplos trabajados y una lista de “errores comunes”.
+- No uses títulos genéricos como "Síntesis", "Fundacional", etc.
+
+Headings existentes (no repetir):
+${headings}`;
+  }
+
+  return `The module is too short. Add NEW content to enrich it.
+
+COURSE: "${args.courseTitle}"
+MODULE: "${args.moduleTitle}"
+SUMMARY: "${args.moduleDescription}"
+MISSING APPROX.: ${args.missingWords} words
+
+Rules:
+- Return ONLY Markdown (no JSON, no fences, no commentary).
+- Do NOT repeat the title or hook.
+- Add 2-3 new sections with specific, topic-relevant titles.
+- Include at least 2 worked examples and a “common pitfalls” list.
+- Avoid generic headings like "Synthesis", "Foundational", etc.
+
+Existing headings (do not repeat):
+${headings}`;
+}
+
+function buildModuleMetaPrompt(args: {
+  courseTitle: string;
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  locale: 'en' | 'es';
+  sections: ModulePlanSection[];
+  estimatedMinutes: number;
+}): string {
+  const headings = args.sections.map((s) => `- ${s.heading}: ${s.goal}`).join('\n');
+
+  if (args.locale === 'es') {
+    return `Eres un autor de libros de texto. Devuelve SOLO JSON válido.
+
+Genera materiales de estudio para este módulo (sin mencionar IA):
+CURSO: "${args.courseTitle}"
+MÓDULO: "${args.moduleTitle}"
+RESUMEN: "${args.moduleDescription}"
+NIVEL: ${args.difficulty}
+TIEMPO: ${args.estimatedMinutes} min
+
+Tabla de contenidos (para contexto):
+${headings}
+
+Devuelve EXACTAMENTE este JSON:
+{
+  "keyTakeaways": ["6-12 puntos accionables y concretos"],
+  "quiz": [
+    {
+      "question": "Pregunta",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": 0,
+      "explanation": "80+ palabras, explica por qué es correcta y por qué las otras no"
+    }
+  ],
+  "resources": ["4-10 recursos opcionales (título + URL cuando sea posible)"],
+  "estimatedMinutes": ${args.estimatedMinutes}
+}
+
+Reglas:
+- 6 a 10 preguntas de quiz.
+- Evita preguntas genéricas; deben evaluar comprensión real y aplicación.
+- Las explicaciones deben ser claras y útiles (no “porque sí”).`;
+  }
+
+  return `You are a senior textbook author. Return ONLY valid JSON.
+
+Generate study materials for this module (do not mention AI):
+COURSE: "${args.courseTitle}"
+MODULE: "${args.moduleTitle}"
+SUMMARY: "${args.moduleDescription}"
+LEVEL: ${args.difficulty}
+TIME: ${args.estimatedMinutes} min
+
+Table of contents (for context):
+${headings}
+
+Return EXACTLY this JSON:
+{
+  "keyTakeaways": ["6-12 concrete, actionable takeaways"],
+  "quiz": [
+    {
+      "question": "Question",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": 0,
+      "explanation": "80+ words explaining why it's correct and why others are wrong"
+    }
+  ],
+  "resources": ["4-10 optional resources (title + URL when possible)"],
+  "estimatedMinutes": ${args.estimatedMinutes}
+}
+
+Rules:
+- 6 to 10 quiz questions.
+- Avoid generic questions; test real understanding and application.
+- Explanations must be helpful (not hand-wavy).`;
+}
+
+async function generateTextbookModuleWithGPT4o(args: {
+  courseTitle: string;
+  courseDescription: string;
+  objectives: string[];
+  moduleIndex: number;
+  moduleCount: number;
+  moduleTitle: string;
+  moduleDescription: string;
+  difficulty: string;
+  duration: string;
+  locale: 'en' | 'es';
+}): Promise<Module> {
+  const estimatedMinutes = resolveEstimatedMinutes(args.duration);
+  const targetWords = resolveTargetWords(args.duration, 'textbook');
+
+  const planRaw = await callOpenAI(
+    buildModulePlanPrompt({
+      courseTitle: args.courseTitle,
+      courseDescription: args.courseDescription,
+      objectives: args.objectives,
+      moduleTitle: args.moduleTitle,
+      moduleDescription: args.moduleDescription,
+      difficulty: args.difficulty,
+      duration: args.duration,
+      locale: args.locale,
+      targetWords,
+    }),
+    { maxTokens: 1400, temperature: 0.3 }
+  );
+
+  const planFixed = sanitizeAndFixJSON(planRaw);
+  const planParsed = parseJSON<ModulePlan>(planFixed, `gpt4o module plan ${args.moduleIndex + 1}`);
+  const plan = ModulePlanSchema.parse(planParsed);
+
+  const normalizedSections = plan.sections
+    .map((s) => ({
+      ...s,
+      heading: String(s.heading ?? '').replace(/^#+\s*/, '').trim(),
+    }))
+    .filter((s) => s.heading.length >= 4)
+    .filter((s, idx, arr) => {
+      const key = s.heading.toLowerCase();
+      return arr.findIndex((x) => x.heading.toLowerCase() === key) === idx;
+    });
+
+  const parts = splitSectionsIntoParts(normalizedSections, 3);
+  const plannedWords = normalizedSections.reduce((sum, s) => sum + (s.targetWords ?? 0), 0) || targetWords;
+
+  const partTargets = parts.map((p) => {
+    const w = p.reduce((sum, s) => sum + (s.targetWords ?? 0), 0);
+    return Math.max(900, Math.round((targetWords * w) / plannedWords));
+  });
+  if (partTargets.length) {
+    const sum = partTargets.reduce((a, b) => a + b, 0);
+    partTargets[partTargets.length - 1] = Math.max(900, partTargets[partTargets.length - 1] + (targetWords - sum));
+  }
+
+  const contentParts: string[] = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const sectionGroup = parts[i] ?? [];
+    if (sectionGroup.length === 0) continue;
+
+    const partMarkdown = await callOpenAI(
+      buildModuleContentPartPrompt({
+        courseTitle: args.courseTitle,
+        moduleTitle: args.moduleTitle,
+        moduleDescription: args.moduleDescription,
+        difficulty: args.difficulty,
+        estimatedMinutes,
+        locale: args.locale,
+        partIndex: i,
+        partCount: parts.length,
+        partTargetWords: partTargets[i] ?? Math.round(targetWords / parts.length),
+        sections: sectionGroup,
+        capstone: plan.capstone,
+      }),
+      { maxTokens: 6200, temperature: 0.75 }
+    );
+
+    contentParts.push(partMarkdown.trim());
+  }
+
+  let content = contentParts.filter(Boolean).join('\n\n').trim();
+  content = normalizeEditorialMarkdown(content, {
+    title: args.moduleTitle,
+    standfirst: args.moduleDescription,
+    locale: args.locale,
+  });
+
+  const existingHeadings = normalizedSections.map((s) => s.heading).filter(Boolean);
+  const currentWords = countWords(content);
+  const minWords = Math.round(targetWords * 0.85);
+  if (currentWords > 0 && currentWords < minWords) {
+    const missingWords = minWords - currentWords;
+    const expansion = await callOpenAI(
+      buildModuleExpansionPrompt({
+        courseTitle: args.courseTitle,
+        moduleTitle: args.moduleTitle,
+        moduleDescription: args.moduleDescription,
+        locale: args.locale,
+        missingWords,
+        existingHeadings,
+      }),
+      { maxTokens: 4200, temperature: 0.75 }
+    );
+
+    content = normalizeEditorialMarkdown(`${content.trim()}\n\n${expansion.trim()}\n`, {
+      title: args.moduleTitle,
+      standfirst: args.moduleDescription,
+      locale: args.locale,
+    });
+  }
+
+  const metaRaw = await callOpenAI(
+    buildModuleMetaPrompt({
+      courseTitle: args.courseTitle,
+      moduleTitle: args.moduleTitle,
+      moduleDescription: args.moduleDescription,
+      difficulty: args.difficulty,
+      locale: args.locale,
+      sections: normalizedSections,
+      estimatedMinutes,
+    }),
+    { maxTokens: 1900, temperature: 0.35 }
+  );
+
+  const metaFixed = sanitizeAndFixJSON(metaRaw);
+  const metaParsed = parseJSON<z.infer<typeof ModuleMetaSchema>>(metaFixed, `gpt4o module meta ${args.moduleIndex + 1}`);
+  const meta = ModuleMetaSchema.parse(metaParsed);
+
+  return {
+    title: args.moduleTitle,
+    description: args.moduleDescription,
+    content,
+    keyTakeaways: meta.keyTakeaways,
+    estimatedMinutes: meta.estimatedMinutes ?? estimatedMinutes,
+    quiz: meta.quiz,
+    resources: meta.resources,
+  };
+}
+
 async function generateCourseWithGPT4o(args: {
   topic: string;
   difficulty: string;
@@ -804,6 +1368,24 @@ async function generateCourseWithGPT4o(args: {
 
     console.log(`[OpenAI] Generating module ${i + 1}/${moduleCount}: ${moduleTitleBase}...`);
 
+    if (args.quality === 'textbook') {
+      const generatedModule = await generateTextbookModuleWithGPT4o({
+        courseTitle: outline.title,
+        courseDescription: outline.description,
+        objectives: outline.objectives,
+        moduleIndex: i,
+        moduleCount,
+        moduleTitle,
+        moduleDescription: entry.description,
+        difficulty: args.difficulty,
+        duration: args.duration,
+        locale: args.locale,
+      });
+
+      modules.push(generatedModule);
+      continue;
+    }
+
     const moduleRaw = await callOpenAI(buildModulePrompt({
       courseTitle: outline.title,
       courseDescription: outline.description,
@@ -816,7 +1398,7 @@ async function generateCourseWithGPT4o(args: {
       duration: args.duration,
       locale: args.locale,
       quality: args.quality,
-    }), { maxTokens: args.quality === 'textbook' ? 6500 : 5200, temperature: 0.7 });
+    }), { maxTokens: 5200, temperature: 0.7 });
 
     const moduleFixed = sanitizeAndFixJSON(moduleRaw);
     const moduleParsed = parseJSON<z.infer<typeof ModuleBundleSchema>>(moduleFixed, `gpt4o module ${i + 1}`);

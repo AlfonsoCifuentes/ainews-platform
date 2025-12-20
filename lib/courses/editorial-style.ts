@@ -491,6 +491,22 @@ function stripEditorialBoilerplate(markdown: string): string {
       }
     }
 
+    // Remove boilerplate key-concept tables that leak prompt templates into the UI.
+    // Examples: "Distinción clave: afirmación ≠ evidencia", "Patrón: definición → observables → contraejemplos".
+    if (trimmed.startsWith('|') && i + 2 < postSeparator.length) {
+      const separator = postSeparator[i + 1]?.trim() ?? '';
+      const body = postSeparator[i + 2]?.trim() ?? '';
+      const isOneCellSeparator = separator === '| :--- |' || /^\|\s*:?-{3,}\s*\|\s*$/.test(separator);
+      if (isOneCellSeparator && body.startsWith('|')) {
+        const titleText = canonicalizeBoilerplateText(trimmed);
+        const bodyText = canonicalizeBoilerplateText(body);
+        if (isBoilerplateKeyConcept(titleText, bodyText)) {
+          i += 2;
+          continue;
+        }
+      }
+    }
+
     const canonical = canonicalizeBoilerplateText(trimmed);
     if (isBoilerplateHeroLead(canonical)) continue;
     if (isBoilerplateStandfirst(canonical)) continue;

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       negativePromptOverride,
       metadata,
       variants,
-      providerOrder,
+      providerOrder: _providerOrder,
     } = validated.data;
 
     if (style === 'diagram') {
@@ -72,16 +72,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (style === 'schema' || style === 'infographic') {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'TEXT_VISUALS_DISABLED',
+          error: 'Text-bearing visuals (schemas/infographics) are disabled for now.',
+        },
+        { status: 200 }
+      );
+    }
+
     // Non-diagram images must be shared between locales so EN/ES show the same illustration.
     // Only text-bearing visuals remain locale-specific.
-    const isTextBearing = style === 'schema' || style === 'infographic';
-    const locale = isTextBearing ? requestedLocale : 'en';
+    const locale = 'en';
 
     const variantList = resolveVariantList(style, variants);
-    const defaultOrder: GenerateIllustrationRequest['providerOrder'] =
-      style === 'schema' || style === 'infographic' ? ['gemini'] : ['runware', 'gemini'];
-    const order: NonNullable<GenerateIllustrationRequest['providerOrder']> =
-      providerOrder && providerOrder.length ? providerOrder : defaultOrder;
+    const order: NonNullable<GenerateIllustrationRequest['providerOrder']> = ['runware'];
     console.log(`[API/generate-illustration] Generating ${style} with variants: ${variantList.join(', ')} | providers: ${order.join(' > ')}`);
 
     const generatedResults: Array<{
