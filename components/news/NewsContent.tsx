@@ -9,6 +9,7 @@ import { NewsInsights } from './NewsInsights';
 import { NewsStats } from './NewsStats';
 import { CategoryFilters } from './CategoryFilters';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { NewsPodcastWidget } from './NewsPodcastWidget';
 
 interface NewsContentProps {
   initialArticles: INewsArticle[];
@@ -45,6 +46,12 @@ export function NewsContent({ initialArticles, locale }: NewsContentProps) {
       {/* Stats & Insights Section */}
       <section className="border-t border-[#1F1F1F] bg-[#0A0A0A] px-6 md:px-12 py-12">
         <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <ErrorBoundary componentName="NewsPodcastWidget">
+              <NewsPodcastWidget locale={locale} />
+            </ErrorBoundary>
+          </div>
+
           {/* Stats - Full width */}
           <div className="mb-8">
             <NewsStats locale={locale} />

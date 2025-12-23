@@ -34,7 +34,14 @@ import { visualSimilarity } from '../lib/services/visual-similarity';
 
 const parser = new Parser({
 	customFields: {
-		item: ['media:content', 'media:thumbnail', 'enclosure'],
+		item: [
+			'media:content',
+			'media:thumbnail',
+			'enclosure',
+			'content:encoded',
+			'itunes:image',
+			'itunes:summary',
+		],
 	},
 });
 
@@ -72,6 +79,11 @@ interface RawArticle {
 	pubDate: string;
 	contentSnippet?: string;
 	content?: string;
+	contentEncoded?: string;
+	itunesSummary?: string;
+	itunesImageUrl?: string;
+	mediaContentUrl?: string;
+	mediaThumbnailUrl?: string;
 	enclosure?: { url?: string } | null;
 	source: NewsSource;
 }
@@ -122,6 +134,10 @@ const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
 const IMAGE_RETRY_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
 const IMAGE_RETRY_BATCH_LIMIT = 12;
 const REWRITE_MAX_CHARS = 5200;
+const DEDUPE_LOOKBACK_DAYS = 21;
+const DEDUPE_TOKEN_SIMILARITY = 0.78;
+const USE_SEMANTIC_DEDUPE = true;
+const SEMANTIC_DEDUPE_THRESHOLD = 0.93;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -163,10 +179,82 @@ function cleanContent(html: string | undefined | null): string {
 	return cleaned.trim();
 }
 
+function normalizeTitleForDedupe(title: string): string {
+	return title
+		.toLowerCase()
+		.replace(/\b(episode|ep)\.?\s*\d+\b/g, '')
+		.replace(/\B#\d+\b/g, '')
+		.replace(/\([^)]*\)/g, ' ')
+		.replace(/\[[^\]]*\]/g, ' ')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\b(the|a|an|and|or|of|to|in|for|on|with|from|by|at|as)\b/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function tokenSet(text: string): Set<string> {
+	const tokens = text.split(' ').map((t) => t.trim()).filter((t) => t.length >= 3);
+	return new Set(tokens);
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+	if (a.size === 0 || b.size === 0) return 0;
+	let intersection = 0;
+	for (const t of a) {
+		if (b.has(t)) intersection += 1;
+	}
+	const union = a.size + b.size - intersection;
+	return union === 0 ? 0 : intersection / union;
+}
+
+function isNearDuplicateTitle(normalizedTitle: string, candidateNormalized: string): boolean {
+	if (!normalizedTitle || !candidateNormalized) return false;
+	if (normalizedTitle === candidateNormalized) return true;
+	if (normalizedTitle.length >= 18 && candidateNormalized.includes(normalizedTitle)) return true;
+	if (candidateNormalized.length >= 18 && normalizedTitle.includes(candidateNormalized)) return true;
+	const sim = jaccardSimilarity(tokenSet(normalizedTitle), tokenSet(candidateNormalized));
+	return sim >= DEDUPE_TOKEN_SIMILARITY;
+}
+
+function extractTranscriptUrlFromHtml(html: string, baseUrl: string): string | null {
+	try {
+		const $ = load(html);
+		const anchors = $('a[href]').toArray();
+		for (const node of anchors) {
+			const el = $(node);
+			const href = el.attr('href') ?? '';
+			const text = (el.text() ?? '').toLowerCase();
+			if (!href) continue;
+			if (text.includes('transcript') || href.toLowerCase().includes('transcript')) {
+				try {
+					return new URL(href, baseUrl).href;
+				} catch {
+					return href;
+				}
+			}
+		}
+	} catch {
+		// ignore
+	}
+	return null;
+}
+
+let recentNormalizedTitles: string[] = [];
+let recentNormalizedTitleSet = new Set<string>();
+const runNormalizedTitleSet = new Set<string>();
+
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
 	summary: z.string().min(60).max(520),
-	content: z.string().min(200).max(3200),
+	content: z.preprocess(
+		(value) => {
+			if (Array.isArray(value)) {
+				return value.filter((part) => typeof part === 'string').join('\n\n');
+			}
+			return value;
+		},
+		z.string().min(200).max(3200),
+	),
 });
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
@@ -261,12 +349,26 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 						.map((item) => {
 							const link = item.link || item.guid || '';
 							if (!link) return null;
+							const contentEncoded = typeof (item as any)['content:encoded'] === 'string' ? (item as any)['content:encoded'] : undefined;
+							const itunesSummary = typeof (item as any)['itunes:summary'] === 'string' ? (item as any)['itunes:summary'] : undefined;
+							const itunesImageRaw = (item as any)['itunes:image'];
+							const itunesImageUrl =
+								(typeof itunesImageRaw?.href === 'string' && itunesImageRaw.href) ||
+								(typeof itunesImageRaw?.$?.href === 'string' && itunesImageRaw.$.href) ||
+								undefined;
+							const mediaContentUrl = typeof (item as any)['media:content']?.$?.url === 'string' ? (item as any)['media:content'].$.url : undefined;
+							const mediaThumbnailUrl = typeof (item as any)['media:thumbnail']?.$?.url === 'string' ? (item as any)['media:thumbnail'].$.url : undefined;
 							return {
 								title: item.title || 'Untitled',
 								link,
 								pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
 								contentSnippet: item.contentSnippet || undefined,
 								content: typeof item.content === 'string' ? item.content : undefined,
+								contentEncoded,
+								itunesSummary,
+								itunesImageUrl,
+								mediaContentUrl,
+								mediaThumbnailUrl,
 								enclosure: item.enclosure ? { url: item.enclosure.url } : item['media:content'] || null,
 								source,
 							} satisfies RawArticle;
@@ -393,13 +495,42 @@ async function ensureArticleContent(entry: ClassifiedArticleRecord): Promise<{
 	}
 
 	console.log(`[Scraper] Fetching article content for ${entry.article.title.slice(0, 80)}...`);
-	const scraped = await scrapeArticlePage(entry.article.link);
 
-	const fallbackContent = cleanContent(entry.article.content) || entry.article.contentSnippet || '';
-	const contentOriginal = scraped.content && scraped.content.length > 200 ? scraped.content : fallbackContent;
-	const summaryOriginal = sanitizeSummary(
-		entry.article.contentSnippet || scraped.content?.slice(0, 300) || contentOriginal.slice(0, 300),
-	);
+	const rssText =
+		cleanContent(entry.article.contentEncoded) ||
+		cleanContent(entry.article.content) ||
+		entry.article.itunesSummary ||
+		entry.article.contentSnippet ||
+		'';
+
+	// Podcast episodes often have sufficient show notes in RSS; prefer those over scraping.
+	if (entry.article.source.category === 'podcast') {
+		let podcastText = rssText;
+		const transcriptUrl = extractTranscriptUrlFromHtml(entry.article.contentEncoded || entry.article.content || '', entry.article.link);
+		if (transcriptUrl) {
+			console.log(`[Podcast] Found transcript link, fetching: ${transcriptUrl}`);
+			const transcript = await scrapeArticlePage(transcriptUrl);
+			if (transcript.content && transcript.content.length > 500) {
+				podcastText = `${podcastText}\n\n${transcript.content}`.trim();
+			}
+		}
+
+		// If RSS is too thin, fall back to scraping the episode page.
+		if (podcastText.length < 300) {
+			const scraped = await scrapeArticlePage(entry.article.link);
+			if (scraped.content && scraped.content.length > 200) {
+				podcastText = scraped.content;
+			}
+		}
+
+		const summaryOriginal = sanitizeSummary((entry.article.contentSnippet || podcastText.slice(0, 320)).trim());
+		entry.cachedContent = { contentOriginal: podcastText, summaryOriginal };
+		return entry.cachedContent;
+	}
+
+	const scraped = await scrapeArticlePage(entry.article.link);
+	const contentOriginal = scraped.content && scraped.content.length > 200 ? scraped.content : rssText;
+	const summaryOriginal = sanitizeSummary(entry.article.contentSnippet || scraped.content?.slice(0, 300) || contentOriginal.slice(0, 300));
 
 	entry.cachedContent = { contentOriginal, summaryOriginal };
 	return entry.cachedContent;
@@ -460,8 +591,11 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 
 	const rssItem = {
 		enclosure: entry.article.enclosure || undefined,
-		content: entry.article.content,
+		content: entry.article.contentEncoded || entry.article.content,
 		contentSnippet: entry.article.contentSnippet,
+		'media:content': entry.article.mediaContentUrl ? { $: { url: entry.article.mediaContentUrl } } : undefined,
+		'media:thumbnail': entry.article.mediaThumbnailUrl ? { $: { url: entry.article.mediaThumbnailUrl } } : undefined,
+		'itunes:image': entry.article.itunesImageUrl ? { $: { href: entry.article.itunesImageUrl } } : undefined,
 	};
 
 	try {
@@ -510,7 +644,7 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 }
 
 async function classifyArticle(article: RawArticle, llmClient: LLMClient, systemPrompt: string): Promise<ArticleClassification | null> {
-	const snippet = cleanContent(article.content) || article.contentSnippet || '';
+	const snippet = cleanContent(article.contentEncoded) || cleanContent(article.content) || article.itunesSummary || article.contentSnippet || '';
 	const prompt = `Title: ${article.title}\nContent: ${snippet.slice(0, 500)}...\n\nIs this article relevant to AI/ML/tech? Return JSON only.`;
 
 	try {
@@ -522,6 +656,28 @@ async function classifyArticle(article: RawArticle, llmClient: LLMClient, system
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`[LLM] ✗ Classification failed for ${article.title.slice(0, 60)}: ${message}`);
+		return null;
+	}
+}
+
+async function isSemanticDuplicate(db: SupabaseClient, embedding: number[]): Promise<boolean | null> {
+	if (!USE_SEMANTIC_DEDUPE) return null;
+	try {
+		const { data, error } = await db.rpc('match_bilingual_content', {
+			query_embedding: embedding,
+			match_threshold: 0.9,
+			match_count: 1,
+		});
+
+		if (error) {
+			// Most commonly: function missing or insufficient permissions. Treat as unavailable.
+			return null;
+		}
+
+		const first = Array.isArray(data) ? (data[0] as { similarity?: number } | undefined) : undefined;
+		if (!first?.similarity) return false;
+		return first.similarity >= SEMANTIC_DEDUPE_THRESHOLD;
+	} catch {
 		return null;
 	}
 }
@@ -605,6 +761,10 @@ async function enqueueImageRetry(entry: ClassifiedArticleRecord, reason: string 
 		return false;
 	}
 
+	if (!(await ensureImageRetryQueueAvailable(db))) {
+		return false;
+	}
+
 	const payload: ArticleQueuePayload = {
 		article: entry.article,
 		classification: entry.classification,
@@ -656,8 +816,45 @@ async function enqueueImageRetry(entry: ClassifiedArticleRecord, reason: string 
 	}
 }
 
+let imageRetryQueueAvailable: boolean | null = null;
+
+function isMissingImageRetryQueueTableError(error: unknown): boolean {
+	const e = error as any;
+	if (e?.code === 'PGRST205') return true;
+	const message = typeof e?.message === 'string' ? e.message : '';
+	return message.includes('news_image_retry_queue') && message.includes('schema cache');
+}
+
+async function ensureImageRetryQueueAvailable(db: SupabaseClient): Promise<boolean> {
+	if (imageRetryQueueAvailable !== null) return imageRetryQueueAvailable;
+
+	try {
+		const { error } = await db.from('news_image_retry_queue').select('id').limit(1);
+		if (error) {
+			if (isMissingImageRetryQueueTableError(error)) {
+				console.warn('[ImageRetry] Queue table missing; disabling image retry queue');
+				imageRetryQueueAvailable = false;
+				return false;
+			}
+			throw error;
+		}
+		imageRetryQueueAvailable = true;
+		return true;
+	} catch (error) {
+		if (isMissingImageRetryQueueTableError(error)) {
+			console.warn('[ImageRetry] Queue table missing; disabling image retry queue');
+			imageRetryQueueAvailable = false;
+			return false;
+		}
+		console.warn('[ImageRetry] Failed to probe queue table; disabling image retry queue:', error);
+		imageRetryQueueAvailable = false;
+		return false;
+	}
+}
+
 async function deleteQueueEntries(db: SupabaseClient, ids: string[]): Promise<void> {
 	if (ids.length === 0) return;
+	if (!(await ensureImageRetryQueueAvailable(db))) return;
 	const { error } = await db.from('news_image_retry_queue').delete().in('id', ids);
 	if (error) {
 		console.error('[ImageRetry] Failed to delete processed queue entries:', error);
@@ -670,6 +867,7 @@ async function updateQueueEntryFailure(
 	attempts: number,
 	reason: string | undefined,
 ): Promise<void> {
+	if (!(await ensureImageRetryQueueAvailable(db))) return;
 	const now = new Date().toISOString();
 	const nextAttemptAt = new Date(Date.now() + calculateNextRetryDelayMs(attempts + 1)).toISOString();
 	const { error } = await db
@@ -797,6 +995,31 @@ async function persistArticle(
 			entry.article.source.category,
 		]);
 
+		const normalizedTitle = normalizeTitleForDedupe(titleEn);
+		if (normalizedTitle) {
+			for (const candidate of recentNormalizedTitles) {
+				if (isNearDuplicateTitle(normalizedTitle, candidate)) {
+					console.log(`[DB] ↷ Skipping near-duplicate (title match): ${entry.article.title.slice(0, 80)}...`);
+					return { success: true, retryable: false, reason: 'near-duplicate-title' };
+				}
+			}
+		}
+
+		const embeddingBase = `${titleEn} ${summaryEn} ${contentEn.slice(0, 1000)}`;
+		let embedding = entry.cachedEmbedding;
+		if (embedding === undefined) {
+			embedding = await generateEmbedding(embeddingBase);
+			entry.cachedEmbedding = embedding ?? null;
+		}
+
+		if (Array.isArray(embedding)) {
+			const semanticDup = await isSemanticDuplicate(db, embedding);
+			if (semanticDup === true) {
+				console.log(`[DB] ↷ Skipping semantic duplicate: ${entry.article.title.slice(0, 80)}...`);
+				return { success: true, retryable: false, reason: 'semantic-duplicate' };
+			}
+		}
+
 		const insertPayload = {
 			title_en: titleEn,
 			title_es: titleEs,
@@ -833,13 +1056,6 @@ async function persistArticle(
 
 		const articleId = insertedArticle?.id as string | undefined;
 
-		const embeddingBase = `${titleEn} ${summaryEn} ${contentEn.slice(0, 1000)}`;
-		let embedding = entry.cachedEmbedding;
-		if (embedding === undefined) {
-			embedding = await generateEmbedding(embeddingBase);
-			entry.cachedEmbedding = embedding ?? null;
-		}
-
 		if (Array.isArray(embedding) && articleId) {
 			const { error: embeddingError } = await db.from('content_embeddings').insert({
 				content_id: articleId,
@@ -849,6 +1065,12 @@ async function persistArticle(
 			if (embeddingError) {
 				console.warn('[Embeddings] Insert failed:', embeddingError);
 			}
+		}
+
+		if (normalizedTitle) {
+			recentNormalizedTitleSet.add(normalizedTitle);
+			recentNormalizedTitles.push(normalizedTitle);
+			runNormalizedTitleSet.add(normalizedTitle);
 		}
 
 		registerImageHash(imageData.url);
@@ -876,6 +1098,20 @@ async function persistArticle(
 }
 
 async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient, llm: LLMClient): Promise<ArticleProcessingResult> {
+	const normalizedTitle = normalizeTitleForDedupe(entry.article.title);
+	if (normalizedTitle) {
+		if (runNormalizedTitleSet.has(normalizedTitle) || recentNormalizedTitleSet.has(normalizedTitle)) {
+			console.log(`[Dedupe] ↷ Skipping duplicate by title: ${entry.article.title.slice(0, 80)}...`);
+			return { success: true, retryable: false, reason: 'duplicate-title' };
+		}
+		for (const candidate of recentNormalizedTitles) {
+			if (isNearDuplicateTitle(normalizedTitle, candidate)) {
+				console.log(`[Dedupe] ↷ Skipping near-duplicate by title: ${entry.article.title.slice(0, 80)}...`);
+				return { success: true, retryable: false, reason: 'near-duplicate-title' };
+			}
+		}
+	}
+
 	let imageData: ResolvedImageData | null = entry.cachedImage ?? null;
 
 	// Skip image scraping for Google News URLs (always uses generic placeholder)
@@ -918,6 +1154,10 @@ async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promi
 		return;
 	}
 
+	if (!(await ensureImageRetryQueueAvailable(db))) {
+		return;
+	}
+
 	const nowIso = new Date().toISOString();
 	const { data, error } = await db
 		.from('news_image_retry_queue')
@@ -927,6 +1167,11 @@ async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promi
 		.limit(IMAGE_RETRY_BATCH_LIMIT);
 
 	if (error) {
+		if (isMissingImageRetryQueueTableError(error)) {
+			console.warn('[ImageRetry] Queue table missing; disabling image retry queue');
+			imageRetryQueueAvailable = false;
+			return;
+		}
 		console.error('[ImageRetry] Failed to fetch queue:', error);
 		return;
 	}
@@ -974,6 +1219,35 @@ async function main(): Promise<void> {
 	console.log('[News Curator] Starting curation workflow...');
 	const db = getSupabaseServerClient();
 	await initializeImageHashCache();
+
+	// Build a lightweight in-memory dedupe index for recent articles.
+	try {
+		const since = new Date(Date.now() - DEDUPE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+		const { data, error } = await db
+			.from('news_articles')
+			.select('title_en,title_es,published_at')
+			.gte('published_at', since)
+			.order('published_at', { ascending: false })
+			.limit(2000);
+		if (error) throw error;
+		recentNormalizedTitles = [];
+		recentNormalizedTitleSet = new Set<string>();
+		for (const row of data ?? []) {
+			const t1 = typeof row.title_en === 'string' ? normalizeTitleForDedupe(row.title_en) : '';
+			const t2 = typeof row.title_es === 'string' ? normalizeTitleForDedupe(row.title_es) : '';
+			if (t1) {
+				recentNormalizedTitles.push(t1);
+				recentNormalizedTitleSet.add(t1);
+			}
+			if (t2) {
+				recentNormalizedTitles.push(t2);
+				recentNormalizedTitleSet.add(t2);
+			}
+		}
+		console.log(`[Dedupe] Loaded ${recentNormalizedTitleSet.size} normalized titles from last ${DEDUPE_LOOKBACK_DAYS} days`);
+	} catch (error) {
+		console.warn('[Dedupe] Failed to build recent-title index, continuing without it:', error);
+	}
 
 	let llm: LLMClient;
 	try {

@@ -5,6 +5,7 @@ export type SourceCategory =
   | 'news'
   | 'research'
   | 'newsletter'
+  | 'podcast'
   | 'tutorials'
   | 'aggregator'
   | 'community';
@@ -82,6 +83,12 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'AI Snake Oil', url: 'https://www.aisnakeoil.com/feed', category: 'newsletter', language: 'en', notes: 'Critical AI analysis - Princeton' },
   { name: 'Interconnects', url: 'https://www.interconnects.ai/feed', category: 'newsletter', language: 'en', notes: 'Nathan Lambert RLHF/alignment' },
   { name: 'ML News (Grootendorst)', url: 'https://newsletter.maartengrootendorst.com/feed', category: 'newsletter', language: 'en', notes: 'ML tutorials newsletter' },
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // AI PODCASTS (Episode → News via show notes/transcripts)
+  // ══════════════════════════════════════════════════════════════════════════════
+  { name: 'Lex Fridman Podcast', url: 'https://lexfridman.com/feed/podcast/', category: 'podcast', language: 'en', notes: 'Episodes often include transcript links' },
+  { name: 'The TWIML AI Podcast', url: 'https://feeds.megaphone.fm/MLN2155636147', category: 'podcast', language: 'en', notes: 'Rich show notes in content:encoded' },
 
   // ══════════════════════════════════════════════════════════════════════════════
   // AI TUTORIALS & DATA SCIENCE LEARNING

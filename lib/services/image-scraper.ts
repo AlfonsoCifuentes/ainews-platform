@@ -579,6 +579,7 @@ export function extractImageFromRSS(item: {
   contentSnippet?: string;
   'media:content'?: { $?: { url?: string } };
   'media:thumbnail'?: { $?: { url?: string } };
+  'itunes:image'?: { $?: { href?: string } } | { href?: string };
 }): string | null {
   // Strategy 1: Media content
   if (item['media:content']?.$?.url) {
@@ -588,6 +589,19 @@ export function extractImageFromRSS(item: {
   // Strategy 2: Media thumbnail
   if (item['media:thumbnail']?.$?.url) {
     return item['media:thumbnail'].$.url;
+  }
+
+  // Strategy 2.5: iTunes podcast artwork
+  const itunesImage = item['itunes:image'] as { $?: { href?: string } } | { href?: string } | undefined;
+  const itunesHref = itunesImage
+    ? typeof (itunesImage as { href?: string }).href === 'string'
+      ? (itunesImage as { href?: string }).href
+      : typeof (itunesImage as { $?: { href?: string } }).$?.href === 'string'
+        ? (itunesImage as { $?: { href?: string } }).$?.href
+        : undefined
+    : undefined;
+  if (itunesHref) {
+    return itunesHref;
   }
 
   // Strategy 3: Enclosure
@@ -628,6 +642,9 @@ export async function getBestArticleImage(
     enclosure?: { url?: string };
     content?: string;
     contentSnippet?: string;
+    'media:content'?: { $?: { url?: string } };
+    'media:thumbnail'?: { $?: { url?: string } };
+    'itunes:image'?: { $?: { href?: string } } | { href?: string };
   },
   options: {
     skipRegister?: boolean;

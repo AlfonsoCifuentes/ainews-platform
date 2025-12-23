@@ -284,6 +284,13 @@ export async function translateArticle(
     return { title, summary, content };
   }
 
+	const pickText = (result: unknown, fallback: string): string => {
+    if (typeof result !== 'object' || result === null) return fallback;
+    if (!('text' in result)) return fallback;
+    const maybeText = (result as { text?: unknown }).text;
+    return typeof maybeText === 'string' && maybeText.trim().length > 0 ? maybeText : fallback;
+	};
+
   try {
     // Use forceBatch: false and rejectOnPartialFail: false to handle long content
     // Translate sequentially to avoid overwhelming the API
@@ -309,9 +316,9 @@ export async function translateArticle(
     });
 
     return {
-      title: translatedTitle.text,
-      summary: translatedSummary.text,
-      content: translatedContent.text
+		title: pickText(translatedTitle, title),
+		summary: pickText(translatedSummary, summary),
+		content: pickText(translatedContent, content),
     };
   } catch (error) {
     console.error(`[Translator] Error translating from ${fromLang} to ${toLang}:`, error);
