@@ -4,9 +4,11 @@
  * AI Leaderboard Scraper
  * Scrapes artificialanalysis.ai/leaderboards/models and updates Supabase
  * Runs daily via GitHub Actions
+ * 
+ * Uses Playwright for headless browser scraping since the site renders via JavaScript
  */
 
-import fetch from 'node-fetch';
+import { chromium, type Browser, type Page } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
@@ -25,76 +27,203 @@ interface AIModel {
   name: string;
   provider: string;
   performance_score: number;
+  context_window?: string;
+  price_per_million?: number;
+  output_speed?: number;
+  latency?: number;
   description?: string;
   model_url?: string;
 }
 
+// Provider name normalization map
+const PROVIDER_MAP: Record<string, string> = {
+  'google': 'Google',
+  'openai': 'OpenAI',
+  'anthropic': 'Anthropic',
+  'meta': 'Meta',
+  'xai': 'xAI',
+  'mistral': 'Mistral',
+  'deepseek': 'DeepSeek',
+  'alibaba': 'Alibaba',
+  'amazon': 'Amazon',
+  'microsoft azure': 'Microsoft',
+  'nvidia': 'NVIDIA',
+  'cohere': 'Cohere',
+  'ai21 labs': 'AI21 Labs',
+  'baidu': 'Baidu',
+  'bytedance seed': 'ByteDance',
+  'kimi': 'Kimi',
+  'z ai': 'Z AI',
+  'nous research': 'Nous Research',
+  'allen institute for ai': 'Allen Institute',
+  'ibm': 'IBM',
+  'lg ai research': 'LG AI Research',
+  'xiaomi': 'Xiaomi',
+  'upstage': 'Upstage',
+  'reka ai': 'Reka AI',
+  'servicenow': 'ServiceNow',
+  'inclusionai': 'InclusionAI',
+  'kwaikat': 'KwaiKAT',
+  'minimax': 'MiniMax',
+  'mbzuai institute of foundation models': 'MBZUAI',
+  'liquid ai': 'Liquid AI',
+  'motif technologies': 'Motif',
+  'deep cogito': 'Deep Cogito',
+};
+
+function normalizeProvider(raw: string): string {
+  const lower = raw.toLowerCase().trim();
+  return PROVIDER_MAP[lower] || raw.trim();
+}
+
+function parseNumber(text: string): number {
+  // Extract first number from string like "73", "$4.50", "134", "29.22"
+  const match = text.replace(/[$,]/g, '').match(/[\d.]+/);
+  return match ? parseFloat(match[0]) : 0;
+}
+
 async function scrapeLeaderboard(): Promise<AIModel[]> {
-  console.log('🤖 Starting AI Leaderboard scrape...');
+  console.log('🤖 Starting AI Leaderboard scrape from artificialanalysis.ai...');
+  
+  let browser: Browser | null = null;
   
   try {
-    // Fetch the leaderboard page
-    const response = await fetch('https://artificialanalysis.ai/leaderboards/models', {
-      headers: {
-        'User-Agent': 'ThotNetBot/1.0 (+https://thotnet-core.vercel.app)',
-      }
+    // Launch headless browser
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
     
-    // Parse HTML to extract leaderboard data
-    // This is a simplified extraction - adjust selectors based on actual HTML structure
-    const models: AIModel[] = [];
+    const page: Page = await browser.newPage();
     
-    // Try to extract JSON data from the page (many modern sites embed JSON-LD)
-    const jsonMatch = html.match(/<script[^>]*type="application\/json"[^>]*>([^<]+)<\/script>/);
+    // Navigate to the leaderboard page
+    console.log('📄 Loading leaderboard page...');
+    await page.goto('https://artificialanalysis.ai/leaderboards/models', {
+      waitUntil: 'networkidle',
+      timeout: 60000
+    });
     
-    if (jsonMatch) {
-      try {
-        const jsonData = JSON.parse(jsonMatch[1]);
-        // Extract models from JSON (structure depends on actual page)
-        if (jsonData.models && Array.isArray(jsonData.models)) {
-          return jsonData.models.slice(0, 50).map((model: any, idx: number) => ({
-            rank: idx + 1,
-            name: model.name || model.title,
-            provider: model.provider || model.company,
-            performance_score: parseFloat(model.score || model.rating || 0),
-            description: model.description,
-            model_url: model.url,
-          }));
+    // Wait for the table to load
+    console.log('⏳ Waiting for table to render...');
+    await page.waitForSelector('table', { timeout: 30000 });
+    
+    // Give it a bit more time to fully render
+    await page.waitForTimeout(2000);
+    
+    // Extract data from the table
+    console.log('📊 Extracting model data...');
+    const models = await page.evaluate(() => {
+      const rows = document.querySelectorAll('table tbody tr');
+      const data: Array<{
+        name: string;
+        context: string;
+        provider: string;
+        score: number;
+        price: number;
+        speed: number;
+        latency: number;
+      }> = [];
+      
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) return;
+        
+        // Get text content from each cell
+        const cellTexts = Array.from(cells).map(cell => cell.textContent?.trim() || '');
+        
+        // Extract model name - usually first cell
+        const nameCell = cells[0];
+        const name = nameCell.textContent?.trim() || '';
+        
+        // Skip header rows or invalid entries
+        if (!name || name.toLowerCase().includes('model') || name.length < 2) return;
+        
+        // Extract provider - look for the image alt text or logo text
+        let provider = '';
+        const providerImg = row.querySelector('img[alt*="logo"]');
+        if (providerImg) {
+          provider = providerImg.getAttribute('alt')?.replace(' logo', '').replace('logo', '').trim() || '';
         }
-      } catch (e) {
-        console.warn('Could not parse JSON from page, using fallback...');
-      }
+        if (!provider && cellTexts[2]) {
+          provider = cellTexts[2].replace(/logo/gi, '').trim();
+        }
+        
+        // Extract numeric values - try to parse from cell texts
+        const score = parseInt(cellTexts[3] || '0', 10);
+        const priceMatch = cellTexts[5]?.match(/\$?([\d.]+)/);
+        const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+        const speed = parseInt(cellTexts[6] || '0', 10);
+        const latencyMatch = cellTexts[7]?.match(/([\d.]+)/);
+        const latency = latencyMatch ? parseFloat(latencyMatch[1]) : 0;
+        
+        // Context window in position 1
+        const context = cellTexts[1] || '';
+        
+        data.push({
+          name: name.replace(/\s+logo\s*/gi, '').trim(),
+          context,
+          provider,
+          score,
+          price,
+          speed,
+          latency
+        });
+      });
+      
+      return data;
+    });
+    
+    await browser.close();
+    browser = null;
+    
+    // Process and rank models
+    const processedModels: AIModel[] = models
+      .filter(m => m.name && m.score > 0)
+      .map((m, index) => ({
+        rank: index + 1,
+        name: m.name,
+        provider: normalizeProvider(m.provider || 'Unknown'),
+        performance_score: m.score,
+        context_window: m.context,
+        price_per_million: m.price,
+        output_speed: m.speed,
+        latency: m.latency,
+        model_url: `https://artificialanalysis.ai/models/${encodeURIComponent(m.name.toLowerCase().replace(/\s+/g, '-'))}`,
+      }));
+    
+    // Sort by performance score descending and re-rank
+    processedModels.sort((a, b) => b.performance_score - a.performance_score);
+    processedModels.forEach((m, i) => m.rank = i + 1);
+    
+    // Limit to top 50
+    const topModels = processedModels.slice(0, 50);
+    
+    console.log(`📊 Extracted ${topModels.length} models from leaderboard`);
+    if (topModels.length > 0) {
+      console.log('🏆 Top 5 models:');
+      topModels.slice(0, 5).forEach(m => {
+        console.log(`   ${m.rank}. ${m.name} (${m.provider}) - Score: ${m.performance_score}`);
+      });
     }
-
-    // Fallback: if no JSON found, use hardcoded data
-    // In production, you'd use a headless browser or API if available
-    console.log('ℹ️ Using fallback data (consider implementing full scraping with headless browser)');
-    return [
-      { rank: 1, name: 'GPT-4o', provider: 'OpenAI', performance_score: 98.5, description: 'Most advanced reasoning' },
-      { rank: 2, name: 'Claude 3.5 Sonnet', provider: 'Anthropic', performance_score: 97.8, description: 'Excellent analysis' },
-      { rank: 3, name: 'Gemini 2.0', provider: 'Google DeepMind', performance_score: 97.2, description: 'Fast & capable' },
-      { rank: 4, name: 'Llama 3.3 70B', provider: 'Meta', performance_score: 96.5, description: 'Open-source leader' },
-      { rank: 5, name: 'Grok-3', provider: 'xAI', performance_score: 96.2, description: 'Real-time reasoning' },
-      { rank: 6, name: 'Mistral Large 2', provider: 'Mistral', performance_score: 95.8, description: 'Efficient multimodal' },
-      { rank: 7, name: 'DeepSeek-V3', provider: 'DeepSeek', performance_score: 95.5, description: 'Cost-effective reasoning' },
-      { rank: 8, name: 'Llama 3.1 405B', provider: 'Meta', performance_score: 95.2, description: 'Massive model capability' },
-      { rank: 9, name: 'Command R+', provider: 'Cohere', performance_score: 94.8, description: 'Long context window' },
-      { rank: 10, name: 'Qwen QwQ-32B', provider: 'Alibaba', performance_score: 94.5, description: 'Research-focused reasoning' },
-    ];
+    
+    return topModels;
+    
   } catch (error) {
     console.error('❌ Scraping error:', error);
+    if (browser) {
+      await browser.close();
+    }
     throw error;
   }
 }
 
 async function updateSupabase(models: AIModel[]): Promise<void> {
   console.log(`📊 Updating Supabase with ${models.length} models...`);
+
+  if (models.length === 0) {
+    console.warn('⚠️ No models to insert, skipping update');
+    return;
+  }
 
   try {
     // Delete old data
@@ -108,7 +237,7 @@ async function updateSupabase(models: AIModel[]): Promise<void> {
       throw deleteError;
     }
 
-    // Insert new data
+    // Insert new data - only use columns that exist in the table
     const { error: insertError } = await supabase
       .from('ai_leaderboard')
       .insert(
@@ -117,7 +246,7 @@ async function updateSupabase(models: AIModel[]): Promise<void> {
           name: model.name,
           provider: model.provider,
           performance_score: model.performance_score,
-          description: model.description,
+          description: model.description || `${model.context_window || ''} context, $${model.price_per_million?.toFixed(2) || '?'}/M tokens, ${model.output_speed || '?'} t/s`.trim(),
           model_url: model.model_url,
           archived_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -142,8 +271,13 @@ async function main() {
     const models = await scrapeLeaderboard();
     console.log(`✅ Successfully scraped ${models.length} models`);
     
-    await updateSupabase(models);
-    console.log('🎉 Leaderboard update completed successfully!');
+    if (models.length > 0) {
+      await updateSupabase(models);
+      console.log('🎉 Leaderboard update completed successfully!');
+    } else {
+      console.error('❌ No models scraped, not updating database');
+      process.exit(1);
+    }
     
     process.exit(0);
   } catch (error) {
