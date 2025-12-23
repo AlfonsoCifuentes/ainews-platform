@@ -25,12 +25,15 @@ const ArticleRewriteSchema = z.object({
 }).transform((data) => {
   let contentStr: string;
   if (typeof data.content === 'object' && data.content !== null) {
+    // Convert object sections to flowing paragraphs (NO markdown headings)
     contentStr = Object.entries(data.content)
-      .map(([key, value]) => `## ${key.replace(/_/g, ' ')}\n\n${value}`)
+      .map(([, value]) => String(value))
       .join('\n\n');
   } else {
     contentStr = data.content as string;
   }
+  // Remove any remaining markdown headings that might have been included
+  contentStr = contentStr.replace(/^##?\s+.+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
   return { title: data.title, summary: data.summary, content: contentStr, value_score: data.value_score ?? 0.8 };
 });
 
@@ -41,12 +44,16 @@ async function rewriteArticle(title: string, summary: string, content: string, l
 Estructura requerida:
 1. Título profesional y atractivo (máx 100 caracteres)
 2. Resumen ejecutivo (80-200 palabras)  
-3. Contenido estructurado (400-800 palabras) con:
-   - La noticia: ¿Qué pasó exactamente?
-   - Análisis técnico: Explica la tecnología
-   - Por qué importa: Impacto en usuarios/industria
-   - Implicaciones futuras: ¿Qué significa para los próximos 6-12 meses?
-   - Conclusión clave
+3. Contenido como TEXTO FLUIDO (400-800 palabras) con estos elementos integrados naturalmente:
+   - Qué pasó exactamente
+   - La tecnología involucrada explicada claramente
+   - Impacto en usuarios/industria
+   - Qué significa para el futuro
+   - Una conclusión clara
+
+IMPORTANTE: El contenido debe ser TEXTO CORRIDO, como un artículo periodístico normal.
+NO uses encabezados markdown (##), ni títulos de sección, ni bullets.
+Escribe párrafos fluidos que se lean naturalmente.
 
 REGLAS:
 - NO incluir URLs crudas en el texto
@@ -65,17 +72,21 @@ Contenido: ${content.slice(0, 4000)}`
 Required structure:
 1. Professional, engaging title (max 100 chars)
 2. Executive summary (80-200 words)
-3. Structured content (400-800 words) with:
-   - The News: What happened?
-   - Technical Deep Dive
-   - Why It Matters
-   - Future Implications
-   - Key Takeaway
+3. Content as FLOWING TEXT (400-800 words) with these elements naturally integrated:
+   - What happened exactly
+   - The technology involved explained clearly
+   - Impact on users/industry
+   - What it means for the future
+   - A clear conclusion
+
+IMPORTANT: Content must be FLOWING TEXT, like a normal news article.
+DO NOT use markdown headings (##), section titles, or bullets.
+Write fluid paragraphs that read naturally.
 
 RULES:
 - NO raw URLs
 - NO "Read more", cookie notices
-- Short paragraphs
+- Short paragraphs (2-4 sentences)
 - Self-evaluate quality (value_score 0-1)
 
 Return ONLY valid JSON with: title, summary, content, value_score

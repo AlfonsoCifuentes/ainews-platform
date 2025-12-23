@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -10,7 +10,7 @@ import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { type Locale } from '@/i18n';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 import { MiniShareButtons } from '@/components/shared/ShareButtons';
-import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 
 // Lazy load ArticleModal (heavy component with animations)
 const ArticleModal = dynamic(
@@ -108,7 +108,12 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
     };
   }, [hasMore, loading, loadMoreArticles]);
 
-  if (filteredArticles.length === 0) {
+  // Process articles with fallback images to avoid repetition in the grid
+  const articlesWithFallbacks = useMemo(() => {
+    return assignFallbackImagesToArticles(filteredArticles, 5);
+  }, [filteredArticles]);
+
+  if (articlesWithFallbacks.length === 0) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-16 text-center">
         <h1 className="mb-4 text-4xl font-bold md:text-5xl">
@@ -121,7 +126,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
     );
   }
 
-  const [hero, ...restArticles] = filteredArticles;
+  const [hero, ...restArticles] = articlesWithFallbacks;
   const featured = restArticles.slice(0, 3);
   const grid = restArticles.slice(3);
 
@@ -150,12 +155,12 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
           <article className="relative border border-white/12 bg-[#050505]">
             <div className="relative w-full" style={{ aspectRatio: '16 / 9', minHeight: '500px', overflow: 'hidden' }}>
               <Image
-                src={hero.image_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"%3E%3Crect fill="%23111827" width="1200" height="630"/%3E%3Ctext fill="%233B82F6" font-family="system-ui" font-size="48" font-weight="bold" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAI News%3C/text%3E%3C/svg%3E'}
+                src={hero.computed_image_url}
                 alt={getLocalizedString(hero, 'title', locale)}
                 fill
                 priority
                 sizes="100vw"
-                unoptimized={!hero.image_url}
+                unoptimized={hero.computed_image_url.startsWith('data:')}
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
@@ -209,15 +214,11 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
               <article className="relative h-full overflow-hidden border border-white/12 bg-[#050505]">
                 <div className="relative h-56 overflow-hidden">
                   <Image
-                    src={getImageWithFallback(
-                      article.image_url,
-                      getLocalizedString(article, 'title', locale),
-                      article.category
-                    )}
+                    src={article.computed_image_url}
                     alt={getLocalizedString(article, 'title', locale)}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
-                    unoptimized={!article.image_url || article.image_url.startsWith('data:')}
+                    unoptimized={article.computed_image_url.startsWith('data:')}
                     className="object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
@@ -273,15 +274,11 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 <article className="relative flex h-full flex-col overflow-hidden border border-white/12 bg-[#050505] transition-colors duration-200 hover:border-white/40">
                   <div className={`relative overflow-hidden ${isLarge ? 'flex-[2] min-h-0' : 'h-48'}`}>
                     <Image
-                      src={getImageWithFallback(
-                        article.image_url,
-                        getLocalizedString(article, 'title', locale),
-                        article.category
-                      )}
+                      src={article.computed_image_url}
                       alt={getLocalizedString(article, 'title', locale)}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      unoptimized={!article.image_url || article.image_url.startsWith('data:')}
+                      unoptimized={article.computed_image_url.startsWith('data:')}
                       className="object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />

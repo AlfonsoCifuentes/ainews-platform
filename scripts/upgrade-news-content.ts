@@ -76,21 +76,21 @@ const ArticleRewriteSchema = z.object({
 	content: z.union([
 		z.string(),
 		z.object({}).passthrough(), // Accept object and convert later
-	]).describe('Structured article with analysis (400+ words)'),
+	]).describe('Flowing article text (400+ words)'),
 	value_score: z.number().min(0).max(1).optional().describe('Self-assessed quality score'),
 }).transform((data) => {
-	// If content is an object, convert to markdown string
+	// If content is an object, convert to flowing text (NO markdown headings)
 	let contentStr: string;
 	if (typeof data.content === 'object' && data.content !== null) {
+		// Just join the values as paragraphs, no headings
 		contentStr = Object.entries(data.content)
-			.map(([key, value]) => {
-				const heading = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-				return `## ${heading}\n\n${value}`;
-			})
+			.map(([, value]) => String(value))
 			.join('\n\n');
 	} else {
 		contentStr = data.content as string;
 	}
+	// Remove any markdown headings that might have been included
+	contentStr = contentStr.replace(/^##?\\s+.+$/gm, '').replace(/\\n{3,}/g, '\\n\\n').trim();
 	return {
 		title: data.title,
 		summary: data.summary,
@@ -117,43 +117,40 @@ function buildValueAddedPrompt(
 		return `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
 
 ## OBJETIVO
-Transformar noticias básicas en contenido premium que aporte valor real al lector y sea atractivo para anunciantes de tecnología.
+Transformar noticias básicas en contenido premium que aporte valor real al lector.
 
 ## ESTRUCTURA REQUERIDA
 
 ### Título (title)
 - Gancho informativo que capte la atención
-- Incluir la innovación clave o el impacto principal
 - Máximo 100 caracteres, evitar clickbait vacío
 
 ### Resumen (summary) - 80-200 palabras
 - Párrafo de entrada que enganche al lector
-- Responder: ¿Qué pasó? ¿Por qué importa? ¿Qué viene después?
-- Lenguaje claro y directo, sin jerga innecesaria
+- Responder: ¿Qué pasó? ¿Por qué importa?
+- Lenguaje claro y directo
 
 ### Contenido (content) - 400-800 palabras
-Estructurar con estas secciones:
+IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico normal.
+- NO uses encabezados markdown (##) 
+- NO uses títulos de sección
+- NO uses listas con bullets o números
+- Escribe párrafos fluidos que integren naturalmente:
+  * Qué ocurrió exactamente
+  * La tecnología involucrada (explicada con claridad)
+  * El impacto en usuarios/industria
+  * Lo que significa para el futuro
+  * Una conclusión memorable
 
-1. **La Noticia**: ¿Qué ocurrió exactamente?
-2. **Contexto Técnico**: Explica la tecnología subyacente con claridad
-3. **Por Qué Importa**: Impacto en usuarios, empresas o la industria
-4. **Implicaciones Futuras**: ¿Qué significa para los próximos 6-12 meses?
-5. **Punto Clave**: Lo que el lector debe recordar
+El contenido debe leerse como prosa periodística, no como un documento estructurado.
 
-## REGLAS ESTRICTAS
-- NO incluir URLs crudas en el texto
-- NO usar "Leer más", "Continuar leyendo", avisos de cookies
-- NO mencionar imágenes o elementos UI que falten
-- Usar párrafos cortos (2-4 oraciones)
-- Incluir términos técnicos relevantes pero explicarlos
-- Añadir contexto que un profesional tech encontraría valioso
+## REGLAS
+- NO incluir URLs crudas
+- NO usar "Leer más", avisos de cookies
+- Párrafos cortos (2-4 oraciones)
+- Términos técnicos explicados brevemente
 
-## CALIDAD (value_score)
-Autoevalúa de 0 a 1:
-- 0.9-1.0: Análisis profundo con insights únicos
-- 0.7-0.9: Buen contexto y explicación clara
-- 0.5-0.7: Información básica bien presentada
-- <0.5: Solo hechos sin valor añadido
+## CALIDAD (value_score): Autoevalúa de 0 a 1
 
 Devuelve SOLO JSON válido con: title, summary, content, value_score
 
@@ -167,43 +164,40 @@ Contenido: ${workingContent}`;
 	return `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT.
 
 ## OBJECTIVE
-Transform basic news into premium content that provides real value to readers and is attractive to technology advertisers.
+Transform basic news into premium content that provides real value to readers.
 
 ## REQUIRED STRUCTURE
 
 ### Title (title)
 - Informative hook that captures attention
-- Include the key innovation or main impact
 - Maximum 100 characters, avoid empty clickbait
 
 ### Summary (summary) - 80-200 words
 - Opening paragraph that hooks the reader
-- Answer: What happened? Why does it matter? What comes next?
-- Clear and direct language, no unnecessary jargon
+- Answer: What happened? Why does it matter?
+- Clear and direct language
 
 ### Content (content) - 400-800 words
-Structure with these sections:
+IMPORTANT: Write as FLOWING TEXT, like a normal journalistic article.
+- Do NOT use markdown headings (##)
+- Do NOT use section titles
+- Do NOT use bullet lists or numbered lists
+- Write smooth flowing paragraphs that naturally integrate:
+  * What exactly happened
+  * The technology involved (explained clearly)
+  * Impact on users/industry
+  * What this means for the future
+  * A memorable conclusion
 
-1. **The News**: What exactly happened?
-2. **Technical Deep Dive**: Explain the underlying technology clearly
-3. **Why It Matters**: Impact on users, companies, or the industry
-4. **Future Implications**: What does this mean for the next 6-12 months?
-5. **Key Takeaway**: The main point the reader should remember
+The content should read like journalistic prose, not a structured document.
 
-## STRICT RULES
+## RULES
 - Do NOT include raw URLs in the text
-- Do NOT use "Read more", "Continue reading", cookie notices
-- Do NOT mention missing images or UI elements
-- Use short paragraphs (2-4 sentences)
-- Include relevant technical terms but briefly explain them
-- Add context that a tech professional would find valuable
+- Do NOT use "Read more", cookie notices
+- Short paragraphs (2-4 sentences)
+- Technical terms explained briefly
 
-## QUALITY (value_score)
-Self-evaluate from 0 to 1:
-- 0.9-1.0: Deep analysis with unique insights
-- 0.7-0.9: Good context and clear explanation
-- 0.5-0.7: Basic information well presented
-- <0.5: Just facts without added value
+## QUALITY (value_score): Self-evaluate from 0 to 1
 
 Return ONLY valid JSON with: title, summary, content, value_score
 

@@ -242,17 +242,127 @@ export function generateCourseFallbackImage(config: CourseFallbackImageConfig): 
   return svgToDataURL(svg);
 }
 
+// Import fallback images list - statically imported for best performance
+import fallbackImagesList from '@/lib/fallback-images-list.json';
+
+/**
+ * Seeded random number generator for consistent results
+ * Uses article ID as seed to ensure same article always gets same image
+ */
+function seededRandom(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash % 1000000) / 1000000;
+}
+
+/**
+ * Get a fallback image URL for an article
+ * Uses seeded randomization based on article ID or title for consistency
+ */
+export function getFallbackImageUrl(identifier: string): string {
+  const images = fallbackImagesList as string[];
+  if (!images || images.length === 0) {
+    return '';
+  }
+  
+  const index = Math.floor(seededRandom(identifier) * images.length);
+  return images[index];
+}
+
 /**
  * Hook para obtener la URL de imagen con fallback automático
+ * Ahora usa imágenes de Supabase como fallback primario
  */
 export function getImageWithFallback(
   imageUrl: string | null | undefined,
   title: string,
-  category?: string
+  category?: string,
+  articleId?: string
 ): string {
+  // Si tiene imagen propia, usarla
   if (imageUrl && imageUrl.trim() !== '') {
     return imageUrl;
   }
   
+  // Intentar usar imagen de fallback de Supabase
+  const identifier = articleId || title;
+  const supabaseFallback = getFallbackImageUrl(identifier);
+  
+  if (supabaseFallback) {
+    return supabaseFallback;
+  }
+  
+  // Fallback final: SVG generado
   return generateFallbackImage({ title, category });
 }
+
+/**
+ * Process a list of articles and assign fallback images avoiding repetition
+ * Returns articles with computed fallback_image_url property
+ */
+export function assignFallbackImagesToArticles<T extends { 
+  id: string; 
+  image_url?: string | null;
+  title_en?: string;
+  title_es?: string;
+}>(
+  articles: T[],
+  windowSize = 5
+): (T & { computed_image_url: string })[] {
+  const images = fallbackImagesList as string[];
+  const result: (T & { computed_image_url: string })[] = [];
+  const recentFallbacks: string[] = [];
+
+  for (let i = 0; i < articles.length; i++) {
+    const article = articles[i];
+    
+    if (article.image_url && article.image_url.trim() !== '') {
+      // Article has its own image
+      result.push({ 
+        ...article, 
+        computed_image_url: article.image_url 
+      });
+      recentFallbacks.push(article.image_url);
+    } else if (images.length > 0) {
+      // Need fallback - use seeded random but avoid recent images
+      const baseIndex = Math.floor(seededRandom(article.id) * images.length);
+      const usedInWindow = new Set(recentFallbacks.slice(-windowSize));
+      
+      let selectedUrl = images[baseIndex];
+      
+      // Try to find an unused image
+      for (let offset = 0; offset < images.length; offset++) {
+        const candidate = images[(baseIndex + offset) % images.length];
+        if (!usedInWindow.has(candidate)) {
+          selectedUrl = candidate;
+          break;
+        }
+      }
+      
+      result.push({ 
+        ...article, 
+        computed_image_url: selectedUrl 
+      });
+      recentFallbacks.push(selectedUrl);
+    } else {
+      // No fallback images available, generate SVG
+      const title = article.title_en || article.title_es || 'Article';
+      result.push({ 
+        ...article, 
+        computed_image_url: generateFallbackImage({ title }) 
+      });
+    }
+
+    // Keep only recent images
+    if (recentFallbacks.length > windowSize * 2) {
+      recentFallbacks.shift();
+    }
+  }
+
+  return result;
+}
+
