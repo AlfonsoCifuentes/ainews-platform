@@ -73,8 +73,30 @@ interface NewsArticle {
 const ArticleRewriteSchema = z.object({
 	title: z.string().describe('Professional, engaging title'),
 	summary: z.string().describe('2-sentence executive summary'),
-	content: z.string().describe('Structured article with analysis (400+ words)'),
+	content: z.union([
+		z.string(),
+		z.object({}).passthrough(), // Accept object and convert later
+	]).describe('Structured article with analysis (400+ words)'),
 	value_score: z.number().min(0).max(1).optional().describe('Self-assessed quality score'),
+}).transform((data) => {
+	// If content is an object, convert to markdown string
+	let contentStr: string;
+	if (typeof data.content === 'object' && data.content !== null) {
+		contentStr = Object.entries(data.content)
+			.map(([key, value]) => {
+				const heading = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+				return `## ${heading}\n\n${value}`;
+			})
+			.join('\n\n');
+	} else {
+		contentStr = data.content as string;
+	}
+	return {
+		title: data.title,
+		summary: data.summary,
+		content: contentStr,
+		value_score: data.value_score,
+	};
 });
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
@@ -214,9 +236,15 @@ async function generateAIAnalysis(
 			],
 			temperature: 0.7,
 			max_tokens: 2500,
+			response_format: { type: 'json_object' }, // Force JSON output
 		});
 		
 		const rawContent = response.choices[0]?.message?.content?.trim() || '';
+		
+		if (!rawContent) {
+			console.warn('[LLM] Empty response from API');
+			return null;
+		}
 		
 		// Try to extract JSON from response
 		let jsonStr = rawContent;
@@ -235,7 +263,8 @@ async function generateAIAnalysis(
 				result.value_score = 0.7;
 			}
 			return result;
-		} catch {
+		} catch (parseError) {
+			console.warn('[LLM] Initial parse failed:', parseError instanceof Error ? parseError.message : parseError);
 			// Try to fix common JSON issues with newlines
 			const fixedJson = jsonStr
 				.replace(/\n/g, '\\n')
@@ -274,7 +303,7 @@ async function generateAIAnalysis(
 			}
 		}
 		
-		console.warn('[LLM] Could not parse response');
+		console.warn('[LLM] Could not parse response. Raw (first 500 chars):', rawContent.slice(0, 500));
 		return null;
 	} catch (error) {
 		console.warn('[LLM] Failed to generate analysis:', error instanceof Error ? error.message : error);
@@ -289,8 +318,7 @@ async function generateAIAnalysis(
 async function fetchArticlesToUpgrade(supabase: ReturnType<typeof getSupabaseServerClient>, limit?: number, needsUpgrade?: boolean): Promise<NewsArticle[]> {
 	let query = supabase
 		.from('news_articles')
-		.select('id, title_en, title_es, summary_en, summary_es, content_en, content_es, source_url, created_at, rewrite_model, rewrite_version')
-		.order('created_at', { ascending: false });
+		.select('id, title_en, title_es, summary_en, summary_es, content_en, content_es, source_url, created_at, rewrite_model, rewrite_version');
 
 	// Only fetch articles that need upgrading (not already processed with GPT-4o-mini v2+)
 	if (needsUpgrade) {
@@ -298,6 +326,11 @@ async function fetchArticlesToUpgrade(supabase: ReturnType<typeof getSupabaseSer
 			`rewrite_model.is.null,rewrite_model.neq.${REWRITE_MODEL},rewrite_version.is.null,rewrite_version.lt.${REWRITE_VERSION}`
 		);
 	}
+	
+	// Order by rewrite_version first (nulls first = prioritize unprocessed), then by date
+	query = query
+		.order('rewrite_version', { ascending: true, nullsFirst: true })
+		.order('created_at', { ascending: false });
 
 	if (limit) {
 		query = query.limit(limit);
