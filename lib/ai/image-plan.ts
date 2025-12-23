@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UnifiedLLMClient } from './unified-llm-client';
 import { enforceNoTextCoverPrompt } from './course-cover-no-text';
+import { computeInlineSlotCount, countWords } from '@/lib/courses/visual-slot-planner';
 
 interface ModuleInput {
   id: string;
@@ -52,12 +53,16 @@ function buildPrompt(input: CoursePlanInput) {
   const { title, description, modules, locale } = input;
   const lang = locale === 'en' ? 'English' : 'Spanish';
   const moduleSummaries = modules
-    .map((m, idx) => `Module ${idx + 1}: ${m.title}\n${m.content.slice(0, 1800)}`)
+    .map((m, idx) => {
+      const words = countWords(m.content);
+      const target = computeInlineSlotCount(m.content);
+      return `Module ${idx + 1}: ${m.title}\nWords: ${words} | Target images: ${target}\n${m.content.slice(0, 1800)}`;
+    })
     .join('\n\n---\n\n');
 
   return `You are an illustration planning assistant. Work in ${lang}. Avoid using Gemini for planning; you only output prompts.
 Return concise JSON. Constraints:
-- At least 1 image prompt per module (non-Gemini provider like Runware/HF/Qwen). Keep density low: max 2 prompts per module.
+- At least 1 image prompt per module (non-Gemini provider like Runware/HF/Qwen). Use the provided target count per module (1-5 max).
 - For module "images" (non-Gemini): DO NOT request infographics, diagrams, flowcharts, charts, UI screenshots, arrows/boxes/labels, or schematic layouts. These must look like photographs or rich editorial illustrations (non-schematic), with "no text".
 - Diagrams are disabled: always return an empty "diagrams" array for every module.
 - Course cover prompt: single image. ABSOLUTELY NO text/letters/typography/logos/watermarks. Conveys the course essence.
@@ -122,14 +127,27 @@ export async function planCourseIllustrations(input: CoursePlanInput): Promise<C
 
   parsed.courseCover.prompt = enforceNoTextCoverPrompt(parsed.courseCover.prompt);
 
-  // Ensure at least one image per module
-  parsed.modules = parsed.modules.map((m) => ({
-    ...m,
-    images: m.images.length
-      ? m.images.slice(0, 2)
-      : [{ prompt: `Signature visual for ${m.moduleTitle}, no text, dark high-contrast palette with topic-appropriate accent colors` }],
-    diagrams: [],
-  }));
+  const targetByModule = new Map(
+    input.modules.map((m) => [m.id, Math.min(5, computeInlineSlotCount(m.content))])
+  );
+
+  parsed.modules = parsed.modules.map((m) => {
+    const target = targetByModule.get(m.moduleId) ?? 2;
+    const images = m.images.length ? m.images.slice(0, target) : [];
+
+    while (images.length < target) {
+      const variant = images.length + 1;
+      images.push({
+        prompt: `Signature visual for ${m.moduleTitle}, variation ${variant}, no text, dark high-contrast palette with topic-appropriate accent colors`,
+      });
+    }
+
+    return {
+      ...m,
+      images,
+      diagrams: [],
+    };
+  });
 
   return parsed;
 }

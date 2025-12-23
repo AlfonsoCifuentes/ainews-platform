@@ -1,9 +1,6 @@
 name: Course Illustration Backfill
 
 on:
-  schedule:
-    # Every 3 hours – Runware primary, Gemini only for diagrams
-    - cron: '0 */3 * * *'
   workflow_dispatch:
     inputs:
       limit:

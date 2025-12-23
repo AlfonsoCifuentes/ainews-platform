@@ -1013,6 +1013,8 @@ Reglas (estrictas):
 - Esta parte debe tener al menos ~${Math.round(args.partTargetWords * 0.85)} palabras (si te quedas corto, sigue escribiendo).
 - Evita muros de texto: máximo 3 párrafos seguidos sin un “widget” (lista, tabla, quote, código, etc.).
 - Código: usa fences con lenguaje (por ejemplo: ts, python) y cierra con una línea de 3 backticks sola (sin lenguaje). No metas texto normal ni ejercicios dentro de bloques de código. No uses Mermaid.
+- Si escribes una frase que empiece por "En este ejemplo" o "Este ejemplo", colócala fuera del bloque de código (justo después) como frase corta en cursiva.
+- Si muestras HTML/CSS, siempre dentro de un bloque de código con lenguaje.
 - Nada de headings genéricos/plantilla.
 - No pongas títulos de sección en blockquote (evita "> ### ..."). Usa headings normales "##".
 - Prohibido incluir frases meta o “instrucciones para IA” (ni variantes cercanas): ${banned.map((p) => `"${p}"`).join(', ')}.
@@ -1052,6 +1054,8 @@ Rules (strict):
 - This part must be at least ~${Math.round(args.partTargetWords * 0.85)} words (if you’re short, keep writing).
 - Avoid walls of text: max 3 plain paragraphs in a row without a “widget” (list, table, quote, code, etc.).
 - Code: always use fenced blocks with a language (e.g. ts, python) and close with a plain line of three backticks (no language). Never put prose/exercises inside code blocks. No Mermaid.
+- If you write a line starting with "In this example" or "This example", place it outside the code block (immediately after) as a short italic sentence.
+- If you show HTML/CSS, it must be inside a fenced code block with a language.
 - Avoid generic/template headings.
 - Do not put section titles inside blockquotes (avoid \"> ### ...\"). Use normal \"##\" headings.
 - Forbidden meta/instructional phrases (or close variants): ${banned.map((p) => `"${p}"`).join(', ')}.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIllustrationWithCascade } from '@/lib/ai/image-cascade';
 import { computeIllustrationChecksum } from '@/lib/ai/illustration-utils';
-import { persistModuleIllustration } from '@/lib/db/module-illustrations';
+import { fetchLatestModuleIllustration, persistModuleIllustration } from '@/lib/db/module-illustrations';
 import { VISUAL_STYLES } from '@/lib/types/illustrations';
 import { z } from 'zod';
 
@@ -86,6 +86,96 @@ export async function POST(req: NextRequest) {
     // Non-diagram images must be shared between locales so EN/ES show the same illustration.
     // Only text-bearing visuals remain locale-specific.
     const locale = 'en';
+    const isTextBearing = false; // Diagrams/Schemas are disabled above, so this is always false
+
+    if (moduleId) {
+      const localesToTry: Array<'en' | 'es'> = isTextBearing ? [requestedLocale] : ['en', 'es'];
+      const visualStylesToTry: Array<(typeof VISUAL_STYLES)[number] | undefined> = [
+        visualStyle,
+        ...(visualStyle !== 'photorealistic' ? (['photorealistic'] as const) : []),
+        undefined,
+      ];
+      const styleFallbacks = style === 'header'
+        ? ['header', 'textbook', 'conceptual']
+        : style === 'textbook'
+        ? ['textbook', 'conceptual']
+        : style === 'conceptual'
+        ? ['conceptual', 'textbook']
+        : [style];
+
+      const tryFetch = async (
+        requestedStyle: string,
+        requestedSlotId: string | null,
+        requestedVisualStyle: (typeof VISUAL_STYLES)[number] | undefined
+      ) => {
+        for (const candidateLocale of localesToTry) {
+          const found = await fetchLatestModuleIllustration({
+            moduleId,
+            locale: candidateLocale,
+            style: requestedStyle,
+            visualStyle: requestedVisualStyle,
+            slotId: requestedSlotId ?? null,
+          });
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const tryFetchWithFallbackVisualStyle = async (requestedStyle: string, requestedSlotId: string | null) => {
+        for (const candidateVisualStyle of visualStylesToTry) {
+          const found = await tryFetch(requestedStyle, requestedSlotId, candidateVisualStyle);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      let existing = null as Awaited<ReturnType<typeof fetchLatestModuleIllustration>>;
+      for (const candidateStyle of styleFallbacks) {
+        existing = await tryFetchWithFallbackVisualStyle(candidateStyle, slotId ?? null);
+        if (existing) break;
+      }
+
+      if (!existing && slotId) {
+        for (const candidateStyle of styleFallbacks) {
+          existing = await tryFetchWithFallbackVisualStyle(candidateStyle, null);
+          if (existing) break;
+        }
+      }
+
+      if (existing) {
+        const mimeType =
+          typeof existing.metadata?.['mimeType'] === 'string'
+            ? (existing.metadata?.['mimeType'] as string)
+            : 'image/webp';
+
+        return NextResponse.json({
+          success: true,
+          provider: existing.provider ?? 'runware',
+          model: existing.model,
+          primary: {
+            visualStyle: existing.visual_style ?? visualStyle,
+            url: existing.image_url,
+            mimeType,
+            model: existing.model,
+            provider: existing.provider,
+            checksum: existing.checksum ?? undefined,
+            persisted: existing,
+          },
+          variants: [
+            {
+              visualStyle: existing.visual_style ?? visualStyle,
+              url: existing.image_url,
+              mimeType,
+              model: existing.model,
+              provider: existing.provider,
+              checksum: existing.checksum ?? undefined,
+              persisted: existing,
+            },
+          ],
+          reused: true,
+        });
+      }
+    }
 
     const variantList = resolveVariantList(style, variants);
     const order: NonNullable<GenerateIllustrationRequest['providerOrder']> = ['runware'];

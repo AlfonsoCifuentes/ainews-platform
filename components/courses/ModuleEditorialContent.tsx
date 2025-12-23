@@ -5,6 +5,7 @@ import { ModuleIllustration } from '@/components/courses/ModuleIllustration';
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import { parseContentIntoBlocks, type ContentBlock } from '@/components/courses/TextbookView';
+import { computeInlineSlotCount } from '@/lib/courses/visual-slot-planner';
 import {
   CalloutBox,
   CodeBlock,
@@ -95,23 +96,22 @@ function pickFigureCaption(slot: ModuleVisualSlot): string | undefined {
   return undefined;
 }
 
-function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string): ModuleVisualSlot[] {
+function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string, content: string): ModuleVisualSlot[] {
   const slots = allSlots.filter((slot) => slot.slotType !== 'header');
 
   const diagram = slots.find((slot) => slot.slotType === 'diagram') ?? null;
-  const inlineSlots = slots.filter((slot) => slot.slotType === 'inline');
+  const inlineSlots = slots
+    .filter((slot) => slot.slotType === 'inline')
+    .sort((a, b) => {
+      const aIndex = typeof a.blockIndex === 'number' ? a.blockIndex : Number.POSITIVE_INFINITY;
+      const bIndex = typeof b.blockIndex === 'number' ? b.blockIndex : Number.POSITIVE_INFINITY;
+      return aIndex - bIndex;
+    });
 
-  const bestInline =
-    inlineSlots.find((slot) => {
-      const heading = (slot.heading ?? '').trim();
-      if (!heading) return false;
-      if (!moduleTitle) return true;
-      return heading.toLowerCase() !== moduleTitle.toLowerCase();
-    }) ??
-    inlineSlots[0] ??
-    null;
+  const inlineTarget = Math.min(inlineSlots.length, computeInlineSlotCount(content));
+  const pickedInline = inlineSlots.slice(0, inlineTarget);
 
-  return [diagram, bestInline].filter(Boolean) as ModuleVisualSlot[];
+  return [diagram, ...pickedInline].filter(Boolean) as ModuleVisualSlot[];
 }
 
 function injectFigureBlocks(blocks: ContentBlock[], slots: ModuleVisualSlot[]): ContentBlock[] {
@@ -178,7 +178,11 @@ function ContentBlockRenderer({ block, locale }: { block: ContentBlock; locale: 
       );
     case 'paragraph':
       return (
-        <p className="leading-[1.85] text-left md:text-justify md:indent-8 hyphens-auto text-muted-foreground">
+        <p className={`leading-[1.85] text-left md:text-justify hyphens-auto text-muted-foreground ${
+          block.isLead
+            ? 'md:indent-0 first-letter:float-left first-letter:mr-2 first-letter:text-4xl first-letter:font-serif first-letter:font-bold first-letter:leading-none first-letter:text-foreground'
+            : 'md:indent-8'
+        }`}>
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -189,7 +193,7 @@ function ContentBlockRenderer({ block, locale }: { block: ContentBlock; locale: 
     case 'numbered-list':
       return <ListBlock items={block.items || []} ordered isDark={isDark} />;
     case 'code':
-      return <CodeBlock code={block.content} language={block.caption} isDark={isDark} />;
+      return <CodeBlock code={block.content} language={block.caption} subtitle={block.subtitle} isDark={isDark} />;
     case 'table':
       return <TableBlock content={block.content} isDark={isDark} />;
     case 'didyouknow':
@@ -268,8 +272,8 @@ export function ModuleEditorialContent({
   visualSlots: ModuleVisualSlot[];
 }) {
   const integratedSlots = useMemo(
-    () => selectIntegratedSlots(visualSlots, moduleTitle),
-    [visualSlots, moduleTitle]
+    () => selectIntegratedSlots(visualSlots, moduleTitle, normalizedContent),
+    [visualSlots, moduleTitle, normalizedContent]
   );
 
   const slotsById = useMemo(

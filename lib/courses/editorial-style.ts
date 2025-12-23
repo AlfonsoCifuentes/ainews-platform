@@ -238,6 +238,13 @@ function inferCodeFenceLanguageFromSample(sample: string): string {
   if (!s) return 'text';
 
   const head = s.split('\n').slice(0, 40).join('\n');
+  const lines = head.split('\n');
+
+  const htmlSignals = lines.filter((line) => isLikelyHtmlLine(line)).length;
+  if (htmlSignals >= 2 || /<!DOCTYPE html>/i.test(head)) return 'html';
+
+  const yamlSignals = lines.filter((line) => isLikelyYamlLine(line)).length;
+  if (yamlSignals >= 2) return 'yaml';
 
   // SQL
   if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/im.test(head)) return 'sql';
@@ -279,6 +286,10 @@ function isLikelyCodeLine(rawLine: string): boolean {
   const t = String(rawLine ?? '').trim();
   if (!t) return false;
 
+  if (isStrongCodeLine(t)) return true;
+
+  if (isLikelyHtmlLine(t) || isLikelyYamlLine(t)) return true;
+
   // Avoid hijacking real markdown structure.
   if (isStructuralLine(t)) return false;
   if (t.startsWith('- ') || t.startsWith('* ') || /^\d+\.\s/.test(t)) return false;
@@ -294,6 +305,259 @@ function isLikelyCodeLine(rawLine: string): boolean {
   if (/(=>|==|!=|<=|>=|:=)/.test(t)) return true;
 
   return false;
+}
+
+const YAML_KEYWORDS = new Set([
+  'name',
+  'on',
+  'jobs',
+  'steps',
+  'uses',
+  'run',
+  'with',
+  'env',
+  'strategy',
+  'matrix',
+  'defaults',
+  'permissions',
+  'inputs',
+  'outputs',
+  'if',
+  'id',
+  'shell',
+  'working-directory',
+  'timeout-minutes',
+  'image',
+  'services',
+  'ports',
+  'volumes',
+  'cache',
+  'paths',
+  'branches',
+  'stages',
+  'workflow',
+  'workflow_dispatch',
+  'pull_request',
+  'push',
+]);
+
+const PROSE_COMMENT_KEYWORDS = /\b(ejercicio|exercise|pr[a\u00e1]ctica|practice|responde|pregunta|tarea|consideraciones|experiencia|evaluaci[o\u00f3]n|monitorizaci[o\u00f3]n|interpretabilidad|explicabilidad|conclusi[o\u00f3]n|summary|checklist|ejemplo|example)\b/i;
+const EXAMPLE_LINE_REGEX = /\b(en este ejemplo|este ejemplo|in this example|this example)\b/i;
+
+function isLikelyHtmlLine(rawLine: string): boolean {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return false;
+  if (/^<!DOCTYPE html>/i.test(t)) return true;
+  if (/^<\?xml\b/i.test(t)) return true;
+  if (/^<\/?[a-z][^>]*>$/.test(t)) return true;
+  if (/^<(meta|link|script|style|title|head|body|html)\b/i.test(t)) return true;
+  return false;
+}
+
+function stripListMarker(rawLine: string): { text: string; hadMarker: boolean } {
+  const value = String(rawLine ?? '');
+  const match = value.match(/^(\s*)([-*]|\d+\.)\s+(.+)$/);
+  if (!match) return { text: value, hadMarker: false };
+  const indent = match[1] ?? '';
+  const body = match[3] ?? '';
+  return { text: `${indent}${body}`, hadMarker: true };
+}
+
+function isLikelyYamlLine(rawLine: string): boolean {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return false;
+
+  const listMatch = t.match(/^[-*]\s+(.+)$/);
+  const line = (listMatch ? listMatch[1] : t).trim();
+
+  const kvMatch = line.match(/^([A-Za-z0-9_.-]{2,40})\s*:\s*(.*)$/);
+  if (!kvMatch) return false;
+
+  const key = kvMatch[1];
+  const value = kvMatch[2] ?? '';
+  const lowerKey = key.toLowerCase();
+
+  if (YAML_KEYWORDS.has(lowerKey)) return true;
+
+  const isLower = key === lowerKey;
+  if (isLower && (/[a-z]/.test(key) || /[_-]/.test(key))) {
+    if (value && value.split(/\s+/).length > 6 && /[.!?]$/.test(value)) return false;
+    return true;
+  }
+
+  return false;
+}
+
+function extractCommentBody(rawLine: string, lang?: string): string | null {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return null;
+
+  const normalizedLang = (lang ?? '').trim().toLowerCase();
+  if (t.startsWith('//')) return t.slice(2).trim();
+  if (t.startsWith('/*')) return t.replace(/^\/\*+/, '').replace(/\*\/$/, '').trim();
+  if (/^\*+/.test(t)) return t.replace(/^\*+/, '').trim();
+
+  if (t.startsWith('#')) {
+    if (t.startsWith('#!')) return null;
+    if (/^#(include|define|pragma)\b/i.test(t)) return null;
+    const commentLangs = new Set([
+      '',
+      'text',
+      'python',
+      'py',
+      'bash',
+      'sh',
+      'shell',
+      'yaml',
+      'yml',
+      'dockerfile',
+      'makefile',
+    ]);
+    if (commentLangs.has(normalizedLang)) {
+      return t.slice(1).trim();
+    }
+  }
+
+  return null;
+}
+
+function isLikelyProseLine(rawLine: string): boolean {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return false;
+  if (/^#{1,6}\s+\S/.test(t)) return true;
+  if (/^>\s+/.test(t)) return true;
+  if (/^\*\*.+\*\*$/.test(t)) return true;
+  if (/^([-*]|\d+\.)\s+\S/.test(t)) return true;
+
+  const wordCount = t.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 8 && /[.!?]$/.test(t)) return true;
+  if (wordCount >= 12 && /,/.test(t)) return true;
+  if (PROSE_COMMENT_KEYWORDS.test(t) && !/[=();{}[\]<>]/.test(t)) return true;
+
+  return false;
+}
+
+function isCommentProse(commentBody: string): boolean {
+  const t = String(commentBody ?? '').trim();
+  if (!t) return false;
+  if (PROSE_COMMENT_KEYWORDS.test(t)) return true;
+  if (isLikelyProseLine(t)) return true;
+
+  const wordCount = t.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 7) return true;
+  if (t.includes(':') && wordCount >= 3) return true;
+
+  return false;
+}
+
+function isStrongCodeLine(rawLine: string): boolean {
+  const t = String(rawLine ?? '').trim();
+  if (!t) return false;
+
+  if (isLikelyHtmlLine(t) || isLikelyYamlLine(t)) return true;
+  if (/^#!\s*\S+/.test(t)) return true;
+  if (/^#(include|define|pragma)\b/i.test(t)) return true;
+
+  if (/^(const|let|var|import|export|function|class|interface|type|enum)\b/.test(t)) return true;
+  if (/^(def|from|import|class)\b/.test(t)) return true;
+  if (/^(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(t)) return true;
+  if (/^(npm|npx|pnpm|yarn|git|curl|docker|kubectl|python|pip|node)\b/i.test(t)) return true;
+  if (/^\$+\s*\w+/.test(t)) return true;
+  if (/^[a-z][a-z0-9_.-]{1,40}\s*:\s*\S/.test(t)) return true;
+  if (/^[A-Za-z0-9_.-]+\s*=\s*[^=]+/.test(t)) return true;
+  if (/^[A-Za-z_][\w.]*\s*\(.*\)\s*$/.test(t)) return true;
+
+  const symbolCount = (t.match(/[=();{}[\]<>]/g) ?? []).length;
+  if (symbolCount >= 3) return true;
+  if (/(=>|==|!=|<=|>=|:=|->)/.test(t)) return true;
+
+  return false;
+}
+
+function classifyFenceLine(rawLine: string, lang: string): 'code' | 'prose' | 'neutral' {
+  const trimmed = String(rawLine ?? '').trim();
+  if (!trimmed) return 'neutral';
+
+  if (isLikelyHtmlLine(trimmed) || isLikelyYamlLine(trimmed)) return 'code';
+
+  const commentBody = extractCommentBody(trimmed, lang);
+  if (commentBody !== null) {
+    return isCommentProse(commentBody) ? 'prose' : 'code';
+  }
+
+  const { text: stripped } = stripListMarker(trimmed);
+
+  if (isStrongCodeLine(stripped)) return 'code';
+  if (isLikelyProseLine(trimmed) || isLikelyProseLine(stripped)) return 'prose';
+  if (isLikelyCodeLine(stripped)) return 'code';
+
+  return 'neutral';
+}
+
+function splitInlineExampleFromCodeLine(rawLine: string): { code: string; prose: string } | null {
+  const value = String(rawLine ?? '');
+  const matchIndex = value.search(EXAMPLE_LINE_REGEX);
+  if (matchIndex <= 0) return null;
+
+  const indent = value.match(/^\s*/)?.[0] ?? '';
+  const left = value.slice(indent.length, matchIndex).trimEnd();
+  const right = value.slice(matchIndex).trimStart();
+  if (!left || !right) return null;
+
+  if (!isStrongCodeLine(left) && !isLikelyCodeLine(left)) return null;
+
+  return {
+    code: `${indent}${left}`,
+    prose: right,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function splitLongCodeLine(rawLine: string, lang: string): string[] {
+  const value = String(rawLine ?? '');
+  const trimmed = value.trim();
+  if (!trimmed) return [value];
+  if (trimmed.length < 120) return [value];
+  if (isLikelyHtmlLine(trimmed) || isLikelyYamlLine(trimmed)) return [value];
+
+  const indent = value.match(/^\s*/)?.[0] ?? '';
+  const body = value.slice(indent.length);
+  const parts: string[] = [];
+  let start = 0;
+  let splits = 0;
+
+  const pushPart = (endIndex: number, nextStart: number) => {
+    const piece = body.slice(start, endIndex).trim();
+    if (piece) {
+      parts.push(`${indent}${piece}`);
+      splits += 1;
+    }
+    start = nextStart;
+  };
+
+  for (let i = 0; i < body.length - 2; i += 1) {
+    const ch = body[i];
+    if (ch === ';' && body[i + 1] === ' ') {
+      const rest = body.slice(i + 2);
+      if (/^[A-Za-z_][\w.]*\s*(=|\()/.test(rest)) {
+        pushPart(i + 1, i + 2);
+      }
+    }
+
+    if (ch === ')' && body[i + 1] === ' ') {
+      const rest = body.slice(i + 2);
+      if (/^[A-Za-z_][\w.]*\s*(=|\()/.test(rest)) {
+        pushPart(i + 1, i + 2);
+      }
+    }
+  }
+
+  const tail = body.slice(start).trim();
+  if (tail) parts.push(`${indent}${tail}`);
+
+  if (splits < 1) return [value];
+  if (parts.length < 2) return [value];
+  return parts;
 }
 
 function normalizeBrokenCodeFences(markdown: string): string {
@@ -373,15 +637,38 @@ function looksLikeCodeFenceContent(blockLines: string[], lang: string): boolean 
     if (/\b(ejercicio|practice|responde|pregunta|tarea)\b/i.test(line)) markdownScore += 2;
     if (line.split(/\s+/).filter(Boolean).length >= 12 && /[.!?]$/.test(line)) markdownScore += 1;
 
+    if (isLikelyHtmlLine(line)) codeScore += 3;
+    if (isLikelyYamlLine(line)) codeScore += 2;
     if (isLikelyCodeLine(line)) codeScore += 3;
     if (/[{};]/.test(line)) codeScore += 1;
     if (/(=>|==|!=|<=|>=|:=)/.test(line)) codeScore += 2;
     if (/"\s*:\s*/.test(line)) codeScore += 3;
   }
 
-  if (['ts', 'tsx', 'js', 'javascript', 'typescript', 'python', 'py', 'sql', 'json', 'bash', 'sh', 'shell'].includes(normalizedLang)) {
+  if (
+    [
+      'ts',
+      'tsx',
+      'js',
+      'javascript',
+      'typescript',
+      'python',
+      'py',
+      'sql',
+      'json',
+      'yaml',
+      'yml',
+      'html',
+      'xml',
+      'css',
+      'bash',
+      'sh',
+      'shell',
+    ].includes(normalizedLang)
+  ) {
     // Trust explicit code languages unless it's clearly markdown/prose.
-    return markdownScore < 6 || codeScore >= 3;
+    if (markdownScore >= 8 && markdownScore > codeScore + 2) return false;
+    return codeScore >= 3 || markdownScore < 6;
   }
 
   // For unknown/text blocks, require some clear code signal.
@@ -439,12 +726,234 @@ function unwrapNonCodeFences(markdown: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+function wrapBareHtmlBlocks(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+  let inHtml = false;
+  let buffer: string[] = [];
+
+  const isHtmlStart = (line: string) => {
+    const t = line.trim();
+    return /^<!DOCTYPE html>/i.test(t) || /^<(html|head|body)\b/i.test(t);
+  };
+  const isHtmlEnd = (line: string) => {
+    const t = line.trim();
+    return /<\/html>/i.test(t) || /<\/body>/i.test(t);
+  };
+  const isHtmlMarker = (line: string) => {
+    const t = line.trim().toLowerCase();
+    return t === 'html' || t === 'text' || t === 'tml';
+  };
+  const getNextNonEmpty = (startIndex: number): string => {
+    for (let i = startIndex; i < lines.length; i++) {
+      const t = (lines[i] ?? '').trim();
+      if (t) return lines[i] ?? '';
+    }
+    return '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      if (inHtml) {
+        out.push('```html', ...buffer, '```');
+        buffer = [];
+        inHtml = false;
+      }
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    if (inHtml) {
+      if (isHtmlMarker(line)) {
+        continue;
+      }
+      buffer.push(line);
+      if (isHtmlEnd(line)) {
+        out.push('```html', ...buffer, '```');
+        buffer = [];
+        inHtml = false;
+      }
+      continue;
+    }
+
+    if (isHtmlMarker(line)) {
+      const nextNonEmpty = getNextNonEmpty(i + 1);
+      if (isHtmlStart(nextNonEmpty) || isLikelyHtmlLine(nextNonEmpty)) {
+        continue;
+      }
+    }
+
+    if (isHtmlStart(line)) {
+      inHtml = true;
+      buffer.push(line);
+      if (isHtmlEnd(line)) {
+        out.push('```html', ...buffer, '```');
+        buffer = [];
+        inHtml = false;
+      }
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  if (inHtml && buffer.length) {
+    out.push('```html', ...buffer, '```');
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function stripHallucinatedHtmlSamples(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+  let fenceLines: string[] = [];
+  let fenceLang = '';
+
+  const markers = [
+    /interfaz de usuario para agente de ia/i,
+    /bienvenido al asistente de tareas/i,
+    /tu tarea ha sido agregada con \u00e9xito/i,
+    /tu tarea ha sido agregada con exito/i,
+    /asistente de tareas/i,
+  ];
+
+  const shouldDropBlock = (block: string): boolean => {
+    const hits = markers.filter((rx) => rx.test(block)).length;
+    return hits >= 2;
+  };
+
+  const flushFence = () => {
+    const content = fenceLines.join('\n');
+    const lang = fenceLang.trim().toLowerCase();
+    const looksHtml = lang === 'html' || /<!DOCTYPE html>/i.test(content) || /<html\b/i.test(content);
+
+    if (looksHtml && shouldDropBlock(content)) {
+      fenceLines = [];
+      fenceLang = '';
+      return;
+    }
+
+    out.push(`\`\`\`${fenceLang || 'text'}`, ...fenceLines, '```');
+    fenceLines = [];
+    fenceLang = '';
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+    const fenceMatch = trimmed.match(/^```(?:\s*([A-Za-z0-9_-]+))?.*$/);
+
+    if (!inFence) {
+      if (fenceMatch && trimmed.startsWith('```')) {
+        inFence = true;
+        fenceLang = (fenceMatch[1] ?? '').trim();
+        fenceLines = [];
+        continue;
+      }
+      out.push(line);
+      continue;
+    }
+
+    if (trimmed === '```') {
+      flushFence();
+      inFence = false;
+      continue;
+    }
+
+    fenceLines.push(line);
+  }
+
+  if (inFence) {
+    flushFence();
+  }
+
+  const cleaned = out.join('\n');
+
+  if (!shouldDropBlock(cleaned)) {
+    return cleaned;
+  }
+
+  const stripLines = cleaned.split('\n');
+  const finalOut: string[] = [];
+  let inHtml = false;
+  let htmlBuffer: string[] = [];
+  for (const line of stripLines) {
+    const trimmed = line.trim();
+    if (!inHtml && /^<!DOCTYPE html>/i.test(trimmed)) {
+      inHtml = true;
+      htmlBuffer = [line];
+      if (/<\/html>/i.test(trimmed)) {
+        const block = htmlBuffer.join('\n');
+        if (!shouldDropBlock(block)) {
+          finalOut.push(...htmlBuffer);
+        }
+        inHtml = false;
+        htmlBuffer = [];
+      }
+      continue;
+    }
+
+    if (inHtml) {
+      htmlBuffer.push(line);
+      if (/<\/html>/i.test(trimmed)) {
+        const block = htmlBuffer.join('\n');
+        if (!shouldDropBlock(block)) {
+          finalOut.push(...htmlBuffer);
+        }
+        inHtml = false;
+        htmlBuffer = [];
+      }
+      continue;
+    }
+
+    finalOut.push(line);
+  }
+
+  return finalOut.join('\n');
+}
+
 function wrapBareCodeRunsOutsideFences(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
   let inFence = false;
 
   let run: string[] = [];
+  let runHasStrong = false;
+  let runHasCode = false;
+
+  const classifyOutsideFenceLine = (rawLine: string) => {
+    const value = String(rawLine ?? '');
+    const trimmed = value.trim();
+    if (!trimmed) return { isCode: false, isStrong: false, lineForRun: value };
+
+    const listInfo = stripListMarker(value);
+    const candidate = listInfo.text.trim();
+    const isYamlList = listInfo.hadMarker && (isLikelyYamlLine(candidate) || isLikelyYamlLine(trimmed));
+    const isStrong = isStrongCodeLine(trimmed) || isStrongCodeLine(candidate);
+    const isCode = isStrong || isLikelyCodeLine(trimmed) || isLikelyCodeLine(candidate);
+    const lineForRun = listInfo.hadMarker && !isYamlList ? listInfo.text : value;
+
+    return { isCode, isStrong, lineForRun };
+  };
+
+  const pushRunLine = (line: string, isStrong: boolean) => {
+    run.push(line);
+    runHasCode = true;
+    if (isStrong) runHasStrong = true;
+  };
+
   const flush = () => {
     if (!run.length) return;
 
@@ -457,15 +966,18 @@ function wrapBareCodeRunsOutsideFences(markdown: string): string {
     const core = run.slice(start, end + 1);
     const nonEmpty = core.filter((l) => String(l ?? '').trim()).length;
 
-    // Only wrap multi-line code runs to avoid damaging prose.
-    if (nonEmpty >= 2) {
+    if (!runHasCode || nonEmpty === 0) {
+      out.push(...run);
+    } else if (nonEmpty === 1 && !runHasStrong) {
+      out.push(...run);
+    } else {
       const lang = inferCodeFenceLanguageFromSample(core.join('\n')) || 'text';
       out.push('```' + lang, ...core, '```');
-    } else {
-      out.push(...run);
     }
 
     run = [];
+    runHasStrong = false;
+    runHasCode = false;
   };
 
   for (const line of lines) {
@@ -483,17 +995,36 @@ function wrapBareCodeRunsOutsideFences(markdown: string): string {
     }
 
     if (run.length > 0) {
-      if (!trimmed || isLikelyCodeLine(line)) {
+      if (!trimmed) {
         run.push(line);
         continue;
       }
+
+      const info = classifyOutsideFenceLine(line);
+      if (info.isCode) {
+        pushRunLine(info.lineForRun, info.isStrong);
+        continue;
+      }
+
+      const commentBody = extractCommentBody(line, '');
+      if (commentBody !== null) {
+        pushRunLine(line, false);
+        continue;
+      }
+
       flush();
       out.push(line);
       continue;
     }
 
-    if (isLikelyCodeLine(line)) {
-      run.push(line);
+    if (!trimmed) {
+      out.push(line);
+      continue;
+    }
+
+    const info = classifyOutsideFenceLine(line);
+    if (info.isCode) {
+      pushRunLine(info.lineForRun, info.isStrong);
       continue;
     }
 
@@ -501,6 +1032,213 @@ function wrapBareCodeRunsOutsideFences(markdown: string): string {
   }
 
   flush();
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function mergeOrphanCodeLinesAfterFence(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+    const openMatch = trimmed.match(/^```(?:\s*([A-Za-z0-9_-]+))?.*$/);
+
+    if (!openMatch || !trimmed.startsWith('```')) {
+      out.push(line);
+      continue;
+    }
+
+    const lang = (openMatch[1] ?? '').trim();
+    const fenceLines: string[] = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const t = (lines[j] ?? '').trim();
+      if (t === '```') break;
+      fenceLines.push(lines[j] ?? '');
+    }
+
+    const hasClosing = j < lines.length && (lines[j] ?? '').trim() === '```';
+    if (!hasClosing) {
+      out.push(line, ...fenceLines);
+      i = j - 1;
+      continue;
+    }
+
+    let k = j + 1;
+    const orphanLines: string[] = [];
+    while (k < lines.length) {
+      const candidate = lines[k] ?? '';
+      const candidateTrimmed = candidate.trim();
+      if (!candidateTrimmed) {
+        if (orphanLines.length) break;
+        k += 1;
+        continue;
+      }
+      if (candidateTrimmed.startsWith('```')) break;
+      if (!isStrongCodeLine(candidateTrimmed)) break;
+      orphanLines.push(candidate);
+      k += 1;
+    }
+
+    out.push(`\`\`\`${lang || 'text'}`, ...fenceLines, ...orphanLines, '```');
+    i = k - 1;
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function splitMixedCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+  let fenceLang = '';
+  let fenceIndent = '';
+  let fenceLines: string[] = [];
+
+  const nonSplitLangs = new Set(['html', 'xml', 'yaml', 'yml']);
+
+  const flushFence = () => {
+    const baseLang = fenceLang && fenceLang !== 'text' ? fenceLang : '';
+    const expandedLines: Array<{ text: string; forced?: 'code' | 'prose' }> = fenceLines.flatMap((line) => {
+      const split = splitInlineExampleFromCodeLine(line);
+      if (split) {
+        return [
+          { text: split.code, forced: 'code' as const },
+          { text: split.prose, forced: 'prose' as const },
+        ];
+      }
+      return [{ text: line }];
+    });
+    const sample = expandedLines.map((entry) => entry.text).join('\n');
+    const inferredLang = inferCodeFenceLanguageFromSample(sample) || 'text';
+    const detectedLang = baseLang || inferredLang;
+    const normalizedLang = detectedLang.trim().toLowerCase();
+    const htmlSignals = fenceLines.filter((line) => isLikelyHtmlLine(line)).length;
+    const yamlSignals = fenceLines.filter((line) => isLikelyYamlLine(line)).length;
+    const hasHtml = htmlSignals >= 2 || /<!DOCTYPE html>/i.test(sample);
+    const hasYaml = yamlSignals >= 2;
+    const shouldAvoidSplit = nonSplitLangs.has(normalizedLang) || hasHtml || hasYaml;
+    const classificationLang = hasHtml ? 'html' : hasYaml ? 'yaml' : normalizedLang;
+
+    const kinds = expandedLines.map((entry) => {
+      if (entry.forced === 'code') return 'code';
+      if (entry.forced === 'prose') return 'prose';
+      return classifyFenceLine(entry.text, classificationLang);
+    });
+    const hasCode = kinds.includes('code');
+    const hasProse = kinds.includes('prose');
+
+    const defaultLang = baseLang || (detectedLang !== 'text' ? detectedLang : '');
+    const inferLang = (linesForLang: string[]) => {
+      return defaultLang || inferCodeFenceLanguageFromSample(linesForLang.join('\n')) || 'text';
+    };
+
+    if (!hasCode && hasProse) {
+      const cleaned = expandedLines.map((entry) => {
+        const commentBody = extractCommentBody(entry.text, classificationLang);
+        if (commentBody !== null && isCommentProse(commentBody)) return commentBody;
+        return entry.text;
+      });
+      out.push(...cleaned);
+      return;
+    }
+
+    if (!hasProse || shouldAvoidSplit) {
+      const lang = inferLang(expandedLines.map((entry) => entry.text));
+      const rawLines = expandedLines.map((entry) => entry.text);
+      const adjustedLines = shouldAvoidSplit
+        ? rawLines
+        : rawLines.flatMap((line) => splitLongCodeLine(line, classificationLang));
+      out.push(`${fenceIndent}\`\`\`${lang}`, ...adjustedLines, `${fenceIndent}\`\`\``);
+      return;
+    }
+
+    const segments: Array<{ type: 'code' | 'prose'; lines: string[] }> = [];
+    let current: { type: 'code' | 'prose'; lines: string[] } | null = null;
+    let pending: string[] = [];
+
+    for (let i = 0; i < expandedLines.length; i++) {
+      const line = expandedLines[i]?.text ?? '';
+      const forcedKind = expandedLines[i]?.forced;
+      const kind = forcedKind ?? classifyFenceLine(line, classificationLang);
+      const sanitizedLine =
+        kind === 'prose'
+          ? (() => {
+              const commentBody = extractCommentBody(line, classificationLang);
+              if (commentBody !== null && isCommentProse(commentBody)) return commentBody;
+              return line;
+            })()
+          : line;
+
+      if (kind === 'neutral') {
+        if (current) current.lines.push(line);
+        else pending.push(line);
+        continue;
+      }
+
+      if (!current || current.type !== kind) {
+        if (current) segments.push(current);
+        current = { type: kind, lines: [] };
+        if (pending.length) {
+          current.lines.push(...pending);
+          pending = [];
+        }
+      }
+
+      if (kind === 'code') {
+        const splitLines = splitLongCodeLine(sanitizedLine, classificationLang);
+        current.lines.push(...splitLines);
+      } else {
+        current.lines.push(sanitizedLine);
+      }
+    }
+
+    if (current) segments.push(current);
+    else if (pending.length) segments.push({ type: 'prose', lines: pending });
+
+    for (const segment of segments) {
+      if (segment.type === 'code') {
+        const lang = inferLang(segment.lines);
+        out.push(`${fenceIndent}\`\`\`${lang}`, ...segment.lines, `${fenceIndent}\`\`\``);
+      } else {
+        out.push(...segment.lines);
+      }
+    }
+  };
+
+  for (const line of lines) {
+    const trimmed = String(line ?? '').trim();
+    const fenceMatch = trimmed.match(/^```(?:\s*([A-Za-z0-9_-]+))?.*$/);
+
+    if (!inFence) {
+      if (fenceMatch && trimmed.startsWith('```')) {
+        inFence = true;
+        fenceLang = (fenceMatch[1] ?? '').trim();
+        fenceIndent = line.match(/^\s*/)?.[0] ?? '';
+        fenceLines = [];
+        continue;
+      }
+      out.push(line);
+      continue;
+    }
+
+    if (trimmed === '```') {
+      flushFence();
+      inFence = false;
+      fenceLang = '';
+      fenceIndent = '';
+      fenceLines = [];
+      continue;
+    }
+
+    fenceLines.push(line);
+  }
+
+  if (inFence) {
+    flushFence();
+  }
+
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
@@ -936,6 +1674,14 @@ function splitInlineMarkdownHeadings(markdown: string): string {
     // Split those into separate lines so downstream logic can parse them.
     if (/^#{1,6}\s*\S/.test(trimmed) && /\s#{2,6}\s*\S/.test(line)) {
       const split = line.replace(/\s(#{2,6}\s*)/g, '\n\n$1');
+      out.push(...split.split('\n'));
+      continue;
+    }
+
+    // Some generators inline headings inside paragraph text:
+    // `... content ... ### Heading`
+    if (!/^#{1,6}\s*\S/.test(trimmed) && /\s#{2,6}\s+\S/.test(line)) {
+      const split = line.replace(/(\S)\s(#{2,6}\s+)/g, '$1\n\n$2');
       out.push(...split.split('\n'));
       continue;
     }
@@ -2113,8 +2859,12 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
   const fencesRepaired = normalizeBrokenCodeFences(blockquotesSplit);
   const nonCodeUnwrapped = unwrapNonCodeFences(fencesRepaired);
-  const bareCodeWrapped = wrapBareCodeRunsOutsideFences(nonCodeUnwrapped);
-  const unwrapped = unwrapSoftLineBreaks(bareCodeWrapped);
+  const htmlWrapped = wrapBareHtmlBlocks(nonCodeUnwrapped);
+  const hallucinatedStripped = stripHallucinatedHtmlSamples(htmlWrapped);
+  const bareCodeWrapped = wrapBareCodeRunsOutsideFences(hallucinatedStripped);
+  const orphanMerged = mergeOrphanCodeLinesAfterFence(bareCodeWrapped);
+  const mixedSplit = splitMixedCodeFences(orphanMerged);
+  const unwrapped = unwrapSoftLineBreaks(mixedSplit);
   const boilerplateStripped = stripEditorialBoilerplate(unwrapped);
   const boilerplateCalloutsStripped = stripBoilerplateBlockquoteCallouts(boilerplateStripped);
   const insightsFixed = normalizeInlineInsightMarkers(boilerplateCalloutsStripped, options.locale);
@@ -2143,4 +2893,9 @@ export const __internal = {
   looksLikeCodeFenceContent,
   unwrapNonCodeFences,
   wrapBareCodeRunsOutsideFences,
+  mergeOrphanCodeLinesAfterFence,
+  splitMixedCodeFences,
+  splitInlineExampleFromCodeLine,
+  splitLongCodeLine,
+  stripHallucinatedHtmlSamples,
 };

@@ -50,7 +50,8 @@ export function EnrolledCourses({ enrollments, locale, translations }: EnrolledC
 
       <div className="space-y-4">
         {enrollments.map((enrollment, index) => {
-          const progress = (enrollment.modules_completed / enrollment.total_modules) * 100;
+          const safeTotal = enrollment.total_modules > 0 ? enrollment.total_modules : 1;
+          const progress = (enrollment.modules_completed / safeTotal) * 100;
           const title = locale === 'en' ? enrollment.courses.title_en : enrollment.courses.title_es;
 
           return (

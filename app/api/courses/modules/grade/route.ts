@@ -17,6 +17,7 @@ type GradeResponse = z.infer<typeof GradeResponseSchema>;
 const RequestSchema = z.object({
   moduleId: z.string().uuid(),
   answers: z.record(z.string(), z.string()),
+  questions: z.record(z.string(), z.string()).optional(),
 });
 
 // ============================================================================
@@ -394,7 +395,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     
-    const { moduleId, answers } = validatedRequest.data;
+    const { moduleId, answers, questions } = validatedRequest.data;
 
     // Authenticate user
     const api = createApiClient(req);
@@ -424,8 +425,9 @@ export async function POST(req: NextRequest) {
     const providersUsed: string[] = [];
     let questionsGraded = 0;
 
-    for (const [_questionId, answer] of Object.entries(answers)) {
+    for (const [questionId, answer] of Object.entries(answers)) {
       questionsGraded++;
+      const questionText = questions?.[questionId]?.trim() ?? '';
       
       // Build grading prompt
       const prompt = `You are an expert educational grader. Grade the following student answer based on the module content.
@@ -433,7 +435,9 @@ export async function POST(req: NextRequest) {
 IMPORTANT: Respond ONLY with a valid JSON object in this exact format:
 {"score": <number 0-100>, "feedback": "<constructive feedback string>"}
 
-Module Content:
+${questionText ? `Question:
+${questionText}
+` : ''}Module Content:
 ${moduleContent.substring(0, 3000)}
 
 Student Answer to Grade:

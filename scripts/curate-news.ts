@@ -285,11 +285,25 @@ async function rewriteArticleContent(
 		vertical: 'news',
 	});
 
-	const prompt = `Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'} with a friendly expert tone. Goals: (1) keep it factual, (2) add a quick "why it matters" feel, (3) avoid first-person unless clarifying. Keep paragraphs short (2-4 sentences). Return ONLY JSON with keys title, summary, content.
+	const prompt = `You are an expert AI Analyst. Your task is to read the provided news content and generate a comprehensive, high-value analysis report in ${language === 'en' ? 'English' : 'Spanish'}.
 
-Original title: ${title}
-Original summary: ${summary}
-Original content: ${workingContent}`;
+DO NOT just summarize. You must ADD VALUE by explaining the technical context, implications, and future outlook.
+
+Input Data:
+- Title: ${title}
+- Summary: ${summary}
+- Content: ${workingContent}
+
+Instructions:
+1. **Title**: Create a professional, engaging title.
+2. **Summary**: A 2-sentence executive summary.
+3. **Content**: Write a structured article (Markdown) of at least 400 words containing:
+   - **The News**: What happened? (Clear, concise, rewritten)
+   - **Technical Deep Dive**: Explain the underlying technology or concepts. Use your expert knowledge to fill in gaps if the source is brief.
+   - **Why It Matters**: Analyze the impact on the AI industry, developers, or society.
+   - **Future Implications**: What does this mean for the next 6-12 months?
+
+Return ONLY valid JSON with keys: "title", "summary", "content".`;
 
 	try {
 		return await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);

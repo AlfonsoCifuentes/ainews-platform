@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { replaceModuleVisualSlots, fetchModuleVisualSlots } from '@/lib/db/module-visual-slots';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { VISUAL_DENSITIES, VISUAL_STYLES } from '@/lib/types/illustrations';
+import { VISUAL_DENSITIES, VISUAL_STYLES, normalizeVisualStyle } from '@/lib/types/illustrations';
 import type { ModuleVisualSlotType } from '@/lib/types/visual-slots';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
+import { computeInlineSlotCount, computeInlineSlotIndexes } from '@/lib/courses/visual-slot-planner';
 
 const QuerySchema = z.object({
   moduleId: z.string().uuid(),
@@ -109,6 +110,38 @@ function isSlotCorrupted(slot: { heading?: string | null; summary?: string | nul
 
   // Keep parity with the POST schema constraints.
   return headingLength > 280 || summaryLength > 2000 || reasonLength > 2000 || isNoisyHeading(slot.heading);
+}
+
+function mapSlotForInsert(slot: {
+  moduleId: string;
+  locale: 'en' | 'es';
+  slotType: 'header' | 'diagram' | 'inline';
+  density?: string;
+  suggestedVisualStyle?: string;
+  blockIndex?: number | null;
+  heading?: string | null;
+  summary?: string | null;
+  reason?: string | null;
+  llmPayload?: Record<string, unknown> | null;
+  provider?: string | null;
+  model?: string | null;
+  confidence?: number | null;
+}) {
+  return {
+    module_id: slot.moduleId,
+    locale: slot.locale,
+    slot_type: slot.slotType,
+    density: slot.density ?? 'balanced',
+    suggested_visual_style: normalizeVisualStyle(slot.suggestedVisualStyle ?? null),
+    block_index: slot.blockIndex ?? null,
+    heading: slot.heading ?? null,
+    summary: slot.summary ?? null,
+    reason: slot.reason ?? null,
+    llm_payload: slot.llmPayload ?? {},
+    provider: slot.provider ?? null,
+    model: slot.model ?? null,
+    confidence: slot.confidence ?? 0.75,
+  };
 }
 
 // Keep parity with `scripts/plan-module-visual-slots-gpt4o.ts` and the UI parser so block indexes are usable.
@@ -284,27 +317,47 @@ function buildHeuristicSlots(args: {
   const blocks = parseContentIntoBlocks(normalizedContent);
   const total = blocks.length || 1;
 
-  const inlineA = Math.max(2, Math.floor(total * 0.26));
-  const diagram = Math.max(3, Math.floor(total * 0.36));
-  const inlineB = Math.max(inlineA + 4, Math.floor(total * 0.68));
+  const inlineCount = computeInlineSlotCount(normalizedContent);
+  const inlineIndexes = computeInlineSlotIndexes(total, inlineCount);
 
   const languageLabel = args.locale === 'es' ? 'Spanish' : 'English';
   const noTextNegative = args.locale === 'es'
-    ? 'texto, letras, palabras, números, dígitos, años, tipografía, marca de agua, logo, caption'
-    : 'text, letters, words, numbers, digits, years, typography, watermark, logo, caption';
+    ? 'texto, letras, palabras, numeros, digitos, tipografia, marca de agua, logo, caption, subtitulo'
+    : 'text, letters, words, numbers, digits, typography, watermark, logo, caption, subtitle';
 
   const headerPrompt = args.locale === 'es'
-    ? `Portada ilustrada estilo libro para el módulo "${args.moduleTitle}". Ilustración educativa, limpia, moderna, sin texto, sin letras, sin números, sin logotipos. Fondo oscuro elegante, tema IA/tecnología.`
+    ? `Portada ilustrada estilo libro para el modulo "${args.moduleTitle}". Ilustracion educativa, limpia, moderna, sin texto, sin letras, sin numeros, sin logotipos. Fondo oscuro elegante, tema IA/tecnologia.`
     : `Book-style cover illustration for the module "${args.moduleTitle}". Educational, clean, modern, no text, no letters, no numbers, no logos. Elegant dark background, AI/technology theme.`;
 
-  const diagramHeading = pickSectionHeading(blocks, diagram) ?? args.moduleTitle;
-  const diagramPrompt = args.locale === 'es'
-    ? `Crea un diagrama didáctico MUY legible (cajas + flechas) sobre "${diagramHeading}". Etiquetas MUY cortas en Español (1–3 palabras), tipografía GRANDE, pocas cajas (máx 7), alto contraste, sin texto largo.`
-    : `Create a VERY readable didactic diagram (boxes + arrows) explaining "${diagramHeading}". VERY short labels in English (1–3 words), LARGE typography, few boxes (max 7), high contrast, no long text.`;
-
   const inlinePrompt = (heading: string | null) => (args.locale === 'es'
-    ? `Ilustración educativa para explicar "${heading ?? args.moduleTitle}". Sin texto, sin letras, sin números, sin marcas. Estilo conceptual, claro, minimalista, enfoque didáctico.`
+    ? `Ilustracion educativa para explicar "${heading ?? args.moduleTitle}". Sin texto, sin letras, sin numeros, sin marcas. Estilo conceptual, claro, minimalista, enfoque didactico.`
     : `Educational illustration to explain "${heading ?? args.moduleTitle}". No text, no letters, no numbers, no branding. Conceptual, clear, minimalist, didactic.`);
+
+  const inlineSlots = inlineIndexes.map((blockIndex, index) => {
+    const heading = pickSectionHeading(blocks, blockIndex) ?? args.moduleTitle;
+    return {
+      moduleId: args.moduleId,
+      locale: args.locale,
+      slotType: 'inline' as const,
+      density: 'balanced' as const,
+      suggestedVisualStyle: 'photorealistic' as const,
+      blockIndex,
+      heading,
+      summary: args.locale === 'es' ? 'Ilustracion de apoyo' : 'Supporting illustration',
+      reason: args.locale === 'es'
+        ? 'Aporta una pausa visual y refuerza la idea clave.'
+        : 'Adds a visual pause and reinforces the key idea.',
+      llmPayload: {
+        promptOverride: inlinePrompt(heading),
+        negativePrompt: noTextNegative,
+        labelLanguage: languageLabel,
+        slotOrder: index,
+      },
+      provider: 'heuristic',
+      model: null,
+      confidence: 0.5,
+    };
+  });
 
   return [
     {
@@ -315,9 +368,9 @@ function buildHeuristicSlots(args: {
       suggestedVisualStyle: 'photorealistic' as const,
       blockIndex: null,
       heading: args.moduleTitle,
-      summary: args.locale === 'es' ? 'Ilustración principal del módulo' : 'Main module illustration',
+      summary: args.locale === 'es' ? 'Ilustracion principal del modulo' : 'Main module illustration',
       reason: args.locale === 'es'
-        ? 'Añade contexto visual inmediato y mejora la retención.'
+        ? 'Agrega contexto visual inmediato y mejora la retencion.'
         : 'Adds immediate visual context and improves retention.',
       llmPayload: {
         promptOverride: headerPrompt,
@@ -328,70 +381,8 @@ function buildHeuristicSlots(args: {
       model: null,
       confidence: 0.6,
     },
-    {
-      moduleId: args.moduleId,
-      locale: args.locale,
-      slotType: 'diagram' as const,
-      density: 'balanced' as const,
-      suggestedVisualStyle: 'photorealistic' as const,
-      blockIndex: diagram,
-      heading: diagramHeading,
-      summary: args.locale === 'es' ? 'Esquema visual del concepto' : 'Visual schema of the concept',
-      reason: args.locale === 'es'
-        ? 'Convierte abstracciones en un esquema paso a paso.'
-        : 'Turns abstractions into a step-by-step schema.',
-      llmPayload: {
-        promptOverride: diagramPrompt,
-        negativePrompt: undefined,
-        labelLanguage: languageLabel,
-      },
-      provider: 'heuristic',
-      model: null,
-      confidence: 0.55,
-    },
-    {
-      moduleId: args.moduleId,
-      locale: args.locale,
-      slotType: 'inline' as const,
-      density: 'balanced' as const,
-      suggestedVisualStyle: 'photorealistic' as const,
-      blockIndex: inlineA,
-      heading: pickSectionHeading(blocks, inlineA) ?? args.moduleTitle,
-      summary: args.locale === 'es' ? 'Ilustración de apoyo' : 'Supporting illustration',
-      reason: args.locale === 'es'
-        ? 'Refuerza la idea clave justo cuando aparece.'
-        : 'Reinforces the key idea right when it appears.',
-      llmPayload: {
-        promptOverride: inlinePrompt(pickSectionHeading(blocks, inlineA)),
-        negativePrompt: noTextNegative,
-        labelLanguage: languageLabel,
-      },
-      provider: 'heuristic',
-      model: null,
-      confidence: 0.5,
-    },
-    {
-      moduleId: args.moduleId,
-      locale: args.locale,
-      slotType: 'inline' as const,
-      density: 'balanced' as const,
-      suggestedVisualStyle: 'photorealistic' as const,
-      blockIndex: inlineB,
-      heading: pickSectionHeading(blocks, inlineB) ?? args.moduleTitle,
-      summary: args.locale === 'es' ? 'Ilustración de apoyo' : 'Supporting illustration',
-      reason: args.locale === 'es'
-        ? 'Ayuda a mantener el ritmo y la atención.'
-        : 'Helps maintain pacing and attention.',
-      llmPayload: {
-        promptOverride: inlinePrompt(pickSectionHeading(blocks, inlineB)),
-        negativePrompt: noTextNegative,
-        labelLanguage: languageLabel,
-      },
-      provider: 'heuristic',
-      model: null,
-      confidence: 0.5,
-    },
-  ].filter((slot) => slot.slotType !== 'diagram');
+    ...inlineSlots,
+  ];
 }
 
 export async function GET(request: NextRequest) {
@@ -417,7 +408,7 @@ export async function GET(request: NextRequest) {
       slots = [];
     }
 
-    const shouldEnsure = params.ensure && (slots.length === 0 || slots.some(isSlotCorrupted));
+    const shouldEnsure = params.ensure;
     if (shouldEnsure) {
       try {
         const db = getSupabaseServerClient();
@@ -443,13 +434,19 @@ export async function GET(request: NextRequest) {
             moduleContent,
           });
 
+          const plannedInline = planned.filter((s) => s.slotType === 'inline');
+          const existingInline = allExisting.filter((s) => s.slotType === 'inline');
+          const needsSeed = allExisting.length === 0;
+          const needsRepair = allExisting.some(isSlotCorrupted);
+          const needsExpansion = plannedInline.length > 0 && existingInline.length < plannedInline.length;
+
           // If there are no stored slots at all, seed them.
-          if (allExisting.length === 0) {
+          if (needsSeed) {
             const stored = await replaceModuleVisualSlots(params.moduleId, params.locale, planned);
             slots = stored
               .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
               .slice(0, params.limit ?? stored.length);
-          } else if (allExisting.some(isSlotCorrupted)) {
+          } else if (needsRepair) {
             // Avoid deleting/replacing slots when only minor repairs are needed.
             // Replacing slots would orphan previously generated illustrations (slot_id set null).
             const plannedByType = new Map<string, typeof planned>();
@@ -506,6 +503,33 @@ export async function GET(request: NextRequest) {
             slots = updatedLocal
               .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
               .slice(0, params.limit ?? updatedLocal.length);
+          } else if (needsExpansion) {
+            const existingIndexes = new Set(
+              existingInline
+                .map((slot) => slot.blockIndex)
+                .filter((index): index is number => typeof index === 'number')
+            );
+
+            const candidates = plannedInline.filter((slot) => {
+              const idx = slot.blockIndex;
+              return typeof idx === 'number' && !existingIndexes.has(idx);
+            });
+
+            const missingCount = plannedInline.length - existingInline.length;
+            const toAdd = candidates.slice(0, missingCount);
+
+            if (toAdd.length) {
+              const payload = toAdd.map(mapSlotForInsert);
+              const { error: insertError } = await db.from('module_visual_slots').insert(payload);
+              if (insertError) {
+                console.warn('[API/visual-slots] slot expansion failed', insertError.message);
+              } else {
+                const updated = await fetchModuleVisualSlots({ moduleId: params.moduleId, locale: params.locale });
+                slots = updated
+                  .filter((slot) => (params.slotType ? slot.slotType === params.slotType : true))
+                  .slice(0, params.limit ?? updated.length);
+              }
+            }
           }
         }
       } catch (ensureError) {

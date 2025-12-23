@@ -92,9 +92,10 @@ export class WeeklyDigestGenerator {
 
           // Get user's course progress
           const { data: enrollments } = await supabase
-            .from('user_course_enrollments')
+            .from('user_courses')
             .select('progress_percentage')
-            .eq('user_id', user.user_id);
+            .eq('user_id', user.user_id)
+            .eq('relationship_type', 'enrolled');
 
           const avgProgress =
             enrollments && enrollments.length > 0

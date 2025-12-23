@@ -97,26 +97,34 @@ export default async function CourseDetailPage({
 
   // Check enrollment status
   let enrollment = null;
-  let userProgress = null;
+  let userProgress: Array<{ id: string; module_id: string; completed: boolean; completed_at?: string | null }> = [];
   
   if (user) {
-    const { data: enrollmentData } = await db
-      .from('course_enrollments')
-      .select('*, course_progress (*)')
+    const { data: enrollmentData, error: enrollmentError } = await db
+      .from('user_courses')
+      .select('id, user_id, course_id, relationship_type, enrolled_at')
       .eq('course_id', id)
       .eq('user_id', user.id)
-      .single();
+      .eq('relationship_type', 'enrolled')
+      .maybeSingle();
 
-    enrollment = enrollmentData;
-    
-    if (enrollment) {
-      const { data: progressData } = await db
-        .from('course_progress')
-        .select('*')
-        .eq('enrollment_id', enrollment.id);
-      
-      userProgress = progressData || [];
+    if (enrollmentError) {
+      console.warn('[CourseDetail] Enrollment lookup failed:', enrollmentError.message);
     }
+
+    enrollment = enrollmentData ?? null;
+
+    const { data: progressData, error: progressError } = await db
+      .from('user_progress')
+      .select('id, module_id, completed, completed_at')
+      .eq('course_id', id)
+      .eq('user_id', user.id);
+
+    if (progressError) {
+      console.warn('[CourseDetail] Progress lookup failed:', progressError.message);
+    }
+
+    userProgress = progressData || [];
   }
 
   // Fetch reviews
@@ -319,7 +327,7 @@ export default async function CourseDetailPage({
                 modules={course.course_modules}
                 courseId={id}
                 enrollment={enrollment}
-                userProgress={userProgress || []}
+                userProgress={userProgress?.map(p => ({ ...p, completed_at: p.completed_at ?? undefined })) || []}
               />
             </div>
 

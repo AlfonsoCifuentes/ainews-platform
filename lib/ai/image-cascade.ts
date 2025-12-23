@@ -32,7 +32,7 @@ export interface IllustrationCascadeResult extends ImageGenerationResult {
 export const DEFAULT_PROVIDER_ORDER: ImageProviderName[] = ['runware'];
 
 const DEFAULT_NON_DIAGRAM_NEGATIVE_PROMPT =
-  'text, letters, typography, caption, subtitle, watermark, logo, infographic, diagram, flowchart, chart, graph, axes, labels, arrows, boxes, schematic, blueprint, wireframe, ui, interface, screenshot';
+  'text, letters, texto, letras, palabras, typography, tipografia, caption, subtitle, subtitulo, watermark, marca de agua, logo, infographic, diagram, flowchart, chart, graph, axes, labels, arrows, boxes, schematic, blueprint, wireframe, ui, interface, screenshot';
 
 export async function generateIllustrationWithCascade(
   options: IllustrationCascadeOptions

@@ -61,10 +61,11 @@ export function ModuleIllustration({
   style = 'textbook',
   visualStyle,
   slot,
-  autoGenerate = true,
+  autoGenerate = false,
   className = '',
   variant = 'card',
 }: ModuleIllustrationProps) {
+  const allowOnDemandGeneration = false; // Illustrations are generated during course creation.
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [meta, setMeta] = useState<IllustrationMeta | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
@@ -240,7 +241,7 @@ export function ModuleIllustration({
         } else {
           setImageSource(null);
           setMeta(null);
-          if (autoGenerate && maxAutoAttempts > 0) {
+          if (allowOnDemandGeneration && autoGenerate && maxAutoAttempts > 0) {
             setShouldAutoGenerate(true);
           }
         }
@@ -274,6 +275,11 @@ export function ModuleIllustration({
 
   const handleGenerate = useCallback(async (triggeredAutomatically = false) => {
     if (!moduleId) return;
+    if (!allowOnDemandGeneration) {
+      setError(locale === 'es' ? 'La generacion bajo demanda esta desactivada.' : 'On-demand generation is disabled.');
+      setLoadingState('idle');
+      return;
+    }
     setLoadingState('generating');
     setError(null);
 
@@ -345,7 +351,7 @@ export function ModuleIllustration({
     } catch (err) {
       console.error('[ModuleIllustration] Generation failed:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-      if (triggeredAutomatically && autoGenerate && maxAutoAttempts > 0) {
+      if (allowOnDemandGeneration && triggeredAutomatically && autoGenerate && maxAutoAttempts > 0) {
         retryTimeoutRef.current = setTimeout(() => {
           setShouldAutoGenerate(true);
         }, 4000);
@@ -367,13 +373,13 @@ export function ModuleIllustration({
   ]);
 
   useEffect(() => {
-    if (!autoGenerate) return;
+    if (!allowOnDemandGeneration || !autoGenerate) return;
     if (!shouldAutoGenerate) return;
     if (autoAttempts >= maxAutoAttempts) return;
     setShouldAutoGenerate(false);
     setAutoAttempts((value) => value + 1);
     void handleGenerate(true);
-  }, [autoGenerate, shouldAutoGenerate, autoAttempts, maxAutoAttempts, handleGenerate]);
+  }, [allowOnDemandGeneration, autoGenerate, shouldAutoGenerate, autoAttempts, maxAutoAttempts, handleGenerate]);
 
   const statusLabel = useMemo(() => {
     if (loadingState === 'generating') return t.generating;
@@ -550,7 +556,7 @@ export function ModuleIllustration({
                 <AlertCircle className="h-10 w-10 text-red-300" />
                 <p className="text-sm text-red-100/90">{t.error}</p>
                 <p className="text-xs text-white/70 max-w-xs">{error}</p>
-                {autoGenerate && (
+                {autoGenerate && allowOnDemandGeneration && (
                   <p className="text-[11px] uppercase tracking-[0.4em] text-white/60">
                     {locale === 'en' ? 'Auto-retrying shortly…' : 'Reintentando automáticamente…'}
                   </p>

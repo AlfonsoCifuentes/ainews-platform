@@ -105,11 +105,12 @@ export default async function CourseLearnPage({
   // Check/create enrollment automatically for ALL modules (free access for everyone)
   console.log('🔍 Checking enrollment status...');
   const { data: existingEnrollment, error: fetchError } = await db
-    .from('course_enrollments')
+    .from('user_courses')
     .select('*')
     .eq('course_id', id)
     .eq('user_id', user.id)
-    .single();
+    .eq('relationship_type', 'enrolled')
+    .maybeSingle();
 
   let enrollment = existingEnrollment;
 
@@ -122,11 +123,13 @@ export default async function CourseLearnPage({
   if (!enrollment) {
     console.log('📝 No enrollment found, attempting auto-enrollment...');
     const { data: newEnrollment, error: insertError } = await db
-      .from('course_enrollments')
+      .from('user_courses')
       .insert({
         user_id: user.id,
         course_id: id,
-        enrolled_at: new Date().toISOString()
+        relationship_type: 'enrolled',
+        enrolled_at: new Date().toISOString(),
+        progress_percentage: 0,
       })
       .select()
       .single();
@@ -142,10 +145,11 @@ export default async function CourseLearnPage({
     if (insertError && (insertError.code === '23505' || insertError.message?.includes('duplicate'))) {
       console.log('⚠️ Enrollment already exists (race condition), fetching existing one');
       const { data: existingEnrollment } = await db
-        .from('course_enrollments')
+        .from('user_courses')
         .select('*')
         .eq('course_id', id)
         .eq('user_id', user.id)
+        .eq('relationship_type', 'enrolled')
         .single();
       enrollment = existingEnrollment;
       console.log('📋 Fetched existing enrollment:', { enrollmentId: enrollment?.id });
@@ -221,7 +225,9 @@ export default async function CourseLearnPage({
       id: 'temp-' + Date.now(),
       user_id: user.id,
       course_id: id,
-      enrolled_at: new Date().toISOString()
+      relationship_type: 'enrolled',
+      enrolled_at: new Date().toISOString(),
+      progress_percentage: 0,
     };
   }
 
@@ -271,3 +277,4 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: '
     },
   };
 }
+

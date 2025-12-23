@@ -2,7 +2,7 @@
 
 ## The Ultimate AI News & Learning Hub
 
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
@@ -10,7 +10,17 @@
 
 **[Live Demo](https://thotnet-core.vercel.app)** • **[Documentation](#-documentation)** • **[Contributing](#-contributing)**
 
-La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma, cursos tipo libro y gamificación puntera sobre un stack $0.
+La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma con análisis original, cursos tipo libro de texto y gamificación puntera sobre un stack $0.
+
+---
+
+## 🆕 Latest Updates (December 2025)
+
+- **✅ AdSense Compliance**: Trust pages (About, Contact, Privacy, Terms) fully implemented
+- **✅ News Curator v2**: Upgraded from "scraper" to "AI Analyst" mode — generates original insights instead of summaries
+- **✅ SEO Optimization**: Robots.txt blocks low-value routes; focus on high-quality content indexing
+- **✅ Next.js 15.5.7**: Updated to latest stable release with App Router
+- **✅ Build Stability**: All TypeScript/ESLint errors resolved for clean deployments
 
 ---
 
@@ -19,9 +29,10 @@ La nueva central bilingüe de noticias y aprendizaje de IA: curación autónoma,
 ### 🗞️ **Intelligent News Curation**
 
 - **50+ Premium Sources** — Automated aggregation from top AI publications
-- **AI-Powered Filtering** — LLM-based relevance scoring and quality assessment
+- **AI Analyst Mode** — Original insights, context analysis, and future implications (not just summaries)
 - **Dual Language** — Complete English/Spanish content with automatic translation
 - **Real-time Updates** — Scheduled curation every 6 hours via GitHub Actions
+- **Anti-Scraping** — Generates unique value-added content that doesn't exist on source sites
 
 ### 🎓 **AI Course Generator**
 
@@ -123,7 +134,7 @@ npm run ai:sync-course-covers:write
 
 ### **Frontend**
 
-- **[Next.js 14+](https://nextjs.org/)** — React framework with App Router
+- **[Next.js 15.5](https://nextjs.org/)** — React framework with App Router
 - **[TypeScript 5.0+](https://www.typescriptlang.org/)** — Type-safe development
 - **[Tailwind CSS 4.0](https://tailwindcss.com/)** — Utility-first styling
 - **[Framer Motion](https://www.framer.com/motion/)** — Animation library
@@ -324,10 +335,11 @@ npm start
 
 - Runs every 6 hours via GitHub Actions
 - Scrapes 50+ RSS feeds
-- Filters with LLM (relevance + quality)
-- Translates EN ↔ ES
-- Generates embeddings
-- Stores in Supabase
+- **AI Analyst Mode** — Generates original insights, not summaries
+- Produces unique analysis: context, implications, and industry impact
+- Translates EN ↔ ES with cultural adaptation
+- Generates embeddings for semantic search
+- Stores enriched content in Supabase
 
 ### **Course Generator Agent**
 
@@ -473,6 +485,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Alfonso Cifuentes** — [@AlfonsoCifuentes](https://github.com/AlfonsoCifuentes)
 
 **Project Link**: [https://github.com/AlfonsoCifuentes/thotnet-core](https://github.com/AlfonsoCifuentes/thotnet-core)
+
+**Contact Page**: [https://thotnet-core.vercel.app/contact](https://thotnet-core.vercel.app/contact)
 
 ---
 

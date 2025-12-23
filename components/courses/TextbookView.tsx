@@ -21,6 +21,7 @@ import { useModuleVisualSlots } from '@/hooks/use-module-visual-slots';
 import { getIllustrationStyleForSlot } from '@/lib/utils/visual-slots';
 import type { ModuleVisualSlot } from '@/lib/types/visual-slots';
 import { normalizeEditorialMarkdown } from '@/lib/courses/editorial-style';
+import { computeInlineSlotCount } from '@/lib/courses/visual-slot-planner';
 import {
   ChapterDecorator,
   CalloutBox,
@@ -51,6 +52,8 @@ export interface ContentBlock {
   items?: string[];
   caption?: string;
   source?: string;
+  isLead?: boolean;
+  subtitle?: string;
 }
 
 function normalizeFigureCaptionText(input: unknown): string {
@@ -171,22 +174,21 @@ function injectVisualFigures(blocks: ContentBlock[], slots: ModuleVisualSlot[]):
   return next;
 }
 
-function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string): ModuleVisualSlot[] {
+function selectIntegratedSlots(allSlots: ModuleVisualSlot[], moduleTitle: string, content: string): ModuleVisualSlot[] {
   const slots = allSlots.filter((slot) => slot.slotType !== 'header');
   const diagram = slots.find((slot) => slot.slotType === 'diagram') ?? null;
-  const inlineSlots = slots.filter((slot) => slot.slotType === 'inline');
+  const inlineSlots = slots
+    .filter((slot) => slot.slotType === 'inline')
+    .sort((a, b) => {
+      const aIndex = typeof a.blockIndex === 'number' ? a.blockIndex : Number.POSITIVE_INFINITY;
+      const bIndex = typeof b.blockIndex === 'number' ? b.blockIndex : Number.POSITIVE_INFINITY;
+      return aIndex - bIndex;
+    });
 
-  const bestInline =
-    inlineSlots.find((slot) => {
-      const heading = (slot.heading ?? '').trim();
-      if (!heading) return false;
-      if (!moduleTitle) return true;
-      return heading.toLowerCase() !== moduleTitle.toLowerCase();
-    }) ??
-    inlineSlots[0] ??
-    null;
+  const inlineTarget = Math.min(inlineSlots.length, computeInlineSlotCount(content));
+  const pickedInline = inlineSlots.slice(0, inlineTarget);
 
-  return [diagram, bestInline].filter(Boolean) as ModuleVisualSlot[];
+  return [diagram, ...pickedInline].filter(Boolean) as ModuleVisualSlot[];
 }
 
 function InlineFigure({
@@ -255,31 +257,137 @@ export interface TextbookViewProps {
 // CONTENT PARSER
 // ============================================================================
 
+function applyOutsideCodeFences(input: string, transform: (chunk: string) => string): string {
+  const lines = String(input ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n');
+  const out: string[] = [];
+  let buffer: string[] = [];
+  let inFence = false;
+
+  const flush = () => {
+    if (!buffer.length) return;
+    const transformed = transform(buffer.join('\n'));
+    out.push(...transformed.split('\n'));
+    buffer = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      if (!inFence) {
+        flush();
+        inFence = true;
+        out.push(line);
+        continue;
+      }
+      inFence = false;
+      out.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    buffer.push(line);
+  }
+
+  flush();
+  return out.join('\n');
+}
+
+const EXAMPLE_CAPTION_REGEX = /^(en este ejemplo|este ejemplo|in this example|this example)\b/i;
+
+function splitExampleCaption(text: string): { caption: string; remainder?: string } | null {
+  const trimmed = String(text ?? '').trim();
+  if (!trimmed) return null;
+
+  const cleaned = trimmed
+    .replace(/^>\s?/, '')
+    .replace(/^[-*]\s+/, '')
+    .replace(/^\d+\.\s+/, '')
+    .replace(/^\*{1,2}/, '')
+    .replace(/\*{1,2}$/, '')
+    .replace(/^_+/, '')
+    .replace(/_+$/, '')
+    .trim();
+
+  if (!EXAMPLE_CAPTION_REGEX.test(cleaned)) return null;
+
+  const compact = cleaned.replace(/\s+/g, ' ').trim();
+  const sentenceMatch = compact.match(/^(.+?[.!?])\s+(.*)$/);
+  if (sentenceMatch) {
+    const caption = sentenceMatch[1].trim();
+    const remainder = sentenceMatch[2].trim();
+    if (caption.split(/\s+/).length <= 28) {
+      return remainder ? { caption, remainder } : { caption };
+    }
+  }
+
+  if (compact.split(/\s+/).length <= 28) {
+    return { caption: compact };
+  }
+
+  return null;
+}
+
+function attachExampleCaptions(blocks: ContentBlock[]): ContentBlock[] {
+  const next: ContentBlock[] = [];
+
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i];
+    if (block.type === 'code' && i + 1 < blocks.length) {
+      const following = blocks[i + 1];
+      if (following.type === 'paragraph' || following.type === 'standfirst') {
+        const split = splitExampleCaption(following.content);
+        if (split) {
+          next.push({ ...block, subtitle: split.caption });
+          if (split.remainder) {
+            next.push({ ...following, content: split.remainder });
+          }
+          i += 1;
+          continue;
+        }
+      }
+    }
+
+    next.push(block);
+  }
+
+  return next;
+}
+
 export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   let inHero = true;
+  let markLead = false;
   
   // First pass: Convert styled div boxes to callouts
-  let content = rawContent
-    // Match styled divs with title in <b> tags (Did You Know boxes)
-    .replace(/<div[^>]*style=["'][^"']*border[^"']*["'][^>]*>\s*<b>([^<]+)<\/b>\s*(?:<br\s*\/?>)?\s*([\s\S]*?)<\/div>/gi, 
-      (_, title, body) => {
-        const cleanBody = body
-          .replace(/<\/?(div|span|b|br|i|em|strong|p)[^>]*>/gi, '')
-          .trim();
-        return `\n:::didyouknow[${title.trim()}]\n${cleanBody}\n:::\n`;
-      })
-    // Match any remaining styled divs as general callouts
-    .replace(/<div[^>]*style=["'][^"']*["'][^>]*>([\s\S]*?)<\/div>/gi, (_, inner) => {
-      return inner.replace(/<\/?(b|br|i|em|strong|span)[^>]*>/gi, '').trim();
-    });
+  let content = applyOutsideCodeFences(rawContent, (chunk) => {
+    return chunk
+      // Match styled divs with title in <b> tags (Did You Know boxes)
+      .replace(
+        /<div[^>]*style=["'][^"']*border[^"']*["'][^>]*>\s*<b>([^<]+)<\/b>\s*(?:<br\s*\/?>)?\s*([\s\S]*?)<\/div>/gi,
+        (_, title, body) => {
+          const cleanBody = body.replace(/<\/?(div|span|b|br|i|em|strong|p)[^>]*>/gi, '').trim();
+          return `\n:::didyouknow[${title.trim()}]\n${cleanBody}\n:::\n`;
+        }
+      )
+      // Match any remaining styled divs as general callouts
+      .replace(/<div[^>]*style=["'][^"']*["'][^>]*>([\s\S]*?)<\/div>/gi, (_, inner) => {
+        return inner.replace(/<\/?(b|br|i|em|strong|span)[^>]*>/gi, '').trim();
+      });
+  });
   
   // Second pass: Clean remaining HTML tags
-  content = content
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/?(?:div|span|b|i|em|strong|p)[^>]*>/gi, '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n');
+  content = applyOutsideCodeFences(content, (chunk) => {
+    return chunk
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?(?:div|span|b|i|em|strong|p)[^>]*>/gi, '')
+      .replace(/\r\n/g, '\n');
+  }).replace(/\n{3,}/g, '\n\n');
 
   const lines = content.split('\n');
   let i = 0;
@@ -307,16 +415,19 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     const h1Match = line.match(/^#\s*(.+)$/);
     if (h1Match && !line.startsWith('##')) {
       blocks.push({ type: 'heading1', content: h1Match[1].trim() });
+      markLead = true;
       i++; continue;
     }
     const h2Match = line.match(/^##\s*(.+)$/);
     if (h2Match && !line.startsWith('###')) {
       blocks.push({ type: 'heading2', content: h2Match[1].trim() });
+      markLead = true;
       i++; continue;
     }
     const h3Match = line.match(/^###\s*(.+)$/);
     if (h3Match) {
       blocks.push({ type: 'heading3', content: h3Match[1].trim() });
+      markLead = true;
       i++; continue;
     }
 
@@ -324,6 +435,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     const h4PlusMatch = line.match(/^#{4,}\s*(.+)$/);
     if (h4PlusMatch) {
       blocks.push({ type: 'heading3', content: h4PlusMatch[1].trim() });
+      markLead = true;
       i++; continue;
     }
 
@@ -366,6 +478,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       // Hero standfirst (lead paragraph) is always inside a blockquote per the editorial spec.
       if (inHero) {
         blocks.push({ type: 'standfirst', content: quoteLines.join('\n').trim() });
+        markLead = true;
         continue;
       }
 
@@ -402,6 +515,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
     // Some legacy generators emit the standfirst as a single bold line (outside the blockquote).
     if (inHero && line.startsWith('**') && line.endsWith('**') && line.length >= 6) {
       blocks.push({ type: 'standfirst', content: line });
+      markLead = true;
       i++;
       continue;
     }
@@ -441,6 +555,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
         i++;
       }
       blocks.push({ type: 'list', content: '', items: listItems });
+      markLead = false;
       continue;
     }
 
@@ -451,6 +566,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
         i++;
       }
       blocks.push({ type: 'numbered-list', content: '', items: listItems });
+      markLead = false;
       continue;
     }
 
@@ -464,6 +580,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       }
       i++;
       blocks.push({ type: 'code', content: codeLines.join('\n'), caption: lang });
+      markLead = false;
       continue;
     }
 
@@ -495,6 +612,7 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       }
 
       blocks.push({ type: 'table', content: tableLines.join('\n') });
+      markLead = false;
       continue;
     }
 
@@ -513,10 +631,11 @@ export function parseContentIntoBlocks(rawContent: string): ContentBlock[] {
       paragraphLines.push(lines[i].trim());
       i++;
     }
-    blocks.push({ type: 'paragraph', content: paragraphLines.join(' ') });
+    blocks.push({ type: 'paragraph', content: paragraphLines.join(' '), isLead: markLead });
+    markLead = false;
   }
 
-  return blocks;
+  return attachExampleCaptions(blocks);
 }
 
 function mapCalloutType(type: string): ContentBlock['type'] {
@@ -578,7 +697,11 @@ function ContentBlockRenderer({
       );
     case 'paragraph':
       return (
-        <p className="leading-[1.85] text-left md:text-justify md:indent-8 hyphens-auto text-muted-foreground">
+        <p className={`leading-[1.85] text-left md:text-justify hyphens-auto text-muted-foreground ${
+          block.isLead
+            ? 'md:indent-0 first-letter:float-left first-letter:mr-2 first-letter:text-4xl first-letter:font-serif first-letter:font-bold first-letter:leading-none first-letter:text-foreground'
+            : 'md:indent-8'
+        }`}>
           <FormattedText text={block.content} isDark={isDark} />
         </p>
       );
@@ -589,7 +712,7 @@ function ContentBlockRenderer({
     case 'numbered-list':
       return <ListBlock items={block.items || []} ordered isDark={isDark} />;
     case 'code':
-      return <CodeBlock code={block.content} language={block.caption} isDark={isDark} />;
+      return <CodeBlock code={block.content} language={block.caption} subtitle={block.subtitle} isDark={isDark} />;
     case 'table':
       return <TableBlock content={block.content} isDark={isDark} />;
     case 'didyouknow':
@@ -711,7 +834,7 @@ export function TextbookView({
   // Parse content
   useEffect(() => {
     const rawBlocks = parseContentIntoBlocks(normalizedContent);
-    const blocks = injectVisualFigures(rawBlocks, selectIntegratedSlots(visualSlots, title));
+    const blocks = injectVisualFigures(rawBlocks, selectIntegratedSlots(visualSlots, title, normalizedContent));
     const parsedPages: TextbookPage[] = [];
     const toc: TableOfContentsItem[] = [];
     let currentPageBlocks: ContentBlock[] = [];
@@ -823,12 +946,12 @@ export function TextbookView({
 
   const renderPage = (page: TextbookPage, isLeft: boolean) => (
     <div
-      className={`relative flex-1 h-full ${isLeft && isTwoPageView ? 'border-r border-white/10' : ''}`}
+      className={`relative flex-1 min-w-0 h-full ${isLeft && isTwoPageView ? 'border-r border-white/10' : ''}`}
       style={{ fontSize: `${fontSize}px` }}
     >
       <div
         ref={setPageRef(page.pageNumber)}
-        className={`relative h-full w-full overflow-y-auto scroll-smooth px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-6 md:pl-10' : 'pr-6 md:pr-10'}`}
+        className={`relative h-full w-full min-w-0 overflow-y-auto scroll-smooth px-6 md:px-10 lg:px-14 py-8 md:py-10 ${isLeft ? 'pl-6 md:pl-10' : 'pr-6 md:pr-10'}`}
       >
         <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/50 mb-6 font-mono">
           <span>{t.chapter} {moduleNumber}</span>

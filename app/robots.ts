@@ -21,10 +21,15 @@ export default function robots(): MetadataRoute.Robots {
           '/es/profile',
           '/en/settings',
           '/es/settings',
+          '/en/search',
+          '/es/search',
+          '/en/tags',
+          '/es/tags',
           '/en/unsubscribe',
           '/es/unsubscribe',
           '/*.json$',
           '/auth/callback',
+          '/*?*', // Disallow query parameters
         ],
       },
       {

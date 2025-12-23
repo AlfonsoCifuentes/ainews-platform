@@ -70,19 +70,3 @@ jobs:
           echo "Running with flags: $FLAGS"
           npx tsx scripts/upgrade-courses-working.ts $FLAGS
 
-      - name: Backfill hero illustrations
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
-          RUNWARE_IMAGE_MODEL: ${{ secrets.RUNWARE_IMAGE_MODEL }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          DISPATCH_DRY_RUN: ${{ github.event.inputs.dry_run }}
-        shell: bash
-        run: |
-          FLAGS="--limit=4"
-          if [ "${DISPATCH_DRY_RUN}" = "true" ]; then
-            FLAGS="$FLAGS --dry-run"
-          fi
-          echo "Backfilling with flags: $FLAGS"
-          npx tsx scripts/backfill-module-illustrations.ts $FLAGS

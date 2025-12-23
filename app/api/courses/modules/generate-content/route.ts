@@ -475,6 +475,9 @@ HARD CONSTRAINTS:
 - Never more than 3 plain paragraphs in a row (insert a card/table/list/quote).
 - No single-word line breaks.
 - No AI/system/prompt instructions. No placeholders.
+- Code examples must be fenced with a language, and prose/exercises must stay outside code blocks.
+- If you write a line starting with "In this example" or "This example", place it immediately after the code block as a short italic sentence.
+- If you show HTML/CSS, it must be inside a fenced code block with a language.
 
 Target length: ~800–1200 words.`
     : `Estás escribiendo un módulo de curso en Markdown para una maquetación editorial oscura tipo "revista / libro de texto".
@@ -510,6 +513,9 @@ REGLAS DURAS:
 - Nunca más de 3 párrafos planos seguidos (mete tarjeta/tabla/lista/cita).
 - No cortes palabras en líneas sueltas.
 - Prohibido texto de instrucciones/prompt. Sin placeholders.
+- Los ejemplos de código deben ir en bloques con lenguaje, y el texto explicativo fuera de los bloques.
+- Si escribes una línea que empiece por "En este ejemplo" o "Este ejemplo", colócala justo después del bloque de código como frase corta en cursiva.
+- Si muestras HTML/CSS, siempre dentro de un bloque de código con lenguaje.
 
 Longitud objetivo: ~800–1200 palabras.`;
 

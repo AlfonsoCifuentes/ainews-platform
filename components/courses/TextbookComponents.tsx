@@ -370,9 +370,145 @@ export function FormattedText({ text, isDark }: { text: string; isDark: boolean 
 // CODE BLOCK - Syntax highlighted code
 // ============================================================================
 
-export function CodeBlock({ code, language, isDark }: { code: string; language?: string; isDark: boolean }) {
+type CommentConfig = {
+  lineMarkers: string[];
+  blockStart?: string;
+  blockEnd?: string;
+};
+
+function getCommentConfig(language?: string): CommentConfig {
+  const lang = (language ?? '').trim().toLowerCase();
+  if (['python', 'py', 'bash', 'sh', 'shell', 'yaml', 'yml', 'dockerfile', 'makefile'].includes(lang)) {
+    return { lineMarkers: ['#'] };
+  }
+  if (['sql'].includes(lang)) {
+    return { lineMarkers: ['--'], blockStart: '/*', blockEnd: '*/' };
+  }
+  if (['html', 'xml'].includes(lang)) {
+    return { lineMarkers: [], blockStart: '<!--', blockEnd: '-->' };
+  }
+  if (['css', 'scss', 'less'].includes(lang)) {
+    return { lineMarkers: [], blockStart: '/*', blockEnd: '*/' };
+  }
+  return { lineMarkers: ['//', '#'], blockStart: '/*', blockEnd: '*/' };
+}
+
+function findLineCommentIndex(line: string, markers: string[]): { index: number; marker: string } | null {
+  let best: { index: number; marker: string } | null = null;
+  for (const marker of markers) {
+    let idx = line.indexOf(marker);
+    while (idx >= 0) {
+      if (marker === '#') {
+        const rest = line.slice(idx);
+        if (rest.startsWith('#!') || /^#(include|define|pragma)\b/i.test(rest)) {
+          idx = line.indexOf(marker, idx + 1);
+          continue;
+        }
+        if (idx > 0 && !/\s/.test(line[idx - 1])) {
+          idx = line.indexOf(marker, idx + 1);
+          continue;
+        }
+      }
+      if (marker === '//' && idx > 0 && line[idx - 1] === ':') {
+        idx = line.indexOf(marker, idx + 2);
+        continue;
+      }
+      if (!best || idx < best.index) {
+        best = { index: idx, marker };
+      }
+      break;
+    }
+  }
+  return best;
+}
+
+function renderCodeWithCommentHighlights(code: string, language?: string): React.ReactNode[] {
+  const normalized = String(code ?? '').replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+  const config = getCommentConfig(language);
+  const nodes: React.ReactNode[] = [];
+  let inBlock = false;
+
+  lines.forEach((line, idx) => {
+    let before = line;
+    let comment = '';
+    let after = '';
+    let nextInBlock = inBlock;
+    const blockStart = config.blockStart ?? '';
+
+    if (inBlock && config.blockEnd) {
+      const endIdx = line.indexOf(config.blockEnd);
+      if (endIdx >= 0) {
+        before = '';
+        comment = line.slice(0, endIdx + config.blockEnd.length);
+        after = line.slice(endIdx + config.blockEnd.length);
+        nextInBlock = false;
+      } else {
+        before = '';
+        comment = line;
+        after = '';
+        nextInBlock = true;
+      }
+    } else {
+      const blockIdx = blockStart ? line.indexOf(blockStart) : -1;
+      const lineComment = findLineCommentIndex(line, config.lineMarkers);
+
+      if (blockIdx >= 0 && (!lineComment || blockIdx < lineComment.index)) {
+        before = line.slice(0, blockIdx);
+        if (config.blockEnd) {
+          const endIdx = line.indexOf(config.blockEnd, blockIdx + blockStart.length);
+          if (endIdx >= 0) {
+            comment = line.slice(blockIdx, endIdx + config.blockEnd.length);
+            after = line.slice(endIdx + config.blockEnd.length);
+            nextInBlock = false;
+          } else {
+            comment = line.slice(blockIdx);
+            after = '';
+            nextInBlock = true;
+          }
+        } else {
+          comment = line.slice(blockIdx);
+        }
+      } else if (lineComment) {
+        before = line.slice(0, lineComment.index);
+        comment = line.slice(lineComment.index);
+        after = '';
+      }
+    }
+
+    nodes.push(
+      <React.Fragment key={`line-${idx}`}>
+        {before}
+        {comment ? (
+          <span key={`comment-${idx}`} className="text-emerald-400/80">
+            {comment}
+          </span>
+        ) : null}
+        {after}
+        {idx < lines.length - 1 ? '\n' : ''}
+      </React.Fragment>
+    );
+
+    inBlock = nextInBlock;
+  });
+
+  return nodes;
+}
+
+export function CodeBlock({
+  code,
+  language,
+  subtitle,
+  isDark,
+}: {
+  code: string;
+  language?: string;
+  subtitle?: string;
+  isDark: boolean;
+}) {
+  const renderedCode = renderCodeWithCommentHighlights(code, language);
   return (
-    <figure className="my-8 rounded-xl overflow-hidden shadow-lg">
+    <figure className="my-8 w-full max-w-full min-w-0 rounded-xl overflow-hidden shadow-lg">
       {/* Language header */}
       {language && (
         <div className={`
@@ -382,14 +518,23 @@ export function CodeBlock({ code, language, isDark }: { code: string; language?:
           {language}
         </div>
       )}
-      
+
       {/* Code content */}
       <pre className={`
-        p-4 md:p-6 overflow-x-auto text-sm leading-relaxed
+        p-4 md:p-6 overflow-x-auto text-sm leading-relaxed max-w-full min-w-0
         ${isDark ? 'bg-gray-950 text-gray-100' : 'bg-gray-900 text-gray-100'}
       `}>
-        <code className="font-mono">{code}</code>
+        <code className="font-mono">{renderedCode}</code>
       </pre>
+
+      {subtitle && (
+        <figcaption className={`
+          px-4 pb-3 pt-1 text-xs italic
+          ${isDark ? 'bg-gray-950 text-gray-400' : 'bg-gray-900 text-gray-300'}
+        `}>
+          {subtitle}
+        </figcaption>
+      )}
     </figure>
   );
 }

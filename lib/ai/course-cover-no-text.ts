@@ -1,5 +1,5 @@
 export const COURSE_COVER_NEGATIVE_PROMPT =
-  'text, typography, caption, subtitle, label, logo, watermark, signature, handwriting, letters, numbers, digits, words, symbols, UI, interface, signage, banner';
+  'text, typography, caption, subtitle, label, logo, watermark, signature, handwriting, letters, numbers, digits, words, symbols, UI, interface, signage, banner, texto, tipografia, subtitulo, etiqueta, marca de agua, letras, palabras, numeros';
 
 const NO_TEXT_SUFFIX =
   'NO TEXT. ABSOLUTELY NO text, letters, numbers, typography, logos, watermarks, UI labels, captions, or signage.';

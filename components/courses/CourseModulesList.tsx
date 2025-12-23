@@ -42,12 +42,13 @@ interface Enrollment {
   id: string;
   user_id: string;
   course_id: string;
-  enrolled_at: string;
+  relationship_type?: string;
+  enrolled_at?: string;
+  progress_percentage?: number;
 }
 
 interface Progress {
   id: string;
-  enrollment_id: string;
   module_id: string;
   completed: boolean;
   completed_at?: string;

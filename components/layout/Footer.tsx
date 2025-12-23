@@ -51,6 +51,16 @@ export function Footer() {
                   Knowledge Graph
                 </Link>
               </li>
+              <li>
+                <Link href="/about" className="hover:text-white transition-colors">
+                  {t('common.nav.about')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-white transition-colors">
+                  {t('common.nav.contact')}
+                </Link>
+              </li>
             </ul>
           </div>
 

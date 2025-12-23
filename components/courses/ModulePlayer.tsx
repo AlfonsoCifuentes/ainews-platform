@@ -30,6 +30,103 @@ const BRUTALIST = {
   accent: '#EAEAEA',
 };
 
+function extractPracticePrompt(rawContent: string, locale: 'en' | 'es'): string | null {
+  const content = String(rawContent ?? '').replace(/\r\n/g, '\n');
+  if (!content.trim()) return null;
+
+  const practiceKeywords = locale === 'es'
+    ? ['practica', 'práctica', 'ejercicio', 'ejercicios', 'mini ejercicio', 'ejercicios de práctica']
+    : ['practice', 'exercise', 'exercises', 'mini exercise', 'practice exercises'];
+
+  const isPracticeHeading = (text: string) => {
+    const lower = text.toLowerCase();
+    return practiceKeywords.some((keyword) => lower.includes(keyword));
+  };
+
+  const cleanQuestionLine = (rawLine: string): string | null => {
+    let line = rawLine.trim();
+    if (!line) return null;
+
+    line = line.replace(/^>\s?/, '');
+    line = line.replace(/^#+\s+/, '');
+    line = line.replace(/^\*\*(question|pregunta)\*\*\s*:\s*/i, '');
+    line = line.replace(/^(question|pregunta)\s*:\s*/i, '');
+    line = line.replace(/^\d+\.\s+/, '');
+    line = line.replace(/^[-*]\s+/, '');
+    line = line.replace(/^\*?context\*?:\s*/i, '');
+    line = line.replace(/^\*?type\*?:\s*/i, '');
+    line = line.replace(/^\*?difficulty\*?:\s*/i, '');
+    line = line.trim();
+    if (!line) return null;
+
+    const lower = line.toLowerCase();
+    if (
+      lower.includes('responde brevemente') ||
+      lower.includes('try a short answer') ||
+      lower.includes('submit for automatic') ||
+      lower.includes('total points') ||
+      lower.includes('passing score') ||
+      lower.includes('estimated time')
+    ) {
+      return null;
+    }
+
+    if (line.length < 12) return null;
+    return line;
+  };
+
+  const lines = content.split('\n');
+  let inFence = false;
+  let inPractice = false;
+  let practiceLevel = 0;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !trimmed) continue;
+
+    const unquoted = trimmed.replace(/^>\s?/, '');
+    const headingMatch = unquoted.match(/^(#{1,6})\s*(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const title = headingMatch[2].trim();
+      if (isPracticeHeading(title)) {
+        inPractice = true;
+        practiceLevel = level;
+        continue;
+      }
+      if (inPractice && level <= practiceLevel) {
+        inPractice = false;
+      }
+    }
+
+    if (inPractice) {
+      const candidate = cleanQuestionLine(unquoted);
+      if (candidate) return candidate;
+    }
+  }
+
+  // Fallback: pick any explicit Question/Pregunta line outside code fences.
+  inFence = false;
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !trimmed) continue;
+    if (!/(question|pregunta)/i.test(trimmed)) continue;
+
+    const candidate = cleanQuestionLine(trimmed);
+    if (candidate) return candidate;
+  }
+
+  return null;
+}
+
 interface QuizQuestion {
   question: string;
   options: string[];
@@ -114,6 +211,7 @@ export function ModulePlayer({
   enrollmentId,
   currentProgress,
 }: ModulePlayerProps) {
+  const allowOnDemandContent = false; // Content is generated at course creation time.
   const router = useRouter();
   const { showToast } = useToast();
   const { refetch: refetchUser } = useUser();
@@ -201,6 +299,7 @@ export function ModulePlayer({
       locale,
     });
   }, [displayContent, title, description, locale]);
+  const practicePrompt = useMemo(() => extractPracticePrompt(normalizedContent, locale), [normalizedContent, locale]);
   const { slots: visualSlots } = useModuleVisualSlots(module.id, locale);
 
   // Log component mount with detailed diagnostics
@@ -237,6 +336,9 @@ export function ModulePlayer({
 
   // Auto-generate content if missing or if content is only a placeholder
   useEffect(() => {
+    if (!allowOnDemandContent) {
+      return;
+    }
     const placeholderRegex = /(coming soon|próximamente|en preparación|contenido en desarrollo|content coming soon|coming-soon)/i;
     const isPlaceholder = (text?: string | null) => {
       if (!text) return true;
@@ -332,7 +434,7 @@ export function ModulePlayer({
     };
 
     generateContent();
-  }, [module.id, module.content_type, courseId, displayContent, isGeneratingContent, locale, router, showToast, t]);
+  }, [allowOnDemandContent, module.id, module.content_type, courseId, displayContent, isGeneratingContent, locale, router, showToast, t]);
 
   // Removed automatic polling that caused infinite refresh loops
 
@@ -576,7 +678,11 @@ export function ModulePlayer({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ moduleId: module.id, answers: { a1: exerciseAnswer } }),
+        body: JSON.stringify({
+          moduleId: module.id,
+          answers: { a1: exerciseAnswer },
+          ...(practicePrompt ? { questions: { a1: practicePrompt } } : {}),
+        }),
       });
       if (!res.ok) {
         showToast('Failed to grade', 'error');
@@ -787,40 +893,43 @@ export function ModulePlayer({
       )}
 
       {/* Simple Exercise Short Answer */}
-      <div className="p-6 border mt-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
-        <h3 className="font-sans text-lg font-bold mb-2" style={{ color: BRUTALIST.text }}>{t.practiceExerciseTitle}</h3>
-        <p className="font-sans text-sm mb-3" style={{ color: BRUTALIST.textMuted }}>{t.practiceExerciseDescription}</p>
-        <textarea
-          value={exerciseAnswer}
-          onChange={(e) => setExerciseAnswer(e.target.value)}
-          className="w-full p-3 font-mono text-sm mb-3 min-h-[120px] border"
-          style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text, borderColor: BRUTALIST.border }}
-          placeholder={t.practiceExercisePlaceholder}
-        />
-        <div className="flex gap-4 items-center">
-          <button 
-            onClick={() => handleExerciseSubmit()} 
-            disabled={!exerciseAnswer.trim()}
-            className="px-4 py-2 font-mono text-sm uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: BRUTALIST.text,
-              color: BRUTALIST.bg,
-              border: `1px solid ${BRUTALIST.text}`,
-            }}
-          >
-            {t.practiceExerciseSubmit}
-          </button>
-          {gradingResult && (
-            <div className="font-mono text-sm" style={{ color: BRUTALIST.text }}>
-              <div>{t.score}: {gradingResult.score}%</div>
-              <div className="text-xs" style={{ color: BRUTALIST.textMuted }}>{gradingResult.feedback}</div>
-              {gradingResult.debug?.usedModel && (
-                <div className="text-xs mt-1" style={{ color: BRUTALIST.textMuted }}>{t.gradedBy}: {String(gradingResult.debug.usedModel)}</div>
-              )}
-            </div>
-          )}
+      {practicePrompt && (
+        <div className="p-6 border mt-6" style={{ backgroundColor: BRUTALIST.bgCard, borderColor: BRUTALIST.border }}>
+          <h3 className="font-sans text-lg font-bold mb-2" style={{ color: BRUTALIST.text }}>{t.practiceExerciseTitle}</h3>
+          <p className="font-sans text-sm mb-2" style={{ color: BRUTALIST.text }}>{practicePrompt}</p>
+          <p className="font-sans text-xs mb-3" style={{ color: BRUTALIST.textMuted }}>{t.practiceExerciseDescription}</p>
+          <textarea
+            value={exerciseAnswer}
+            onChange={(e) => setExerciseAnswer(e.target.value)}
+            className="w-full p-3 font-mono text-sm mb-3 min-h-[120px] border"
+            style={{ backgroundColor: BRUTALIST.bg, color: BRUTALIST.text, borderColor: BRUTALIST.border }}
+            placeholder={t.practiceExercisePlaceholder}
+          />
+          <div className="flex gap-4 items-center">
+            <button 
+              onClick={() => handleExerciseSubmit()} 
+              disabled={!exerciseAnswer.trim()}
+              className="px-4 py-2 font-mono text-sm uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: BRUTALIST.text,
+                color: BRUTALIST.bg,
+                border: `1px solid ${BRUTALIST.text}`,
+              }}
+            >
+              {t.practiceExerciseSubmit}
+            </button>
+            {gradingResult && (
+              <div className="font-mono text-sm" style={{ color: BRUTALIST.text }}>
+                <div>{t.score}: {gradingResult.score}%</div>
+                <div className="text-xs" style={{ color: BRUTALIST.textMuted }}>{gradingResult.feedback}</div>
+                {gradingResult.debug?.usedModel && (
+                  <div className="text-xs mt-1" style={{ color: BRUTALIST.textMuted }}>{t.gradedBy}: {String(gradingResult.debug.usedModel)}</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Botón de completar al final del contenido */}
       <div className="flex justify-center mt-8 pt-8" style={{ borderTop: `2px solid ${BRUTALIST.border}` }}>

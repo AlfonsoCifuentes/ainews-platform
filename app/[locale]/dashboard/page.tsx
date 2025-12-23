@@ -49,11 +49,80 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     .single();
 
   // Fetch enrolled courses
-  const { data: enrollments } = await db
-    .from('user_course_enrollments')
-    .select('*, courses(*)')
+  const { data: rawEnrollments } = await db
+    .from('user_courses')
+    .select(`
+      id,
+      course_id,
+      enrolled_at,
+      completed_at,
+      last_accessed_at,
+      progress_percentage,
+      courses (
+        id,
+        title_en,
+        title_es,
+        difficulty,
+        course_modules (id)
+      )
+    `)
     .eq('user_id', user.id)
+    .eq('relationship_type', 'enrolled')
     .order('last_accessed_at', { ascending: false });
+
+  const courseIds = (rawEnrollments ?? [])
+    .map((row) => row.course_id)
+    .filter((courseId): courseId is string => typeof courseId === 'string' && courseId.length > 0);
+
+  const { data: progressRows } = courseIds.length
+    ? await db
+        .from('user_progress')
+        .select('course_id, completed, score')
+        .eq('user_id', user.id)
+        .in('course_id', courseIds)
+    : { data: [] };
+
+  const progressByCourse = new Map<string, { completed: number; scoreTotal: number; scoreCount: number }>();
+
+  for (const row of progressRows ?? []) {
+    const courseId = row.course_id as string | null;
+    if (!courseId) continue;
+    const entry = progressByCourse.get(courseId) ?? { completed: 0, scoreTotal: 0, scoreCount: 0 };
+    if (row.completed) {
+      entry.completed += 1;
+    }
+    const scoreValue = typeof row.score === 'number' ? row.score : null;
+    if (scoreValue !== null) {
+      entry.scoreTotal += scoreValue;
+      entry.scoreCount += 1;
+    }
+    progressByCourse.set(courseId, entry);
+  }
+
+  const enrollments = (rawEnrollments ?? []).map((row) => {
+    const courseId = row.course_id as string;
+    const courseModules = Array.isArray((row.courses as { course_modules?: unknown })?.course_modules)
+      ? (row.courses as { course_modules?: Array<{ id: string }> }).course_modules ?? []
+      : [];
+    const totalModules = courseModules.length;
+    const progress = progressByCourse.get(courseId) ?? { completed: 0, scoreTotal: 0, scoreCount: 0 };
+    const averageQuizScore = progress.scoreCount > 0 ? (progress.scoreTotal / progress.scoreCount) / 100 : 0;
+
+    return {
+      id: row.id,
+      course_id: courseId,
+      modules_completed: progress.completed,
+      total_modules: totalModules,
+      average_quiz_score: averageQuizScore,
+      last_accessed_at: row.last_accessed_at ?? row.enrolled_at ?? new Date().toISOString(),
+      completed_at: row.completed_at ?? null,
+      courses: {
+        title_en: (row.courses as { title_en?: string } | null)?.title_en ?? 'Course',
+        title_es: (row.courses as { title_es?: string } | null)?.title_es ?? 'Curso',
+        difficulty: (row.courses as { difficulty?: string } | null)?.difficulty ?? 'beginner',
+      },
+    };
+  });
 
   // Fetch badges
   const { data: badges } = await db

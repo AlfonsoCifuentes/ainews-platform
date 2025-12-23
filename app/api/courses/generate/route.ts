@@ -348,6 +348,9 @@ STRUCTURE & CLARITY:
 ✓ Each major section should have 3-5 subsections
 ✓ Break dense text with bullet points, tables, and examples
 ✓ Use code fences for technical content
+✓ Keep prose/exercises outside code blocks (code only inside fences)
+✓ If you write a line starting with "In this example" or "This example", place it immediately after the code block as a short italic sentence
+✓ If you show HTML/CSS, keep it inside a fenced code block with a language
 ✓ Include visual descriptions or ASCII diagrams where helpful
 ✓ Every section must be substantive (150+ words minimum)
 ✓ Build complexity progressively

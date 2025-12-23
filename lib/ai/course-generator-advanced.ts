@@ -179,6 +179,9 @@ EXPECTATIONS FOR THIS CONTENT:
   - Include subheadings that reveal the content structure
   - Break long sections with bullet points and examples
   - Use tables, code blocks, and formatting for clarity
+  - Code examples must be fenced with a language; keep prose/exercises outside code blocks
+  - If you write "In this example"/"This example" or "En este ejemplo"/"Este ejemplo", place it immediately after the code block as a short italic sentence
+  - If you show HTML/CSS, keep it inside a fenced code block with a language
   - Each section should be substantive (100+ words minimum)
 
 ✓ QUALITY RESOURCES:

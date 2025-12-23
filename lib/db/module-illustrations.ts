@@ -173,20 +173,14 @@ export async function persistModuleIllustration(
   }
 
   const model = input.model ?? GEMINI_MODELS.GEMINI_3_PRO_IMAGE;
+  const visualStyle = input.visualStyle ?? 'photorealistic';
   const client = getSupabaseAdminClient();
   await ensureBucketExists(client);
 
-  const buffer = Buffer.from(input.base64Data, 'base64');
-  const extension = mimeToExtension(input.mimeType);
-  const timestamp = Date.now();
-  const visualStyle = input.visualStyle ?? 'photorealistic';
-  const filePath = `${input.moduleId}/${input.style}-${visualStyle}-${input.locale}-${timestamp}.${extension}`;
-
-  let existingId: string | null = null;
   if (input.checksum) {
     const { data: existing, error: existingError } = await client
       .from('module_illustrations')
-      .select('id')
+      .select('*')
       .eq('module_id', input.moduleId)
       .eq('locale', input.locale)
       .eq('style', input.style)
@@ -195,9 +189,14 @@ export async function persistModuleIllustration(
       .maybeSingle();
 
     if (!existingError && existing?.id) {
-      existingId = existing.id;
+      return existing as ModuleIllustrationRecord;
     }
   }
+
+  const buffer = Buffer.from(input.base64Data, 'base64');
+  const extension = mimeToExtension(input.mimeType);
+  const timestamp = Date.now();
+  const filePath = `${input.moduleId}/${input.style}-${visualStyle}-${input.locale}-${timestamp}.${extension}`;
 
   const { error: uploadError } = await client.storage
     .from(BUCKET_NAME)
@@ -284,18 +283,9 @@ export async function persistModuleIllustration(
     return { data: null, error: lastError };
   }
 
-  let data: ModuleIllustrationRecord | null = null;
-  let error: PostgrestError | null = null;
-
-  if (existingId) {
-    const res = await writeWithSchemaFallback('update', payload as unknown as Record<string, unknown>, existingId);
-    data = res.data;
-    error = res.error;
-  } else {
-    const res = await writeWithSchemaFallback('insert', payload as unknown as Record<string, unknown>);
-    data = res.data;
-    error = res.error;
-  }
+  const res = await writeWithSchemaFallback('insert', payload as unknown as Record<string, unknown>);
+  const data = res.data;
+  const error = res.error;
 
   if (error) {
     console.error('[Illustrations] Failed to insert metadata', error);

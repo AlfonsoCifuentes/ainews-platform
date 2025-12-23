@@ -16,6 +16,7 @@ import { persistModuleIllustration, fetchLatestModuleIllustration } from '@/lib/
 import { copyCourseCoverLocale, persistCourseCoverShared, courseCoverExists } from '@/lib/db/course-covers';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { COURSE_COVER_NEGATIVE_PROMPT, enforceNoTextCoverPrompt } from './course-cover-no-text';
+import { computeInlineSlotCount } from '@/lib/courses/visual-slot-planner';
 
 const RUNWARE_MODEL = process.env.RUNWARE_IMAGE_MODEL || 'runware:97@3';
 
@@ -66,10 +67,16 @@ const COURSE_ILLUSTRATION_NEGATIVE_PROMPT = [
   // Text/branding
   'text',
   'letters',
+  'texto',
+  'letras',
+  'palabras',
   'typography',
+  'tipografia',
   'caption',
   'subtitle',
+  'subtitulo',
   'watermark',
+  'marca de agua',
   'logo',
   // Diagram/infographic look (Runware must not produce diagrams)
   'infographic',
@@ -175,17 +182,25 @@ async function moduleIllustrationExists(
     moduleId,
     locale,
     style,
-    visualStyle: 'photorealistic',
   });
   return !!existing;
 }
 
-async function moduleIllustrationExistsAnyLocale(moduleId: string, style: string): Promise<boolean> {
-  const [en, es] = await Promise.all([
-    moduleIllustrationExists(moduleId, 'en', style),
-    moduleIllustrationExists(moduleId, 'es', style),
-  ]);
-  return en || es;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function moduleIllustrationExistsAnyLocale(moduleId: string, styles: string | string[]): Promise<boolean> {
+  const styleList = Array.isArray(styles) ? styles : [styles];
+
+  for (const style of styleList) {
+    const [en, es] = await Promise.all([
+      moduleIllustrationExists(moduleId, 'en', style),
+      moduleIllustrationExists(moduleId, 'es', style),
+    ]);
+    if (en || es) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function fetchModulesForGeneration(moduleIds: string[]): Promise<ModuleContentRow[]> {
@@ -204,6 +219,43 @@ async function fetchModulesForGeneration(moduleIds: string[]): Promise<ModuleCon
   const rows = (data ?? []) as ModuleContentRow[];
   const byId = new Map(rows.map((row) => [row.id, row]));
   return moduleIds.map((id) => byId.get(id)).filter(Boolean) as ModuleContentRow[];
+}
+
+async function fetchExistingIllustrationOrders(moduleId: string, styles: string[]): Promise<Set<number>> {
+  const orders = new Set<number>();
+  const db = getSupabaseServerClient();
+
+  try {
+    const { data, error } = await db
+      .from('module_illustrations')
+      .select('metadata, style')
+      .eq('module_id', moduleId)
+      .in('style', styles);
+
+    if (error || !Array.isArray(data)) {
+      return orders;
+    }
+
+    let hasUnindexed = false;
+    for (const row of data as Array<{ metadata?: { slotOrder?: unknown; slot_order?: unknown } | null }>) {
+      const meta = row?.metadata ?? null;
+      const rawOrder = meta && (meta.slotOrder ?? meta.slot_order);
+      const parsed = typeof rawOrder === 'number' ? rawOrder : Number.parseInt(String(rawOrder ?? ''), 10);
+      if (Number.isFinite(parsed)) {
+        orders.add(parsed);
+      } else {
+        hasUnindexed = true;
+      }
+    }
+
+    if (hasUnindexed) {
+      orders.add(0);
+    }
+  } catch (error) {
+    console.warn('[CourseImageGenerator] Failed to read existing illustration orders', error);
+  }
+
+  return orders;
 }
 
 // ============================================================================
@@ -394,51 +446,65 @@ export async function generateCourseImages(
       const titleEn = String(moduleRow.title_en ?? '').trim();
       const titleEs = String(moduleRow.title_es ?? '').trim();
 
-      const conceptualExists = await moduleIllustrationExistsAnyLocale(moduleRow.id, 'conceptual');
-      if (!conceptualExists) {
-        const baseContent = contentEn || contentEs;
-        const subject = titleEn || titleEs || input.title;
-        if (baseContent) {
-          console.log(`[CourseImageGenerator] Generating conceptual illustration for module: ${subject.slice(0, 60)}...`);
-          const plannedPrompt = planByModuleId.get(moduleRow.id)?.images?.[0]?.prompt?.trim();
-          const promptOverride = plannedPrompt
-            ? `${plannedPrompt}. Photorealistic editorial illustration/photo, cinematic lighting, dark-mode friendly, no text, no infographic, not a diagram.`
-            : undefined;
-          const cascadeResult = await generateIllustrationWithCascade({
-            moduleContent: `${subject}\n\n${baseContent}`.slice(0, 6000),
+      const baseContent = contentEn || contentEs;
+      const subject = titleEn || titleEs || input.title;
+      if (!baseContent) {
+        continue;
+      }
+
+      const targetCount = computeInlineSlotCount(baseContent);
+      const existingOrders = await fetchExistingIllustrationOrders(moduleRow.id, ['conceptual', 'textbook', 'header']);
+      const missingOrders = Array.from({ length: targetCount }, (_, idx) => idx).filter((idx) => !existingOrders.has(idx));
+
+      if (!missingOrders.length) {
+        continue;
+      }
+
+      const modulePlan = planByModuleId.get(moduleRow.id);
+
+      for (const order of missingOrders) {
+        console.log(`[CourseImageGenerator] Generating conceptual illustration ${order + 1}/${targetCount} for module: ${subject.slice(0, 60)}...`);
+        const plannedPrompt = modulePlan?.images?.[order]?.prompt?.trim();
+        const fallbackPrompt = `Editorial textbook illustration for "${subject}", dark mode aesthetic, minimalist, cinematic lighting, high contrast, no text, no letters, no typography, no logos, no watermarks`;
+        const promptOverride = plannedPrompt
+          ? `${plannedPrompt}. Photorealistic editorial illustration/photo, cinematic lighting, dark-mode friendly, no text, no infographic, not a diagram.`
+          : fallbackPrompt;
+
+        const cascadeResult = await generateIllustrationWithCascade({
+          moduleContent: `${subject}\n\n${baseContent}`.slice(0, 6000),
+          locale: 'en',
+          style: 'conceptual',
+          visualStyle: 'photorealistic',
+          promptOverride,
+          negativePromptOverride: COURSE_ILLUSTRATION_NEGATIVE_PROMPT,
+        });
+
+        if (cascadeResult.success && cascadeResult.images.length) {
+          const image = cascadeResult.images[0];
+          const saved = await persistModuleIllustration({
+            moduleId: moduleRow.id,
             locale: 'en',
             style: 'conceptual',
             visualStyle: 'photorealistic',
-            ...(promptOverride ? { promptOverride } : {}),
-            negativePromptOverride: COURSE_ILLUSTRATION_NEGATIVE_PROMPT,
+            model: cascadeResult.model,
+            provider: cascadeResult.provider,
+            base64Data: image.base64Data,
+            mimeType: image.mimeType,
+            prompt: cascadeResult.prompt.slice(0, 2000),
+            source: 'api',
+            metadata: {
+              kind: 'conceptual',
+              sharedAcrossLocales: true,
+              courseId: input.courseId,
+              slotOrder: order,
+            },
           });
 
-          if (cascadeResult.success && cascadeResult.images.length) {
-            const image = cascadeResult.images[0];
-            const saved = await persistModuleIllustration({
-              moduleId: moduleRow.id,
-              locale: 'en',
-              style: 'conceptual',
-              visualStyle: 'photorealistic',
-              model: cascadeResult.model,
-              provider: cascadeResult.provider,
-              base64Data: image.base64Data,
-              mimeType: image.mimeType,
-              prompt: cascadeResult.prompt.slice(0, 2000),
-              source: 'api',
-              metadata: {
-                kind: 'conceptual',
-                sharedAcrossLocales: true,
-                courseId: input.courseId,
-              },
-            });
-
-            if (saved) {
-              result.modulesGenerated += 1;
-            }
-          } else {
-            result.errors.push(`Module ${moduleRow.id} conceptual generation failed: ${cascadeResult.error ?? 'No image'}`);
+          if (saved) {
+            result.modulesGenerated += 1;
           }
+        } else {
+          result.errors.push(`Module ${moduleRow.id} conceptual generation failed: ${cascadeResult.error ?? 'No image'}`);
         }
       }
 
