@@ -27,9 +27,6 @@ import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scrap
 import {
 	initializeImageHashCache,
 	registerImageHash,
-	const MIN_REWRITE_SUMMARY_CHARS = 40;
-	const MIN_REWRITE_CONTENT_CHARS = 220;
-	const MAX_URLS_IN_REWRITE = 2;
 	validateImageEnhanced,
 } from '../lib/services/image-validator';
 import { enhancedImageDescription } from '../lib/services/enhanced-image-description';
@@ -55,67 +52,6 @@ const ArticleClassificationSchema = z.object({
 		'tools',
 		'news',
 		'other',
-	function normalizeForChecks(text: string): string {
-		return text.replace(/\s+/g, ' ').trim();
-	}
-
-	function countUrls(text: string): number {
-		const matches = normalizeForChecks(text).match(/https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+/gi);
-		return matches?.length ?? 0;
-	}
-
-	function looksLikeUrlOnly(text: string): boolean {
-		const cleaned = normalizeForChecks(text);
-		if (!cleaned) return true;
-
-		const stripped = cleaned.replace(/[()\[\]<>"'.,;:!?]/g, ' ');
-		const parts = stripped.split(' ').filter(Boolean);
-
-		if (parts.length <= 3 && parts.some((p) => p.startsWith('http://') || p.startsWith('https://'))) return true;
-		if (cleaned.length < 120 && (cleaned.includes('http://') || cleaned.includes('https://'))) return true;
-
-		const urlCount = countUrls(cleaned);
-		if (urlCount >= 2 && parts.length <= urlCount * 6) return true;
-
-		return false;
-	}
-
-	function containsBoilerplateArtifacts(text: string): boolean {
-		const cleaned = normalizeForChecks(text).toLowerCase();
-		if (!cleaned) return false;
-
-		const patterns: RegExp[] = [
-			/\b(read more|continue reading|view image|see image)\b/i,
-			/\b(leer más|seguir leyendo|continúa leyendo|ver imagen|ver\s+la\s+imagen)\b/i,
-			/\b(reuse this content|republish|reutilizar este contenido|republicar)\b/i,
-			/\b(sign up|subscribe|newsletter|suscríbete|suscribirte|boletín)\b/i,
-			/\b(cookie policy|privacy policy|política de cookies|política de privacidad)\b/i,
-			/\b(share|compartir|copy link|copiar enlace)\b/i,
-			/\b(all rights reserved|todos los derechos reservados)\b/i,
-		];
-
-		return patterns.some((p) => p.test(cleaned));
-	}
-
-	function isRewriteQualityOk(input: { title: string; summary: string; content: string }): { ok: boolean; reasons: string[] } {
-		const reasons: string[] = [];
-		const title = normalizeForChecks(input.title);
-		const summary = normalizeForChecks(input.summary);
-		const content = normalizeForChecks(input.content);
-
-		if (title.length < 8) reasons.push('title_too_short');
-		if (summary.length < MIN_REWRITE_SUMMARY_CHARS) reasons.push('summary_too_short');
-		if (content.length < MIN_REWRITE_CONTENT_CHARS) reasons.push('content_too_short');
-		if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
-		if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
-
-		const urlCount = countUrls(`${summary} ${content}`);
-		if (urlCount > MAX_URLS_IN_REWRITE) reasons.push('too_many_urls');
-		if (containsBoilerplateArtifacts(`${summary}\n${content}`)) reasons.push('boilerplate_artifacts');
-
-		return { ok: reasons.length === 0, reasons };
-	}
-
 	]),
 	summary: z.string().describe('Brief summary of the article'),
 	image_alt_text: z.string().optional().describe('Alt text suggestion for the article image'),
@@ -130,27 +66,14 @@ type ArticleTranslation = {
 	image_alt_text?: string;
 };
 
-		const prompt = `Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'} with a friendly expert tone. Goals: (1) keep it factual, (2) add a quick "why it matters" feel, (3) avoid first-person unless clarifying. Keep paragraphs short (2-4 sentences).
-
-	Hard rules:
-	- Do NOT include raw URLs in the summary or content.
-	- Remove any boilerplate like "Read more", "Continue reading", "Ver imagen", "Leer más", subscription prompts, cookie/privacy banners, republish notices.
-	- Do NOT reference missing images or UI elements.
-
-	Return ONLY JSON with keys title, summary, content.
+interface RawArticle {
 	title: string;
 	link: string;
 	pubDate: string;
 	contentSnippet?: string;
 	content?: string;
 	enclosure?: { url?: string } | null;
-			const rewritten = await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);
-			const quality = isRewriteQualityOk(rewritten);
-			if (!quality.ok) {
-				console.warn(`[LLM Rewrite] Rejected rewrite due to: ${quality.reasons.join(', ')}`);
-				return null;
-			}
-			return rewritten;
+	source: NewsSource;
 }
 
 interface ResolvedImageData {
@@ -168,17 +91,11 @@ type ClassifiedArticleRecord = {
 		contentOriginal: string;
 		summaryOriginal: string;
 	};
-		const fallbackContent = cleanContent(entry.article.content) || entry.article.contentSnippet || '';
-		const scrapedCandidate = scraped.content && scraped.content.length > 120 && !looksLikeUrlOnly(scraped.content)
-			? scraped.content
-			: null;
-		const contentCandidate = scrapedCandidate ?? fallbackContent;
-		const contentOriginal = normalizeForChecks(contentCandidate);
-
-		const summaryCandidate = entry.article.contentSnippet
-			|| (scrapedCandidate ? scrapedCandidate.slice(0, 300) : '')
-			|| contentOriginal.slice(0, 300);
-		const summaryOriginal = sanitizeSummary(summaryCandidate);
+	cachedEmbedding?: number[] | null;
+	cachedImage?: ResolvedImageData | null;
+	lastError?: string;
+	queueId?: string;
+	queueAttempts?: number;
 };
 
 interface ArticleProcessingResult {
@@ -212,10 +129,6 @@ function calculateNextRetryDelayMs(attempts: number): number {
 	const delay = IMAGE_RETRY_BACKOFF_BASE_MS * Math.pow(2, cappedAttempts - 1);
 	return Math.min(delay, IMAGE_RETRY_BACKOFF_MAX_MS);
 }
-		// Hard gate: if source extraction is garbage, do not attempt to store.
-		if (looksLikeUrlOnly(summaryPrimary) || looksLikeUrlOnly(contentPrimary) || containsBoilerplateArtifacts(`${summaryPrimary}\n${contentPrimary}`)) {
-			throw new Error('Source text quality too low (url-only/boilerplate artifacts)');
-		}
 
 function cleanContent(html: string | undefined | null): string {
 	if (!html) {
@@ -225,8 +138,6 @@ function cleanContent(html: string | undefined | null): string {
 	const $ = load(html);
 	// Remove structural elements
 	$('script, style, iframe, nav, header, footer, aside, form').remove();
-			// Mandatory: all stored articles must be rewritten into house voice.
-			throw new Error('LLM rewrite failed or produced low-quality output');
 	// Remove ads and tracking
 	$('.ad, .advertisement, .ads, [class*="ad-"], [class*="advert"]').remove();
 	// Remove comments sections (various patterns)
@@ -285,25 +196,27 @@ async function rewriteArticleContent(
 		vertical: 'news',
 	});
 
-	const prompt = `You are an expert AI Analyst. Your task is to read the provided news content and generate a comprehensive, high-value analysis report in ${language === 'en' ? 'English' : 'Spanish'}.
+	// AI Analyst mode: professional tech journalist perspective
+	const prompt = `You are a senior AI analyst writing for an expert tech audience. Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'}.
 
-DO NOT just summarize. You must ADD VALUE by explaining the technical context, implications, and future outlook.
+VOICE & TONE:
+- Authoritative but accessible - like a respected tech journalist
+- Add brief "why it matters" context for industry impact
+- Use precise technical terminology where appropriate
+- Short, punchy paragraphs (2-4 sentences max)
+- No fluff, no hype - just insightful analysis
 
-Input Data:
-- Title: ${title}
-- Summary: ${summary}
-- Content: ${workingContent}
+HARD RULES:
+- Do NOT include raw URLs in summary or content
+- Remove boilerplate: "Read more", "Continue reading", "Subscribe", cookie/privacy notices
+- No first-person unless essential for clarity
+- No references to missing images or UI elements
 
-Instructions:
-1. **Title**: Create a professional, engaging title.
-2. **Summary**: A 2-sentence executive summary.
-3. **Content**: Write a structured article (Markdown) of at least 400 words containing:
-   - **The News**: What happened? (Clear, concise, rewritten)
-   - **Technical Deep Dive**: Explain the underlying technology or concepts. Use your expert knowledge to fill in gaps if the source is brief.
-   - **Why It Matters**: Analyze the impact on the AI industry, developers, or society.
-   - **Future Implications**: What does this mean for the next 6-12 months?
+Return ONLY valid JSON with keys: title, summary, content
 
-Return ONLY valid JSON with keys: "title", "summary", "content".`;
+Original title: ${title}
+Original summary: ${summary}
+Original content: ${workingContent}`;
 
 	try {
 		return await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);
@@ -785,10 +698,6 @@ async function determineBilingualContent(
 		}
 	}
 
-	if (!translation) {
-		throw new Error('Translation failed (required for bilingual storage)');
-	}
-
 	const fallbackAlt = entry.classification.image_alt_text || imageData.enhancedAltText || `AI news image for: ${entry.article.title}`;
 	let altTextEn = fallbackAlt;
 	let altTextEs = fallbackAlt;
@@ -801,20 +710,6 @@ async function determineBilingualContent(
 		altTextEs = fallbackAlt;
 		const [altEn] = await batchTranslate([fallbackAlt], 'es', 'en');
 		altTextEn = altEn || fallbackAlt;
-	}
-
-	// Validate both language payloads before persisting.
-	const titleEn = originalLanguage === 'en' ? titlePrimary : translation?.title || titlePrimary;
-	const titleEs = originalLanguage === 'es' ? titlePrimary : translation?.title || titlePrimary;
-	const summaryEn = originalLanguage === 'en' ? summaryPrimary : translation?.summary || summaryPrimary;
-	const summaryEs = originalLanguage === 'es' ? summaryPrimary : translation?.summary || summaryPrimary;
-	const contentEn = originalLanguage === 'en' ? contentPrimary : translation?.content || contentPrimary;
-	const contentEs = originalLanguage === 'es' ? contentPrimary : translation?.content || contentPrimary;
-
-	const qualityEn = isRewriteQualityOk({ title: titleEn, summary: summaryEn, content: contentEn });
-	const qualityEs = isRewriteQualityOk({ title: titleEs, summary: summaryEs, content: contentEs });
-	if (!qualityEn.ok || !qualityEs.ok) {
-		throw new Error(`Bilingual quality gate failed (en: ${qualityEn.reasons.join(', ')}; es: ${qualityEs.reasons.join(', ')})`);
 	}
 
 	return {
@@ -958,15 +853,8 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 
 	entry.cachedImage = imageData;
 
-	try {
-		const bilingual = await determineBilingualContent(entry, imageData, llm);
-		return persistArticle(entry, imageData, bilingual, db);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		console.warn(`[News Curator] Skipping article due to quality gate: ${message}`);
-		entry.lastError = message;
-		return { success: false, retryable: false, reason: message };
-	}
+	const bilingual = await determineBilingualContent(entry, imageData, llm);
+	return persistArticle(entry, imageData, bilingual, db);
 }
 
 async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promise<void> {
