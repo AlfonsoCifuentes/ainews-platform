@@ -1,0 +1,96 @@
+name: 🔧 News Content Maintenance
+
+on:
+  schedule:
+    # Run ONCE daily at 5 AM UTC (after curation at midnight, 6h, 12h, 18h)
+    # ⚠️ Reduced from 2x/day to 1x/day - maintain-news.ts now has version tracking
+    # to avoid reprocessing articles that already have rewrite_version >= 2
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      rewrite_days:
+        description: 'Days of articles to rewrite (default: 3)'
+        required: false
+        default: '3'
+      dry_run:
+        description: 'Dry run (preview only)'
+        required: false
+        default: 'false'
+      force_upgrade:
+        description: 'Force upgrade all articles (ignore rewrite tracking) - USE WITH CAUTION'
+        required: false
+        default: 'false'
+
+jobs:
+  maintain-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Check API Keys
+        run: |
+          echo "🔑 Checking API keys..."
+          echo "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' && '✓ Set' || '✗ Missing (REQUIRED)' }}"
+          echo "NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL != '' && '✓ Set' || '✗ Missing' }}"
+          echo "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '✓ Set' || '✗ Missing' }}"
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "❌ OPENAI_API_KEY is required for GPT-4o-mini rewriting"
+            exit 1
+          fi
+
+      - name: 🔧 Run News Maintenance (Rewrite with GPT-4o-mini)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          AI_MODEL_PROFILE: cost-balanced
+        run: |
+          FLAGS=""
+          if [ "${{ github.event.inputs.force_upgrade }}" = "true" ]; then
+            FLAGS="$FLAGS --rewrite-all"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+          DAYS="${{ github.event.inputs.rewrite_days || '3' }}"
+          echo "🔧 Maintaining news content (last ${DAYS} days)..."
+          npm run ai:maintain-news -- --rewrite-days="${DAYS}" ${FLAGS}
+
+      - name: 📈 Upgrade Uncurated Articles (if any)
+        if: success()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "📈 Checking for articles needing GPT-4o-mini upgrade..."
+          FLAGS="--execute --needs-upgrade --limit 20"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="--needs-upgrade --limit 20"
+          fi
+          npx tsx scripts/upgrade-news-content.ts ${FLAGS}
+
+      - name: ✅ Log completion
+        if: success()
+        run: |
+          echo "✅ News maintenance completado"
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+      - name: ❌ Log failure
+        if: failure()
+        run: |
+          echo "❌ News maintenance falló"
+          echo "Revisar logs para más detalles"

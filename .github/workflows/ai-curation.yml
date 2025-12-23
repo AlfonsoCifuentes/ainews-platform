@@ -34,6 +34,7 @@ jobs:
           echo "🔍 Checking which secrets are available..."
           echo "NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL != '' && '✓ Set' || '✗ Missing' }}"
           echo "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '✓ Set' || '✗ Missing' }}"
+          echo "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' && '✓ Set (GPT-4o-mini enabled)' || '✗ Missing (fallback to free providers)' }}"
           echo "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
           echo "OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
           echo "GROQ_API_KEY: ${{ secrets.GROQ_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
@@ -45,6 +46,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_MODEL_PROFILE: cost-balanced
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: npm run ai:curate
         timeout-minutes: 60

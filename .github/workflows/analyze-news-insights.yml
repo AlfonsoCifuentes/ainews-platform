@@ -2,8 +2,9 @@ name: Analyze News Insights
 
 on:
   schedule:
-    # Run every 2 hours
-    - cron: '0 */2 * * *'
+    # Run every 6 hours (was every 2h - reduced to save API calls)
+    # Insights don't change that fast, 4x/day is sufficient
+    - cron: '30 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:

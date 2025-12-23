@@ -231,13 +231,18 @@ Original content: ${truncateForRewrite(input.content)}`;
 	}
 }
 
+// Current rewrite version - only reprocess if version is lower
+const CURRENT_REWRITE_VERSION = 2;
+
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
 	const cutoffIso = new Date(now - args.rewriteDays * 24 * 60 * 60 * 1000).toISOString();
 	if (args.rewriteAll) {
 		console.log('[MaintainNews] Rewrite window: ALL (including null published_at)');
+		console.log('[MaintainNews] ⚠️  --rewrite-all flag: Will reprocess ALL articles regardless of version');
 	} else {
 		console.log(`[MaintainNews] Rewrite window: published_at >= ${cutoffIso}`);
+		console.log(`[MaintainNews] ✅ Only processing articles with rewrite_version < ${CURRENT_REWRITE_VERSION} (avoiding reprocesamiento)`);
 	}
 
 	let offset = 0;
@@ -247,7 +252,7 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 	while (rewrittenCount + skippedCount < args.maxRewrite) {
 		let query = db
 			.from('news_articles')
-			.select('id, title_en, summary_en, content_en, published_at')
+			.select('id, title_en, summary_en, content_en, published_at, rewrite_version')
 			.order('published_at', { ascending: false });
 
 		if (args.rewriteAll) {
@@ -255,6 +260,9 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			query = query.or(`published_at.gte.${cutoffIso},published_at.is.null`);
 		} else {
 			query = query.gte('published_at', cutoffIso);
+			// ⚠️ CRITICAL: Only reprocess articles that haven't been rewritten with current version
+			// This prevents infinite rewriting of the same articles
+			query = query.or(`rewrite_version.is.null,rewrite_version.lt.${CURRENT_REWRITE_VERSION}`);
 		}
 
 		const { data, error } = await query.range(offset, offset + args.batchSize - 1);
@@ -310,6 +318,9 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 					summary_es: spanish.summary,
 					content_es: spanish.content,
 					ai_generated: true,
+					rewrite_model: 'gpt-4o-mini',
+					rewrite_version: 2,
+					rewrite_at: new Date().toISOString(),
 					updated_at: new Date().toISOString(),
 				})
 				.eq('id', row.id);

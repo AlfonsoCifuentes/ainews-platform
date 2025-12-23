@@ -1,22 +1,24 @@
 # GitHub Actions Workflow - AI Agents Scheduler
 # Runs autonomous AI agents on schedule
 # 
+# ⚠️ NOTE: Trend Detector is DISABLED here - use detect-trending.yml instead (avoids duplication)
+# 
 # Agents:
-# - Trend Detector: Every 6 hours
+# - Trend Detector: DISABLED (use detect-trending.yml)
 # - Fact Checker: Daily at 2 AM UTC
-# - Bias Auditor: Daily at 3 AM UTC
+# - Bias Auditor: Daily at 3:30 AM UTC (offset from learning-agent)
 # - Multi-Perspective: On-demand via manual trigger
 
 name: AI Agents Scheduler
 
 on:
   schedule:
-    # Trend Detector - Every 6 hours
-    - cron: '0 */6 * * *'
+    # Trend Detector - DISABLED (use detect-trending.yml instead to avoid duplicate API calls)
+    # - cron: '0 */6 * * *'
     # Fact Checker - Daily at 2 AM UTC
     - cron: '0 2 * * *'
-    # Bias Auditor - Daily at 3 AM UTC
-    - cron: '0 3 * * *'
+    # Bias Auditor - Daily at 3:30 AM UTC (offset 30 min from learning-agent to avoid race condition)
+    - cron: '30 3 * * *'
   
   # Allow manual triggers
   workflow_dispatch:

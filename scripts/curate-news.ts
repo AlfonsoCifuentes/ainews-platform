@@ -285,27 +285,84 @@ async function rewriteArticleContent(
 		vertical: 'news',
 	});
 
-	// AI Analyst mode: professional tech journalist perspective
-	const prompt = `You are a senior AI analyst writing for an expert tech audience. Rewrite the article below in ${language === 'en' ? 'English' : 'Spanish'}.
+	// Value-Added AI Analyst mode for AdSense optimization
+	const prompt = language === 'es' 
+		? `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
 
-VOICE & TONE:
-- Authoritative but accessible - like a respected tech journalist
-- Add brief "why it matters" context for industry impact
-- Use precise technical terminology where appropriate
-- Short, punchy paragraphs (2-4 sentences max)
-- No fluff, no hype - just insightful analysis
+## OBJETIVO
+Transformar noticias básicas en contenido premium que aporte valor real al lector y sea atractivo para anunciantes de tecnología.
 
-HARD RULES:
-- Do NOT include raw URLs in summary or content
-- Remove boilerplate: "Read more", "Continue reading", "Subscribe", cookie/privacy notices
-- No first-person unless essential for clarity
-- No references to missing images or UI elements
+## ESTRUCTURA REQUERIDA
 
-Return ONLY valid JSON with keys: title, summary, content
+### Título (title)
+- Gancho informativo que capte la atención
+- Incluir la innovación clave o el impacto principal
+- Máximo 100 caracteres, evitar clickbait vacío
 
-Original title: ${title}
-Original summary: ${summary}
-Original content: ${workingContent}`;
+### Resumen (summary) - 60-200 palabras
+- Párrafo de entrada que enganche al lector
+- Responder: ¿Qué pasó? ¿Por qué importa?
+- Lenguaje claro y directo
+
+### Contenido (content) - 200-600 palabras
+Estructurar con:
+1. **La Noticia**: ¿Qué ocurrió exactamente?
+2. **Contexto**: Situar en el panorama actual de la IA
+3. **Por Qué Importa**: Impacto en usuarios, empresas o la industria
+4. **Perspectiva**: Análisis sobre tendencias futuras
+
+## REGLAS ESTRICTAS
+- NO incluir URLs crudas en el texto
+- NO usar "Leer más", "Continuar leyendo", avisos de cookies
+- NO mencionar imágenes o elementos UI que falten
+- Usar párrafos cortos (2-4 oraciones)
+- Incluir términos técnicos relevantes pero explicarlos
+
+Devuelve SOLO JSON válido con: title, summary, content
+
+---
+ARTÍCULO ORIGINAL:
+Título: ${title}
+Resumen: ${summary}
+Contenido: ${workingContent}`
+		: `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT.
+
+## OBJECTIVE
+Transform basic news into premium content that provides real value to readers and is attractive to technology advertisers.
+
+## REQUIRED STRUCTURE
+
+### Title (title)
+- Informative hook that captures attention
+- Include the key innovation or main impact
+- Maximum 100 characters, avoid empty clickbait
+
+### Summary (summary) - 60-200 words
+- Opening paragraph that hooks the reader
+- Answer: What happened? Why does it matter?
+- Clear and direct language
+
+### Content (content) - 200-600 words
+Structure with:
+1. **The News**: What exactly happened?
+2. **Context**: Situate in the current AI landscape
+3. **Why It Matters**: Impact on users, companies, or the industry
+4. **Perspective**: Expert analysis on future trends
+
+## STRICT RULES
+- Do NOT include raw URLs in the text
+- Do NOT use "Read more", "Continue reading", cookie notices
+- Do NOT mention missing images or UI elements
+- Use short paragraphs (2-4 sentences)
+- Include relevant technical terms but briefly explain them
+
+Return ONLY valid JSON with: title, summary, content
+
+---
+ORIGINAL ARTICLE:
+Title: ${title}
+Summary: ${summary}
+Content: ${workingContent}`;
 
 	try {
 		return await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);
@@ -1042,6 +1099,11 @@ async function persistArticle(
 			image_mime: imageData.validation.mime ?? null,
 			image_bytes: imageData.validation.bytes ?? null,
 			image_hash: imageData.validation.visualSimilarity?.hash ?? imageData.validation.hash ?? null,
+			// Track rewrite model/version for value-added content
+			rewrite_model: process.env.AI_MODEL_PROFILE === 'cost-balanced' ? 'gpt-4o-mini' : null,
+			rewrite_version: process.env.AI_MODEL_PROFILE === 'cost-balanced' ? 2 : null,
+			rewrite_at: new Date().toISOString(),
+			value_score: entry.classification.quality_score,
 		};
 
 		const { data: insertedArticle, error: insertError } = await db
