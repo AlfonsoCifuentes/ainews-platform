@@ -116,6 +116,7 @@ type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 const MAX_ARTICLES_TO_PROCESS = 100;
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
+const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
 const IMAGE_RETRY_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
@@ -404,6 +405,42 @@ async function ensureArticleContent(entry: ClassifiedArticleRecord): Promise<{
 	return entry.cachedContent;
 }
 
+/**
+ * Generate a fallback image URL from Unsplash based on article category
+ */
+function generateFallbackImage(category: string, title: string): ResolvedImageData {
+	const categoryMap: Record<string, string> = {
+		machinelearning: 'machine-learning,neural-network',
+		nlp: 'language,text,communication',
+		computervision: 'vision,camera,recognition',
+		robotics: 'robot,automation',
+		ethics: 'ethics,justice,technology',
+		business: 'business,technology,startup',
+		research: 'science,laboratory,research',
+		tools: 'software,code,programming',
+		news: 'technology,digital,innovation',
+		other: 'technology,artificial-intelligence',
+	};
+
+	const keywords = categoryMap[category] || categoryMap.other;
+	const sig = Math.floor(Math.random() * 100000);
+	const url = `https://source.unsplash.com/1600x900/?${keywords}&sig=${sig}`;
+
+	console.log(`[Fallback] Using Unsplash image for category "${category}"`);
+
+	return {
+		url,
+		validation: {
+			isValid: true,
+			isDuplicate: false,
+			mime: 'image/jpeg',
+			width: 1600,
+			height: 900,
+		},
+		enhancedAltText: `AI technology illustration related to ${title.slice(0, 50)}`,
+	};
+}
+
 async function generateEnhancedAltText(imageUrl: string): Promise<string | undefined> {
 	if (!enhancedImageDescription.isAvailable()) {
 		return undefined;
@@ -536,18 +573,27 @@ async function filterExistingArticles(
 		return entries;
 	}
 
-	const links = entries.map((entry) => entry.article.link);
-	const { data, error } = await db
-		.from('news_articles')
-		.select('source_url')
-		.in('source_url', links);
+	// Process in batches of 50 to avoid "Bad Request" from too many values in IN clause
+	const batchSize = 50;
+	const existing = new Set<string>();
+	
+	for (let i = 0; i < entries.length; i += batchSize) {
+		const batch = entries.slice(i, i + batchSize);
+		const links = batch.map((entry) => entry.article.link);
+		
+		const { data, error } = await db
+			.from('news_articles')
+			.select('source_url')
+			.in('source_url', links);
 
-	if (error) {
-		console.warn('[DB] Failed to fetch existing articles, proceeding without dedupe:', error);
-		return entries;
+		if (error) {
+			console.warn('[DB] Failed to fetch existing articles batch, proceeding without dedupe:', error);
+			continue;
+		}
+		
+		(data ?? []).forEach((row) => existing.add(row.source_url));
 	}
 
-	const existing = new Set((data ?? []).map((row) => row.source_url));
 	const filtered = entries.filter((entry) => !existing.has(entry.article.link));
 	console.log(`[DB] Skipping ${entries.length - filtered.length} already-stored article(s)`);
 	return filtered;
@@ -831,17 +877,27 @@ async function persistArticle(
 
 async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient, llm: LLMClient): Promise<ArticleProcessingResult> {
 	let imageData: ResolvedImageData | null = entry.cachedImage ?? null;
+
+	// Skip image scraping for Google News URLs (always uses generic placeholder)
+	const isGoogleNews = entry.article.link.includes('news.google.com');
+	const maxAttempts = isGoogleNews ? 1 : MAX_IMAGE_ATTEMPTS;
 	let attempt = 0;
 
-	while (attempt < MAX_IMAGE_ATTEMPTS && !imageData) {
+	while (attempt < maxAttempts && !imageData) {
 		attempt += 1;
 		const totalAttempt = attempt + (entry.queueAttempts ?? 0);
 		imageData = await resolveOriginalImage(entry, totalAttempt);
 
-		if (!imageData && attempt < MAX_IMAGE_ATTEMPTS) {
-			console.log(`[ImageValidator] Retry ${attempt}/${MAX_IMAGE_ATTEMPTS} failed for ${entry.article.title.slice(0, 60)}..., waiting...`);
+		if (!imageData && attempt < maxAttempts) {
+			console.log(`[ImageValidator] Retry ${attempt}/${maxAttempts} failed for ${entry.article.title.slice(0, 60)}..., waiting...`);
 			await sleep(IMAGE_RETRY_DELAY_MS * attempt);
 		}
+	}
+
+	// Use fallback image from Unsplash if original image not found
+	if (!imageData && USE_FALLBACK_IMAGES) {
+		console.log(`[ImageValidator] Using fallback image for ${entry.article.title.slice(0, 60)}...`);
+		imageData = generateFallbackImage(entry.classification.category, entry.article.title);
 	}
 
 	if (!imageData) {
