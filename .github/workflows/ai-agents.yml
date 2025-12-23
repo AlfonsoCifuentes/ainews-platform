@@ -11,6 +11,10 @@
 
 name: AI Agents Scheduler
 
+concurrency:
+  group: ai-agents-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   schedule:
     # Trend Detector - DISABLED (use detect-trending.yml instead to avoid duplicate API calls)
@@ -37,73 +41,74 @@ on:
 jobs:
   run-agents:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       SITE_URL: https://thotnet-core.vercel.app
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Trend Detector
-        if: github.event.schedule == '0 */6 * * *' || github.event.inputs.agent == 'trend_detector' || github.event.inputs.agent == 'all'
+      - name: Run scheduled/selected agent(s)
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AGENT_INPUT: ${{ github.event.inputs.agent }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          curl -X POST "$SITE_URL/api/agents/run" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -d '{"agentType":"trend_detector"}'
+          set -euo pipefail
 
-      - name: Run Fact Checker
-        if: github.event.schedule == '0 2 * * *' || github.event.inputs.agent == 'fact_checker' || github.event.inputs.agent == 'all'
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          curl -X POST "$SITE_URL/api/agents/run" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -d '{"agentType":"fact_checker"}'
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "❌ Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
 
-      - name: Run Bias Auditor
-        if: github.event.schedule == '0 3 * * *' || github.event.inputs.agent == 'bias_auditor' || github.event.inputs.agent == 'all'
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          curl -X POST "$SITE_URL/api/agents/run" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -d '{"agentType":"bias_auditor"}'
+          echo "Event: ${{ github.event_name }}"
+          echo "Schedule: ${SCHEDULE:-<none>}"
+          echo "Input agent: ${AGENT_INPUT:-<none>}"
 
-      - name: Run Multi-Perspective
-        if: github.event.inputs.agent == 'multi_perspective' || github.event.inputs.agent == 'all'
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          curl -X POST "$SITE_URL/api/agents/run" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -d '{"agentType":"multi_perspective"}'
+          agents=()
+
+          # Scheduled runs map cron -> agent
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            case "${SCHEDULE}" in
+              '0 2 * * *') agents+=("fact_checker") ;;
+              '30 3 * * *') agents+=("bias_auditor") ;;
+              *)
+                echo "ℹ️ No agent mapped for this schedule: ${SCHEDULE}"
+                exit 0
+                ;;
+            esac
+          else
+            # Manual runs
+            case "${AGENT_INPUT}" in
+              trend_detector|fact_checker|bias_auditor|multi_perspective)
+                agents+=("${AGENT_INPUT}")
+                ;;
+              all)
+                agents+=("trend_detector" "fact_checker" "bias_auditor" "multi_perspective")
+                ;;
+              *)
+                echo "❌ Unknown agent input: ${AGENT_INPUT}"
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "Agents to run: ${agents[*]}"
+
+          for agent in "${agents[@]}"; do
+            echo "🚀 Running agent: ${agent}"
+
+            # `--fail-with-body` makes HTTP 4xx/5xx fail the step (and prints body)
+            # Retries help with transient Vercel/network hiccups.
+            curl --fail-with-body --show-error --silent \
+              --connect-timeout 15 --max-time 180 \
+              --retry 5 --retry-delay 2 --retry-all-errors \
+              -X POST "${SITE_URL}/api/agents/run" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -d "{\"agentType\":\"${agent}\"}" \
+              | tee "/tmp/agent-${agent}-response.json"
+
+            echo "✅ Agent ${agent} completed"
+          done
 
       - name: Notify on failure
         if: failure()
