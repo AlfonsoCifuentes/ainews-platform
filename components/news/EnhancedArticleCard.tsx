@@ -4,6 +4,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Clock, TrendingUp, Bookmark, Share2, ExternalLink } from 'lucide-react';
@@ -28,6 +29,9 @@ export default function EnhancedArticleCard({
   onShare,
   isBookmarked = false,
 }: EnhancedArticleCardProps) {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => setHasMounted(true), []);
+
   const title = getLocalizedField(article, 'title', locale) as string;
   const summary = getLocalizedField(article, 'summary', locale) as string;
   const readingTime = Math.ceil((summary?.length || 0) / 200); // ~200 chars per minute
@@ -90,10 +94,13 @@ export default function EnhancedArticleCard({
 
             {article.published_at && (
               <span>
-                {new Date(article.published_at).toLocaleDateString(
-                  locale === 'en' ? 'en-US' : 'es-ES',
-                  { month: 'short', day: 'numeric' }
-                )}
+                {hasMounted
+                  ? new Date(article.published_at).toLocaleDateString(
+                      locale === 'en' ? 'en-US' : 'es-ES',
+                      { month: 'short', day: 'numeric' }
+                    )
+                  : new Date(article.published_at).toISOString().slice(5, 10)
+                }
               </span>
             )}
           </div>

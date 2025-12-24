@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { formatRelativeTimeFromNow } from '@/lib/utils/format';
 import { useRouter } from 'next/navigation';
@@ -39,6 +40,9 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
   const router = useRouter();
   const locale = useLocale();
   const { markAsRead } = useNotifications();
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => setHasMounted(true), []);
 
   const handleClick = async () => {
     if (!notification.read) {
@@ -72,7 +76,10 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
             {notification.message}
           </p>
           <p className="text-xs text-muted-foreground">
-            {formatRelativeTimeFromNow(new Date(notification.created_at), locale as 'en' | 'es')}
+            {hasMounted 
+              ? formatRelativeTimeFromNow(new Date(notification.created_at), locale as 'en' | 'es')
+              : new Date(notification.created_at).toISOString().slice(0, 10)
+            }
           </p>
         </div>
 

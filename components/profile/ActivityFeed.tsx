@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { UserXPLog } from '@/lib/types/user';
 
@@ -46,6 +47,9 @@ const ACTION_LABELS = {
 };
 
 export function ActivityFeed({ activities, locale }: ActivityFeedProps) {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => setHasMounted(true), []);
+
   if (activities.length === 0) {
     return (
       <div className="glass rounded-2xl border border-white/10 p-8 text-center text-muted-foreground">
@@ -78,7 +82,7 @@ export function ActivityFeed({ activities, locale }: ActivityFeedProps) {
                   <span className="text-primary">+{activity.xp_amount} XP</span>
                 </span>
                 <span>•</span>
-                <span>{formatRelativeTime(activity.earned_at, locale)}</span>
+                <span>{hasMounted ? formatRelativeTime(activity.earned_at, locale) : new Date(activity.earned_at).toISOString().slice(0, 10)}</span>
               </div>
             </div>
 
