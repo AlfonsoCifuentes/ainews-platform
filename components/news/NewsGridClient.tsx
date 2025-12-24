@@ -10,7 +10,7 @@ import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { type Locale } from '@/i18n';
 import { BookmarkButton } from '@/components/shared/BookmarkButton';
 import { MiniShareButtons } from '@/components/shared/ShareButtons';
-import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
+import { assignFallbackImagesToArticles, generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 // Lazy load ArticleModal (heavy component with animations)
 const ArticleModal = dynamic(
@@ -36,6 +36,27 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(initialArticles.length);
   const [selectedArticle, setSelectedArticle] = useState<INewsArticle | null>(null);
+
+  // 0: original/computed URL, 1: Supabase fallback, 2: SVG fallback
+  const [imageFallbackStageById, setImageFallbackStageById] = useState<Record<string, 0 | 1 | 2>>({});
+
+  const onImageError = useCallback((articleId: string) => {
+    setImageFallbackStageById((prev) => {
+      const current = prev[articleId] ?? 0;
+      const next = (Math.min(2, current + 1) as 0 | 1 | 2);
+      if (next === current) return prev;
+      return { ...prev, [articleId]: next };
+    });
+  }, []);
+
+  const getSafeImageSrc = useCallback((article: INewsArticle & { computed_image_url: string }) => {
+    const stage = imageFallbackStageById[article.id] ?? 0;
+    const title = getLocalizedString(article, 'title', locale);
+
+    if (stage === 0) return article.computed_image_url;
+    if (stage === 1) return getImageWithFallback('', title, article.category, article.id);
+    return generateFallbackImage({ title, category: article.category });
+  }, [imageFallbackStageById, locale]);
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -155,12 +176,13 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
           <article className="relative border border-white/12 bg-[#050505]">
             <div className="relative w-full" style={{ aspectRatio: '16 / 9', minHeight: '500px', overflow: 'hidden' }}>
               <Image
-                src={hero.computed_image_url}
+                src={getSafeImageSrc(hero)}
                 alt={getLocalizedString(hero, 'title', locale)}
                 fill
                 priority
                 sizes="100vw"
-                unoptimized={hero.computed_image_url.startsWith('data:')}
+                unoptimized={getSafeImageSrc(hero).startsWith('data:')}
+                onError={() => onImageError(hero.id)}
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
@@ -214,11 +236,12 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
               <article className="relative h-full overflow-hidden border border-white/12 bg-[#050505]">
                 <div className="relative h-56 overflow-hidden">
                   <Image
-                    src={article.computed_image_url}
+                    src={getSafeImageSrc(article)}
                     alt={getLocalizedString(article, 'title', locale)}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
-                    unoptimized={article.computed_image_url.startsWith('data:')}
+                    unoptimized={getSafeImageSrc(article).startsWith('data:')}
+                    onError={() => onImageError(article.id)}
                     className="object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
@@ -274,11 +297,12 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                 <article className="relative flex h-full flex-col overflow-hidden border border-white/12 bg-[#050505] transition-colors duration-200 hover:border-white/40">
                   <div className={`relative overflow-hidden ${isLarge ? 'flex-[2] min-h-0' : 'h-48'}`}>
                     <Image
-                      src={article.computed_image_url}
+                      src={getSafeImageSrc(article)}
                       alt={getLocalizedString(article, 'title', locale)}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      unoptimized={article.computed_image_url.startsWith('data:')}
+                      unoptimized={getSafeImageSrc(article).startsWith('data:')}
+                      onError={() => onImageError(article.id)}
                       className="object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />

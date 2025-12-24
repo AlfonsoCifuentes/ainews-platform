@@ -6,7 +6,7 @@ import type { INewsArticle, IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
@@ -29,6 +29,7 @@ export function ArticleCard({
   const title = getLocalizedString(article, 'title', locale);
   const summary = getLocalizedString(article, 'summary', locale);
   const [relativeTimeClient, setRelativeTimeClient] = useState('');
+  const [imageFallbackStage, setImageFallbackStage] = useState<0 | 1 | 2>(0);
 
   useEffect(() => {
     setRelativeTimeClient(formatRelativeTimeFromNow(article.published_at, locale));
@@ -37,12 +38,19 @@ export function ArticleCard({
   const publishedDateLabel = new Date(article.published_at).toISOString().slice(0, 10);
   
   // Generar imagen con fallback automático si no hay imagen
-  const imageUrl = getImageWithFallback(
+  const baseImageUrl = getImageWithFallback(
     article.image_url,
     title,
     article.category,
     article.id
   );
+
+  const imageUrl =
+    imageFallbackStage === 0
+      ? baseImageUrl
+      : imageFallbackStage === 1
+        ? getImageWithFallback('', title, article.category, article.id)
+        : generateFallbackImage({ title, category: article.category });
 
   return (
     <article
@@ -56,6 +64,7 @@ export function ArticleCard({
           priority={priority}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           unoptimized={imageUrl.startsWith('data:')}
+          onError={() => setImageFallbackStage((s) => (Math.min(2, s + 1) as 0 | 1 | 2))}
           className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02] group-hover:rotate-0.25"
         />
 

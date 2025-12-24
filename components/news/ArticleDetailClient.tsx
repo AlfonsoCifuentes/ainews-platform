@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeft, ExternalLink, Clock, Tag, BookOpen } from 'lucide-react';
 import { Link } from '@/i18n';
@@ -12,7 +12,7 @@ import { RecommendedArticles } from '@/components/news/RecommendedArticles';
 import { useReadingTracker } from '@/lib/hooks/useReadingTracker';
 import { formatDate } from '@/lib/utils/format';
 import { useTranslations } from 'next-intl';
-import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { formatArticleContent, calculateReadingTime } from '@/lib/utils/text-formatter';
 
 interface Article {
@@ -38,10 +38,21 @@ interface ArticleDetailClientProps {
 export function ArticleDetailClient({ article, locale }: ArticleDetailClientProps) {
   const t = useTranslations('common');
   const { scrollDepth } = useReadingTracker({ articleId: article.id });
+  const [imageFallbackStage, setImageFallbackStage] = useState<0 | 1 | 2>(0);
 
   const title = article[`title_${locale}`] || article.title_en;
   const summary = article[`summary_${locale}`] || article.summary_en;
   const content = article[`content_${locale}`] || article.content_en;
+
+  const baseImageUrl = useMemo(() => {
+    return getImageWithFallback(article.image_url, title, article.category, article.id);
+  }, [article.image_url, article.category, article.id, title]);
+
+  const imageUrl = useMemo(() => {
+    if (imageFallbackStage === 0) return baseImageUrl;
+    if (imageFallbackStage === 1) return getImageWithFallback('', title, article.category, article.id);
+    return generateFallbackImage({ title, category: article.category });
+  }, [article.category, article.id, baseImageUrl, imageFallbackStage, title]);
 
   // Format content for better readability
   const formattedContent = useMemo(() => {
@@ -124,13 +135,14 @@ export function ArticleDetailClient({ article, locale }: ArticleDetailClientProp
       {/* Featured Image */}
       <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-white/10">
         <Image
-          src={getImageWithFallback(article.image_url, title, article.category)}
+          src={imageUrl}
           alt={title}
           fill
           className="object-cover"
           priority
           sizes="(max-width: 1024px) 100vw, 1024px"
-          unoptimized={!article.image_url || article.image_url.startsWith('data:')}
+          unoptimized={imageUrl.startsWith('data:')}
+          onError={() => setImageFallbackStage((s) => (Math.min(2, s + 1) as 0 | 1 | 2))}
         />
       </div>
 
