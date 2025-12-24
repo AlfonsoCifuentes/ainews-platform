@@ -18,12 +18,24 @@ type Row = {
 	created_at: string;
 	title_en: string | null;
 	summary_en: string | null;
+	title_es: string | null;
+	summary_es: string | null;
 	ai_generated: boolean | null;
 	rewrite_version: number | null;
 	rewrite_model: string | null;
 	value_score: number | null;
 	source_url: string | null;
 };
+
+function normalizeForCompare(text: string | null | undefined): string {
+	return (text ?? '')
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
 
 function readArgValue(name: string): string | undefined {
 	const eqPrefix = `${name}=`;
@@ -56,7 +68,7 @@ async function main() {
 
 	const { data, error } = await supabase
 		.from('news_articles')
-		.select('id, created_at, title_en, summary_en, ai_generated, rewrite_version, rewrite_model, value_score, source_url')
+		.select('id, created_at, title_en, summary_en, title_es, summary_es, ai_generated, rewrite_version, rewrite_model, value_score, source_url')
 		.gte('created_at', sinceIso)
 		.order('created_at', { ascending: false })
 		.limit(limit);
@@ -73,6 +85,16 @@ async function main() {
 	const rewriteLt3 = rows.filter((r) => (r.rewrite_version ?? 0) < 3).length;
 	const modelMissing = rows.filter((r) => !r.rewrite_model).length;
 	const lowValue = rows.filter((r) => (r.value_score ?? 1) < 0.55).length;
+	const degenerate = rows.filter((r) => {
+		const te = normalizeForCompare(r.title_en);
+		const se = normalizeForCompare(r.summary_en);
+		const ts = normalizeForCompare(r.title_es);
+		const ss = normalizeForCompare(r.summary_es);
+		return (
+			(Boolean(te) && Boolean(se) && (se === te || se.startsWith(te))) ||
+			(Boolean(ts) && Boolean(ss) && (ss === ts || ss.startsWith(ts)))
+		);
+	}).length;
 
 	console.log('--- NEWS ENRICHMENT AUDIT ---');
 	console.log(`Window: last ${days} days (since ${sinceIso})`);
@@ -83,10 +105,20 @@ async function main() {
 	console.log(`rewrite_version < 3: ${rewriteLt3} (${percent(rewriteLt3, total)})`);
 	console.log(`rewrite_model missing: ${modelMissing} (${percent(modelMissing, total)})`);
 	console.log(`value_score < 0.55: ${lowValue} (${percent(lowValue, total)})`);
+	console.log(`degenerate (summary≈title): ${degenerate} (${percent(degenerate, total)})`);
 	console.log('');
 
 	const likelyRaw = rows
-		.filter((r) => r.ai_generated === false || r.rewrite_version == null || (r.value_score ?? 1) < 0.55)
+		.filter((r) => {
+			const te = normalizeForCompare(r.title_en);
+			const se = normalizeForCompare(r.summary_en);
+			const ts = normalizeForCompare(r.title_es);
+			const ss = normalizeForCompare(r.summary_es);
+			const isDegenerate =
+				(Boolean(te) && Boolean(se) && (se === te || se.startsWith(te))) ||
+				(Boolean(ts) && Boolean(ss) && (ss === ts || ss.startsWith(ts)));
+			return r.ai_generated === false || r.rewrite_version == null || (r.value_score ?? 1) < 0.55 || isDegenerate;
+		})
 		.slice(0, 15);
 
 	if (likelyRaw.length) {

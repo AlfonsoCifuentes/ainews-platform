@@ -129,6 +129,7 @@ const MAX_ARTICLES_TO_PROCESS = 100;
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
+const CURRENT_REWRITE_VERSION = 3;
 const REQUIRE_VALUE_ADDED_REWRITE = true; // Do not persist near-raw RSS content
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
@@ -323,6 +324,32 @@ function isMeaningfullyDifferent(input: { title: string; summary: string }, outp
 	return { ok: reasons.length === 0, reasons };
 }
 
+function validateValueAddedRewrite(output: { title: string; summary: string; content: string }): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const titleNorm = normalizeForSimilarity(output.title);
+	const summaryNorm = normalizeForSimilarity(output.summary);
+	const contentHeadNorm = normalizeForSimilarity(output.content.slice(0, 700));
+
+	if (titleNorm && summaryNorm) {
+		if (titleNorm === summaryNorm) reasons.push('summary_equals_title');
+		if (summaryNorm.startsWith(titleNorm)) reasons.push('summary_starts_with_title');
+		const titleSummarySim = similarityJaccardSimilarity(similarityTokenSet(output.title), similarityTokenSet(output.summary));
+		if (titleSummarySim >= 0.86) reasons.push(`title_summary_too_similar:${titleSummarySim.toFixed(2)}`);
+	}
+
+	if (titleNorm && contentHeadNorm) {
+		if (contentHeadNorm === titleNorm) reasons.push('content_equals_title');
+		if (contentHeadNorm.startsWith(titleNorm)) reasons.push('content_starts_with_title');
+	}
+
+	if (summaryNorm && contentHeadNorm) {
+		if (contentHeadNorm === summaryNorm) reasons.push('content_equals_summary');
+		if (contentHeadNorm.startsWith(summaryNorm)) reasons.push('content_starts_with_summary');
+	}
+
+	return { ok: reasons.length === 0, reasons };
+}
+
 function extractJsonObject(raw: string): unknown {
 	const cleaned = raw.trim();
 	const match = cleaned.match(/\{[\s\S]*\}/);
@@ -393,6 +420,7 @@ Debe aportar valor real (contexto, implicaciones y trade-offs). Integra de forma
 - NO incluir URLs crudas en el texto
 - NO usar "Leer más", "Continuar leyendo", avisos de cookies
 - NO mencionar imágenes o elementos UI que falten
+- NO pegues el nombre del medio/fuente al final del titular o el resumen (salvo que sea parte esencial del hecho)
 - Usar párrafos cortos (2-4 oraciones)
 - Incluir términos técnicos relevantes pero explicarlos
 
@@ -436,6 +464,7 @@ Must add real editorial value (context, implications, trade-offs). Naturally int
 - Do NOT include raw URLs in the text
 - Do NOT use "Read more", "Continue reading", cookie notices
 - Do NOT mention missing images or UI elements
+- Do NOT append the outlet/source name to the headline or summary (unless it's essential to the fact)
 - Use short paragraphs (2-4 sentences)
 - Include relevant technical terms but briefly explain them
 
@@ -470,6 +499,11 @@ Content: ${workingContent}`;
 			);
 			if (!diff.ok) {
 				console.warn(`[LLM Rewrite] Reject (too similar): ${diff.reasons.join(', ')}`);
+				continue;
+			}
+			const quality = validateValueAddedRewrite(rewrite);
+			if (!quality.ok) {
+				console.warn(`[LLM Rewrite] Reject (degenerate output): ${quality.reasons.join(', ')}`);
 				continue;
 			}
 			return rewrite;
@@ -1080,6 +1114,17 @@ async function determineBilingualContent(
 	let summaryPrimary = summaryOriginal;
 	let contentPrimary = contentOriginal;
 
+	if (REQUIRE_VALUE_ADDED_REWRITE) {
+		const normalizedTitle = normalizeForSimilarity(titlePrimary);
+		const normalizedContent = normalizeForSimilarity(contentPrimary);
+		const looksLikeTitleOnly =
+			contentPrimary.trim().length < 450 ||
+			(Boolean(normalizedTitle) && Boolean(normalizedContent) && normalizedContent === normalizedTitle);
+		if (looksLikeTitleOnly) {
+			throw new Error('insufficient_source_content');
+		}
+	}
+
 	const rewrite = await rewriteArticleContent(titlePrimary, summaryPrimary, contentPrimary, originalLanguage, llm);
 	if (!rewrite && REQUIRE_VALUE_ADDED_REWRITE) {
 		throw new Error('rewrite_required_but_failed');
@@ -1213,7 +1258,7 @@ async function persistArticle(
 			image_hash: imageData.validation.visualSimilarity?.hash ?? imageData.validation.hash ?? null,
 			// Track rewrite model/version for value-added content
 			rewrite_model: process.env.AI_MODEL_PROFILE === 'cost-balanced' ? 'gpt-4o-mini' : null,
-			rewrite_version: process.env.AI_MODEL_PROFILE === 'cost-balanced' ? 2 : null,
+			rewrite_version: CURRENT_REWRITE_VERSION,
 			rewrite_at: new Date().toISOString(),
 			value_score: entry.classification.quality_score,
 		};
@@ -1326,10 +1371,10 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 		const message = error instanceof Error ? error.message : String(error);
 		console.warn(`[Pipeline] Skip (bilingual/rewrite failed): ${message}`);
 		entry.lastError = message;
-			if (message === 'rewrite_required_but_failed') {
-				return { success: false, retryable: false, reason: message };
-			}
-			return { success: false, retryable: true, reason: message };
+		if (message === 'rewrite_required_but_failed' || message === 'insufficient_source_content') {
+			return { success: false, retryable: false, reason: message };
+		}
+		return { success: false, retryable: true, reason: message };
 	}
 }
 

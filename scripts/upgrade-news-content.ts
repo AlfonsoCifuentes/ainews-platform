@@ -272,6 +272,32 @@ function isMeaningfullyDifferent(inputTitle: string, outputTitle: string, inputS
 	return { ok: reasons.length === 0, reasons };
 }
 
+function validateValueAddedRewrite(output: { title: string; summary: string; content: string }): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const titleNorm = normalizeForSimilarity(output.title);
+	const summaryNorm = normalizeForSimilarity(output.summary);
+	const contentHeadNorm = normalizeForSimilarity(output.content.slice(0, 700));
+
+	if (titleNorm && summaryNorm) {
+		if (titleNorm === summaryNorm) reasons.push('summary_equals_title');
+		if (summaryNorm.startsWith(titleNorm)) reasons.push('summary_starts_with_title');
+		const titleSummarySim = jaccardSimilarity(tokenSet(output.title), tokenSet(output.summary));
+		if (titleSummarySim >= 0.86) reasons.push(`title_summary_too_similar:${titleSummarySim.toFixed(2)}`);
+	}
+
+	if (titleNorm && contentHeadNorm) {
+		if (contentHeadNorm === titleNorm) reasons.push('content_equals_title');
+		if (contentHeadNorm.startsWith(titleNorm)) reasons.push('content_starts_with_title');
+	}
+
+	if (summaryNorm && contentHeadNorm) {
+		if (contentHeadNorm === summaryNorm) reasons.push('content_equals_summary');
+		if (contentHeadNorm.startsWith(summaryNorm)) reasons.push('content_starts_with_summary');
+	}
+
+	return { ok: reasons.length === 0, reasons };
+}
+
 async function generateAIAnalysis(
 	title: string,
 	summary: string,
@@ -292,8 +318,8 @@ async function generateAIAnalysis(
 			max_tokens: 3200,
 			extra:
 				language === 'es'
-					? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto.'
-					: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary.',
+					? '\n\nSEGUNDO INTENTO: cambia el titular con una frase totalmente distinta. El resumen NO puede empezar repitiendo el titular ni contener el nombre del medio/fuente al final.'
+					: '\n\nSECOND ATTEMPT: change the headline with totally different phrasing. The summary MUST NOT start by repeating the headline or append the outlet/source name.',
 		},
 	];
 
@@ -339,6 +365,11 @@ async function generateAIAnalysis(
 				console.warn(`[LLM] Reject (too similar): ${diff.reasons.join(', ')}`);
 				continue;
 			}
+					const quality = validateValueAddedRewrite(result);
+					if (!quality.ok) {
+						console.warn(`[LLM] Reject (degenerate output): ${quality.reasons.join(', ')}`);
+						continue;
+					}
 
 			return result;
 		} catch (parseError) {
@@ -364,8 +395,13 @@ async function generateAIAnalysis(
 					const diff = isMeaningfullyDifferent(title, result.title, summary, result.summary);
 					if (!diff.ok) {
 						console.warn(`[LLM] Reject (too similar): ${diff.reasons.join(', ')}`);
-						return null;
+									continue;
 					}
+								const quality = validateValueAddedRewrite(result);
+								if (!quality.ok) {
+									console.warn(`[LLM] Reject (degenerate output): ${quality.reasons.join(', ')}`);
+									continue;
+								}
 					return result;
 				} catch {
 					// Last resort: manually extract fields
@@ -386,6 +422,11 @@ async function generateAIAnalysis(
 							console.warn(`[LLM] Reject reconstructed (too similar): ${diff.reasons.join(', ')}`);
 							return null;
 						}
+									const quality = validateValueAddedRewrite(reconstructed);
+									if (!quality.ok) {
+										console.warn(`[LLM] Reject reconstructed (degenerate output): ${quality.reasons.join(', ')}`);
+										return null;
+									}
 						return reconstructed;
 					}
 				}
