@@ -138,6 +138,46 @@ const IMAGE_RETRY_BATCH_LIMIT = 12;
 const REWRITE_MAX_CHARS = 5200;
 const DEDUPE_LOOKBACK_DAYS = 21;
 const DEDUPE_TOKEN_SIMILARITY = 0.78;
+
+function isRedditNonNews(article: RawArticle): { reject: true; reason: string } | { reject: false } {
+	let hostname = '';
+	try {
+		hostname = new URL(article.link).hostname.replace(/^www\./, '').toLowerCase();
+	} catch {
+		return { reject: false };
+	}
+
+	if (hostname !== 'reddit.com' && hostname !== 'old.reddit.com' && hostname !== 'new.reddit.com') {
+		return { reject: false };
+	}
+
+	const title = (article.title ?? '').trim();
+	const titleLower = title.toLowerCase();
+	const linkLower = article.link.toLowerCase();
+
+	// Hard signals
+	if (linkLower.includes('/poll/')) return { reject: true, reason: 'reddit_poll_url' };
+	if (/\bama\b/i.test(title) || titleLower.includes('ask me anything')) return { reject: true, reason: 'reddit_ama' };
+	if (/(^|\[)poll(\]|:|\b)/i.test(title)) return { reject: true, reason: 'reddit_poll_title' };
+
+	// Question/discussion prompts are often not news items.
+	// Keep this conservative to avoid false positives.
+	if (
+		title.endsWith('?') &&
+		(
+			titleLower.startsWith('question') ||
+			titleLower.startsWith('ask ') ||
+			titleLower.includes('what do you think') ||
+			titleLower.includes('anyone else') ||
+			titleLower.includes('which is better') ||
+			titleLower.includes('help me')
+		)
+	) {
+		return { reject: true, reason: 'reddit_discussion_question' };
+	}
+
+	return { reject: false };
+}
 const USE_SEMANTIC_DEDUPE = true;
 const SEMANTIC_DEDUPE_THRESHOLD = 0.93;
 
@@ -909,6 +949,12 @@ Valid categories: "machinelearning", "nlp", "computervision", "robotics", "ethic
 
 	const tasks = articles.map((article) =>
 		limit(async () => {
+			const nonNews = isRedditNonNews(article);
+			if (nonNews.reject) {
+				console.log(`[Filter] Skipping Reddit non-news (${nonNews.reason}): ${article.title.slice(0, 70)}...`);
+				return null;
+			}
+
 			const classification = await classifyArticle(article, llmClient, systemPrompt);
 			if (!classification) return null;
 			if (!classification.relevant || classification.quality_score < MIN_QUALITY_SCORE) return null;

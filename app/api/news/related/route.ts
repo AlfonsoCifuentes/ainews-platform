@@ -16,11 +16,23 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseServerClient();
 
     // Get the current article to find similar ones
-    const { data: currentArticle } = await supabase
-      .from('news_articles')
-      .select('category, tags, title_en, title_es')
-      .eq('id', articleId)
-      .single();
+    const fetchCurrent = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('category, tags, title_en, title_es')
+        .eq('id', articleId);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query.single();
+    };
+
+    let { data: currentArticle, error: currentError } = await fetchCurrent({ filterHidden: true });
+    if (currentError && (currentError as { code?: string }).code === '42703') {
+      ({ data: currentArticle, error: currentError } = await fetchCurrent({ filterHidden: false }));
+    }
 
     if (!currentArticle) {
       return NextResponse.json(
@@ -33,13 +45,26 @@ export async function GET(req: NextRequest) {
     // 1. Same category
     // 2. Overlapping tags
     // 3. Exclude current article
-    const { data: relatedArticles } = await supabase
-      .from('news_articles')
-      .select('id, title_en, title_es, summary_en, summary_es, image_url, published_at, category')
-      .neq('id', articleId)
-      .eq('category', currentArticle.category)
-      .order('published_at', { ascending: false })
-      .limit(limit);
+    const fetchRelated = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('id, title_en, title_es, summary_en, summary_es, image_url, published_at, category')
+        .neq('id', articleId)
+        .eq('category', currentArticle.category)
+        .order('published_at', { ascending: false })
+        .limit(limit);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { data: relatedArticles, error: relatedError } = await fetchRelated({ filterHidden: true });
+    if (relatedError && (relatedError as { code?: string }).code === '42703') {
+      ({ data: relatedArticles, error: relatedError } = await fetchRelated({ filterHidden: false }));
+    }
 
     return NextResponse.json({
       data: relatedArticles || [],

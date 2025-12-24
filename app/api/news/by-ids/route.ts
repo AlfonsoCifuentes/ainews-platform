@@ -13,12 +13,25 @@ export async function POST(req: NextRequest) {
     const params = ByIdsSchema.parse(body);
     
     const supabase = getSupabaseServerClient();
-    
-    const { data, error } = await supabase
-      .from('news_articles')
-      .select('*')
-      .in('id', params.ids)
-      .order('published_at', { ascending: false });
+
+    const runQuery = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('*')
+        .in('id', params.ids)
+        .order('published_at', { ascending: false });
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { data, error } = await runQuery({ filterHidden: true });
+    if (error && (error as { code?: string }).code === '42703') {
+      ({ data, error } = await runQuery({ filterHidden: false }));
+    }
 
     if (error) {
       console.error('Error fetching articles by IDs:', error);

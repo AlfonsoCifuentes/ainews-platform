@@ -35,10 +35,12 @@ export async function fetchLatestNews(
 
   try {
     const supabase = getSupabaseServerClient();
-    let query = supabase
-      .from('news_articles')
-      .select(
-        `id,
+
+    const runQuery = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select(
+          `id,
         title_en,
         title_es,
         summary_en,
@@ -53,15 +55,25 @@ export async function fetchLatestNews(
         ai_generated,
         quality_score,
         reading_time_minutes`
-      )
-      .order('published_at', { ascending: false })
-      .limit(limit);
+        )
+        .order('published_at', { ascending: false })
+        .limit(limit);
 
-    if (category) {
-      query = query.eq('category', category);
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      return await query;
+    };
+
+    let { data, error } = await runQuery({ filterHidden: true });
+    if (error && (error as { code?: string }).code === '42703') {
+      ({ data, error } = await runQuery({ filterHidden: false }));
     }
-
-    const { data, error } = await query;
 
     if (error || !data) {
       throw error ?? new Error('No data returned from Supabase.');

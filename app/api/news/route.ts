@@ -24,11 +24,12 @@ export async function GET(request: NextRequest) {
     const { limit, offset, category } = parsed;
 
     const supabase = getSupabaseServerClient();
-    
-    let query = supabase
-      .from('news_articles')
-      .select(
-        `id,
+
+    const runQuery = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select(
+          `id,
         title_en,
         title_es,
         summary_en,
@@ -43,15 +44,26 @@ export async function GET(request: NextRequest) {
         ai_generated,
         quality_score,
         reading_time_minutes`
-      )
-      .order('published_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+        )
+        .order('published_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    if (category) {
-      query = query.eq('category', category);
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      return await query;
+    };
+
+    let { data, error } = await runQuery({ filterHidden: true });
+    if (error && (error as { code?: string; message?: string }).code === '42703') {
+      // Backward compatibility: column doesn't exist yet.
+      ({ data, error } = await runQuery({ filterHidden: false }));
     }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error('[API /api/news] Supabase error:', error);

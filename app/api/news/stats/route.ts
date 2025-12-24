@@ -14,18 +14,44 @@ export async function GET() {
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     
     // Query for today's articles count
-    const { count: todayCount } = await supabase
-      .from('news_articles')
-      .select('*', { count: 'exact', head: true })
-      .gte('published_at', todayStart.toISOString())
-      .lte('published_at', todayEnd.toISOString());
+    const fetchTodayCount = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('*', { count: 'exact', head: true })
+        .gte('published_at', todayStart.toISOString())
+        .lte('published_at', todayEnd.toISOString());
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { count: todayCount, error: todayError } = await fetchTodayCount({ filterHidden: true });
+    if (todayError && (todayError as { code?: string }).code === '42703') {
+      ({ count: todayCount, error: todayError } = await fetchTodayCount({ filterHidden: false }));
+    }
     
     // Query for average quality score (last 100 articles)
-    const { data: recentArticles } = await supabase
-      .from('news_articles')
-      .select('quality_score')
-      .order('published_at', { ascending: false })
-      .limit(100);
+    const fetchRecentQuality = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('quality_score')
+        .order('published_at', { ascending: false })
+        .limit(100);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { data: recentArticles, error: recentError } = await fetchRecentQuality({ filterHidden: true });
+    if (recentError && (recentError as { code?: string }).code === '42703') {
+      ({ data: recentArticles, error: recentError } = await fetchRecentQuality({ filterHidden: false }));
+    }
     
     const avgQualityScore = recentArticles && recentArticles.length > 0
       ? Math.round(
@@ -35,11 +61,24 @@ export async function GET() {
       : 85;
     
     // Query for unique sources count (approximate)
-    const { data: sourcesData } = await supabase
-      .from('news_articles')
-      .select('source_url')
-      .not('source_url', 'is', null)
-      .limit(1000);
+    const fetchSources = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('source_url')
+        .not('source_url', 'is', null)
+        .limit(1000);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { data: sourcesData, error: sourcesError } = await fetchSources({ filterHidden: true });
+    if (sourcesError && (sourcesError as { code?: string }).code === '42703') {
+      ({ data: sourcesData, error: sourcesError } = await fetchSources({ filterHidden: false }));
+    }
     
     const uniqueSources = sourcesData 
       ? new Set(sourcesData.map(article => {
@@ -52,11 +91,24 @@ export async function GET() {
       : 50;
     
     // Get category counts
-    const { data: categoriesData } = await supabase
-      .from('news_articles')
-      .select('category')
-      .order('published_at', { ascending: false })
-      .limit(500);
+    const fetchCategories = async (opts: { filterHidden: boolean }) => {
+      let query = supabase
+        .from('news_articles')
+        .select('category')
+        .order('published_at', { ascending: false })
+        .limit(500);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query;
+    };
+
+    let { data: categoriesData, error: categoriesError } = await fetchCategories({ filterHidden: true });
+    if (categoriesError && (categoriesError as { code?: string }).code === '42703') {
+      ({ data: categoriesData, error: categoriesError } = await fetchCategories({ filterHidden: false }));
+    }
     
     const categoryCounts: Record<string, number> = {};
     if (categoriesData) {

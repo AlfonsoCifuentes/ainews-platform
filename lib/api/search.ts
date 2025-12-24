@@ -11,9 +11,13 @@ export interface SearchParams {
 export async function searchContent(params: SearchParams, locale: 'en' | 'es') {
   const db = getSupabaseServerClient();
 
+  let filterHidden = true;
   let query = db
     .from('news_articles')
     .select('*');
+
+  // Apply hidden filter if available (retry without if schema isn't migrated yet)
+  query = query.eq('is_hidden', false);
 
   // Text search
   if (params.q) {
@@ -89,6 +93,88 @@ export async function searchContent(params: SearchParams, locale: 'en' | 'es') {
   query = query.limit(50);
 
   const { data, error } = await query;
+
+  if (error && filterHidden && (error as { code?: string }).code === '42703') {
+    filterHidden = false;
+    query = db.from('news_articles').select('*');
+
+    // Re-apply all filters (except is_hidden)
+    if (params.q) {
+      const searchTerm = `%${params.q}%`;
+      query = query.or(
+        `title_${locale}.ilike.${searchTerm},summary_${locale}.ilike.${searchTerm},content_${locale}.ilike.${searchTerm}`
+      );
+    }
+
+    if (params.categories) {
+      const categoryList = params.categories.split(',').filter(Boolean);
+      if (categoryList.length > 0) {
+        query = query.in('category', categoryList);
+      }
+    }
+
+    if (params.date && params.date !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (params.date) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          break;
+        case 'week':
+          startDate = new Date(now.setDate(now.getDate() - 7));
+          break;
+        case 'month':
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+        case 'year':
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          break;
+        default:
+          startDate = new Date(0);
+      }
+
+      query = query.gte('published_at', startDate.toISOString());
+    }
+
+    if (params.quality) {
+      const minQuality = Number(params.quality);
+      if (!isNaN(minQuality) && minQuality > 0) {
+        query = query.gte('quality_score', minQuality);
+      }
+    }
+
+    switch (params.sort) {
+      case 'date':
+        query = query.order('published_at', { ascending: false });
+        break;
+      case 'quality':
+        query = query.order('quality_score', { ascending: false });
+        break;
+      case 'trending':
+        query = query
+          .gte('published_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('quality_score', { ascending: false });
+        break;
+      case 'relevance':
+      default:
+        query = query.order('quality_score', { ascending: false });
+        break;
+    }
+
+    query = query.limit(50);
+
+    const retried = await query;
+    if (retried.error) {
+      console.error('Search error:', retried.error);
+      return { articles: [], total: 0 };
+    }
+
+    return {
+      articles: retried.data || [],
+      total: retried.data?.length || 0,
+    };
+  }
 
   if (error) {
     console.error('Search error:', error);

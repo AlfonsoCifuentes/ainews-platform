@@ -14,11 +14,23 @@ export async function GET(
 
     const db = getSupabaseServerClient();
 
-    const { data, error } = await db
-      .from('news_articles')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const runQuery = async (opts: { filterHidden: boolean }) => {
+      let query = db
+        .from('news_articles')
+        .select('*')
+        .eq('id', id);
+
+      if (opts.filterHidden) {
+        query = query.eq('is_hidden', false);
+      }
+
+      return await query.single();
+    };
+
+    let { data, error } = await runQuery({ filterHidden: true });
+    if (error && (error as { code?: string }).code === '42703') {
+      ({ data, error } = await runQuery({ filterHidden: false }));
+    }
 
     if (error) {
       console.error('Get article error:', error);
