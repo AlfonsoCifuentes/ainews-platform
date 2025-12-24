@@ -35,6 +35,9 @@ export function BookmarksClient({ locale }: BookmarksClientProps) {
   const [articles, setArticles] = useState<INewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<INewsArticle | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => setHasMounted(true), []);
 
   useEffect(() => {
     loadBookmarkedArticles();
@@ -155,7 +158,7 @@ export function BookmarksClient({ locale }: BookmarksClientProps) {
 
               <div className="p-6">
                 <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{formatRelativeTimeFromNow(article.published_at, locale)}</span>
+                  <span>{hasMounted ? formatRelativeTimeFromNow(article.published_at, locale) : new Date(article.published_at).toISOString().slice(0, 10)}</span>
                   <span>•</span>
                   <span>{article.reading_time_minutes || 5} min</span>
                 </div>

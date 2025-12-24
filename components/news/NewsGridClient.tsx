@@ -37,6 +37,10 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
   const [offset, setOffset] = useState(initialArticles.length);
   const [selectedArticle, setSelectedArticle] = useState<INewsArticle | null>(null);
 
+  // Hydration-safe: defer relative time until client
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => setHasMounted(true), []);
+
   // 0: original/computed URL, 1: Supabase fallback, 2: SVG fallback
   const [imageFallbackStageById, setImageFallbackStageById] = useState<Record<string, 0 | 1 | 2>>({});
 
@@ -57,6 +61,14 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
     if (stage === 1) return getImageWithFallback('', title, article.category, article.id);
     return generateFallbackImage({ title, category: article.category });
   }, [imageFallbackStageById, locale]);
+
+  // Hydration-safe relative time: show ISO date on server, relative time on client
+  const getRelativeTime = useCallback((publishedAt: string) => {
+    if (!hasMounted) {
+      return new Date(publishedAt).toISOString().slice(0, 10);
+    }
+    return formatRelativeTimeFromNow(publishedAt, locale);
+  }, [hasMounted, locale]);
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -204,7 +216,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
 
               <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 z-40">
                 <div className="mb-4 flex items-center gap-4 text-xs font-mono tracking-[0.18em] text-white/60">
-                  <span>{formatRelativeTimeFromNow(hero.published_at, locale)}</span>
+                  <span>{getRelativeTime(hero.published_at)}</span>
                   <span>•</span>
                   <span>{hero.reading_time_minutes || 5} min {locale === 'en' ? 'read' : 'lectura'}</span>
                 </div>
@@ -264,7 +276,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
 
                 <div className="p-6">
                   <div className="mb-3 flex items-center gap-2 text-[11px] font-mono tracking-[0.18em] text-white/60">
-                    <span>{formatRelativeTimeFromNow(article.published_at, locale)}</span>
+                    <span>{getRelativeTime(article.published_at)}</span>
                     <span>•</span>
                     <span>{article.reading_time_minutes || 5} min</span>
                   </div>
@@ -312,7 +324,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
                         {translateCategory(article.category)}
                       </span>
                       <span className="text-[11px] font-mono text-white/60">
-                        {formatRelativeTimeFromNow(article.published_at, locale)}
+                        {getRelativeTime(article.published_at)}
                       </span>
                     </div>
 
