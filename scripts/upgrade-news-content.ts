@@ -461,8 +461,8 @@ async function fetchArticlesToUpgrade(supabase: ReturnType<typeof getSupabaseSer
 	
 	// Order by rewrite_version first (nulls first = prioritize unprocessed), then by date
 	query = query
-		.order('rewrite_version', { ascending: true, nullsFirst: true })
-		.order('created_at', { ascending: false });
+		.order('created_at', { ascending: false })
+		.order('rewrite_version', { ascending: true, nullsFirst: true });
 
 	if (limit) {
 		query = query.limit(limit);
