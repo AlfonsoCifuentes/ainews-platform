@@ -21,8 +21,8 @@ type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
-	summary: z.string().min(60).max(520),
-	content: z.string().min(200).max(3200),
+	summary: z.string().min(80).max(700),
+	content: z.string().min(800).max(9000),
 });
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
@@ -133,6 +133,56 @@ function normalizeForChecks(text: string): string {
 	return text.replace(/\s+/g, ' ').trim();
 }
 
+function normalizeForSimilarity(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function tokenSet(text: string): Set<string> {
+	const normalized = normalizeForSimilarity(text);
+	if (!normalized) return new Set();
+	return new Set(
+		normalized
+			.split(' ')
+			.map((t) => t.trim())
+			.filter((t) => t.length >= 3),
+	);
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+	if (a.size === 0 && b.size === 0) return 1;
+	if (a.size === 0 || b.size === 0) return 0;
+	let intersection = 0;
+	for (const t of a) {
+		if (b.has(t)) intersection += 1;
+	}
+	const union = a.size + b.size - intersection;
+	return union === 0 ? 0 : intersection / union;
+}
+
+function isMeaningfullyDifferent(input: { title: string; summary: string }, output: { title: string; summary: string }): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const inTitle = normalizeForSimilarity(input.title);
+	const outTitle = normalizeForSimilarity(output.title);
+
+	if (inTitle && outTitle && inTitle === outTitle) {
+		reasons.push('title_identical');
+	} else {
+		const titleSim = jaccardSimilarity(tokenSet(input.title), tokenSet(output.title));
+		if (titleSim >= 0.72) reasons.push(`title_too_similar:${titleSim.toFixed(2)}`);
+	}
+
+	const summarySim = jaccardSimilarity(tokenSet(input.summary), tokenSet(output.summary));
+	if (summarySim >= 0.78) reasons.push(`summary_too_similar:${summarySim.toFixed(2)}`);
+
+	return { ok: reasons.length === 0, reasons };
+}
+
 function countUrls(text: string): number {
 	const matches = normalizeForChecks(text).match(/https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+/gi);
 	return matches?.length ?? 0;
@@ -178,8 +228,9 @@ function isRewriteQualityOk(rewrite: ArticleRewrite): { ok: boolean; reasons: st
 	const content = normalizeForChecks(rewrite.content);
 
 	if (title.length < 8) reasons.push('title_too_short');
-	if (summary.length < 60) reasons.push('summary_too_short');
-	if (content.length < 200) reasons.push('content_too_short');
+	if (summary.length < 80) reasons.push('summary_too_short');
+	if (content.length < 800) reasons.push('content_too_short');
+	if (content.length > 9000) reasons.push('content_too_long');
 	if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
@@ -201,15 +252,41 @@ function truncateForRewrite(text: string, maxChars: number = 5200): string {
 	return truncated.trim();
 }
 
+function extractJsonObject(raw: string): unknown {
+	const cleaned = raw.trim();
+	const match = cleaned.match(/\{[\s\S]*\}/);
+	if (!match) {
+		throw new Error('No JSON object found in LLM output');
+	}
+	return JSON.parse(match[0]);
+}
+
+async function generateRewriteJson(
+	llm: LLMClient,
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature: number; maxTokens: number },
+): Promise<ArticleRewrite> {
+	const fullPrompt = `${systemPrompt}\n\nReturn ONLY valid JSON. No markdown.\n\n${userPrompt}`;
+	const response = await llm.generate(fullPrompt, {
+		temperature: options.temperature,
+		maxTokens: options.maxTokens,
+	});
+	const parsed = extractJsonObject(response.content);
+	return ArticleRewriteSchema.parse(parsed);
+}
+
 async function rewriteInEnglish(llm: LLMClient, input: { title: string; summary: string; content: string }): Promise<ArticleRewrite | null> {
 	const systemPrompt = buildVerticalVoiceSystemPrompt({ locale: 'en', vertical: 'news' });
-	const prompt = `Rewrite the article below in English.
+	const basePrompt = `Rewrite the article below in English with strong editorial value-add.
 
 Hard rules:
 - Do NOT include raw URLs in the summary or content.
 - Remove boilerplate like "Read more", "Continue reading", cookie/privacy banners, subscription prompts, republish notices.
 - Do NOT reference missing images or UI elements.
-- Keep output lengths within limits: title <= 180 chars, summary 60-520 chars, content 200-3200 chars.
+- Keep output lengths within limits: title <= 180 chars, summary 80-700 chars, content 800-9000 chars.
+- The rewritten title MUST be clearly different from the original headline (do not reuse the same phrasing).
+- The rewritten summary MUST be rephrased with different vocabulary.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -217,22 +294,41 @@ Original title: ${input.title}
 Original summary: ${input.summary}
 Original content: ${truncateForRewrite(input.content)}`;
 
-	try {
-		const rewritten = await llm.classify(prompt, ArticleRewriteSchema, systemPrompt);
-		const quality = isRewriteQualityOk(rewritten);
-		if (!quality.ok) {
-			console.warn(`[MaintainNews] Reject rewrite: ${quality.reasons.join(', ')}`);
-			return null;
+	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
+		{ temperature: 0.8, maxTokens: 2600, extra: '' },
+		{ temperature: 0.95, maxTokens: 3000, extra: '\n\nSECOND ATTEMPT: Force a new headline and a more distinct summary; avoid matching the original phrasing.' },
+	];
+
+	for (const attempt of attempts) {
+		try {
+			const rewritten = await generateRewriteJson(llm, systemPrompt, `${basePrompt}${attempt.extra}`, {
+				temperature: attempt.temperature,
+				maxTokens: attempt.maxTokens,
+			});
+			const quality = isRewriteQualityOk(rewritten);
+			if (!quality.ok) {
+				console.warn(`[MaintainNews] Reject rewrite: ${quality.reasons.join(', ')}`);
+				continue;
+			}
+			const diff = isMeaningfullyDifferent(
+				{ title: input.title, summary: input.summary },
+				{ title: rewritten.title, summary: rewritten.summary },
+			);
+			if (!diff.ok) {
+				console.warn(`[MaintainNews] Reject rewrite (too similar): ${diff.reasons.join(', ')}`);
+				continue;
+			}
+			return rewritten;
+		} catch (error) {
+			console.warn('[MaintainNews] Rewrite failed:', error instanceof Error ? error.message : error);
 		}
-		return rewritten;
-	} catch (error) {
-		console.warn('[MaintainNews] Rewrite failed:', error instanceof Error ? error.message : error);
-		return null;
 	}
+
+	return null;
 }
 
 // Current rewrite version - only reprocess if version is lower
-const CURRENT_REWRITE_VERSION = 2;
+const CURRENT_REWRITE_VERSION = 3;
 
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
@@ -308,6 +404,7 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 				continue;
 			}
 
+			const rewriteModelLabel = args.model || 'gpt-4o-mini';
 			const { error: updateError } = await db
 				.from('news_articles')
 				.update({
@@ -318,8 +415,8 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 					summary_es: spanish.summary,
 					content_es: spanish.content,
 					ai_generated: true,
-					rewrite_model: 'gpt-4o-mini',
-					rewrite_version: 2,
+					rewrite_model: rewriteModelLabel,
+					rewrite_version: CURRENT_REWRITE_VERSION,
 					rewrite_at: new Date().toISOString(),
 					updated_at: new Date().toISOString(),
 				})

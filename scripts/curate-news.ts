@@ -245,7 +245,7 @@ const runNormalizedTitleSet = new Set<string>();
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
-	summary: z.string().min(60).max(520),
+	summary: z.string().min(80).max(700),
 	content: z.preprocess(
 		(value) => {
 			if (Array.isArray(value)) {
@@ -253,7 +253,8 @@ const ArticleRewriteSchema = z.object({
 			}
 			return value;
 		},
-		z.string().min(200).max(3200),
+		// Give the model room to add real editorial value.
+		z.string().min(800).max(9000),
 	),
 });
 
@@ -271,6 +272,80 @@ function truncateForRewrite(text: string, maxChars: number = REWRITE_MAX_CHARS):
 	return truncated.trim();
 }
 
+function normalizeForSimilarity(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function similarityTokenSet(text: string): Set<string> {
+	const normalized = normalizeForSimilarity(text);
+	if (!normalized) return new Set();
+	return new Set(
+		normalized
+			.split(' ')
+			.map((t) => t.trim())
+			.filter((t) => t.length >= 3),
+	);
+}
+
+function similarityJaccardSimilarity(a: Set<string>, b: Set<string>): number {
+	if (a.size === 0 && b.size === 0) return 1;
+	if (a.size === 0 || b.size === 0) return 0;
+	let intersection = 0;
+	for (const t of a) {
+		if (b.has(t)) intersection += 1;
+	}
+	const union = a.size + b.size - intersection;
+	return union === 0 ? 0 : intersection / union;
+}
+
+function isMeaningfullyDifferent(input: { title: string; summary: string }, output: { title: string; summary: string }): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const inTitle = normalizeForSimilarity(input.title);
+	const outTitle = normalizeForSimilarity(output.title);
+
+	if (inTitle && outTitle && inTitle === outTitle) {
+		reasons.push('title_identical');
+	} else {
+		const titleSim = similarityJaccardSimilarity(similarityTokenSet(input.title), similarityTokenSet(output.title));
+		if (titleSim >= 0.72) reasons.push(`title_too_similar:${titleSim.toFixed(2)}`);
+	}
+
+	const summarySim = similarityJaccardSimilarity(similarityTokenSet(input.summary), similarityTokenSet(output.summary));
+	if (summarySim >= 0.78) reasons.push(`summary_too_similar:${summarySim.toFixed(2)}`);
+
+	return { ok: reasons.length === 0, reasons };
+}
+
+function extractJsonObject(raw: string): unknown {
+	const cleaned = raw.trim();
+	const match = cleaned.match(/\{[\s\S]*\}/);
+	if (!match) {
+		throw new Error('No JSON object found in LLM output');
+	}
+	return JSON.parse(match[0]);
+}
+
+async function generateRewriteJson(
+	llmClient: LLMClient,
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature: number; maxTokens: number },
+): Promise<ArticleRewrite> {
+	const fullPrompt = `${systemPrompt}\n\nReturn ONLY valid JSON. No markdown.\n\n${userPrompt}`;
+	const response = await llmClient.generate(fullPrompt, {
+		temperature: options.temperature,
+		maxTokens: options.maxTokens,
+	});
+	const parsed = extractJsonObject(response.content);
+	return ArticleRewriteSchema.parse(parsed);
+}
+
 async function rewriteArticleContent(
 	title: string,
 	summary: string,
@@ -286,7 +361,7 @@ async function rewriteArticleContent(
 	});
 
 	// Value-Added AI Analyst mode for AdSense optimization
-	const prompt = language === 'es' 
+	const basePrompt = language === 'es' 
 		? `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
 
 ## OBJETIVO
@@ -295,21 +370,23 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 ## ESTRUCTURA REQUERIDA
 
 ### Título (title)
+- Debe ser CLARAMENTE diferente al título original (no reutilices la misma frase)
 - Gancho informativo que capte la atención
 - Incluir la innovación clave o el impacto principal
-- Máximo 100 caracteres, evitar clickbait vacío
+- Máximo 110 caracteres, evitar clickbait vacío
 
 ### Resumen (summary) - 60-200 palabras
 - Párrafo de entrada que enganche al lector
 - Responder: ¿Qué pasó? ¿Por qué importa?
 - Lenguaje claro y directo
 
-### Contenido (content) - 200-600 palabras
-Estructurar con:
-1. **La Noticia**: ¿Qué ocurrió exactamente?
-2. **Contexto**: Situar en el panorama actual de la IA
-3. **Por Qué Importa**: Impacto en usuarios, empresas o la industria
-4. **Perspectiva**: Análisis sobre tendencias futuras
+### Contenido (content) - 700-1300 palabras
+Debe aportar valor real (contexto, implicaciones y trade-offs). Integra de forma natural:
+- Qué ocurrió exactamente
+- Contexto (antecedentes y comparación)
+- Por qué importa (impacto real)
+- Qué cambia a partir de ahora / qué vigilar
+- Riesgos, limitaciones o contrapesos (si aplica)
 
 ## REGLAS ESTRICTAS
 - NO incluir URLs crudas en el texto
@@ -324,6 +401,9 @@ Devuelve SOLO JSON válido con: title, summary, content
 ARTÍCULO ORIGINAL:
 Título: ${title}
 Resumen: ${summary}
+
+IMPORTANTE: NO copies frases largas del original. Reformula.
+
 Contenido: ${workingContent}`
 		: `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT.
 
@@ -333,21 +413,23 @@ Transform basic news into premium content that provides real value to readers an
 ## REQUIRED STRUCTURE
 
 ### Title (title)
+- Must be CLEARLY different from the original headline (do not reuse the same phrasing)
 - Informative hook that captures attention
 - Include the key innovation or main impact
-- Maximum 100 characters, avoid empty clickbait
+- Maximum 110 characters, avoid empty clickbait
 
 ### Summary (summary) - 60-200 words
 - Opening paragraph that hooks the reader
 - Answer: What happened? Why does it matter?
 - Clear and direct language
 
-### Content (content) - 200-600 words
-Structure with:
-1. **The News**: What exactly happened?
-2. **Context**: Situate in the current AI landscape
-3. **Why It Matters**: Impact on users, companies, or the industry
-4. **Perspective**: Expert analysis on future trends
+### Content (content) - 700-1300 words
+Must add real editorial value (context, implications, trade-offs). Naturally integrate:
+- What exactly happened
+- Context (background and comparisons)
+- Why it matters (real-world impact)
+- What changes next / what to watch
+- Risks, limitations, counterpoints (if applicable)
 
 ## STRICT RULES
 - Do NOT include raw URLs in the text
@@ -362,14 +444,40 @@ Return ONLY valid JSON with: title, summary, content
 ORIGINAL ARTICLE:
 Title: ${title}
 Summary: ${summary}
+
+IMPORTANT: Do not copy long phrases from the original. Paraphrase.
+
 Content: ${workingContent}`;
 
-	try {
-		return await llmClient.classify(prompt, ArticleRewriteSchema, systemPrompt);
-	} catch (error) {
-		console.warn('[LLM Rewrite] Failed to rewrite article:', error instanceof Error ? error.message : error);
-		return null;
+	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
+		{ temperature: 0.8, maxTokens: 2600, extra: '' },
+		{ temperature: 0.95, maxTokens: 3000, extra: language === 'es'
+			? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto.'
+			: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary.' },
+	];
+
+	for (let i = 0; i < attempts.length; i += 1) {
+		try {
+			const userPrompt = `${basePrompt}${attempts[i].extra}`;
+			const rewrite = await generateRewriteJson(llmClient, systemPrompt, userPrompt, {
+				temperature: attempts[i].temperature,
+				maxTokens: attempts[i].maxTokens,
+			});
+			const diff = isMeaningfullyDifferent(
+				{ title, summary },
+				{ title: rewrite.title, summary: rewrite.summary },
+			);
+			if (!diff.ok) {
+				console.warn(`[LLM Rewrite] Reject (too similar): ${diff.reasons.join(', ')}`);
+				continue;
+			}
+			return rewrite;
+		} catch (error) {
+			console.warn('[LLM Rewrite] Failed to rewrite article:', error instanceof Error ? error.message : error);
+		}
 	}
+
+	return null;
 }
 
 function sanitizeSummary(summary: string): string {

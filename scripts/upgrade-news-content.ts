@@ -41,7 +41,7 @@ const openai = new OpenAI({
 });
 
 const MODEL = 'gpt-4o-mini'; // Fast, cheap, no rate limits
-export const REWRITE_VERSION = 2; // Increment when prompt changes significantly
+export const REWRITE_VERSION = 3; // Increment when prompt changes significantly
 export const REWRITE_MODEL = 'gpt-4o-mini';
 
 // =============================================================================
@@ -71,12 +71,12 @@ interface NewsArticle {
 }
 
 const ArticleRewriteSchema = z.object({
-	title: z.string().describe('Professional, engaging title'),
-	summary: z.string().describe('2-sentence executive summary'),
+	title: z.string().min(8).max(180).describe('Professional, engaging title'),
+	summary: z.string().min(80).max(800).describe('Executive summary'),
 	content: z.union([
 		z.string(),
 		z.object({}).passthrough(), // Accept object and convert later
-	]).describe('Flowing article text (400+ words)'),
+	]).describe('Flowing article text (900+ words)'),
 	value_score: z.number().min(0).max(1).optional().describe('Self-assessed quality score'),
 }).transform((data) => {
 	// If content is an object, convert to flowing text (NO markdown headings)
@@ -97,7 +97,14 @@ const ArticleRewriteSchema = z.object({
 		content: contentStr,
 		value_score: data.value_score,
 	};
-});
+}).pipe(
+	z.object({
+		title: z.string().min(8).max(180),
+		summary: z.string().min(80).max(800),
+		content: z.string().min(800).max(9000),
+		value_score: z.number().min(0).max(1).optional(),
+	}),
+);
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
 
@@ -111,7 +118,7 @@ function buildValueAddedPrompt(
 	content: string,
 	language: 'en' | 'es',
 ): string {
-	const workingContent = content.slice(0, 4000); // Truncate for token limits
+	const workingContent = content.slice(0, 5200); // Truncate for token limits
 
 	if (language === 'es') {
 		return `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
@@ -122,15 +129,17 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 ## ESTRUCTURA REQUERIDA
 
 ### Título (title)
+- Debe ser CLARAMENTE diferente al título original (no reutilices la misma frase)
 - Gancho informativo que capte la atención
-- Máximo 100 caracteres, evitar clickbait vacío
+- Máximo 110 caracteres, evitar clickbait vacío
 
-### Resumen (summary) - 80-200 palabras
+### Resumen (summary) - 120-240 palabras
 - Párrafo de entrada que enganche al lector
 - Responder: ¿Qué pasó? ¿Por qué importa?
 - Lenguaje claro y directo
+- Reformular (no calcar el resumen original)
 
-### Contenido (content) - 400-800 palabras
+### Contenido (content) - 900-1500 palabras
 IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico normal.
 - NO uses encabezados markdown (##) 
 - NO uses títulos de sección
@@ -139,6 +148,7 @@ IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico normal.
   * Qué ocurrió exactamente
   * La tecnología involucrada (explicada con claridad)
   * El impacto en usuarios/industria
+	* Comparación con alternativas / estado del arte (si aplica)
   * Lo que significa para el futuro
   * Una conclusión memorable
 
@@ -149,6 +159,8 @@ El contenido debe leerse como prosa periodística, no como un documento estructu
 - NO usar "Leer más", avisos de cookies
 - Párrafos cortos (2-4 oraciones)
 - Términos técnicos explicados brevemente
+
+IMPORTANTE: NO copies frases largas del original. Reformula.
 
 ## CALIDAD (value_score): Autoevalúa de 0 a 1
 
@@ -169,15 +181,17 @@ Transform basic news into premium content that provides real value to readers.
 ## REQUIRED STRUCTURE
 
 ### Title (title)
+- Must be CLEARLY different from the original headline (do not reuse the same phrasing)
 - Informative hook that captures attention
-- Maximum 100 characters, avoid empty clickbait
+- Maximum 110 characters, avoid empty clickbait
 
-### Summary (summary) - 80-200 words
+### Summary (summary) - 120-240 words
 - Opening paragraph that hooks the reader
 - Answer: What happened? Why does it matter?
 - Clear and direct language
+- Rephrase (do not mirror the original summary wording)
 
-### Content (content) - 400-800 words
+### Content (content) - 900-1500 words
 IMPORTANT: Write as FLOWING TEXT, like a normal journalistic article.
 - Do NOT use markdown headings (##)
 - Do NOT use section titles
@@ -186,6 +200,7 @@ IMPORTANT: Write as FLOWING TEXT, like a normal journalistic article.
   * What exactly happened
   * The technology involved (explained clearly)
   * Impact on users/industry
+	* Comparisons to alternatives / prior state (if applicable)
   * What this means for the future
   * A memorable conclusion
 
@@ -197,6 +212,8 @@ The content should read like journalistic prose, not a structured document.
 - Short paragraphs (2-4 sentences)
 - Technical terms explained briefly
 
+IMPORTANT: Do not copy long phrases from the original. Paraphrase.
+
 ## QUALITY (value_score): Self-evaluate from 0 to 1
 
 Return ONLY valid JSON with: title, summary, content, value_score
@@ -206,6 +223,53 @@ ORIGINAL ARTICLE:
 Title: ${title}
 Summary: ${summary}
 Content: ${workingContent}`;
+}
+
+function normalizeForSimilarity(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function tokenSet(text: string): Set<string> {
+	const normalized = normalizeForSimilarity(text);
+	if (!normalized) return new Set();
+	return new Set(
+		normalized
+			.split(' ')
+			.map((t) => t.trim())
+			.filter((t) => t.length >= 3),
+	);
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+	if (a.size === 0 && b.size === 0) return 1;
+	if (a.size === 0 || b.size === 0) return 0;
+	let intersection = 0;
+	for (const t of a) {
+		if (b.has(t)) intersection += 1;
+	}
+	const union = a.size + b.size - intersection;
+	return union === 0 ? 0 : intersection / union;
+}
+
+function isMeaningfullyDifferent(inputTitle: string, outputTitle: string, inputSummary: string, outputSummary: string): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const inTitle = normalizeForSimilarity(inputTitle);
+	const outTitle = normalizeForSimilarity(outputTitle);
+	if (inTitle && outTitle && inTitle === outTitle) {
+		reasons.push('title_identical');
+	} else {
+		const titleSim = jaccardSimilarity(tokenSet(inputTitle), tokenSet(outputTitle));
+		if (titleSim >= 0.72) reasons.push(`title_too_similar:${titleSim.toFixed(2)}`);
+	}
+	const summarySim = jaccardSimilarity(tokenSet(inputSummary), tokenSet(outputSummary));
+	if (summarySim >= 0.78) reasons.push(`summary_too_similar:${summarySim.toFixed(2)}`);
+	return { ok: reasons.length === 0, reasons };
 }
 
 async function generateAIAnalysis(
@@ -219,26 +283,39 @@ async function generateAIAnalysis(
 		vertical: 'news',
 	});
 
-	const prompt = buildValueAddedPrompt(title, summary, content, language);
+	const basePrompt = buildValueAddedPrompt(title, summary, content, language);
+
+	const attempts: Array<{ temperature: number; max_tokens: number; extra: string }> = [
+		{ temperature: 0.7, max_tokens: 3000, extra: '' },
+		{
+			temperature: 0.9,
+			max_tokens: 3200,
+			extra:
+				language === 'es'
+					? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto.'
+					: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary.',
+		},
+	];
 
 	try {
-		const response = await openai.chat.completions.create({
-			model: MODEL,
-			messages: [
-				{ role: 'system', content: systemPrompt },
-				{ role: 'user', content: prompt },
-			],
-			temperature: 0.7,
-			max_tokens: 2500,
-			response_format: { type: 'json_object' }, // Force JSON output
-		});
+		for (const attempt of attempts) {
+			const response = await openai.chat.completions.create({
+				model: MODEL,
+				messages: [
+					{ role: 'system', content: systemPrompt },
+					{ role: 'user', content: `${basePrompt}${attempt.extra}` },
+				],
+				temperature: attempt.temperature,
+				max_tokens: attempt.max_tokens,
+				response_format: { type: 'json_object' }, // Force JSON output
+			});
 		
-		const rawContent = response.choices[0]?.message?.content?.trim() || '';
+			const rawContent = response.choices[0]?.message?.content?.trim() || '';
 		
-		if (!rawContent) {
-			console.warn('[LLM] Empty response from API');
-			return null;
-		}
+			if (!rawContent) {
+				console.warn('[LLM] Empty response from API');
+				continue;
+			}
 		
 		// Try to extract JSON from response
 		let jsonStr = rawContent;
@@ -256,6 +333,13 @@ async function generateAIAnalysis(
 			if (result.value_score === undefined) {
 				result.value_score = 0.7;
 			}
+
+			const diff = isMeaningfullyDifferent(title, result.title, summary, result.summary);
+			if (!diff.ok) {
+				console.warn(`[LLM] Reject (too similar): ${diff.reasons.join(', ')}`);
+				continue;
+			}
+
 			return result;
 		} catch (parseError) {
 			console.warn('[LLM] Initial parse failed:', parseError instanceof Error ? parseError.message : parseError);
@@ -277,6 +361,11 @@ async function generateAIAnalysis(
 					if (result.value_score === undefined) {
 						result.value_score = 0.7;
 					}
+					const diff = isMeaningfullyDifferent(title, result.title, summary, result.summary);
+					if (!diff.ok) {
+						console.warn(`[LLM] Reject (too similar): ${diff.reasons.join(', ')}`);
+						return null;
+					}
 					return result;
 				} catch {
 					// Last resort: manually extract fields
@@ -286,18 +375,26 @@ async function generateAIAnalysis(
 					const scoreMatch = rawContent.match(/"value_score"\s*:\s*([\d.]+)/);
 					
 					if (titleMatch && summaryMatch && contentMatch) {
-						return {
+						const reconstructed = {
 							title: titleMatch[1],
 							summary: summaryMatch[1],
 							content: contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
 							value_score: scoreMatch ? parseFloat(scoreMatch[1]) : 0.7,
 						};
+						const diff = isMeaningfullyDifferent(title, reconstructed.title, summary, reconstructed.summary);
+						if (!diff.ok) {
+							console.warn(`[LLM] Reject reconstructed (too similar): ${diff.reasons.join(', ')}`);
+							return null;
+						}
+						return reconstructed;
 					}
 				}
 			}
 		}
 		
-		console.warn('[LLM] Could not parse response. Raw (first 500 chars):', rawContent.slice(0, 500));
+			console.warn('[LLM] Could not parse response. Raw (first 500 chars):', rawContent.slice(0, 500));
+			continue;
+		}
 		return null;
 	} catch (error) {
 		console.warn('[LLM] Failed to generate analysis:', error instanceof Error ? error.message : error);
