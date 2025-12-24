@@ -99,6 +99,16 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+function stripOutletSuffix(text: string): string {
+  // Remove trailing " - Outlet Name" or " | Outlet Name" patterns
+  return text
+    .replace(/\s*[-–—|]\s*[A-Z][A-Za-zÀ-ÿ\s.,']+$/u, '')
+    .replace(/\s*[-–—|]\s*EL PAÍS.*$/i, '')
+    .replace(/\s*[-–—|]\s*Euronews.*$/i, '')
+    .replace(/\s*[-–—|]\s*El Español.*$/i, '')
+    .trim();
+}
+
 function isDegenerateText(title: string, summary: string, content: string): boolean {
   const t = normalizeText(title);
   const s = normalizeText(summary);
@@ -106,15 +116,35 @@ function isDegenerateText(title: string, summary: string, content: string): bool
 
   if (!t || !s || !c) return false;
 
+  // Exact match
   if (s === t) return true;
-  if (s.startsWith(t) && t.length >= 20) return true;
-  if (t.startsWith(s) && s.length >= 20) return true;
 
-  if (c.startsWith(t) && t.length >= 25) return true;
-  if (c.startsWith(s) && s.length >= 25) return true;
+  // Summary starts with or contains full title
+  if (s.startsWith(t) && t.length >= 15) return true;
+  if (t.startsWith(s) && s.length >= 15) return true;
 
-  const sim = jaccard(tokenSet(title), tokenSet(summary));
-  if (sim >= 0.92) return true;
+  // Content starts with title or summary
+  if (c.startsWith(t) && t.length >= 20) return true;
+  if (c.startsWith(s) && s.length >= 20) return true;
+
+  // Strip outlet names and compare again
+  const tStripped = normalizeText(stripOutletSuffix(title));
+  const sStripped = normalizeText(stripOutletSuffix(summary));
+  if (tStripped && sStripped && (tStripped === sStripped || sStripped.startsWith(tStripped))) {
+    return true;
+  }
+
+  // High token overlap between title and summary (lowered threshold)
+  const titleTokens = tokenSet(title);
+  const summaryTokens = tokenSet(summary);
+  const sim = jaccard(titleTokens, summaryTokens);
+  if (sim >= 0.75) return true;
+
+  // Content is suspiciously short (likely just the title repeated)
+  if (c.length < 120 && sim >= 0.5) return true;
+
+  // Summary is just title with outlet appended
+  if (s.includes(t) && s.length < t.length + 60) return true;
 
   return false;
 }
