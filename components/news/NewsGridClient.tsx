@@ -110,7 +110,7 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
 
   // Process articles with fallback images to avoid repetition in the grid
   const articlesWithFallbacks = useMemo(() => {
-    return assignFallbackImagesToArticles(filteredArticles, 5);
+    return assignFallbackImagesToArticles(filteredArticles, 8);
   }, [filteredArticles]);
 
   if (articlesWithFallbacks.length === 0) {

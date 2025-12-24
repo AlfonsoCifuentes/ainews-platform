@@ -3,7 +3,7 @@
  * Detects bias and sentiment across articles with labeling
  */
 
-import { createClient } from '@/lib/db/supabase-server';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LLMClient } from '@/lib/ai/llm-client';
 
 export interface BiasAnalysis {
@@ -36,7 +36,7 @@ export class BiasAuditor {
    * Analyze bias and sentiment in an article
    */
   async analyzeArticle(articleId: string): Promise<BiasAnalysis> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Get article
     const { data: article } = await supabase
@@ -138,7 +138,7 @@ Bias indicators to check:
     articleId: string,
     analysis: Omit<BiasAnalysis, 'articleId'>
   ): Promise<void> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     await supabase.from('bias_analyses').insert({
       article_id: articleId,
@@ -171,7 +171,7 @@ Bias indicators to check:
    * Batch analyze multiple articles
    */
   async analyzeCategory(category: string, limit: number = 50): Promise<BiasAnalysis[]> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Get recent articles in category
     const { data: articles } = await supabase
@@ -206,7 +206,7 @@ Bias indicators to check:
     biasDistribution: Record<string, number>;
     averageObjectivity: number;
   }> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     const { data: analyses } = await supabase
       .from('bias_analyses')

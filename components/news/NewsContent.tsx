@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { type INewsArticle } from '@/lib/types/news';
 import { type Locale } from '@/i18n';
 import { NewsGridClient } from './NewsGridClient';
-import { NewsInsights } from './NewsInsights';
 import { NewsStats } from './NewsStats';
 import { CategoryFilters } from './CategoryFilters';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -56,11 +55,6 @@ export function NewsContent({ initialArticles, locale }: NewsContentProps) {
           <div className="mb-8">
             <NewsStats locale={locale} />
           </div>
-
-          {/* Three Insights Cards - Equal width */}
-          <ErrorBoundary componentName="NewsInsights">
-            <NewsInsights locale={locale} />
-          </ErrorBoundary>
         </div>
       </section>
 

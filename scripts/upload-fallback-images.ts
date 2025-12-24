@@ -14,9 +14,14 @@ const supabase = createClient(
 	process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const FALLBACK_DIR = path.join(process.cwd(), 'app', 'images_fallback');
+const FALLBACK_DIR =
+	process.env.FALLBACK_IMAGES_DIR ??
+	path.join(process.cwd(), 'public', 'images', 'fallback_images');
 const BUCKET_NAME = 'news-fallback-images';
-const WEBP_QUALITY = 85; // Good balance between quality and compression
+const WEBP_QUALITY_JPEG = 90; // High quality for lossy sources
+const WEBP_EFFORT = 6; // 0-6 (higher = smaller but slower)
+const TARGET_WIDTH = 1200;
+const TARGET_HEIGHT = 675; // 16:9 aspect ratio, good for news cards
 
 async function ensureBucketExists() {
 	const { data: buckets } = await supabase.storage.listBuckets();
@@ -39,6 +44,12 @@ async function ensureBucketExists() {
 }
 
 async function convertAndUpload() {
+	if (!fs.existsSync(FALLBACK_DIR)) {
+		throw new Error(
+			`Fallback images directory not found: ${FALLBACK_DIR}. Set FALLBACK_IMAGES_DIR or create the folder.`
+		);
+	}
+
 	const files = fs.readdirSync(FALLBACK_DIR).filter((f) => 
 		f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')
 	);
@@ -51,6 +62,7 @@ async function convertAndUpload() {
 	for (const file of files) {
 		const inputPath = path.join(FALLBACK_DIR, file);
 		const baseName = path.parse(file).name;
+		const ext = path.parse(file).ext.toLowerCase();
 		
 		// Create a clean filename (remove special chars, spaces)
 		const cleanName = baseName
@@ -72,14 +84,18 @@ async function convertAndUpload() {
 				continue;
 			}
 
-			// Convert to WebP with sharp
-			const webpBuffer = await sharp(inputPath)
-				.webp({ quality: WEBP_QUALITY })
-				.resize(1200, 675, { // 16:9 aspect ratio, good for news cards
-					fit: 'cover',
-					position: 'center',
-				})
-				.toBuffer();
+			const pipeline = sharp(inputPath).resize(TARGET_WIDTH, TARGET_HEIGHT, {
+				fit: 'cover',
+				position: 'center',
+				withoutEnlargement: true,
+			});
+
+			// Convert to WebP with best compression without visible quality loss
+			// - PNG inputs: use lossless WebP to preserve exact pixel data
+			// - JPEG inputs: use high-quality lossy WebP
+			const webpBuffer = ext === '.png'
+				? await pipeline.webp({ lossless: true, effort: WEBP_EFFORT }).toBuffer()
+				: await pipeline.webp({ quality: WEBP_QUALITY_JPEG, effort: WEBP_EFFORT }).toBuffer();
 
 			const originalSize = fs.statSync(inputPath).size;
 			const newSize = webpBuffer.length;
@@ -121,8 +137,10 @@ async function convertAndUpload() {
 		
 		// Save list to a file for reference
 		const urlList = allFiles
-			.filter(f => f.name.endsWith('.webp'))
-			.map((f) => `${baseUrl}/${f.name}`);
+			.filter((f) => f.name.endsWith('.webp'))
+			.map((f) => f.name)
+			.sort((a, b) => a.localeCompare(b))
+			.map((name) => `${baseUrl}/${name}`);
 		
 		fs.writeFileSync(
 			path.join(process.cwd(), 'lib', 'fallback-images-list.json'),

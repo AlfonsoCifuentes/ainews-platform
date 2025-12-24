@@ -3,7 +3,7 @@
  * Generate comparative summaries from multiple sources/perspectives
  */
 
-import { createClient } from '@/lib/db/supabase-server';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LLMClient } from '@/lib/ai/llm-client';
 
 export interface PerspectiveSummary {
@@ -36,7 +36,7 @@ export class MultiPerspectiveSummarizer {
    * Generate multi-perspective summary for a topic
    */
   async generateSummary(topic: string): Promise<PerspectiveSummary> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Find articles related to topic
     const { data: articles } = await supabase
@@ -206,7 +206,7 @@ Generate a 150-200 word summary that:
    * Store multi-perspective summary
    */
   private async storeSummary(summary: PerspectiveSummary): Promise<void> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     await supabase.from('perspective_summaries').insert({
       topic: summary.topic,

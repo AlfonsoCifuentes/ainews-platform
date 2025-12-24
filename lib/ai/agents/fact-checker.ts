@@ -3,7 +3,7 @@
  * Cross-source validation with confidence scoring and citations
  */
 
-import { createClient } from '@/lib/db/supabase-server';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LLMClient } from '@/lib/ai/llm-client';
 
 export interface FactCheckResult {
@@ -45,7 +45,7 @@ export class FactChecker {
     claim: string,
     articleId: string
   ): Promise<FactCheckResult> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Find related articles on same topic
     const { data: originalArticle } = await supabase
@@ -214,7 +214,7 @@ Base confidence on:
     claim: string,
     result: FactCheckResult
   ): Promise<void> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     await supabase.from('fact_checks').insert({
       article_id: articleId,
@@ -245,7 +245,7 @@ Base confidence on:
    * Batch fact-check all claims in an article
    */
   async checkArticle(articleId: string): Promise<FactCheckResult[]> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Get article content
     const { data: article } = await supabase

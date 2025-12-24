@@ -3,7 +3,7 @@
  * Detects bursty topics from recent RSS feeds + embeddings clusters
  */
 
-import { createClient } from '@/lib/db/supabase-server';
+import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LLMClient } from '@/lib/ai/llm-client';
 
 interface Article {
@@ -42,7 +42,7 @@ export class TrendDetector {
    * Detect trending topics from recent articles
    */
   async detectTrends(timeWindowHours: number = 24): Promise<TrendingTopic[]> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     // Get articles from last N hours
     const cutoffDate = new Date();
@@ -208,7 +208,7 @@ Return JSON array with refined topics:
    * Log detected trends to database
    */
   private async logTrends(trends: TrendingTopic[]): Promise<void> {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
 
     await supabase.from('ai_system_logs').insert({
       agent_type: 'trend_detector',

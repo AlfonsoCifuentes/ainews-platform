@@ -40,7 +40,8 @@ export function ArticleCard({
   const imageUrl = getImageWithFallback(
     article.image_url,
     title,
-    article.category
+    article.category,
+    article.id
   );
 
   return (
