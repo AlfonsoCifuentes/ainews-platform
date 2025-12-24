@@ -129,6 +129,7 @@ const MAX_ARTICLES_TO_PROCESS = 100;
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
+const REQUIRE_VALUE_ADDED_REWRITE = true; // Do not persist near-raw RSS content
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
 const IMAGE_RETRY_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
@@ -1080,6 +1081,9 @@ async function determineBilingualContent(
 	let contentPrimary = contentOriginal;
 
 	const rewrite = await rewriteArticleContent(titlePrimary, summaryPrimary, contentPrimary, originalLanguage, llm);
+	if (!rewrite && REQUIRE_VALUE_ADDED_REWRITE) {
+		throw new Error('rewrite_required_but_failed');
+	}
 	if (rewrite) {
 		titlePrimary = rewrite.title;
 		summaryPrimary = rewrite.summary;
@@ -1315,8 +1319,18 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 
 	entry.cachedImage = imageData;
 
-	const bilingual = await determineBilingualContent(entry, imageData, llm);
-	return persistArticle(entry, imageData, bilingual, db);
+	try {
+		const bilingual = await determineBilingualContent(entry, imageData, llm);
+		return await persistArticle(entry, imageData, bilingual, db);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn(`[Pipeline] Skip (bilingual/rewrite failed): ${message}`);
+		entry.lastError = message;
+			if (message === 'rewrite_required_but_failed') {
+				return { success: false, retryable: false, reason: message };
+			}
+			return { success: false, retryable: true, reason: message };
+	}
 }
 
 async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promise<void> {
