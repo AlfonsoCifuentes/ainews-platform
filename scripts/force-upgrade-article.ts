@@ -39,19 +39,23 @@ const ArticleRewriteSchema = z.object({
 
 async function rewriteArticle(title: string, summary: string, content: string, lang: 'en' | 'es') {
   const prompt = lang === 'es' 
-    ? `Eres un analista senior de IA. Reescribe esta noticia en español con VALOR EDITORIAL AÑADIDO.
+    ? `Eres un analista senior de IA. Reescribe esta noticia en español con VALOR EDITORIAL AÑADIDO EXTENSO.
 
 Estructura requerida:
 1. Título profesional y atractivo (máx 100 caracteres)
-2. Resumen ejecutivo (80-200 palabras)  
-3. Contenido como TEXTO FLUIDO (400-800 palabras) con estos elementos integrados naturalmente:
-   - Qué pasó exactamente
-   - La tecnología involucrada explicada claramente
-   - Impacto en usuarios/industria
-   - Qué significa para el futuro
-   - Una conclusión clara
+2. Resumen ejecutivo (120-300 palabras)  
+3. Contenido como TEXTO FLUIDO (1500-2500 palabras) con estos elementos integrados naturalmente:
+   - Qué pasó exactamente (con todos los detalles técnicos relevantes)
+   - La tecnología involucrada explicada con profundidad
+   - Contexto histórico y evolución del campo
+   - Impacto en usuarios/industria/sociedad
+   - Análisis técnico profundo (cómo funciona, arquitectura, innovaciones)
+   - Comparación con alternativas o estado del arte
+   - Implicaciones futuras y qué vigilar
+   - Riesgos, limitaciones o contrapesos
+   - Una conclusión clara y memorable
 
-IMPORTANTE: El contenido debe ser TEXTO CORRIDO, como un artículo periodístico normal.
+IMPORTANTE: El contenido debe ser TEXTO CORRIDO EXTENSO, como un artículo periodístico profesional.
 NO uses encabezados markdown (##), ni títulos de sección, ni bullets.
 Escribe párrafos fluidos que se lean naturalmente.
 
@@ -60,26 +64,31 @@ REGLAS:
 - NO usar "Leer más", avisos de cookies
 - Párrafos cortos (2-4 oraciones)
 - Autoevalúa calidad (value_score 0-1)
+- MÍNIMO 1500 palabras de contenido
 
 Devuelve SOLO JSON válido con: title, summary, content, value_score
 
 ARTÍCULO ORIGINAL:
 Título: ${title}
 Resumen: ${summary}
-Contenido: ${content.slice(0, 4000)}`
-    : `You are a senior AI analyst. Rewrite this news with EDITORIAL VALUE ADDED.
+Contenido: ${content.slice(0, 6000)}`
+    : `You are a senior AI analyst. Rewrite this news with EXTENSIVE EDITORIAL VALUE ADDED.
 
 Required structure:
 1. Professional, engaging title (max 100 chars)
-2. Executive summary (80-200 words)
-3. Content as FLOWING TEXT (400-800 words) with these elements naturally integrated:
-   - What happened exactly
-   - The technology involved explained clearly
-   - Impact on users/industry
-   - What it means for the future
-   - A clear conclusion
+2. Executive summary (120-300 words)
+3. Content as FLOWING TEXT (1500-2500 words) with these elements naturally integrated:
+   - What happened exactly (with all relevant technical details)
+   - The technology involved explained in-depth
+   - Historical context and field evolution
+   - Impact on users/industry/society
+   - Deep technical analysis (how it works, architecture, innovations)
+   - Comparison with alternatives or state of the art
+   - Future implications and what to watch
+   - Risks, limitations or counterpoints
+   - A clear and memorable conclusion
 
-IMPORTANT: Content must be FLOWING TEXT, like a normal news article.
+IMPORTANT: Content must be EXTENSIVE FLOWING TEXT, like a professional news article.
 DO NOT use markdown headings (##), section titles, or bullets.
 Write fluid paragraphs that read naturally.
 
@@ -88,19 +97,20 @@ RULES:
 - NO "Read more", cookie notices
 - Short paragraphs (2-4 sentences)
 - Self-evaluate quality (value_score 0-1)
+- MINIMUM 1500 words of content
 
 Return ONLY valid JSON with: title, summary, content, value_score
 
 ORIGINAL:
 Title: ${title}
 Summary: ${summary}
-Content: ${content.slice(0, 4000)}`;
+Content: ${content.slice(0, 6000)}`;
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
-    max_tokens: 2500,
+    max_tokens: 5000,
     response_format: { type: 'json_object' },
   });
 
@@ -160,8 +170,8 @@ async function main() {
       title_es: es.title,
       summary_es: es.summary,
       content_es: es.content,
-      rewrite_model: 'gpt-4o-mini',
-      rewrite_version: 2,
+      rewrite_model: 'gpt-4o',
+      rewrite_version: 4,
       rewrite_at: new Date().toISOString(),
       value_score: Math.max(en.value_score, es.value_score),
       ai_generated: true,

@@ -3,7 +3,7 @@ import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { calculateReadingTime, formatArticleContent, extractPlainText, sanitizeScrapedContent } from '@/lib/utils/content-formatter';
+import { calculateReadingTime, extractPlainText, sanitizeScrapedContent } from '@/lib/utils/content-formatter';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
@@ -11,6 +11,10 @@ import { AudioPlayer } from '@/components/content/AudioPlayer';
 import { HighlightSystem } from '@/components/content/HighlightSystem';
 import { FlashcardDeck } from '@/components/flashcards/FlashcardDeck';
 import { DiscussionThread } from '@/components/content/DiscussionThread';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 
 type NewsDetailPageProps = {
   params: Promise<{
@@ -103,9 +107,19 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const textForReadingTime = content || summary || '';
   const plainText = extractPlainText(textForReadingTime);
   const readingTime = calculateReadingTime(plainText);
-  
-  // Format content with proper paragraphs (sanitization is done inside formatArticleContent)
-  const formattedContent = content ? formatArticleContent(content) : null;
+
+
+  const normalizedMarkdown = (() => {
+    const raw = content || '';
+    if (!raw) return '';
+    // Defensive: if content is being displayed as plain text somewhere,
+    // strip markdown headings lines so section titles never show up.
+    return raw
+      .replace(/^#{1,6}\s+.*$/gm, '')
+      .replace(/^\s*[-=]{3,}\s*$/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  })();
 
   return (
     <main className="min-h-screen">
@@ -182,8 +196,21 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 
           {/* Main Content */}
           <div className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-2xl prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic">
-            {formattedContent ? (
-              <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+            {normalizedMarkdown ? (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                components={{
+                  h1: () => null,
+                  h2: () => null,
+                  h3: () => null,
+                  h4: () => null,
+                  h5: () => null,
+                  h6: () => null,
+                }}
+              >
+                {normalizedMarkdown}
+              </ReactMarkdown>
             ) : (
               <div className="space-y-6">
                 {summary.split('\n\n').map((paragraph, index) => (

@@ -21,8 +21,11 @@ type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
-	summary: z.string().min(80).max(700),
-	content: z.string().min(800).max(9000),
+	summary: z.string().min(80).max(900),
+	// We allow shorter drafts through schema validation, then enforce long-form via
+	// word-count checks + expansion prompts. This avoids mass failures when the
+	// model under-shoots the first attempt.
+	content: z.string().min(1200).max(25000),
 });
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
@@ -30,6 +33,7 @@ type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
 type MaintainArgs = {
 	dryRun: boolean;
 		rewriteAll: boolean;
+	rewriteShortOnly: boolean;
 	rewriteDays: number;
 	deleteOlderThanDays: number;
 	confirmDelete: boolean;
@@ -99,9 +103,11 @@ function parseArgs(): MaintainArgs {
 
 	const dryRun = hasFlag('--dry-run') || (process.env.DRY_RUN ?? '').toLowerCase() === 'true';
 	const rewriteAll = hasFlag('--rewrite-all') || (process.env.REWRITE_ALL ?? '').toLowerCase() === 'true';
+	const rewriteShortOnly = hasFlag('--rewrite-short-only') || (process.env.REWRITE_SHORT_ONLY ?? '').toLowerCase() === 'true';
 	return {
 		dryRun,
 		rewriteAll,
+		rewriteShortOnly,
 		rewriteDays,
 		deleteOlderThanDays,
 		confirmDelete: hasFlag('--confirm-delete'),
@@ -131,6 +137,12 @@ async function createMaintenanceLLM(args: MaintainArgs): Promise<LLMClient> {
 
 function normalizeForChecks(text: string): string {
 	return text.replace(/\s+/g, ' ').trim();
+}
+
+function estimateWordCount(text: string): number {
+	const cleaned = normalizeForChecks(text);
+	if (!cleaned) return 0;
+	return cleaned.split(' ').filter(Boolean).length;
 }
 
 function normalizeForSimilarity(text: string): string {
@@ -226,17 +238,74 @@ function isRewriteQualityOk(rewrite: ArticleRewrite): { ok: boolean; reasons: st
 	const title = normalizeForChecks(rewrite.title);
 	const summary = normalizeForChecks(rewrite.summary);
 	const content = normalizeForChecks(rewrite.content);
+	const words = estimateWordCount(content);
 
 	if (title.length < 8) reasons.push('title_too_short');
 	if (summary.length < 80) reasons.push('summary_too_short');
-	if (content.length < 800) reasons.push('content_too_short');
-	if (content.length > 9000) reasons.push('content_too_long');
+	// Enforce long-form intent (final gate). Drafts can be shorter but will be expanded.
+	// We use a pragmatic minimum to avoid mass-skips while still producing long articles.
+	if (words < 1200) reasons.push(`content_too_short_words:${words}`);
+	// Allow up to ~25k chars for exhaustive coverage
+	if (content.length > 25000) reasons.push('content_too_long');
 	if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
 	if (containsBoilerplateArtifacts(`${summary}\n${content}`)) reasons.push('boilerplate_artifacts');
 
 	return { ok: reasons.length === 0, reasons };
+}
+
+function isRewriteStructurallyOk(rewrite: ArticleRewrite): { ok: boolean; reasons: string[] } {
+	const reasons: string[] = [];
+	const title = normalizeForChecks(rewrite.title);
+	const summary = normalizeForChecks(rewrite.summary);
+	const content = normalizeForChecks(rewrite.content);
+
+	if (title.length < 8) reasons.push('title_too_short');
+	if (summary.length < 80) reasons.push('summary_too_short');
+	if (content.length < 1200) reasons.push('content_too_short_draft');
+	if (content.length > 25000) reasons.push('content_too_long');
+	if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
+	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
+	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
+	if (containsBoilerplateArtifacts(`${summary}\n${content}`)) reasons.push('boilerplate_artifacts');
+
+	return { ok: reasons.length === 0, reasons };
+}
+
+async function expandToLongForm(
+	llm: LLMClient,
+	systemPrompt: string,
+	input: { originalTitle: string; originalSummary: string },
+	draft: ArticleRewrite,
+	options: { minWords: number; targetWords: number; maxTokens: number },
+): Promise<ArticleRewrite> {
+	const draftWords = estimateWordCount(draft.content);
+	const userPrompt = `You previously produced a rewritten article JSON, but it is TOO SHORT.
+
+Task:
+- Expand ONLY the content to be long-form.
+
+Hard rules:
+- Keep title and summary semantically consistent (you may lightly edit for clarity, but do not revert to the original phrasing).
+- Do NOT include raw URLs.
+- Remove boilerplate (cookies, newsletters, "read more", etc.).
+- The final content MUST be at least ${options.minWords} words. Target ${options.targetWords} words.
+- Add depth: background context, technical explanation, implications, trade-offs, what to watch next.
+
+Return ONLY JSON with keys title, summary, content.
+
+Original title: ${input.originalTitle}
+Original summary: ${input.originalSummary}
+
+Current rewritten JSON (draft, ${draftWords} words):
+${JSON.stringify(draft)}
+`;
+
+	return await generateRewriteJson(llm, systemPrompt, userPrompt, {
+		temperature: 0.6,
+		maxTokens: options.maxTokens,
+	});
 }
 
 function truncateForRewrite(text: string, maxChars: number = 5200): string {
@@ -284,9 +353,14 @@ Hard rules:
 - Do NOT include raw URLs in the summary or content.
 - Remove boilerplate like "Read more", "Continue reading", cookie/privacy banners, subscription prompts, republish notices.
 - Do NOT reference missing images or UI elements.
-- Keep output lengths within limits: title <= 180 chars, summary 80-700 chars, content 800-9000 chars.
+- Keep output lengths within limits: title <= 180 chars, summary 80-900 chars, content <= 25000 chars.
 - The rewritten title MUST be clearly different from the original headline (do not reuse the same phrasing).
 - The rewritten summary MUST be rephrased with different vocabulary.
+- CRITICAL: Generate COMPREHENSIVE content with deep technical analysis, historical context, industry implications, and expert perspectives. Articles must be EXHAUSTIVE, not brief summaries.
+
+Length target:
+- Content should be 1500-2500 words. HARD MINIMUM: 1200 words.
+- If you're under the minimum, expand with more context, comparisons, and technical depth.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -295,27 +369,55 @@ Original summary: ${input.summary}
 Original content: ${truncateForRewrite(input.content)}`;
 
 	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
-		{ temperature: 0.8, maxTokens: 2600, extra: '' },
-		{ temperature: 0.95, maxTokens: 3000, extra: '\n\nSECOND ATTEMPT: Force a new headline and a more distinct summary; avoid matching the original phrasing.' },
+		{ temperature: 0.7, maxTokens: 5000, extra: '' },
+		{ temperature: 0.85, maxTokens: 6000, extra: '\n\nSECOND ATTEMPT: Force a new headline and a more distinct summary; avoid matching the original phrasing. REMEMBER: content must have MINIMUM 1500 words.' },
+		{ temperature: 0.65, maxTokens: 7000, extra: '\n\nTHIRD ATTEMPT (LENGTH ENFORCEMENT): The content MUST be long-form (minimum 1500 words). If you are tempted to summarize, stop and expand with deeper technical explanation, context, trade-offs, and what-to-watch next.' },
 	];
 
 	for (const attempt of attempts) {
 		try {
-			const rewritten = await generateRewriteJson(llm, systemPrompt, `${basePrompt}${attempt.extra}`, {
+			let rewritten = await generateRewriteJson(llm, systemPrompt, `${basePrompt}${attempt.extra}`, {
 				temperature: attempt.temperature,
 				maxTokens: attempt.maxTokens,
 			});
-			const quality = isRewriteQualityOk(rewritten);
-			if (!quality.ok) {
-				console.warn(`[MaintainNews] Reject rewrite: ${quality.reasons.join(', ')}`);
+
+			const structure = isRewriteStructurallyOk(rewritten);
+			if (!structure.ok) {
+				console.warn(`[MaintainNews] Reject rewrite (structure): ${structure.reasons.join(', ')}`);
 				continue;
 			}
+
 			const diff = isMeaningfullyDifferent(
 				{ title: input.title, summary: input.summary },
 				{ title: rewritten.title, summary: rewritten.summary },
 			);
 			if (!diff.ok) {
 				console.warn(`[MaintainNews] Reject rewrite (too similar): ${diff.reasons.join(', ')}`);
+				continue;
+			}
+
+			const minWords = 1200;
+			const targetWords = 2000;
+			let words = estimateWordCount(rewritten.content);
+			if (words < minWords) {
+				rewritten = await expandToLongForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
+					minWords,
+					targetWords,
+					maxTokens: 7000,
+				});
+				words = estimateWordCount(rewritten.content);
+			}
+			if (words < minWords) {
+				rewritten = await expandToLongForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
+					minWords,
+					targetWords,
+					maxTokens: 8000,
+				});
+			}
+
+			const quality = isRewriteQualityOk(rewritten);
+			if (!quality.ok) {
+				console.warn(`[MaintainNews] Reject rewrite: ${quality.reasons.join(', ')}`);
 				continue;
 			}
 			return rewritten;
@@ -328,7 +430,7 @@ Original content: ${truncateForRewrite(input.content)}`;
 }
 
 // Current rewrite version - only reprocess if version is lower
-const CURRENT_REWRITE_VERSION = 3;
+const CURRENT_REWRITE_VERSION = 4;
 
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
@@ -336,6 +438,9 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 	if (args.rewriteAll) {
 		console.log('[MaintainNews] Rewrite window: ALL (including null published_at)');
 		console.log('[MaintainNews] ⚠️  --rewrite-all flag: Will reprocess ALL articles regardless of version');
+	} else if (args.rewriteShortOnly) {
+		console.log(`[MaintainNews] Rewrite window: published_at >= ${cutoffIso}`);
+		console.log('[MaintainNews] ✅ --rewrite-short-only: Only rewriting short/degenerate articles in the window');
 	} else {
 		console.log(`[MaintainNews] Rewrite window: published_at >= ${cutoffIso}`);
 		console.log(`[MaintainNews] ✅ Only processing articles with rewrite_version < ${CURRENT_REWRITE_VERSION} (avoiding reprocesamiento)`);
@@ -344,11 +449,12 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 	let offset = 0;
 	let rewrittenCount = 0;
 	let skippedCount = 0;
+	let notNeededCount = 0;
 
 	while (rewrittenCount + skippedCount < args.maxRewrite) {
 		let query = db
 			.from('news_articles')
-			.select('id, title_en, summary_en, content_en, published_at, rewrite_version')
+			.select('id, title_en, summary_en, content_en, published_at, rewrite_version, is_hidden, hidden_reason')
 			.order('published_at', { ascending: false });
 
 		if (args.rewriteAll) {
@@ -356,9 +462,11 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			query = query.or(`published_at.gte.${cutoffIso},published_at.is.null`);
 		} else {
 			query = query.gte('published_at', cutoffIso);
-			// ⚠️ CRITICAL: Only reprocess articles that haven't been rewritten with current version
-			// This prevents infinite rewriting of the same articles
-			query = query.or(`rewrite_version.is.null,rewrite_version.lt.${CURRENT_REWRITE_VERSION}`);
+			if (!args.rewriteShortOnly) {
+				// ⚠️ CRITICAL: Only reprocess articles that haven't been rewritten with current version
+				// This prevents infinite rewriting of the same articles
+				query = query.or(`rewrite_version.is.null,rewrite_version.lt.${CURRENT_REWRITE_VERSION}`);
+			}
 		}
 
 		const { data, error } = await query.range(offset, offset + args.batchSize - 1);
@@ -367,7 +475,16 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			throw new Error(`[MaintainNews] Failed to fetch articles: ${error.message}`);
 		}
 
-		const rows = (data ?? []) as Array<{ id: string; title_en: string; summary_en: string; content_en: string; published_at: string }>;
+		const rows = (data ?? []) as Array<{
+			id: string;
+			title_en: string;
+			summary_en: string;
+			content_en: string;
+			published_at: string;
+			rewrite_version: number | null;
+			is_hidden: boolean | null;
+			hidden_reason: string | null;
+		}>;
 		if (rows.length === 0) break;
 
 		for (const row of rows) {
@@ -375,6 +492,18 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 
 			const itemIndex = rewrittenCount + skippedCount + 1;
 			const progress = `[MaintainNews] [${itemIndex}]`;
+
+			if (args.rewriteShortOnly) {
+				const currentWords = estimateWordCount(row.content_en || '');
+				const isDegenerateHidden = Boolean(row.is_hidden) && row.hidden_reason === 'degenerate_rewrite';
+				const isShort = currentWords > 0 && currentWords < 1200;
+				const isEmpty = !normalizeForChecks(row.content_en || '');
+				if (!isDegenerateHidden && !isShort && !isEmpty) {
+					notNeededCount += 1;
+					continue;
+				}
+			}
+
 			const english = await rewriteInEnglish(llm, {
 				title: row.title_en,
 				summary: row.summary_en,
@@ -415,6 +544,11 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 					summary_es: spanish.summary,
 					content_es: spanish.content,
 					ai_generated: true,
+					// If the previous run hid the article due to a degenerate rewrite,
+					// a successful rewrite should bring it back to the feed.
+					is_hidden: false,
+					hidden_reason: null,
+					hidden_at: null,
 					rewrite_model: rewriteModelLabel,
 					rewrite_version: CURRENT_REWRITE_VERSION,
 					rewrite_at: new Date().toISOString(),
@@ -438,7 +572,11 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 		if (rows.length < args.batchSize) break;
 	}
 
-	console.log(`[MaintainNews] Rewrite done. Rewrote: ${rewrittenCount}, skipped: ${skippedCount}, dryRun: ${args.dryRun}`);
+	if (args.rewriteShortOnly) {
+		console.log(`[MaintainNews] Rewrite done. Rewrote: ${rewrittenCount}, skipped: ${skippedCount}, notNeeded: ${notNeededCount}, dryRun: ${args.dryRun}`);
+	} else {
+		console.log(`[MaintainNews] Rewrite done. Rewrote: ${rewrittenCount}, skipped: ${skippedCount}, dryRun: ${args.dryRun}`);
+	}
 }
 
 async function deleteOlderThan(db: SupabaseClient, args: MaintainArgs): Promise<void> {

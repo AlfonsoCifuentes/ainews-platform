@@ -29,7 +29,11 @@ export async function fetchLatestNews(
 ): Promise<INewsArticle[]> {
   const { limit, category } = fetchParamsSchema.parse(params);
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // IMPORTANT: Do not require service role for read-only queries.
+  // On Vercel it's common to only have the public anon key configured.
+  const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL);
+  const hasAnySupabaseKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  if (!hasSupabaseUrl || !hasAnySupabaseKey) {
     return getFallbackArticles(limit);
   }
 

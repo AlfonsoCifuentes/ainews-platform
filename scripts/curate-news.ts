@@ -129,7 +129,7 @@ const MAX_ARTICLES_TO_PROCESS = 100;
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
-const CURRENT_REWRITE_VERSION = 3;
+const CURRENT_REWRITE_VERSION = 4;
 const REQUIRE_VALUE_ADDED_REWRITE = true; // Do not persist near-raw RSS content
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
@@ -287,7 +287,7 @@ const runNormalizedTitleSet = new Set<string>();
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
-	summary: z.string().min(80).max(700),
+	summary: z.string().min(80).max(900),
 	content: z.preprocess(
 		(value) => {
 			if (Array.isArray(value)) {
@@ -295,8 +295,10 @@ const ArticleRewriteSchema = z.object({
 			}
 			return value;
 		},
-		// Give the model room to add real editorial value.
-		z.string().min(800).max(9000),
+		// Allow much longer content for comprehensive news articles.
+		// Keep a moderate minimum to avoid over-skipping when a model under-shoots;
+		// prompt enforces the long-form target.
+		z.string().min(5000).max(15000),
 	),
 });
 
@@ -448,13 +450,15 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 - Responder: ¿Qué pasó? ¿Por qué importa?
 - Lenguaje claro y directo
 
-### Contenido (content) - 700-1300 palabras
-Debe aportar valor real (contexto, implicaciones y trade-offs). Integra de forma natural:
-- Qué ocurrió exactamente
-- Contexto (antecedentes y comparación)
-- Por qué importa (impacto real)
-- Qué cambia a partir de ahora / qué vigilar
-- Riesgos, limitaciones o contrapesos (si aplica)
+### Contenido (content) - 1500-2500 palabras (OBLIGATORIO: contenido extenso y detallado)
+Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, implicaciones y trade-offs). Integra de forma natural:
+- Qué ocurrió exactamente (con todos los detalles técnicos relevantes)
+- Contexto amplio (antecedentes históricos, comparación con tecnologías similares, evolución del campo)
+- Por qué importa (impacto real en la industria, usuarios y sociedad)
+- Análisis técnico profundo (cómo funciona, arquitectura, innovaciones clave)
+- Qué cambia a partir de ahora / qué vigilar (implicaciones futuras)
+- Riesgos, limitaciones o contrapesos (análisis crítico)
+- Opiniones de expertos o comparativas con competidores (si aplica)
 
 ## REGLAS ESTRICTAS
 - NO incluir URLs crudas en el texto
@@ -492,13 +496,15 @@ Transform basic news into premium content that provides real value to readers an
 - Answer: What happened? Why does it matter?
 - Clear and direct language
 
-### Content (content) - 700-1300 words
-Must add real editorial value (context, implications, trade-offs). Naturally integrate:
-- What exactly happened
-- Context (background and comparisons)
-- Why it matters (real-world impact)
-- What changes next / what to watch
-- Risks, limitations, counterpoints (if applicable)
+### Content (content) - 1500-2500 words (MANDATORY: comprehensive and detailed content)
+Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (context, implications, trade-offs). Naturally integrate:
+- What exactly happened (with all relevant technical details)
+- Broad context (historical background, comparison with similar technologies, field evolution)
+- Why it matters (real impact on industry, users and society)
+- Deep technical analysis (how it works, architecture, key innovations)
+- What changes next / what to watch (future implications)
+- Risks, limitations, counterpoints (critical analysis)
+- Expert opinions or competitor comparisons (if applicable)
 
 ## STRICT RULES
 - Do NOT include raw URLs in the text
@@ -520,10 +526,10 @@ IMPORTANT: Do not copy long phrases from the original. Paraphrase.
 Content: ${workingContent}`;
 
 	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
-		{ temperature: 0.8, maxTokens: 2600, extra: '' },
-		{ temperature: 0.95, maxTokens: 3000, extra: language === 'es'
-			? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto.'
-			: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary.' },
+		{ temperature: 0.7, maxTokens: 5000, extra: '' },
+		{ temperature: 0.85, maxTokens: 6000, extra: language === 'es'
+			? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto. RECUERDA: el contenido debe tener MÍNIMO 1500 palabras.'
+			: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary. REMEMBER: content must have MINIMUM 1500 words.' },
 	];
 
 	for (let i = 0; i < attempts.length; i += 1) {

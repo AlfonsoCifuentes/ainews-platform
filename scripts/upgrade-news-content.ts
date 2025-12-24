@@ -41,7 +41,7 @@ const openai = new OpenAI({
 });
 
 const MODEL = 'gpt-4o-mini'; // Fast, cheap, no rate limits
-export const REWRITE_VERSION = 3; // Increment when prompt changes significantly
+export const REWRITE_VERSION = 4; // Increment when prompt changes significantly
 export const REWRITE_MODEL = 'gpt-4o-mini';
 
 // =============================================================================
@@ -72,11 +72,11 @@ interface NewsArticle {
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180).describe('Professional, engaging title'),
-	summary: z.string().min(80).max(800).describe('Executive summary'),
+	summary: z.string().min(80).max(900).describe('Executive summary'),
 	content: z.union([
 		z.string(),
 		z.object({}).passthrough(), // Accept object and convert later
-	]).describe('Flowing article text (900+ words)'),
+	]).describe('Flowing article text (1500-2500 words)'),
 	value_score: z.number().min(0).max(1).optional().describe('Self-assessed quality score'),
 }).transform((data) => {
 	// If content is an object, convert to flowing text (NO markdown headings)
@@ -100,8 +100,9 @@ const ArticleRewriteSchema = z.object({
 }).pipe(
 	z.object({
 		title: z.string().min(8).max(180),
-		summary: z.string().min(80).max(800),
-		content: z.string().min(800).max(9000),
+		summary: z.string().min(80).max(900),
+		// Allow much longer content for comprehensive news articles (1500-2500 words = ~9000-15000 chars).
+		content: z.string().min(5000).max(15000),
 		value_score: z.number().min(0).max(1).optional(),
 	}),
 );
@@ -139,17 +140,20 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 - Lenguaje claro y directo
 - Reformular (no calcar el resumen original)
 
-### Contenido (content) - 900-1500 palabras
-IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico normal.
+### Contenido (content) - 1500-2500 palabras (OBLIGATORIO: contenido extenso y detallado)
+IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico profesional EXTENSO.
 - NO uses encabezados markdown (##) 
 - NO uses títulos de sección
 - NO uses listas con bullets o números
 - Escribe párrafos fluidos que integren naturalmente:
-  * Qué ocurrió exactamente
-  * La tecnología involucrada (explicada con claridad)
-  * El impacto en usuarios/industria
-	* Comparación con alternativas / estado del arte (si aplica)
-  * Lo que significa para el futuro
+  * Qué ocurrió exactamente (con todos los detalles técnicos relevantes)
+  * La tecnología involucrada (explicada con claridad y profundidad)
+  * Contexto amplio (antecedentes históricos, evolución del campo)
+  * El impacto en usuarios/industria/sociedad
+  * Análisis técnico profundo (cómo funciona, arquitectura, innovaciones clave)
+  * Comparación con alternativas / estado del arte (si aplica)
+  * Implicaciones futuras y qué vigilar
+  * Riesgos, limitaciones o contrapesos
   * Una conclusión memorable
 
 El contenido debe leerse como prosa periodística, no como un documento estructurado.
@@ -191,17 +195,20 @@ Transform basic news into premium content that provides real value to readers.
 - Clear and direct language
 - Rephrase (do not mirror the original summary wording)
 
-### Content (content) - 900-1500 words
-IMPORTANT: Write as FLOWING TEXT, like a normal journalistic article.
+### Content (content) - 1500-2500 words (MANDATORY: comprehensive and detailed content)
+IMPORTANT: Write as FLOWING TEXT, like a professional EXTENSIVE journalistic article.
 - Do NOT use markdown headings (##)
 - Do NOT use section titles
 - Do NOT use bullet lists or numbered lists
 - Write smooth flowing paragraphs that naturally integrate:
-  * What exactly happened
-  * The technology involved (explained clearly)
-  * Impact on users/industry
-	* Comparisons to alternatives / prior state (if applicable)
-  * What this means for the future
+  * What exactly happened (with all relevant technical details)
+  * The technology involved (explained clearly and in-depth)
+  * Broad context (historical background, field evolution)
+  * Impact on users/industry/society
+  * Deep technical analysis (how it works, architecture, key innovations)
+  * Comparisons to alternatives / prior state (if applicable)
+  * Future implications and what to watch
+  * Risks, limitations or counterpoints
   * A memorable conclusion
 
 The content should read like journalistic prose, not a structured document.
@@ -312,14 +319,14 @@ async function generateAIAnalysis(
 	const basePrompt = buildValueAddedPrompt(title, summary, content, language);
 
 	const attempts: Array<{ temperature: number; max_tokens: number; extra: string }> = [
-		{ temperature: 0.7, max_tokens: 3000, extra: '' },
+		{ temperature: 0.7, max_tokens: 5000, extra: '' },
 		{
-			temperature: 0.9,
-			max_tokens: 3200,
+			temperature: 0.85,
+			max_tokens: 6000,
 			extra:
 				language === 'es'
-					? '\n\nSEGUNDO INTENTO: cambia el titular con una frase totalmente distinta. El resumen NO puede empezar repitiendo el titular ni contener el nombre del medio/fuente al final.'
-					: '\n\nSECOND ATTEMPT: change the headline with totally different phrasing. The summary MUST NOT start by repeating the headline or append the outlet/source name.',
+					? '\n\nSEGUNDO INTENTO: cambia el titular con una frase totalmente distinta. El resumen NO puede empezar repitiendo el titular ni contener el nombre del medio/fuente al final. RECUERDA: el contenido debe tener MÍNIMO 1500 palabras.'
+					: '\n\nSECOND ATTEMPT: change the headline with totally different phrasing. The summary MUST NOT start by repeating the headline or append the outlet/source name. REMEMBER: content must have MINIMUM 1500 words.',
 		},
 	];
 
