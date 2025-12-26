@@ -62,16 +62,16 @@ export function CategoryFilters({ locale, onCategoryFilter }: CategoryFiltersPro
   };
 
   return (
-    <div className="w-full px-4 py-6 bg-[#0A0A0A] border-y border-[#1F1F1F]">
-      <div className="container mx-auto max-w-7xl">
-        <h3 className="mb-4 text-xs font-mono uppercase tracking-widest text-[#888888] text-center">
+    <div className="w-full bg-[#0A0A0A] border-y border-[#1F1F1F] px-4 md:px-8 py-3">
+      <div className="w-full">
+        <h3 className="sr-only">
           {locale === 'en' ? 'FILTER BY CATEGORY' : 'FILTRAR POR CATEGORÍA'}
         </h3>
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* All button */}
           <button
             onClick={() => handleCategoryClick(null)}
-            className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider ${
+            className={`border px-3 py-2 text-xs font-mono uppercase tracking-wider shrink-0 ${
               activeCategory === null
                 ? 'border-[#EAEAEA] bg-[#EAEAEA] text-[#020309]'
                 : 'border-[#1F1F1F] bg-transparent text-[#888888] hover:border-[#EAEAEA] hover:text-[#EAEAEA]'
@@ -87,7 +87,7 @@ export function CategoryFilters({ locale, onCategoryFilter }: CategoryFiltersPro
               <button
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
-                className={`border px-6 py-3 text-sm font-mono uppercase tracking-wider relative ${
+                className={`border px-3 py-2 text-xs font-mono uppercase tracking-wider relative shrink-0 ${
                   activeCategory === category.id
                     ? 'border-[#EAEAEA] bg-[#EAEAEA] text-[#020309]'
                     : 'border-[#1F1F1F] bg-transparent text-[#888888] hover:border-[#EAEAEA] hover:text-[#EAEAEA]'
@@ -96,7 +96,7 @@ export function CategoryFilters({ locale, onCategoryFilter }: CategoryFiltersPro
                 <span className="mr-2">{category.icon}</span>
                 {category.label}
                 {count > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center border border-current px-2 py-0.5 text-xs font-bold">
+                  <span className="ml-2 inline-flex items-center justify-center border border-current px-1.5 py-0.5 text-[10px] font-bold">
                     {count}
                   </span>
                 )}

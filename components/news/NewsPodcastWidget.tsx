@@ -91,51 +91,51 @@ export function NewsPodcastWidget({ locale }: { locale: Locale }) {
   );
 
   return (
-    <section className="border border-[#1F1F1F] bg-[#0A0A0A] rounded-2xl p-6">
-      <div className="flex items-start justify-between gap-6">
+    <section className="border border-[#1F1F1F] bg-[#0A0A0A] rounded-2xl p-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-white font-bold text-xl tracking-tight">{labels.title}</h3>
+          <h3 className="text-white font-bold text-base tracking-tight">{labels.title}</h3>
           {episode ? (
-            <p className="text-[#888888] font-mono text-sm mt-1">
+            <p className="text-[#888888] font-mono text-xs mt-0.5">
               {formatWindow(locale, episode.periodStart, episode.periodEnd)}
             </p>
           ) : null}
         </div>
       </div>
 
-      {loading ? <p className="text-[#888888] font-mono mt-4">{labels.loading}</p> : null}
+      {loading ? <p className="text-[#888888] font-mono mt-2 text-xs">{labels.loading}</p> : null}
       {error ? (
-        <p className="text-[#888888] font-mono mt-4">
+        <p className="text-[#888888] font-mono mt-2 text-xs">
           {labels.error} ({error})
         </p>
       ) : null}
 
       {!loading && !error && !episode ? (
-        <p className="text-[#888888] font-mono mt-4">{labels.empty}</p>
+        <p className="text-[#888888] font-mono mt-2 text-xs">{labels.empty}</p>
       ) : null}
 
       {!loading && !error && episode ? (
-        <div className="mt-4 space-y-4">
+        <div className="mt-2 space-y-3">
           <div>
-            <div className="text-white font-semibold">{episode.title}</div>
-            <div className="text-[#888888] font-mono text-sm mt-1">{episode.summary}</div>
+            <div className="text-white font-semibold text-sm">{episode.title}</div>
+            <div className="text-[#888888] font-mono text-xs mt-1">{episode.summary}</div>
           </div>
 
           {episode.audioUrl ? (
             <audio className="w-full" controls preload="none" src={episode.audioUrl} />
           ) : (
-            <div className="border border-[#1F1F1F] rounded-xl p-4">
-              <div className="text-[#888888] font-mono text-sm mb-2">{labels.noAudio}</div>
-              <div className="text-white/90 text-sm leading-relaxed whitespace-pre-line">{episode.script}</div>
+            <div className="border border-[#1F1F1F] rounded-xl p-3">
+              <div className="text-[#888888] font-mono text-xs mb-2">{labels.noAudio}</div>
+              <div className="text-white/90 text-xs leading-relaxed whitespace-pre-line">{episode.script}</div>
             </div>
           )}
 
           {episode.highlights?.length ? (
-            <div className="border-t border-[#1F1F1F] pt-4">
-              <div className="text-white font-semibold mb-2">{labels.highlights}</div>
-              <div className="space-y-2">
+            <div className="border-t border-[#1F1F1F] pt-3">
+              <div className="text-white font-semibold mb-2 text-sm">{labels.highlights}</div>
+              <div className="space-y-1">
                 {episode.highlights.slice(0, 6).map((item) => (
-                  <div key={item} className="text-[#888888] font-mono text-sm">
+                  <div key={item} className="text-[#888888] font-mono text-xs">
                     • {item}
                   </div>
                 ))}

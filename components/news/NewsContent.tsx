@@ -43,16 +43,13 @@ export function NewsContent({ initialArticles, locale }: NewsContentProps) {
       </section>
 
       {/* Stats & Insights Section */}
-      <section className="border-t border-[#1F1F1F] bg-[#0A0A0A] px-6 md:px-12 py-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
+      <section className="border-t border-[#1F1F1F] bg-[#0A0A0A] px-4 md:px-8 py-4">
+        <div className="w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-3">
             <ErrorBoundary componentName="NewsPodcastWidget">
               <NewsPodcastWidget locale={locale} />
             </ErrorBoundary>
-          </div>
 
-          {/* Stats - Full width */}
-          <div className="mb-8">
             <NewsStats locale={locale} />
           </div>
         </div>

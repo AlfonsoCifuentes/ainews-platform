@@ -79,24 +79,24 @@ export function NewsStats({ locale }: NewsStatsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
       {statsCards.map((stat) => (
         <div
           key={stat.label}
-          className="relative overflow-hidden border border-white/10 bg-transparent p-4 transition-colors hover:border-white/30"
+          className="relative overflow-hidden border border-white/10 bg-transparent p-3 transition-colors hover:border-white/30"
         >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xl">{stat.icon}</span>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-lg">{stat.icon}</span>
             <span className="text-xs font-mono tracking-widest text-[#888888]">
               {stat.label.toUpperCase()}
             </span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-white font-mono">
+            <span className="text-xl font-bold text-white font-mono">
               {stat.value}
             </span>
             {stat.suffix && (
-              <span className="text-sm text-[#888888] font-mono">{stat.suffix}</span>
+              <span className="text-xs text-[#888888] font-mono">{stat.suffix}</span>
             )}
           </div>
         </div>
