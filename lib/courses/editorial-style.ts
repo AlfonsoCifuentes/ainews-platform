@@ -173,6 +173,154 @@ function normalizeSeparatorLines(markdown: string): string {
   return markdown.replace(/^\s*--\s*$/gm, '---');
 }
 
+function stripLeakedInstructionLinesOutsideCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const shouldDropLine = (trimmed: string): boolean => {
+    const t = trimmed.trim();
+    if (!t) return false;
+
+    // Common "prompt fragment" leaks (course content should never include these).
+    if (/^key\s+distinction\b/i.test(t)) return true;
+    if (/\bassertion\s*[≠!=]+\s*evidence\b/i.test(t)) return true;
+    if (/\bexplicit\s+uncertainty\b/i.test(t)) return true;
+
+    // Generic meta-instruction patterns.
+    if (/\b(system\s+prompt|prompt\s+instructions?|model\s+instructions?)\b/i.test(t)) return true;
+    if (/\b(do\s+not\s+include|only\s+valid\s+json|respond\s+only)\b/i.test(t)) return true;
+
+    return false;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (!inFence && shouldDropLine(trimmed)) {
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
+function stripStandaloneLanguageMarkersOutsideCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const langMarkers = new Set([
+    'sql',
+    'python',
+    'py',
+    'js',
+    'javascript',
+    'ts',
+    'typescript',
+    'bash',
+    'sh',
+    'shell',
+    'powershell',
+    'ps1',
+    'json',
+    'yaml',
+    'yml',
+    'html',
+    'css',
+    'xml',
+    'text',
+    'plaintext',
+  ]);
+
+  const looksLikeStandaloneMarker = (trimmed: string): boolean => {
+    const t = trimmed.toLowerCase();
+    if (!langMarkers.has(t)) return false;
+    // Don't remove if it's part of a real code fence line (handled elsewhere).
+    return true;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (!inFence && looksLikeStandaloneMarker(trimmed)) {
+      // If it's a bare marker line (e.g. "sql") between prose/list items, drop it.
+      // Keep if the next non-empty line is clearly code-like.
+      let j = i + 1;
+      while (j < lines.length && !(lines[j] ?? '').trim()) j += 1;
+      const next = j < lines.length ? (lines[j] ?? '').trim() : '';
+      const nextLooksCode = isLikelyCodeLine(next) || isStrongCodeLine(next);
+      if (!nextLooksCode) {
+        continue;
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
+function normalizeIsolatedNumberedListMarkers(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const isSoloNumber = (trimmed: string): number | null => {
+    if (!/^\d{1,3}$/.test(trimmed)) return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n <= 0 || n > 200) return null;
+    return n;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (!inFence) {
+      const n = isSoloNumber(trimmed);
+      if (n !== null) {
+        // Merge with next non-empty prose line into a proper "n. ..." list item.
+        let j = i + 1;
+        while (j < lines.length && !(lines[j] ?? '').trim()) j += 1;
+        const next = j < lines.length ? (lines[j] ?? '') : '';
+        const nextTrimmed = next.trim();
+        if (nextTrimmed && !isStructuralLine(nextTrimmed) && !/^\d+\.\s+/.test(nextTrimmed)) {
+          out.push(`${n}. ${nextTrimmed}`);
+          i = j;
+          continue;
+        }
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out.join('\n');
+}
+
 function normalizeInlineHtmlTagsOutsideCodeFences(markdown: string): string {
   const lines = normalizeNewlines(markdown).split('\n');
   const out: string[] = [];
@@ -2950,7 +3098,10 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
   const fencesRepaired = normalizeBrokenCodeFences(blockquotesSplit);
   const nonCodeUnwrapped = unwrapNonCodeFences(fencesRepaired);
-  const htmlNormalized = normalizeInlineHtmlTagsOutsideCodeFences(nonCodeUnwrapped);
+  const promptLeaksStripped = stripLeakedInstructionLinesOutsideCodeFences(nonCodeUnwrapped);
+  const langMarkersStripped = stripStandaloneLanguageMarkersOutsideCodeFences(promptLeaksStripped);
+  const isolatedNumbersFixed = normalizeIsolatedNumberedListMarkers(langMarkersStripped);
+  const htmlNormalized = normalizeInlineHtmlTagsOutsideCodeFences(isolatedNumbersFixed);
   const htmlWrapped = wrapBareHtmlBlocks(htmlNormalized);
   const hallucinatedStripped = stripHallucinatedHtmlSamples(htmlWrapped);
   const bareCodeWrapped = wrapBareCodeRunsOutsideFences(hallucinatedStripped);

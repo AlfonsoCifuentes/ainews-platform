@@ -50,6 +50,8 @@ Editorial layout (magazine-style, mandatory for any markdown content fields):
 
 CRITICAL: Do not output Mermaid, ASCII diagrams, or diagram code blocks. Any diagrams must be described and paired with illustration prompts for generated images.
 
+CRITICAL: Do not include any meta-instructions, rubric labels, or prompt fragments in content fields (e.g., "Key distinction", "assertion ≠ evidence", "explicit uncertainty"). Output only course content.
+
 CRITICAL: Return only valid JSON matching the provided schema. No markdown fences, no commentary.`;
 
 // ============================================================================
