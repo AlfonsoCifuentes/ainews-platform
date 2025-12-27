@@ -113,7 +113,13 @@ export function ModuleHeaderIllustration({
           params.set('slotId', headerSlot.id);
         }
 
-        const existing = await fetch(`/api/courses/modules/illustrations?${params.toString()}`);
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+        const existing = await fetch(`/api/courses/modules/illustrations?${params.toString()}`, {
+          signal: controller.signal,
+        }).finally(() => {
+          window.clearTimeout(timeoutId);
+        });
         if (!existing.ok) return null;
         const payload = (await existing.json()) as {
           success: boolean;
@@ -124,6 +130,9 @@ export function ModuleHeaderIllustration({
           return payload.illustration.image_url;
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return null;
+        }
         console.warn('[ModuleHeaderIllustration] Prefetch failed', error);
       }
       return null;

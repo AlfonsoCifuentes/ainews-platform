@@ -28,6 +28,8 @@ export function useModuleVisualSlots(
   useEffect(() => {
     if (!moduleId) {
       setSlots([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 
@@ -70,9 +72,17 @@ export function useModuleVisualSlots(
         setSlots(payload.slots ?? []);
       } catch (err) {
         if (!isMounted) return;
+
+        // Abort is expected when the component unmounts or params change.
+        if (
+          controller.signal.aborted ||
+          (err instanceof Error && err.name === 'AbortError')
+        ) {
+          return;
+        }
+
         console.error('[useModuleVisualSlots] Error', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
-        setSlots([]);
       } finally {
         if (isMounted) {
           setLoading(false);

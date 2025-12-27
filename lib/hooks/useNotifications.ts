@@ -37,10 +37,15 @@ export function useNotifications(unreadOnly = false): UseNotificationsResult {
       const params = new URLSearchParams();
       if (unreadOnly) params.append('unreadOnly', 'true');
 
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
       const response = await fetch(`/api/notifications?${params}`, {
         method: 'GET',
         credentials: 'include',
-        signal: AbortSignal.timeout(5000), // 5 second timeout
+        signal: controller.signal,
+      }).finally(() => {
+        window.clearTimeout(timeoutId);
       });
       
       if (response.status === 401) {
@@ -64,8 +69,6 @@ export function useNotifications(unreadOnly = false): UseNotificationsResult {
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load notifications');
       }
-      setNotifications([]);
-      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
