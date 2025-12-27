@@ -173,6 +173,97 @@ function normalizeSeparatorLines(markdown: string): string {
   return markdown.replace(/^\s*--\s*$/gm, '---');
 }
 
+function normalizeInlineHtmlTagsOutsideCodeFences(markdown: string): string {
+  const lines = normalizeNewlines(markdown).split('\n');
+  const out: string[] = [];
+  let inFence = false;
+
+  const decodeCommonEntities = (input: string): string => {
+    return input
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/g, "'");
+  };
+
+  const normalizeLine = (line: string): string => {
+    let s = decodeCommonEntities(line);
+
+    // Common block-level tags
+    s = s
+      .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+      .replace(/<\s*\/\s*p\s*>/gi, '\n\n')
+      .replace(/<\s*p\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*div\s*>/gi, '\n\n')
+      .replace(/<\s*div\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*section\s*>/gi, '\n\n')
+      .replace(/<\s*section\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*article\s*>/gi, '\n\n')
+      .replace(/<\s*article\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*ul\s*>/gi, '\n')
+      .replace(/<\s*ul\b[^>]*>/gi, '')
+      .replace(/<\s*\/\s*ol\s*>/gi, '\n')
+      .replace(/<\s*ol\b[^>]*>/gi, '')
+      .replace(/<\s*li\b[^>]*>/gi, '- ')
+      .replace(/<\s*\/\s*li\s*>/gi, '\n')
+      .replace(/<\s*\/\s*details\s*>/gi, '\n')
+      .replace(/<\s*details\b[^>]*>/gi, '\n')
+      .replace(/<\s*summary\b[^>]*>/gi, '**')
+      .replace(/<\s*\/\s*summary\s*>/gi, '**\n');
+
+    // Inline emphasis tags
+    s = s
+      .replace(/<\s*strong\b[^>]*>/gi, '**')
+      .replace(/<\s*\/\s*strong\s*>/gi, '**')
+      .replace(/<\s*b\b[^>]*>/gi, '**')
+      .replace(/<\s*\/\s*b\s*>/gi, '**')
+      .replace(/<\s*em\b[^>]*>/gi, '*')
+      .replace(/<\s*\/\s*em\s*>/gi, '*')
+      .replace(/<\s*i\b[^>]*>/gi, '*')
+      .replace(/<\s*\/\s*i\s*>/gi, '*')
+      .replace(/<\s*code\b[^>]*>/gi, '`')
+      .replace(/<\s*\/\s*code\s*>/gi, '`');
+
+    // Links: keep text, keep href when possible.
+    s = s.replace(/<\s*a\b[^>]*href\s*=\s*['\"]([^'\"]+)['\"][^>]*>([\s\S]*?)<\s*\/\s*a\s*>/gi, (_m, href, text) => {
+      const t = collapseWhitespace(String(text ?? '').replace(/<[^>]+>/g, ' ').trim());
+      const h = String(href ?? '').trim();
+      return t && h ? `[${t}](${h})` : t || h;
+    });
+
+    // Remove any remaining tags (classes/spans/etc.)
+    s = s.replace(/<[^>]+>/g, '');
+
+    // Cleanup
+    s = s.replace(/[ \t]+/g, ' ');
+    return s;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine ?? '';
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      out.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      out.push(line);
+      continue;
+    }
+
+    const normalized = normalizeLine(line);
+    // normalizeLine may inject \n, so split into multiple lines.
+    out.push(...normalized.split('\n'));
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 function removeEmptyListMarkers(markdown: string): string {
   return markdown
     .replace(/^\s*[-*]\s*$/gm, '')
@@ -2859,7 +2950,8 @@ export function normalizeEditorialMarkdown(markdown: string, options: NormalizeE
   const blockquotesSplit = splitInlineBlockquoteSegments(inlineHeadingsSplit);
   const fencesRepaired = normalizeBrokenCodeFences(blockquotesSplit);
   const nonCodeUnwrapped = unwrapNonCodeFences(fencesRepaired);
-  const htmlWrapped = wrapBareHtmlBlocks(nonCodeUnwrapped);
+  const htmlNormalized = normalizeInlineHtmlTagsOutsideCodeFences(nonCodeUnwrapped);
+  const htmlWrapped = wrapBareHtmlBlocks(htmlNormalized);
   const hallucinatedStripped = stripHallucinatedHtmlSamples(htmlWrapped);
   const bareCodeWrapped = wrapBareCodeRunsOutsideFences(hallucinatedStripped);
   const orphanMerged = mergeOrphanCodeLinesAfterFence(bareCodeWrapped);

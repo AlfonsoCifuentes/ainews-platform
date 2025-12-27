@@ -450,6 +450,7 @@ CONTENT REQUIREMENTS:
   - Include bullet points and numbered lists (editorial list style: each bullet starts with a bold label, e.g. "- **Concept:** ...")
   - Add tables for comparisons
   - Break dense text with examples
+  - DO NOT use raw HTML tags (no <div>, <p>, <ul>, <li>, <details>, etc.). Use pure Markdown only.
   - NEVER write more than 3 plain paragraphs in a row; insert a widget to break the rhythm
   - Include at least:
      - 2 pull quotes using: > ## "Impactful sentence" and > *— Context*
@@ -865,20 +866,18 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
     }
     
     if (ex.hints && ex.hints.length > 0) {
-      md.push('<details>');
-      md.push('<summary>💡 Hints</summary>\n');
-      ex.hints.forEach(hint => md.push(`- ${hint}`));
-      md.push('</details>\n');
+      md.push('#### 💡 Hints\n');
+      ex.hints.forEach((hint) => md.push(`- ${hint}`));
+      md.push('');
     }
     
-    md.push('<details>');
-    md.push('<summary>✅ Solution</summary>\n');
+    md.push('#### ✅ Solution\n');
     md.push(`**Answer:** ${ex.solution}\n`);
     md.push(`**Explanation:** ${ex.explanation}`);
     if (ex.grading_rubric) {
       md.push(`\n**Grading Rubric:** ${ex.grading_rubric}`);
     }
-    md.push('</details>\n');
+    md.push('');
   });
 
   // Chapter exam
@@ -900,8 +899,8 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
     });
   });
 
-  md.push('<details>');
-  md.push('<summary>📋 Answer Key</summary>\n');
+  md.push('---\n');
+  md.push(`## 📋 Answer Key\n`);
   chapter.exam.sections.forEach(section => {
     md.push(`**${section.section_title}**`);
     section.questions.forEach((q, qi) => {
@@ -909,7 +908,6 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
       md.push(`   *${q.explanation}*\n`);
     });
   });
-  md.push('</details>\n');
 
   // Grading scale
   md.push(`#### ${label.gradingScale}\n`);
