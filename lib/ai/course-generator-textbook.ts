@@ -469,9 +469,10 @@ CONTENT REQUIREMENTS:
    - Real industry references
 
 4. "DID YOU KNOW?" BOX:
-   - Include one fascinating fact or historical context
-   - Should spark curiosity
-   - Include illustration_prompt for AI image generation
+  - Include ONE fascinating fact tied to the adjacent topic (not meta commentary)
+  - MUST be short: 1-2 sentences, single line (no newlines), ~220 characters max
+  - No lists, no headings, no code
+  - Include illustration_prompt for AI image generation
 
 5. KEY TERMS:
    - Define 5-10 important terms
@@ -776,9 +777,13 @@ export function assembleChapterMarkdown(chapter: TextbookChapter): string {
 
     // Did you know box
     if (section.content.did_you_know) {
-      md.push(`| 💡 TECH INSIGHT: ${section.content.did_you_know.title} |`);
-      md.push('| :--- |');
-      md.push(`| ${section.content.did_you_know.content} |\n`);
+      const prefix = isSpanish ? '¿Sabías que?' : 'Did you know?';
+      const fact = String(section.content.did_you_know.content || '').replace(/\s+/g, ' ').trim();
+      if (fact) {
+        // Single-line brain callout so it always renders as a brain-icon box.
+        md.push(`🎯 ${prefix} ${fact}`);
+        md.push('');
+      }
     }
 
     // Code examples

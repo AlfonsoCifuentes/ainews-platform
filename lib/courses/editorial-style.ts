@@ -185,6 +185,7 @@ function stripLeakedInstructionLinesOutsideCodeFences(markdown: string): string 
     // Common "prompt fragment" leaks (course content should never include these).
     if (/^key\s+distinction\b/i.test(t)) return true;
     if (/\bassertion\s*[≠!=]+\s*evidence\b/i.test(t)) return true;
+    if (/\bclaim\s*[≠!=]+\s*evidence\b/i.test(t)) return true;
     if (/\bexplicit\s+uncertainty\b/i.test(t)) return true;
 
     // Generic meta-instruction patterns.

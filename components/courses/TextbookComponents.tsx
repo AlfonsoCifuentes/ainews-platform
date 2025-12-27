@@ -125,7 +125,7 @@ export function CalloutBox({ type, content, isDark, locale }: CalloutBoxProps) {
     },
     'key-concept': {
       icon: <Brain className="w-5 h-5" />,
-      title: '🎯 Key Concept',
+      title: '🧠 Did You Know?',
       bgClass: isDark ? 'bg-primary/10' : 'bg-blue-50',
       borderClass: isDark ? 'border-primary/40' : 'border-blue-400',
       iconBg: isDark ? 'bg-primary/20 text-primary' : 'bg-blue-200 text-blue-700',
@@ -174,7 +174,7 @@ export function CalloutBox({ type, content, isDark, locale }: CalloutBoxProps) {
     didyouknow: { en: 'Did you know?', es: '¿Sabías que?' },
     warning: { en: 'Warning', es: 'Advertencia' },
     tip: { en: 'Tip', es: 'Consejo' },
-    'key-concept': { en: 'Key concept', es: 'Concepto clave' },
+    'key-concept': { en: 'Did you know?', es: '¿Sabías que?' },
     example: { en: 'Example', es: 'Ejemplo' },
     exercise: { en: 'Exercise', es: 'Ejercicio' },
     summary: { en: 'Summary', es: 'Resumen' },
