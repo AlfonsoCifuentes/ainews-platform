@@ -11,21 +11,27 @@ on:
 jobs:
   scrape-leaderboard:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
       
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
       
       - name: 🔍 Scrape Artificial Analysis leaderboard
-        run: |
-          npx ts-node scripts/scrape-artificial-analysis.ts
+        run: npm run ai:update-leaderboard
       
       - name: 🔨 Build to verify changes
         run: npm run build --if-present

@@ -3,8 +3,8 @@
  * Detects bursty topics from recent RSS feeds + embeddings clusters
  */
 
-import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { getSupabaseServerClient } from '../../db/supabase';
+import { LLMClient } from '../llm-client';
 
 interface Article {
   id: string;

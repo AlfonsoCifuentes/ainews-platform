@@ -3,8 +3,8 @@
  * Detects bias and sentiment across articles with labeling
  */
 
-import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { LLMClient } from '@/lib/ai/llm-client';
+import { getSupabaseServerClient } from '../../db/supabase';
+import { LLMClient } from '../llm-client';
 
 export interface BiasAnalysis {
   articleId: string;

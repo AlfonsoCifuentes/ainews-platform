@@ -41,13 +41,27 @@ jobs:
   run-agents:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: none
     env:
-      SITE_URL: https://thotnet-core.vercel.app
-      AGENTS_SCHEDULER_KEY: ${{ secrets.AGENTS_SCHEDULER_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run scheduled/selected agent(s)
         env:
           AGENT_INPUT: ${{ github.event.inputs.agent }}
@@ -55,11 +69,6 @@ jobs:
           REQUEST_ID: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-
-          if [ -z "${AGENTS_SCHEDULER_KEY:-}" ]; then
-            echo "❌ Missing AGENTS_SCHEDULER_KEY secret"
-            exit 1
-          fi
 
           echo "Event: ${{ github.event_name }}"
           echo "Schedule: ${SCHEDULE:-<none>}"
@@ -96,24 +105,9 @@ jobs:
 
           echo "Agents to run: ${agents[*]}"
 
-          mkdir -p /tmp/ai-agents
-
           for agent in "${agents[@]}"; do
-            echo "🚀 Running agent: ${agent}"
-
-            # `--fail-with-body` makes HTTP 4xx/5xx fail the step (and prints body)
-            # Retries help with transient Vercel/network hiccups.
-            curl --fail-with-body --show-error --silent \
-              --connect-timeout 15 --max-time 240 \
-              --retry 6 --retry-delay 2 --retry-all-errors \
-              -X POST "${SITE_URL}/api/agents/run" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer ${AGENTS_SCHEDULER_KEY}" \
-              -H "X-Request-Id: ${REQUEST_ID}" \
-              -d "{\"agentType\":\"${agent}\",\"requestId\":\"${REQUEST_ID}\"}" \
-              | tee "/tmp/ai-agents/agent-${agent}-response.json"
-
-            echo "✅ Agent ${agent} completed"
+            echo "🚀 Running agent locally: ${agent}"
+            npx tsx scripts/run-ai-agents.ts --agent "${agent}" --request-id "${REQUEST_ID}"
           done
 
       - name: Upload responses (on failure)
