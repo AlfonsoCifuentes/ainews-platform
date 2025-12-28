@@ -182,8 +182,31 @@ export function CalloutBox({ type, content, isDark, locale }: CalloutBoxProps) {
   };
 
   const fallbackTitle = localizedTitles[type]?.[locale] ?? localizedTitles.callout[locale];
-  const displayTitle = titleMatch ? titleMatch[1] : fallbackTitle;
-  const displayContent = titleMatch ? titleMatch[2] : content;
+  const rawTitle = titleMatch ? titleMatch[1] : null;
+  const rawContent = titleMatch ? titleMatch[2] : content;
+
+  const isLegacyKeyDistinctionTitle = (value: string | null) => {
+    if (!value) return false;
+    const normalized = value.trim().toLowerCase();
+    return (
+      normalized === 'key distinction' ||
+      normalized === 'key concept' ||
+      normalized === 'distinción clave' ||
+      normalized === 'distincion clave'
+    );
+  };
+
+  // Brain / fun-fact callouts must always be rendered as “Did you know?” regardless
+  // of leaked rubric titles like “Key Distinction”.
+  const shouldForceFunFactTitle = type === 'key-concept' || type === 'didyouknow';
+  const displayTitle = (shouldForceFunFactTitle || isLegacyKeyDistinctionTitle(rawTitle))
+    ? fallbackTitle
+    : (rawTitle ?? fallbackTitle);
+
+  const displayContent = String(rawContent ?? '').trim();
+  if (!displayContent) {
+    return null;
+  }
   const bodyBlocks = parseCalloutBody(displayContent);
 
   return (
