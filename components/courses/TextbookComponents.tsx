@@ -518,6 +518,32 @@ function renderCodeWithCommentHighlights(code: string, language?: string): React
   return nodes;
 }
 
+function looksLikeSql(code: string): boolean {
+  const text = String(code ?? '').trim();
+  if (!text) return false;
+
+  const compacted = text.replace(/\s+/g, ' ').toLowerCase();
+
+  // Heuristic: if it contains common SQL structure/keywords, treat as real SQL.
+  const keyword = /\b(select|insert|update|delete|from|where|join|group by|order by|having|create table|alter table|drop table|with|limit|offset)\b/i;
+  const hasKeyword = keyword.test(compacted);
+
+  const hasSqlPunctuation = /;|\binto\b|\bvalues\b|\bset\b/i.test(compacted);
+  const hasSqlComment = /(^|\n)\s*--/.test(text) || /\/\*/.test(text);
+
+  // If it's a single sentence with no SQL syntax cues, assume it's prose.
+  const looksLikeProse =
+    !hasKeyword &&
+    !hasSqlPunctuation &&
+    !hasSqlComment &&
+    compacted.length < 260 &&
+    /[a-z]/.test(compacted) &&
+    !/[{}<>]/.test(compacted);
+
+  if (looksLikeProse) return false;
+  return hasKeyword || hasSqlPunctuation || hasSqlComment;
+}
+
 export function CodeBlock({
   code,
   language,
@@ -529,6 +555,25 @@ export function CodeBlock({
   subtitle?: string;
   isDark: boolean;
 }) {
+  const normalizedLanguage = (language ?? '').trim().toLowerCase();
+
+  // Some legacy modules contain prose wrapped in ```sql fences.
+  // Render those as a plain content box (no language label, no monospace).
+  if (normalizedLanguage === 'sql' && !looksLikeSql(code)) {
+    const text = String(code ?? '').trim();
+    if (!text) return null;
+    return (
+      <div
+        className={
+          `my-8 w-full max-w-full min-w-0 border border-white/20 bg-black/60 rounded-none px-5 py-4 ` +
+          (isDark ? 'text-muted-foreground' : 'text-gray-100')
+        }
+      >
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{text}</p>
+      </div>
+    );
+  }
+
   const renderedCode = renderCodeWithCommentHighlights(code, language);
   return (
     <figure className="my-8 w-full max-w-full min-w-0 rounded-xl overflow-hidden shadow-lg">
