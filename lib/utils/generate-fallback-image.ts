@@ -245,6 +245,24 @@ export function generateCourseFallbackImage(config: CourseFallbackImageConfig): 
 // Import fallback images list - statically imported for best performance
 import fallbackImagesList from '@/lib/fallback-images-list.json';
 
+// Hard denylist: images that must never be used as fallback.
+// Keep this in addition to removing them from the JSON list, to remain safe if the list is regenerated.
+const FALLBACK_IMAGE_DENYLIST = new Set<string>([
+  'fallback_chatgpt_image_23_dic_2025_05_07_24.webp',
+  'fallback_chatgpt_image_23_dic_2025_05_10_35.webp',
+  'fallback_chatgpt_image_23_dic_2025_05_13_17.webp',
+  'fallback_chatgpt_image_23_dic_2025_05_14_44.webp',
+]);
+
+function filterDeniedFallbackImages(urls: string[]): string[] {
+  return urls.filter((u) => {
+    for (const denied of FALLBACK_IMAGE_DENYLIST) {
+      if (u.includes(denied)) return false;
+    }
+    return true;
+  });
+}
+
 /**
  * Seeded random number generator for consistent results
  * Uses article ID as seed to ensure same article always gets same image
@@ -264,7 +282,7 @@ function seededRandom(seed: string): number {
  * Uses seeded randomization based on article ID or title for consistency
  */
 export function getFallbackImageUrl(identifier: string): string {
-  const images = fallbackImagesList as string[];
+  const images = filterDeniedFallbackImages(fallbackImagesList as string[]);
   if (!images || images.length === 0) {
     return '';
   }
@@ -313,7 +331,7 @@ export function assignFallbackImagesToArticles<T extends {
   articles: T[],
   windowSize = 5
 ): (T & { computed_image_url: string; preferred_fallback_image_url: string })[] {
-  const images = fallbackImagesList as string[];
+  const images = filterDeniedFallbackImages(fallbackImagesList as string[]);
   const result: (T & { computed_image_url: string; preferred_fallback_image_url: string })[] = [];
 
   // Track the last position where a given fallback image was assigned.
