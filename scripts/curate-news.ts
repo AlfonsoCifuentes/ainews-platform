@@ -271,6 +271,41 @@ function looksLikeMajorAiStory(article: RawArticle): boolean {
 	return signals.some((s) => title.includes(s));
 }
 
+function sourceTierWeight(source: NewsSource): number {
+	// Follow the editorial strategy:
+	// - Prioritize primary sources (company/research)
+	// - Allow mainstream/news, but don't let it dominate
+	// - Treat aggregators as discovery, not authority
+	// - De-prioritize tutorials/community/newsletters for the main "breaking news" feed
+	switch (source.category) {
+		case 'company':
+			return 1.15;
+		case 'research':
+			return 1.12;
+		case 'news':
+			return 1.0;
+		case 'aggregator':
+			return 0.92;
+		case 'newsletter':
+			return 0.93;
+		case 'podcast':
+			return 0.9;
+		case 'tutorials':
+			return 0.88;
+		case 'community':
+			return 0.86;
+		default:
+			return 1.0;
+	}
+}
+
+function entryPriorityScore(entry: ClassifiedArticleRecord): number {
+	const tier = sourceTierWeight(entry.article.source);
+	const q = Math.max(0, Math.min(1, entry.classification.quality_score));
+	const majorBoost = looksLikeMajorAiStory(entry.article) ? 0.06 : 0;
+	return q * tier + majorBoost;
+}
+
 function calculateNextRetryDelayMs(attempts: number): number {
 	const cappedAttempts = Math.min(attempts, 6);
 	const delay = IMAGE_RETRY_BACKOFF_BASE_MS * Math.pow(2, cappedAttempts - 1);
@@ -1112,7 +1147,13 @@ Valid categories: "machinelearning", "nlp", "computervision", "robotics", "ethic
 			if (!classification.relevant) return null;
 
 			const isMajor = looksLikeMajorAiStory(article);
-			const effectiveMin = isMajor ? Math.max(0.5, MIN_QUALITY_SCORE - 0.1) : MIN_QUALITY_SCORE;
+			const tier = sourceTierWeight(article.source);
+			// Tiered gating: stricter for low-signal sources, slightly more tolerant for primary sources.
+			// This prevents mainstream/aggregators from dominating while still capturing big stories.
+			let baseMin = MIN_QUALITY_SCORE;
+			if (tier >= 1.12) baseMin -= 0.05; // company/research
+			if (tier <= 0.92) baseMin += 0.05; // aggregators + below
+			const effectiveMin = isMajor ? Math.max(0.5, baseMin - 0.1) : baseMin;
 			if (classification.quality_score < effectiveMin) {
 				return null;
 			}
@@ -1731,7 +1772,11 @@ async function main(): Promise<void> {
 	if (entriesToProcess.length > MAX_ARTICLES_TO_PROCESS) {
 		entriesToProcess = [...entriesToProcess]
 			.sort((a, b) => {
-				// Primary: higher editorial quality.
+				// Primary: tier-aware priority score (quality + source tier + major boost).
+				const aScore = entryPriorityScore(a);
+				const bScore = entryPriorityScore(b);
+				if (aScore !== bScore) return bScore - aScore;
+				// Secondary: raw quality.
 				if (a.classification.quality_score !== b.classification.quality_score) {
 					return b.classification.quality_score - a.classification.quality_score;
 				}
