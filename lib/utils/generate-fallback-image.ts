@@ -312,55 +312,72 @@ export function assignFallbackImagesToArticles<T extends {
 }>(
   articles: T[],
   windowSize = 5
-): (T & { computed_image_url: string })[] {
+): (T & { computed_image_url: string; preferred_fallback_image_url: string })[] {
   const images = fallbackImagesList as string[];
-  const result: (T & { computed_image_url: string })[] = [];
-  const recentFallbacks: string[] = [];
+  const result: (T & { computed_image_url: string; preferred_fallback_image_url: string })[] = [];
+
+  // Track the last position where a given fallback image was assigned.
+  // This enables a greedy "maximize distance" strategy to keep repetitions as far apart as possible.
+  const lastUsedAt = new Map<string, number>();
+  const minDistance = Math.max(0, Math.floor(windowSize));
+
+  function selectSpacedFallbackImage(articleId: string, position: number): string {
+    if (!Array.isArray(images) || images.length === 0) return '';
+
+    const baseIndex = Math.floor(seededRandom(articleId) * images.length);
+
+    // Iterate candidates in a seeded order, and pick the one that maximizes distance since last use.
+    // If there are candidates beyond the minDistance threshold, prefer those.
+    let bestCandidate = images[baseIndex];
+    let bestDistance = -1;
+    let bestIsBeyondThreshold = false;
+
+    for (let offset = 0; offset < images.length; offset++) {
+      const candidate = images[(baseIndex + offset) % images.length];
+      const last = lastUsedAt.get(candidate);
+      const distance = last === undefined ? Number.POSITIVE_INFINITY : position - last;
+      const isBeyond = distance > minDistance;
+
+      // Prefer candidates that are beyond the threshold. Among them, maximize distance.
+      // Tie-break by seeded iteration order (first encountered wins).
+      if (isBeyond && !bestIsBeyondThreshold) {
+        bestCandidate = candidate;
+        bestDistance = distance;
+        bestIsBeyondThreshold = true;
+        continue;
+      }
+
+      if (isBeyond === bestIsBeyondThreshold) {
+        if (distance > bestDistance) {
+          bestCandidate = candidate;
+          bestDistance = distance;
+        }
+      }
+    }
+
+    return bestCandidate;
+  }
 
   for (let i = 0; i < articles.length; i++) {
     const article = articles[i];
-    
-    if (article.image_url && article.image_url.trim() !== '') {
-      // Article has its own image
-      result.push({ 
-        ...article, 
-        computed_image_url: article.image_url 
-      });
-      recentFallbacks.push(article.image_url);
-    } else if (images.length > 0) {
-      // Need fallback - use seeded random but avoid recent images
-      const baseIndex = Math.floor(seededRandom(article.id) * images.length);
-      const usedInWindow = new Set(recentFallbacks.slice(-windowSize));
-      
-      let selectedUrl = images[baseIndex];
-      
-      // Try to find an unused image
-      for (let offset = 0; offset < images.length; offset++) {
-        const candidate = images[(baseIndex + offset) % images.length];
-        if (!usedInWindow.has(candidate)) {
-          selectedUrl = candidate;
-          break;
-        }
-      }
-      
-      result.push({ 
-        ...article, 
-        computed_image_url: selectedUrl 
-      });
-      recentFallbacks.push(selectedUrl);
+
+    // Always compute a preferred fallback URL for this article.
+    // This is used both when the article has no image_url and when an existing image fails to load.
+    let preferredFallback = '';
+    if (Array.isArray(images) && images.length > 0) {
+      preferredFallback = selectSpacedFallbackImage(article.id, i);
+      lastUsedAt.set(preferredFallback, i);
     } else {
-      // No fallback images available, generate SVG
       const title = article.title_en || article.title_es || 'Article';
-      result.push({ 
-        ...article, 
-        computed_image_url: generateFallbackImage({ title }) 
-      });
+      preferredFallback = generateFallbackImage({ title, category: (article as { category?: string }).category });
     }
 
-    // Keep only recent images
-    if (recentFallbacks.length > windowSize * 2) {
-      recentFallbacks.shift();
-    }
+    const hasOwnImage = !!(article.image_url && article.image_url.trim() !== '');
+    result.push({
+      ...article,
+      preferred_fallback_image_url: preferredFallback,
+      computed_image_url: hasOwnImage ? (article.image_url as string) : preferredFallback,
+    });
   }
 
   return result;

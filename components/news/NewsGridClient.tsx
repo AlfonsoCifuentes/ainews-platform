@@ -53,12 +53,12 @@ export function NewsGridClient({ initialArticles, locale, activeCategory }: News
     });
   }, []);
 
-  const getSafeImageSrc = useCallback((article: INewsArticle & { computed_image_url: string }) => {
+  const getSafeImageSrc = useCallback((article: INewsArticle & { computed_image_url: string; preferred_fallback_image_url: string }) => {
     const stage = imageFallbackStageById[article.id] ?? 0;
     const title = getLocalizedString(article, 'title', locale);
 
     if (stage === 0) return article.computed_image_url;
-    if (stage === 1) return getImageWithFallback('', title, article.category, article.id);
+    if (stage === 1) return article.preferred_fallback_image_url || getImageWithFallback('', title, article.category, article.id);
     return generateFallbackImage({ title, category: article.category });
   }, [imageFallbackStageById, locale]);
 
