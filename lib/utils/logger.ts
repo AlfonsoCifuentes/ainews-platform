@@ -476,10 +476,28 @@ function initializeInterceptors() {
     } catch (error) {
       const duration = Math.round(performance.now() - startTime);
       const shortUrl = url.replace(window.location.origin, '');
+
+      const errorName =
+        (typeof error === 'object' && error !== null && 'name' in error
+          ? String((error as { name?: unknown }).name)
+          : undefined) ??
+        (error instanceof Error ? error.name : undefined);
+      const errorMessage =
+        (typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: unknown }).message)
+          : undefined) ??
+        (error instanceof Error ? error.message : String(error));
+
+      // Abort errors are expected when components unmount, navigation happens,
+      // or requests are intentionally cancelled. Do not report them as failures.
+      const isAbortError =
+        errorName === 'AbortError' ||
+        /\babort(ed)?\b/i.test(errorMessage) ||
+        /signal is aborted/i.test(errorMessage);
       
-      if (!shouldSkip) {
+      if (!shouldSkip && !isAbortError) {
         log('network', 'error', `${method} ${shortUrl} → FAILED`, {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
           duration: `${duration}ms`,
         });
       }
