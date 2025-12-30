@@ -126,6 +126,7 @@ type ArticleQueuePayload = {
 type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
 const MAX_ARTICLES_TO_PROCESS = 100;
+const MAX_RSS_CANDIDATES = 600;
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
@@ -181,7 +182,63 @@ function isRedditNonNews(article: RawArticle): { reject: true; reason: string } 
 const USE_SEMANTIC_DEDUPE = true;
 const SEMANTIC_DEDUPE_THRESHOLD = 0.93;
 
+const FALLBACK_PUBDATE_ISO = new Date(0).toISOString();
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function parseDateToIso(value: unknown): string | null {
+	if (value instanceof Date) {
+		const t = value.getTime();
+		if (!Number.isFinite(t)) return null;
+		return new Date(t).toISOString();
+	}
+
+	if (typeof value !== 'string') return null;
+	const trimmed = value.trim();
+	if (!trimmed) return null;
+	const t = Date.parse(trimmed);
+	if (Number.isNaN(t)) return null;
+	return new Date(t).toISOString();
+}
+
+function looksLikeMajorAiStory(article: RawArticle): boolean {
+	const title = (article.title ?? '').toLowerCase();
+	if (!title) return false;
+
+	// Conservative list: widely-covered “major news” entities/products.
+	const signals = [
+		'openai',
+		'chatgpt',
+		'gpt-',
+		'anthropic',
+		'claude',
+		'google',
+		'deepmind',
+		'gemini',
+		'meta',
+		'llama',
+		'microsoft',
+		'copilot',
+		'nvidia',
+		'cuda',
+		'blackwell',
+		'amazon',
+		'aws',
+		'apple',
+		'tesla',
+		'xai',
+		'grok',
+		'hugging face',
+		'vllm',
+		'mistral',
+		'cohere',
+		'perplexity',
+		'runway',
+		'midjourney',
+	];
+
+	return signals.some((s) => title.includes(s));
+}
 
 function calculateNextRetryDelayMs(attempts: number): number {
 	const cappedAttempts = Math.min(attempts, 6);
@@ -595,6 +652,7 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 						.map((item) => {
 							const link = item.link || item.guid || '';
 							if (!link) return null;
+							const pubDateIso = parseDateToIso(item.isoDate) ?? parseDateToIso(item.pubDate);
 							const contentEncoded = typeof (item as any)['content:encoded'] === 'string' ? (item as any)['content:encoded'] : undefined;
 							const itunesSummary = typeof (item as any)['itunes:summary'] === 'string' ? (item as any)['itunes:summary'] : undefined;
 							const itunesImageRaw = (item as any)['itunes:image'];
@@ -607,7 +665,8 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 							return {
 								title: item.title || 'Untitled',
 								link,
-								pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
+								// Avoid biasing the global recency sort: missing/invalid dates should not become "now".
+								pubDate: pubDateIso ?? FALLBACK_PUBDATE_ISO,
 								contentSnippet: item.contentSnippet || undefined,
 								content: typeof item.content === 'string' ? item.content : undefined,
 								contentEncoded,
@@ -641,11 +700,17 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 		}
 	}
 
-	deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+	// Prefer items with real dates first; keep undated items, but do not let them crowd out dated ones.
+	deduped.sort((a, b) => {
+		const aFallback = a.pubDate === FALLBACK_PUBDATE_ISO;
+		const bFallback = b.pubDate === FALLBACK_PUBDATE_ISO;
+		if (aFallback !== bFallback) return aFallback ? 1 : -1;
+		return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+	});
 
-	if (deduped.length > MAX_ARTICLES_TO_PROCESS) {
-		console.log(`[RSS] Limiting to ${MAX_ARTICLES_TO_PROCESS} most recent articles (from ${deduped.length} total)`);
-		return deduped.slice(0, MAX_ARTICLES_TO_PROCESS);
+	if (deduped.length > MAX_RSS_CANDIDATES) {
+		console.log(`[RSS] Limiting to ${MAX_RSS_CANDIDATES} candidate articles (from ${deduped.length} total)`);
+		return deduped.slice(0, MAX_RSS_CANDIDATES);
 	}
 
 	console.log(`[RSS] Total unique articles fetched: ${deduped.length}`);
@@ -891,7 +956,21 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 
 async function classifyArticle(article: RawArticle, llmClient: LLMClient, systemPrompt: string): Promise<ArticleClassification | null> {
 	const snippet = cleanContent(article.contentEncoded) || cleanContent(article.content) || article.itunesSummary || article.contentSnippet || '';
-	const prompt = `Title: ${article.title}\nContent: ${snippet.slice(0, 500)}...\n\nIs this article relevant to AI/ML/tech? Return JSON only.`;
+	let hostname = '';
+	try {
+		hostname = new URL(article.link).hostname.replace(/^www\./, '').toLowerCase();
+	} catch {
+		// ignore
+	}
+
+	// Give the classifier more signal: many “major” items have short/boilerplate RSS snippets.
+	const prompt = [
+		`Title: ${article.title}`,
+		hostname ? `Source: ${article.source.name} (${hostname})` : `Source: ${article.source.name}`,
+		`Content: ${snippet.slice(0, 2200)}...`,
+		'',
+		'Is this article relevant to AI/ML/tech? Return JSON only.',
+	].join('\n');
 
 	try {
 		const result = await llmClient.classify(prompt, ArticleClassificationSchema, systemPrompt);
@@ -963,7 +1042,19 @@ Valid categories: "machinelearning", "nlp", "computervision", "robotics", "ethic
 
 			const classification = await classifyArticle(article, llmClient, systemPrompt);
 			if (!classification) return null;
-			if (!classification.relevant || classification.quality_score < MIN_QUALITY_SCORE) return null;
+			if (!classification.relevant) return null;
+
+			const isMajor = looksLikeMajorAiStory(article);
+			const effectiveMin = isMajor ? Math.max(0.5, MIN_QUALITY_SCORE - 0.1) : MIN_QUALITY_SCORE;
+			if (classification.quality_score < effectiveMin) {
+				return null;
+			}
+
+			if (isMajor && classification.quality_score < MIN_QUALITY_SCORE) {
+				console.log(
+					`[Filter] Keeping borderline “major” item: ${article.title.slice(0, 70)}... (score: ${classification.quality_score.toFixed(2)})`,
+				);
+			}
 			return { article, classification } satisfies ClassifiedArticleRecord;
 		}),
 	);
@@ -1558,11 +1649,28 @@ async function main(): Promise<void> {
 		return;
 	}
 
+	let entriesToProcess = freshEntries;
+	if (entriesToProcess.length > MAX_ARTICLES_TO_PROCESS) {
+		entriesToProcess = [...entriesToProcess]
+			.sort((a, b) => {
+				// Primary: higher editorial quality.
+				if (a.classification.quality_score !== b.classification.quality_score) {
+					return b.classification.quality_score - a.classification.quality_score;
+				}
+				// Secondary: recency (dated items already float up earlier in fetchRSSFeeds()).
+				return new Date(b.article.pubDate).getTime() - new Date(a.article.pubDate).getTime();
+			})
+			.slice(0, MAX_ARTICLES_TO_PROCESS);
+		console.log(
+			`[News Curator] Limiting to ${MAX_ARTICLES_TO_PROCESS} articles after classification+dedupe (from ${freshEntries.length})`,
+		);
+	}
+
 	let stored = 0;
 	let queued = 0;
 	let skipped = 0;
 
-	for (const entry of freshEntries) {
+	for (const entry of entriesToProcess) {
 		const result = await processArticle(entry, db, llm);
 		if (result.success) {
 			stored += 1;
