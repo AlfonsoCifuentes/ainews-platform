@@ -186,6 +186,37 @@ const FALLBACK_PUBDATE_ISO = new Date(0).toISOString();
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+const googleNewsResolveCache = new Map<string, string>();
+
+function isGoogleNewsUrl(url: string): boolean {
+	return url.includes('news.google.com');
+}
+
+async function resolveGoogleNewsTargetUrl(url: string): Promise<string> {
+	if (!isGoogleNewsUrl(url)) return url;
+	const cached = googleNewsResolveCache.get(url);
+	if (cached) return cached;
+
+	try {
+		// Follow redirects to the publisher. Use GET to ensure redirects happen consistently.
+		const res = await fetch(url, {
+			redirect: 'follow',
+			headers: {
+				'User-Agent':
+					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			},
+			signal: AbortSignal.timeout(8000),
+		});
+		const finalUrl = res.url || url;
+		googleNewsResolveCache.set(url, finalUrl);
+		return finalUrl;
+	} catch {
+		googleNewsResolveCache.set(url, url);
+		return url;
+	}
+}
+
 function parseDateToIso(value: unknown): string | null {
 	if (value instanceof Date) {
 		const t = value.getTime();
@@ -735,6 +766,29 @@ async function scrapeArticlePage(url: string): Promise<{ image: string | null; c
 		const html = await response.text();
 		const $ = load(html);
 
+		// JSON-LD sometimes contains the full article body even when DOM selectors are tricky.
+		let jsonLdBody: string | null = null;
+		try {
+			const scripts = $('script[type="application/ld+json"]').toArray();
+			for (const node of scripts) {
+				const raw = $(node).text();
+				if (!raw) continue;
+				const parsed = JSON.parse(raw) as unknown;
+				const items = Array.isArray(parsed) ? parsed : [parsed];
+				for (const item of items) {
+					if (!item || typeof item !== 'object') continue;
+					const articleBody = (item as { articleBody?: unknown }).articleBody;
+					if (typeof articleBody === 'string' && articleBody.trim().length > 500) {
+						jsonLdBody = articleBody.trim();
+						break;
+					}
+				}
+				if (jsonLdBody) break;
+			}
+		} catch {
+			// ignore
+		}
+
 		$('script, style, nav, header, footer, aside, .ad, .advertisement, iframe').remove();
 
 		const imageSelectors = [
@@ -770,26 +824,39 @@ async function scrapeArticlePage(url: string): Promise<{ image: string | null; c
 		const contentCandidates = [
 			'article',
 			'main',
+			'[role="main"]',
 			'.article-content',
 			'.post-content',
 			'.entry-content',
+			'.post-body',
+			'.story-body',
+			'.article-body',
+			'.content',
 			'#content',
 		];
 
 		let contentHtml: string | null | undefined;
+		let bestLen = 0;
 		for (const selector of contentCandidates) {
-			const node = $(selector);
-			if (node.length && node.text().trim().length > 200) {
+			const node = $(selector).first();
+			if (!node.length) continue;
+			const textLen = node.text().trim().length;
+			if (textLen > bestLen) {
+				bestLen = textLen;
 				contentHtml = node.html() ?? node.text();
-				break;
 			}
 		}
 
 		contentHtml = contentHtml ?? $('body').html() ?? null;
 
+		const domCleaned = contentHtml ? cleanContent(contentHtml) : null;
+		const content = jsonLdBody && (!domCleaned || domCleaned.length < 600)
+			? cleanContent(jsonLdBody)
+			: domCleaned;
+
 		return {
 			image: image || null,
-			content: contentHtml ? cleanContent(contentHtml) : null,
+			content: content || null,
 		};
 	} catch (error) {
 		console.error(`[Scraper] Failed for ${url}:`, error instanceof Error ? error.message : error);
@@ -1460,6 +1527,17 @@ async function persistArticle(
 }
 
 async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient, llm: LLMClient): Promise<ArticleProcessingResult> {
+	// Google News RSS items point to news.google.com; resolve to the publisher URL early,
+	// otherwise scraping often yields thin content and gets rejected as insufficient.
+	if (isGoogleNewsUrl(entry.article.link)) {
+		const original = entry.article.link;
+		const resolved = await resolveGoogleNewsTargetUrl(original);
+		if (resolved !== original) {
+			entry.article.link = resolved;
+			console.log(`[GoogleNews] Resolved to publisher URL: ${resolved}`);
+		}
+	}
+
 	const normalizedTitle = normalizeTitleForDedupe(entry.article.title);
 	if (normalizedTitle) {
 		if (runNormalizedTitleSet.has(normalizedTitle) || recentNormalizedTitleSet.has(normalizedTitle)) {
