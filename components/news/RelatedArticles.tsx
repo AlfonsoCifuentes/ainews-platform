@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { ArticleCard } from '@/components/news/ArticleCard';
 import type { IArticlePreview } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 
 interface RelatedArticlesProps {
   articleId: string;
@@ -26,6 +27,10 @@ export function RelatedArticles({
 }: RelatedArticlesProps) {
   const [articles, setArticles] = useState<IArticlePreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const articlesWithSpacedFallbacks = useMemo(() => {
+    return assignFallbackImagesToArticles(articles, 8);
+  }, [articles]);
 
   useEffect(() => {
     const loadRelatedArticles = async () => {
@@ -84,7 +89,7 @@ export function RelatedArticles({
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {articles.map((article, index) => (
+        {articlesWithSpacedFallbacks.map((article, index) => (
           <motion.div
             key={article.id}
             initial={{ opacity: 0, y: 20 }}

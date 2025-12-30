@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Info } from 'lucide-react';
 import { ArticleCard } from '../news/ArticleCard';
 import type { IArticlePreview } from '@/lib/types/news';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 
 interface Recommendation {
   content_id: string;
@@ -47,6 +48,17 @@ export default function PersonalizedFeed({ userId, locale, contentType, limit = 
   // Note: Interaction tracking (like, bookmark) can be added later
   // by extending ArticleCard with interaction buttons and calling:
   // POST /api/recommendations with { userId, contentType, contentId, interactionType }
+
+  const recommendationsWithSpacedFallbacks = useMemo(() => {
+    if (!recommendations || recommendations.length === 0) return recommendations;
+    const contents = recommendations.map((rec) => rec.content);
+    const enrichedContents = assignFallbackImagesToArticles(contents, 8);
+    const byId = new Map(enrichedContents.map((a) => [a.id, a] as const));
+    return recommendations.map((rec) => ({
+      ...rec,
+      content: byId.get(rec.content.id) ?? rec.content,
+    }));
+  }, [recommendations]);
 
   if (loading) {
     return (
@@ -118,7 +130,7 @@ export default function PersonalizedFeed({ userId, locale, contentType, limit = 
 
       {/* Recommendations Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recommendations.map((rec, index) => (
+        {recommendationsWithSpacedFallbacks.map((rec, index) => (
           <motion.div
             key={rec.content_id}
             initial={{ opacity: 0, y: 20 }}

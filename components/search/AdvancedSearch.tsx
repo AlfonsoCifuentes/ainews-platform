@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArticleCard } from '../news/ArticleCard';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 import type { INewsArticle } from '@/lib/types/news';
 
 interface AdvancedSearchProps {
@@ -276,7 +277,7 @@ export function AdvancedSearch({ locale, initialQuery = '' }: AdvancedSearchProp
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {results.map((article) => (
+            {assignFallbackImagesToArticles(results, 8).map((article) => (
               <ArticleCard 
                 key={article.id} 
                 article={article} 

@@ -8,6 +8,11 @@ import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
+type WithPreferredFallback = {
+  computed_image_url?: string;
+  preferred_fallback_image_url?: string;
+};
+
 type ArticleCardProps = {
   article: INewsArticle | IArticlePreview;
   locale: Locale;
@@ -36,20 +41,24 @@ export function ArticleCard({
   }, [article.published_at, locale]);
 
   const publishedDateLabel = new Date(article.published_at).toISOString().slice(0, 10);
-  
-  // Generar imagen con fallback automático si no hay imagen
-  const baseImageUrl = getImageWithFallback(
-    article.image_url,
-    title,
-    article.category,
-    article.id
-  );
+
+  const preferredFallback = (article as WithPreferredFallback).preferred_fallback_image_url;
+  const computedImageUrl = (article as WithPreferredFallback).computed_image_url;
+
+  // If the parent precomputed a spaced fallback (computed_image_url), use it.
+  // This prevents nearby repetition in any list/grid.
+  const baseImageUrl =
+    (computedImageUrl && computedImageUrl.trim() !== '')
+      ? computedImageUrl
+      : getImageWithFallback(article.image_url, title, article.category, article.id);
 
   const imageUrl =
     imageFallbackStage === 0
       ? baseImageUrl
       : imageFallbackStage === 1
-        ? getImageWithFallback('', title, article.category, article.id)
+        ? (preferredFallback && preferredFallback.trim() !== '')
+          ? preferredFallback
+          : getImageWithFallback('', title, article.category, article.id)
         : generateFallbackImage({ title, category: article.category });
 
   return (

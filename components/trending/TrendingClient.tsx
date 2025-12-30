@@ -10,6 +10,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { ArticleCard } from '@/components/news/ArticleCard';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 
 interface Article {
   id: string;
@@ -143,7 +144,7 @@ export function TrendingClient({
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-              {getCurrentArticles().map((article, index) => (
+              {assignFallbackImagesToArticles(getCurrentArticles(), 8).map((article, index) => (
                 <motion.div
                   key={article.id}
                   initial={{ opacity: 0, y: 20 }}

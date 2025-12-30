@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useRecommendations } from '@/lib/hooks/useRecommendations';
 import { ArticleCard } from '@/components/news/ArticleCard';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 import { Sparkles, Loader2 } from 'lucide-react';
 
 interface RecommendedArticlesProps {
@@ -62,7 +63,7 @@ export function RecommendedArticles({ locale, limit = 6 }: RecommendedArticlesPr
 
         {/* Articles Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {recommendations.map((article, index) => (
+          {assignFallbackImagesToArticles(recommendations, 8).map((article, index) => (
             <motion.div
               key={article.id}
               initial={{ opacity: 0, y: 20 }}

@@ -2,6 +2,7 @@
 
 import { Link } from '@/i18n';
 import { ArticleCard } from '@/components/news/ArticleCard';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 import { FileText, GraduationCap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -107,7 +108,7 @@ export function SearchResults({
             {t('articles')}
           </h4>
           <div className="grid gap-4">
-            {results.articles.map((article) => (
+            {assignFallbackImagesToArticles(results.articles, 8).map((article) => (
               <div key={article.id} onClick={onClose}>
                 <ArticleCard
                   article={article}
