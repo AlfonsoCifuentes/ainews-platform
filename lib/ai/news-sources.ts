@@ -29,11 +29,14 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'Microsoft Azure AI', url: 'https://azure.microsoft.com/en-us/blog/topics/artificial-intelligence/feed/', category: 'company', language: 'en', notes: 'Enterprise AI updates' },
   { name: 'Microsoft Research', url: 'https://www.microsoft.com/en-us/research/feed/', category: 'research', language: 'en' },
   { name: 'NVIDIA Technical Blog – AI', url: 'https://developer.nvidia.com/blog/tag/artificial-intelligence/feed/', category: 'company', language: 'en' },
+  { name: 'NVIDIA Blog (General)', url: 'https://blogs.nvidia.com/feed/', category: 'company', language: 'en', notes: 'Broader NVIDIA feed; includes AI hardware + company updates' },
   { name: 'Anthropic Blog', url: 'https://www.anthropic.com/news/rss', category: 'company', language: 'en', notes: 'Claude AI creators' },
   { name: 'Meta AI Blog', url: 'https://ai.meta.com/blog/rss/', category: 'company', language: 'en', notes: 'LLaMA and Meta AI research' },
   { name: 'Cohere Blog', url: 'https://cohere.com/blog/rss.xml', category: 'company', language: 'en', notes: 'Enterprise LLM provider' },
   { name: 'Stability AI Blog', url: 'https://stability.ai/news/rss', category: 'company', language: 'en', notes: 'Stable Diffusion creators' },
   { name: 'Mistral AI Blog', url: 'https://mistral.ai/news/rss', category: 'company', language: 'en', notes: 'European open-weights LLMs' },
+  { name: 'AWS Machine Learning Blog', url: 'https://aws.amazon.com/blogs/machine-learning/feed', category: 'company', language: 'en', notes: 'Official AWS ML product + research updates' },
+  { name: 'Amazon Science', url: 'https://www.amazon.science/index.rss', category: 'research', language: 'en', notes: 'Amazon research highlights and papers' },
 
   // ══════════════════════════════════════════════════════════════════════════════
   // ACADEMIC & RESEARCH FEEDS
@@ -56,15 +59,22 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'Artificial Intelligence News (TechForge)', url: 'https://www.artificialintelligence-news.com/feed/rss/', category: 'news', language: 'en' },
   { name: 'The Guardian – Artificial Intelligence', url: 'https://www.theguardian.com/technology/artificialintelligenceai/rss', category: 'news', language: 'en' },
   { name: 'Wired – AI', url: 'https://www.wired.com/feed/tag/ai/latest/rss', category: 'news', language: 'en' },
+  { name: 'Wired – Artificial Intelligence', url: 'https://www.wired.com/feed/category/artificial-intelligence/latest/rss', category: 'news', language: 'en', notes: 'Alternative Wired AI category feed (sometimes broader than tag feed)' },
   { name: 'Futurism – AI', url: 'https://futurism.com/categories/ai-artificial-intelligence/feed', category: 'news', language: 'en' },
   { name: 'ScienceDaily – Artificial Intelligence', url: 'https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml', category: 'news', language: 'en' },
   { name: 'Ars Technica – AI', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', category: 'news', language: 'en', notes: 'Tech coverage with AI focus' },
+  { name: 'Ars Technica (General)', url: 'https://feeds.arstechnica.com/arstechnica/index', category: 'news', language: 'en', notes: 'Broader Ars feed; can include major AI/tech business stories' },
   { name: 'ZDNet – AI', url: 'https://www.zdnet.com/topic/artificial-intelligence/rss.xml', category: 'news', language: 'en' },
   { name: 'The Register – AI', url: 'https://www.theregister.com/software/ai_ml/headlines.atom', category: 'news', language: 'en' },
   // InfoQ AI/ML removed - 406 error
   { name: 'IEEE Spectrum – AI', url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss', category: 'news', language: 'en', notes: 'Engineering perspective on AI' },
   { name: 'CNBC AI', url: 'https://www.cnbc.com/id/10001147/device/rss/rss.html', category: 'news', language: 'en', notes: 'AI business news' },
   { name: 'Bloomberg Technology', url: 'https://feeds.bloomberg.com/technology/news.rss', category: 'news', language: 'en', notes: 'Tech/AI markets' },
+  { name: 'Analytics India Magazine', url: 'https://analyticsindiamag.com/feed/', category: 'news', language: 'en', notes: 'AI/ML and data science industry coverage' },
+  { name: 'MarkTechPost', url: 'https://marktechpost.com/feed/', category: 'news', language: 'en', notes: 'AI research, deep learning, and applied ML updates' },
+  { name: 'AI Accelerator Institute', url: 'https://aiacceleratorinstitute.com/rss/', category: 'news', language: 'en', notes: 'AI research and industry analysis' },
+  { name: 'AI-TechPark', url: 'https://ai-techpark.com/feed', category: 'news', language: 'en', notes: 'AI/ML news and trends' },
+  { name: 'MIT News – Artificial Intelligence', url: 'https://news.mit.edu/rss/topic/artificial-intelligence2', category: 'research', language: 'en', notes: 'MIT news and research updates related to AI' },
   
   // ══════════════════════════════════════════════════════════════════════════════
   // AI NEWSLETTERS & CURATED CONTENT
@@ -153,4 +163,7 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'AI Alignment Forum', url: 'https://www.alignmentforum.org/feed.xml', category: 'research', language: 'en', notes: 'AI safety discussions' },
   { name: 'LessWrong – AI', url: 'https://www.lesswrong.com/feed.xml?view=ai', category: 'community', language: 'en', notes: 'AI rationality community' },
   { name: 'Two Minute Papers', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg', category: 'tutorials', language: 'en', notes: 'Research paper summaries' },
+
+  // Fun/curiosity feeds (lower priority, but high-signal when AI behavior goes viral)
+  { name: 'AI Weirdness', url: 'https://www.aiweirdness.com/rss/', category: 'community', language: 'en', notes: 'Neural network curiosities and experiments' },
 ] as const;
