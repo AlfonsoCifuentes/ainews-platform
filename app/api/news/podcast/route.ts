@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { defaultLocale, locales } from '@/i18n';
 import { fetchLatestPodcastEpisode } from '@/lib/db/podcast';
-import { ensureWeeklyPodcastEpisode } from '@/lib/services/news-podcast';
+import { ensureWeeklyPodcastEpisode, generateWeeklyPodcastEpisodePreview } from '@/lib/services/news-podcast';
 
 const QuerySchema = z.object({
   locale: z.enum(locales).default(defaultLocale),
@@ -18,9 +18,13 @@ export async function GET(request: NextRequest) {
 
     const shouldAttemptRefresh = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-    const episode = shouldAttemptRefresh
+    let episode = shouldAttemptRefresh
       ? await ensureWeeklyPodcastEpisode()
       : await fetchLatestPodcastEpisode();
+
+    if (!episode) {
+      episode = await generateWeeklyPodcastEpisodePreview();
+    }
 
     if (!episode) {
       return NextResponse.json({ data: null }, { status: 200 });

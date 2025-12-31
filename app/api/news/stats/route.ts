@@ -8,18 +8,17 @@ export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
     
-    // Get today's date range
+    // Use a rolling 24h window to avoid server/user timezone mismatches.
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
     // Query for today's articles count
     const fetchTodayCount = async (opts: { filterHidden: boolean }) => {
       let query = supabase
         .from('news_articles')
         .select('*', { count: 'exact', head: true })
-        .gte('published_at', todayStart.toISOString())
-        .lte('published_at', todayEnd.toISOString());
+        .gte('published_at', windowStart.toISOString())
+        .lte('published_at', now.toISOString());
 
       if (opts.filterHidden) {
         query = query.eq('is_hidden', false);

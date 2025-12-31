@@ -43,6 +43,25 @@ type SourceBundle = {
   podcasts: SourceItem[];
 };
 
+export type PodcastEpisodePreview = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  title_en: string;
+  title_es: string;
+  summary_en: string;
+  summary_es: string;
+  script_en: string;
+  script_es: string;
+  highlights_en: string[];
+  highlights_es: string[];
+  audio_url_en: string | null;
+  audio_url_es: string | null;
+  audio_duration_en: number | null;
+  audio_duration_es: number | null;
+  sources: SourceBundle;
+};
+
 const DEFAULT_LOOKBACK_DAYS = 7;
 const MAX_NEWS_ITEMS = 12;
 const MAX_NEWSLETTER_ITEMS = 10;
@@ -149,6 +168,112 @@ REQUIRED JSON SCHEMA:
 INPUT DATA (JSON):
 ${JSON.stringify(payload)}
 `;
+}
+
+function buildHeuristicEpisodeDraft(windowStart: string, windowEnd: string, sources: SourceBundle): EpisodeDraft {
+  const topNews = sources.news.slice(0, 6);
+  const headlineListEn = topNews.map((item) => `- ${item.title}`).join('\n');
+  const headlineListEs = topNews.map((item) => `- ${item.title}`).join('\n');
+
+  const highlightsEn = topNews.slice(0, 5).map((item) => item.title).filter(Boolean);
+  const highlightsEs = topNews.slice(0, 5).map((item) => item.title).filter(Boolean);
+
+  const titleEn = 'AI Weekly Briefing';
+  const titleEs = 'Briefing semanal de IA';
+
+  const summaryEn = `A quick weekly briefing covering the most relevant AI developments between ${windowStart} and ${windowEnd}.`;
+  const summaryEs = `Un briefing semanal rápido con los temas de IA más relevantes entre ${windowStart} y ${windowEnd}.`;
+
+  const scriptEn = normalizeWhitespace(
+    `Welcome to your weekly AI briefing. Here are the top stories we tracked this week:\n${headlineListEn}\n\nThat's the update. See you next week.`,
+  );
+  const scriptEs = normalizeWhitespace(
+    `Bienvenido a tu briefing semanal de IA. Estos son los temas principales de la semana:\n${headlineListEs}\n\nEso es todo por hoy. Hasta la próxima semana.`,
+  );
+
+  return normalizeDraft({
+    title_en: titleEn,
+    title_es: titleEs,
+    summary_en: summaryEn,
+    summary_es: summaryEs,
+    script_en: scriptEn,
+    script_es: scriptEs,
+    highlights_en: highlightsEn.length >= 3 ? highlightsEn.slice(0, 6) : ['Top AI story', 'What changed', 'Why it matters'],
+    highlights_es: highlightsEs.length >= 3 ? highlightsEs.slice(0, 6) : ['Tema de IA', 'Qué cambió', 'Por qué importa'],
+  });
+}
+
+export async function generateWeeklyPodcastEpisodePreview(
+  options: { lookbackDays?: number } = {},
+): Promise<PodcastEpisodePreview | null> {
+  const lookbackDays = options.lookbackDays ?? DEFAULT_LOOKBACK_DAYS;
+  const now = new Date();
+  const { start, end } = computeWindow(now, lookbackDays);
+  const windowStart = start.toISOString();
+  const windowEnd = end.toISOString();
+  const sinceMs = start.getTime();
+
+  const [news, newsletters, podcasts] = await Promise.all([
+    fetchNewsHighlights(windowStart),
+    fetchRssHighlights(getActiveNewsletterFeeds(), sinceMs, MAX_NEWSLETTER_ITEMS, 'newsletter'),
+    fetchRssHighlights(
+      AI_PODCAST_SOURCES.map((source) => ({ name: source.name, url: source.url })),
+      sinceMs,
+      MAX_PODCAST_ITEMS,
+      'podcast',
+    ),
+  ]);
+
+  const sources: SourceBundle = {
+    news,
+    newsletters,
+    podcasts,
+  };
+
+  let draft: EpisodeDraft | null = null;
+
+  try {
+    let llm: LLMClient;
+    if (process.env.OPENAI_API_KEY) {
+      llm = new LLMClient(process.env.OPENAI_API_KEY, 'https://api.openai.com/v1', 'gpt-4o-mini', 'openai');
+      console.log('[Podcast] ✓ Using OpenAI (gpt-4o-mini) for weekly podcast preview');
+    } else {
+      llm = await createLLMClientForTask('news_rewrite');
+    }
+
+    draft = await generateEpisodeDraft(llm, windowStart, windowEnd, sources);
+  } catch (error) {
+    console.warn('[Podcast] Preview generation via LLM failed, using heuristic fallback:', error);
+    draft = null;
+  }
+
+  if (!draft) {
+    try {
+      draft = buildHeuristicEpisodeDraft(windowStart, windowEnd, sources);
+    } catch (error) {
+      console.error('[Podcast] Heuristic preview generation failed:', error);
+      return null;
+    }
+  }
+
+  return {
+    id: 'preview',
+    period_start: windowStart,
+    period_end: windowEnd,
+    title_en: draft.title_en,
+    title_es: draft.title_es,
+    summary_en: draft.summary_en,
+    summary_es: draft.summary_es,
+    script_en: draft.script_en,
+    script_es: draft.script_es,
+    highlights_en: draft.highlights_en,
+    highlights_es: draft.highlights_es,
+    audio_url_en: null,
+    audio_url_es: null,
+    audio_duration_en: null,
+    audio_duration_es: null,
+    sources,
+  };
 }
 
 async function fetchNewsHighlights(sinceIso: string): Promise<SourceItem[]> {
