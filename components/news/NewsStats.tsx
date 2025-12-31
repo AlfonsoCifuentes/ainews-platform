@@ -53,7 +53,7 @@ export function NewsStats({ locale }: NewsStatsProps) {
 
   const statsCards = [
     {
-      label: locale === 'en' ? 'Today' : 'Hoy',
+      label: locale === 'en' ? 'Last 24h' : 'Últimas 24h',
       value: loading ? '...' : stats.todayCount,
       icon: '📰',
       suffix: locale === 'en' ? 'articles' : 'artículos'
