@@ -166,7 +166,7 @@ function DigestRailImage({ article }: { article: DigestArticle }) {
         sizes="(max-width: 768px) 280px, 320px"
         unoptimized={isDataUrl(imageUrl)}
         onError={() => setImageFallbackStage((s) => (Math.min(2, s + 1) as 0 | 1 | 2))}
-        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300 grayscale contrast-125 brightness-75"
+        className="object-cover opacity-85 group-hover:opacity-100 transition-opacity duration-300"
       />
     </div>
   );
