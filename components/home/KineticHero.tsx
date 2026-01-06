@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { Link } from '@/i18n';
 import { ArrowRight, Globe } from 'lucide-react';
 import MovingCubesBackground from '@/lib/utils/MovingCubesBackground';
@@ -20,7 +21,7 @@ interface KineticHeroProps {
 
 export function KineticHero({
   locale: _locale,
-  headline: _headline,
+  headline,
   subheadline,
   stats,
   primaryCta,
@@ -31,26 +32,30 @@ export function KineticHero({
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         {/* Typography Block */}
         <div className="lg:col-span-8 space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-10">
+              <Image
+                src="/logos/thotnet-core-white-only.png"
+                alt="ThotNet Core Logo"
+                fill
+                sizes="40px"
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="text-xs font-mono uppercase tracking-[0.25em] text-white/70">
+              THOTNET CORE
+            </div>
+          </div>
+
           <div className="overflow-hidden">
             <motion.h1
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-[12vw] lg:text-[10vw] leading-[0.85] font-extrabold tracking-tighter text-white mix-blend-difference"
+              className="text-[12vw] lg:text-[6.5vw] leading-[0.95] font-extrabold tracking-tight text-white"
             >
-              THOTNET
-            </motion.h1>
-          </div>
-          <div className="overflow-hidden">
-            <motion.h1
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="text-[12vw] lg:text-[10vw] leading-[0.85] font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-800 group cursor-default"
-            >
-              <span className="inline-block transition-all duration-500 ease-out group-hover:tracking-widest group-hover:blur-[2px] group-hover:text-white">
-                CORE
-              </span>
+              {headline}
             </motion.h1>
           </div>
 
