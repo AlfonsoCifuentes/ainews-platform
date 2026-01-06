@@ -97,7 +97,7 @@ export function TodayDigestRail({ articles, locale }: TodayDigestRailProps) {
               {/* Image Layer */}
               <div className="absolute inset-0 z-0">
                 <DigestRailImage article={article} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-[5]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/25 to-transparent z-[5]" />
               </div>
 
               {/* Content Layer */}
