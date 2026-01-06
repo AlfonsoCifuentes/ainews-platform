@@ -6,6 +6,53 @@
  * Remove common UI patterns and noise from scraped content
  * Cleans up button text, navigation elements, and other non-content text
  */
+export function stripUnwantedSectionHeadings(text: string): string {
+  if (!text) return '';
+
+  // These headings come from internal editorial templates and should never be shown to users.
+  // We strip them even if they are written as markdown headings, plain numbered lines, or with extra whitespace.
+  const sectionTitles = [
+    // Spanish
+    'la noticia',
+    'contexto técnico',
+    'contexto tecnico',
+    'por qué importa',
+    'por que importa',
+    'impacto',
+    'lo esencial',
+    'puntos clave',
+    // English
+    'the news',
+    'technical context',
+    'why it matters',
+    'key takeaways',
+    'key points',
+    'bottom line',
+  ];
+
+  const titleGroup = sectionTitles
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+
+  const patterns: RegExp[] = [
+    // Markdown headings: ## 1. La Noticia
+    new RegExp(`^\\s*#{1,6}\\s*\\d+\\s*[\\.\\)]\\s*(?:${titleGroup})\\s*$`, 'gim'),
+    // Markdown headings without numbering: ## Por qué importa
+    new RegExp(`^\\s*#{1,6}\\s*(?:${titleGroup})\\s*$`, 'gim'),
+    // Plain numbered lines: 1. La Noticia
+    new RegExp(`^\\s*\\d+\\s*[\\.\\)]\\s*(?:${titleGroup})\\s*$`, 'gim'),
+    // Plain title lines: Por qué importa
+    new RegExp(`^\\s*(?:${titleGroup})\\s*$`, 'gim'),
+  ];
+
+  let cleaned = text;
+  for (const pattern of patterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  return cleaned;
+}
+
 export function sanitizeScrapedContent(text: string): string {
   if (!text) return '';
   
@@ -28,6 +75,9 @@ export function sanitizeScrapedContent(text: string): string {
   ];
   
   let cleaned = text;
+
+  // Strip internal editorial template headings that sometimes leak into stored summaries/contents.
+  cleaned = stripUnwantedSectionHeadings(cleaned);
   
   // Apply all patterns
   for (const pattern of uiPatterns) {

@@ -7,6 +7,7 @@ import type { Locale } from '@/i18n';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { sanitizeScrapedContent } from '@/lib/utils/content-formatter';
 
 type WithPreferredFallback = {
   computed_image_url?: string;
@@ -32,7 +33,7 @@ export function ArticleCard({
   translations,
 }: ArticleCardProps) {
   const title = getLocalizedString(article, 'title', locale);
-  const summary = getLocalizedString(article, 'summary', locale);
+  const summary = sanitizeScrapedContent(getLocalizedString(article, 'summary', locale));
   const [relativeTimeClient, setRelativeTimeClient] = useState('');
   const [imageFallbackStage, setImageFallbackStage] = useState<0 | 1 | 2>(0);
 
