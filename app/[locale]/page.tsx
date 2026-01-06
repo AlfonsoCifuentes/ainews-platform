@@ -16,7 +16,7 @@ import { fetchLatestNews } from '@/lib/db/news';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { assignFallbackImagesToArticles, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { getTrendingTopicsFromCache, type TrendingTopic } from '@/lib/ai/trending';
 import type { INewsArticle } from '@/lib/types/news';
@@ -138,7 +138,10 @@ export default async function HomePage({ params }: HomePageProps) {
 }
 
 function buildDigestArticles(articles: INewsArticle[], locale: Locale) {
-  return articles.slice(0, 8).map((article) => {
+  const slice = articles.slice(0, 8);
+  const withSpacedFallbacks = assignFallbackImagesToArticles(slice, 5);
+
+  return withSpacedFallbacks.map((article) => {
     const localizedTitle = getLocalizedString(article, 'title', locale);
     const title = localizedTitle || article.title_en;
     return {
@@ -147,7 +150,15 @@ function buildDigestArticles(articles: INewsArticle[], locale: Locale) {
       title,
       relativeTime: formatRelativeTimeFromNow(article.published_at, locale),
       href: `/news/${article.id}`,
-      image: getImageWithFallback(article.image_url, title, article.category),
+      image:
+        (article.computed_image_url && article.computed_image_url.trim() !== '')
+          ? article.computed_image_url
+          : getImageWithFallback(article.image_url, title, article.category, article.id),
+      preferredFallback:
+        (article.preferred_fallback_image_url && article.preferred_fallback_image_url.trim() !== '')
+          ? article.preferred_fallback_image_url
+          : getImageWithFallback('', title, article.category, article.id),
+      fallbackCategory: article.category,
     };
   });
 }

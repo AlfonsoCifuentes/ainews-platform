@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef } from 'react';
+import Image from 'next/image';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from '@/i18n';
-import { CCTVGlitchImage } from '@/components/shared/CCTVGlitchImage';
 import { Clock, RefreshCw } from 'lucide-react';
+import { generateFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 
 interface DigestArticle {
   id: string;
@@ -13,6 +14,8 @@ interface DigestArticle {
   relativeTime: string;
   href: string;
   image?: string;
+  preferredFallback?: string;
+  fallbackCategory?: string;
 }
 
 interface TodayDigestRailProps {
@@ -93,17 +96,7 @@ export function TodayDigestRail({ articles, locale }: TodayDigestRailProps) {
 
               {/* Image Layer */}
               <div className="absolute inset-0 z-0">
-                {article.image ? (
-                  <CCTVGlitchImage
-                    src={article.image}
-                    alt={article.title}
-                    sizes="(max-width: 768px) 280px, 320px"
-                    unoptimized={isDataUrl(article.image)}
-                    className="opacity-60 group-hover:opacity-80"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#1F1F1F] to-[#0A0A0A]" />
-                )}
+                <DigestRailImage article={article} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-[5]" />
               </div>
 
@@ -141,5 +134,40 @@ export function TodayDigestRail({ articles, locale }: TodayDigestRailProps) {
         }
       `}</style>
     </section>
+  );
+}
+
+function DigestRailImage({ article }: { article: DigestArticle }) {
+  const [imageFallbackStage, setImageFallbackStage] = useState<0 | 1 | 2>(0);
+
+  const baseImageUrl =
+    (article.image && article.image.trim() !== '')
+      ? article.image
+      : getImageWithFallback('', article.title, article.fallbackCategory, article.id);
+
+  const preferredFallback =
+    (article.preferredFallback && article.preferredFallback.trim() !== '')
+      ? article.preferredFallback
+      : getImageWithFallback('', article.title, article.fallbackCategory, article.id);
+
+  const imageUrl =
+    imageFallbackStage === 0
+      ? baseImageUrl
+      : imageFallbackStage === 1
+        ? preferredFallback
+        : generateFallbackImage({ title: article.title, category: article.fallbackCategory });
+
+  return (
+    <div className="relative w-full h-full">
+      <Image
+        src={imageUrl}
+        alt={article.title}
+        fill
+        sizes="(max-width: 768px) 280px, 320px"
+        unoptimized={isDataUrl(imageUrl)}
+        onError={() => setImageFallbackStage((s) => (Math.min(2, s + 1) as 0 | 1 | 2))}
+        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300 grayscale contrast-125 brightness-75"
+      />
+    </div>
   );
 }
