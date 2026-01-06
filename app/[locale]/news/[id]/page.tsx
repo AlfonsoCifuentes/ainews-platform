@@ -115,7 +115,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     // Defensive: if content is being displayed as plain text somewhere,
     // strip markdown headings lines so section titles never show up.
     return raw
-      .replace(/^\s*#{1,6}\s+.*$/gm, '')
+      .replace(/^\s*#{1,6}(?:\s+|$).*$/gm, '')
       .replace(/^\s*[-=]{3,}\s*$/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();

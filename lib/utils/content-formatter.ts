@@ -10,7 +10,17 @@ export function stripUnwantedSectionHeadings(text: string): string {
   if (!text) return '';
 
   // These headings come from internal editorial templates and should never be shown to users.
-  // We strip them even if they are written as markdown headings, plain numbered lines, or with extra whitespace.
+  // Key commonality: markdown headings with an outline number (e.g. "## 4. Implicaciones Futuras").
+  // We remove those numbered headings regardless of the title text.
+  const numberedHeadingPatterns: RegExp[] = [
+    // Markdown headings with Arabic numerals: ## 4. Something
+    /^\s*#{1,6}\s*\(?\s*\d{1,3}\s*\)?\s*[\.)\-:]\s*.+$/gim,
+    // Markdown headings with Roman numerals: ## IV. Something
+    /^\s*#{1,6}\s*\(?\s*[IVXLCM]{1,8}\s*\)?\s*[\.)\-:]\s*.+$/gim,
+  ];
+
+  // Extra safety net for unnumbered template headings that sometimes slip through.
+  // (Keep this list short and generic; the numbered-heading rule is the primary fix.)
   const sectionTitles = [
     // Spanish
     'la noticia',
@@ -18,13 +28,14 @@ export function stripUnwantedSectionHeadings(text: string): string {
     'contexto tecnico',
     'por qué importa',
     'por que importa',
-    'impacto',
-    'lo esencial',
+    'punto clave',
     'puntos clave',
+    'implicaciones futuras',
     // English
     'the news',
     'technical context',
     'why it matters',
+    'key takeaway',
     'key takeaways',
     'key points',
     'bottom line',
@@ -35,12 +46,11 @@ export function stripUnwantedSectionHeadings(text: string): string {
     .join('|');
 
   const patterns: RegExp[] = [
-    // Markdown headings: ## 1. La Noticia
-    new RegExp(`^\\s*#{1,6}\\s*\\d+\\s*[\\.\\)]\\s*(?:${titleGroup})\\s*$`, 'gim'),
+    ...numberedHeadingPatterns,
     // Markdown headings without numbering: ## Por qué importa
     new RegExp(`^\\s*#{1,6}\\s*(?:${titleGroup})\\s*$`, 'gim'),
     // Plain numbered lines: 1. La Noticia
-    new RegExp(`^\\s*\\d+\\s*[\\.\\)]\\s*(?:${titleGroup})\\s*$`, 'gim'),
+    new RegExp(`^\\s*\\(?\\s*\\d{1,3}\\s*\\)?\\s*[\\.)\\-:]\\s*(?:${titleGroup})\\s*$`, 'gim'),
     // Plain title lines: Por qué importa
     new RegExp(`^\\s*(?:${titleGroup})\\s*$`, 'gim'),
   ];

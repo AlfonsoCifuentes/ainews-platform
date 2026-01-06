@@ -12,9 +12,7 @@ type Row = {
 };
 
 function hasTemplateHeadings(text: string): boolean {
-  return /(^|\n)\s*#{1,6}\s*\d+\s*[\.\)]\s*(La Noticia|Contexto T[eé]cnico|Por Qu[eé] Importa|The News|Technical Context|Why It Matters)\b/i.test(
-    text,
-  );
+  return /(^|\n)\s*#{1,6}\s*\(?\s*(\d{1,3}|[IVXLCM]{1,8})\s*\)?\s*[\.\)\-:]\s*\S+/i.test(text);
 }
 
 async function main() {
