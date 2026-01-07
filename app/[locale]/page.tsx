@@ -16,7 +16,7 @@ import { fetchLatestNews } from '@/lib/db/news';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { assignFallbackImagesToArticles, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { assignFallbackImagesToArticles, generateCourseFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { getTrendingTopicsFromCache, type TrendingTopic } from '@/lib/ai/trending';
 import type { INewsArticle } from '@/lib/types/news';
@@ -98,10 +98,10 @@ export default async function HomePage({ params }: HomePageProps) {
 
       {/* Course Galaxy */}
       <CourseGalaxyNavigator
-        courses={courseData.courses}
-        featuredCourseId={courseData.courses[0]?.id}
-        locale={locale}
-      />
+            courses={courseData.courses}
+            featuredCourseId={courseData.featuredCourseId}
+            locale={locale}
+          />
 
       {/* AI Playground */}
       <AIPlaygroundStrip agents={agents} locale={locale} />
@@ -226,7 +226,7 @@ function getFeatureBlocks(locale: Locale) {
 
 async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Locale) {
   if (!supabase) {
-    return { courses: [], totalCourses: 0 };
+    return { courses: [], totalCourses: 0, featuredCourseId: undefined };
   }
 
   try {
@@ -242,6 +242,30 @@ async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Loc
       supabase.from('courses').select('*', { count: 'exact', head: true }),
     ]);
 
+    const courseIds = (data || []).map((c) => c.id).filter(Boolean);
+    const preferredCoversMap: Record<string, string> = {};
+    const fallbackCoversMap: Record<string, string> = {};
+    const fallbackLocale = locale === 'en' ? 'es' : 'en';
+
+    if (courseIds.length) {
+      const coversRes = await supabase
+        .from('course_covers')
+        .select('course_id, image_url, locale')
+        .in('course_id', courseIds)
+        .in('locale', [locale, fallbackLocale]);
+
+      if (!coversRes.error && Array.isArray(coversRes.data)) {
+        coversRes.data.forEach((row) => {
+          const courseId = typeof row.course_id === 'string' ? row.course_id : null;
+          const imageUrl = typeof row.image_url === 'string' ? row.image_url : null;
+          const rowLocale = typeof row.locale === 'string' ? row.locale : null;
+          if (!courseId || !imageUrl || !rowLocale) return;
+          if (rowLocale === locale) preferredCoversMap[courseId] = imageUrl;
+          if (rowLocale === fallbackLocale) fallbackCoversMap[courseId] = imageUrl;
+        });
+      }
+    }
+
     const courses = (data || []).map((course) => ({
       id: course.id,
       title: locale === 'en' ? course.title_en : course.title_es,
@@ -253,12 +277,18 @@ async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Loc
           : undefined,
       description: locale === 'en' ? course.description_en : course.description_es,
       moduleCount: Array.isArray(course.topics) ? course.topics.length : undefined,
+      heroImage:
+        preferredCoversMap[course.id] ??
+        fallbackCoversMap[course.id] ??
+        generateCourseFallbackImage({ category: 'default' }),
     }));
 
-    return { courses, totalCourses: count ?? 0 };
+    const featuredCourseId = courses.find((c) => c.heroImage)?.id ?? courses[0]?.id;
+
+    return { courses, totalCourses: count ?? 0, featuredCourseId };
   } catch (error) {
     console.error('[home] Failed to load courses:', error);
-    return { courses: [], totalCourses: 0 };
+    return { courses: [], totalCourses: 0, featuredCourseId: undefined };
   }
 }
 
