@@ -283,7 +283,9 @@ async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Loc
         generateCourseFallbackImage({ category: 'default' }),
     }));
 
-    const featuredCourseId = courses.find((c) => c.heroImage)?.id ?? courses[0]?.id;
+    const featuredCourseId =
+      courses.find((c) => Boolean(preferredCoversMap[c.id] ?? fallbackCoversMap[c.id]))?.id ??
+      courses[0]?.id;
 
     return { courses, totalCourses: count ?? 0, featuredCourseId };
   } catch (error) {
