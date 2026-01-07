@@ -198,7 +198,16 @@ export default async function CourseDetailPage({
   const durationLabel = durationMinutes >= 60
     ? `${Math.round(durationMinutes / 60)} ${t.hours}`
     : `${durationMinutes} ${locale === 'en' ? 'minutes' : 'minutos'}`;
-  const learningObjectives = locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es;
+  const learningObjectivesRaw: unknown =
+    locale === 'en' ? course.learning_objectives_en : course.learning_objectives_es;
+  const learningObjectives = Array.isArray(learningObjectivesRaw)
+    ? learningObjectivesRaw
+    : (typeof learningObjectivesRaw === 'string'
+      ? learningObjectivesRaw
+        .split(/\r?\n|•|\u2022/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+      : []);
 
   return (
     <div className="min-h-screen pt-24 md:pt-28" style={{ backgroundColor: BRUTALIST.bg }}>
