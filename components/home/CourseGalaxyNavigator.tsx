@@ -159,18 +159,23 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
                   transition={{ duration: 0.4 }}
                   className="relative w-full aspect-[3/4] max-h-[600px] bg-black border border-[#1F1F1F] overflow-hidden cursor-pointer shadow-2xl shadow-black/50"
                 >
-                  <Link href={`/courses/${activeCourse.id}`}>
+                  <Link
+                    href={`/courses/${activeCourse.id}`}
+                    className="absolute inset-0 z-20"
+                    aria-label={activeCourse.title}
+                  />
                     {activeCourse.heroImage ? (
                       <Image
                         src={activeCourse.heroImage}
                         alt={activeCourse.title}
                         fill
-                        className="w-full h-full object-cover grayscale opacity-60 transition-transform duration-700 hover:scale-105"
+                        unoptimized={activeCourse.heroImage.startsWith('data:')}
+                        className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[#1F1F1F] to-black" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-35" />
 
                     <div className="absolute bottom-0 left-0 w-full p-8">
                       <div className="flex gap-4 mb-6">
@@ -197,7 +202,6 @@ export function CourseGalaxyNavigator({ courses, featuredCourseId: _featuredCour
                         </>
                       )}
                     </div>
-                  </Link>
                 </motion.div>
               )}
             </AnimatePresence>
