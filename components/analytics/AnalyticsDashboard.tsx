@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, Users, BookOpen, Trophy, Search, Zap, Award, Download, ShieldCheck, RefreshCcw } from 'lucide-react';
+import { getSupabaseClient } from '@/lib/db/supabase';
 
 interface AnalyticsData {
   total_users: number;
@@ -39,6 +40,16 @@ export default function AnalyticsDashboard() {
       const effectiveToken = tokenOverride || token;
       if (effectiveToken) headers['x-analytics-token'] = effectiveToken;
 
+      // Prefer explicit bearer auth to avoid any cookie encoding/session edge cases.
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (accessToken) headers['authorization'] = `Bearer ${accessToken}`;
+      } catch {
+        // Non-fatal; the API can still accept token-based or cookie-based auth.
+      }
+
       const response = await fetch('/api/analytics', { headers });
       if (response.status === 401) {
         setNeedsToken(true);
@@ -74,6 +85,16 @@ export default function AnalyticsDashboard() {
     try {
       const headers: Record<string, string> = {};
       if (token) headers['x-analytics-token'] = token;
+
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (accessToken) headers['authorization'] = `Bearer ${accessToken}`;
+      } catch {
+        // ignore
+      }
+
       const res = await fetch('/api/analytics/export', { headers });
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
