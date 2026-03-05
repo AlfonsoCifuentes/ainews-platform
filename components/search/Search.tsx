@@ -5,6 +5,7 @@ import { Search as SearchIcon, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useSearch } from '@/lib/hooks/useSearch';
 import { SearchResults } from '@/components/search/SearchResults';
+import { VoiceSearch } from '@/components/search/VoiceSearch';
 import { useTranslations } from 'next-intl';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 
@@ -42,6 +43,20 @@ export function Search({ locale }: SearchProps) {
     }
   }, []);
 
+  const handleVoiceResult = useCallback((spokenQuery: string) => {
+    const normalized = spokenQuery.trim();
+    if (!normalized) return;
+    setQuery(normalized);
+    setIsOpen(true);
+  }, []);
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      (e.currentTarget as HTMLInputElement).blur();
+    }
+  }, []);
+
   return (
     <div className="relative">
       {/* Search Input */}
@@ -53,7 +68,14 @@ export function Search({ locale }: SearchProps) {
           value={query}
           onChange={handleInputChange}
           onFocus={() => query.trim() && setIsOpen(true)}
-          className="pl-10 pr-10 w-full md:w-[300px] lg:w-[400px]"
+          onKeyDown={handleInputKeyDown}
+          className="pl-10 pr-20 w-full md:w-[300px] lg:w-[400px]"
+        />
+        <VoiceSearch
+          locale={locale}
+          onResult={handleVoiceResult}
+          compact
+          className="absolute right-10 top-1/2 -translate-y-1/2"
         />
         {loading && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -62,6 +84,7 @@ export function Search({ locale }: SearchProps) {
           <button
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={locale === 'en' ? 'Clear search' : 'Limpiar busqueda'}
           >
             <X className="h-4 w-4" />
           </button>

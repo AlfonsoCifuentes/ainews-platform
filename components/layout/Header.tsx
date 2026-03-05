@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -30,12 +30,39 @@ export function Header() {
   const { isBookMode } = useBookMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const mobileMenuId = useId();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [mobileMenuOpen]);
 
   const activeSegment = useMemo(() => {
     if (!pathname) return '';
@@ -106,9 +133,12 @@ export function Header() {
               <Link
                 key={item.key}
                 href={item.href}
-                className={`hover:text-white transition-colors whitespace-nowrap ${isActive ? 'text-white' : ''}`}
+                className={`relative hover:text-white transition-colors whitespace-nowrap ${isActive ? 'text-white' : ''}`}
               >
                 {t(item.key)}
+                {isActive && (
+                  <span className="pointer-events-none absolute -bottom-2 left-0 h-px w-full bg-gradient-to-r from-transparent via-white to-transparent" />
+                )}
               </Link>
             );
           })}
@@ -140,6 +170,9 @@ export function Header() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-1"
             aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls={mobileMenuId}
+            aria-haspopup="menu"
           >
             {mobileMenuOpen ? (
               <X className="w-5 h-5 text-white" />
@@ -156,12 +189,28 @@ export function Header() {
       {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
+          <motion.button
+            key="mobile-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 top-[60px] bg-black/65 backdrop-blur-sm md:hidden"
+            onClick={closeMobileMenu}
+            aria-label={locale === 'en' ? 'Close menu' : 'Cerrar menú'}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden mt-4 border-t border-white/10 bg-black/95 backdrop-blur-xl overflow-hidden"
+            id={mobileMenuId}
+            className="relative z-50 md:hidden mt-4 border-t border-white/10 bg-black/95 backdrop-blur-xl overflow-hidden"
           >
             <nav className="py-4 flex flex-col gap-2">
               {NAV_ITEMS.map((item) => {
