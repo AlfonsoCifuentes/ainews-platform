@@ -66,6 +66,24 @@ const BOILERPLATE_PATTERNS: RegExp[] = [
 	/\bcontinuar leyendo\b/gi,
 	/\bcookie policy\b/gi,
 	/\bpol[ií]tica de cookies\b/gi,
+	/\bzdnet recommends\b/gi,
+	/\bzdnet recomienda\b/gi,
+	/\bour process ['"]?zdnet recommends['"]?\b/gi,
+	/\bnuestro proceso ['"]?zdnet recomienda['"]?\b/gi,
+	/\bwhen you buy through our links\b/gi,
+	/\bcuando compras a trav[eé]s de nuestros enlaces\b/gi,
+	/\bwe may earn (an )?affiliate commission\b/gi,
+	/\bpodemos ganar (una )?comisi[oó]n\b/gi,
+	/\beditorial standards\b/gi,
+	/\best[aá]ndares editoriales\b/gi,
+	/\bshow comments\b/gi,
+	/\bmostrar comentarios\b/gi,
+	/\bsign in to comment\b/gi,
+	/\binicie sesi[oó]n para comentar\b/gi,
+	/\bcommunity guidelines\b/gi,
+	/\bpautas de la comunidad\b/gi,
+	/\bread original article\b/gi,
+	/\bleer art[ií]culo original\b/gi,
 ];
 
 const STOCK_IMAGE_HOSTS = [
@@ -135,8 +153,52 @@ function looksPolluted(text: string | null): boolean {
 		lower.includes('references and citations') ||
 		lower.includes('bibtex') ||
 		lower.includes('google scholar') ||
-		lower.includes('view pdf')
+		lower.includes('view pdf') ||
+		lower.includes('zdnet recommends') ||
+		lower.includes('zdnet recomienda') ||
+		lower.includes('when you buy through our links') ||
+		lower.includes('podemos ganar una comisión') ||
+		lower.includes('editorial standards') ||
+		lower.includes('estándares editoriales') ||
+		lower.includes('show comments') ||
+		lower.includes('mostrar comentarios')
 	);
+}
+
+function hasAiSignal(text: string): boolean {
+	const lower = text.toLowerCase();
+	const patterns: RegExp[] = [
+		/\bartificial intelligence\b/,
+		/\bmachine learning\b/,
+		/\bdeep learning\b/,
+		/\bgenerative ai\b/,
+		/\bllm(s)?\b/,
+		/\blanguage model(s)?\b/,
+		/\bopenai\b/,
+		/\bchatgpt\b/,
+		/\banthropic\b/,
+		/\bclaude\b/,
+		/\bdeepmind\b/,
+		/\bgemini\b/,
+		/\bcopilot\b/,
+		/\bcomputer vision\b/,
+		/\brobotics?\b/,
+	];
+	if (patterns.some((p) => p.test(lower))) return true;
+	const aiCount = lower.match(/\bai\b/g)?.length ?? 0;
+	return aiCount > 0 && /\b(model|assistant|agent|inference|training|prompt|safety|alignment|automation)\b/.test(lower);
+}
+
+function isLikelyOffTopicConsumerTech(row: NewsRow): boolean {
+	const text = `${row.title_en ?? ''} ${row.title_es ?? ''} ${row.summary_en ?? ''} ${row.summary_es ?? ''}`.toLowerCase();
+	if (hasAiSignal(text)) return false;
+
+	const hasHardware =
+		/\b(macbook|thinkpad|iphone|ipad|laptop|port[aá]til|smartphone|tablet|galaxy|pixel)\b/.test(text);
+	const hasComparison =
+		/\b(vs\.?|versus|which is better|cu[aá]l es (la )?mejor|should you buy|deber[ií]as comprar|buying guide|gu[ií]a de compra|review|an[aá]lisis|hands[- ]on)\b/.test(text);
+
+	return hasHardware && hasComparison;
 }
 
 async function extractArxivAbstract(url: string): Promise<string | null> {
@@ -233,7 +295,8 @@ async function fetchCandidateRows(db: SupabaseClient, maxRows: number): Promise<
 			looksPolluted(row.summary_es) ||
 			looksPolluted(row.content_en) ||
 			looksPolluted(row.content_es);
-		return needsImageRepair || textPolluted;
+		const offTopic = isLikelyOffTopicConsumerTech(row);
+		return needsImageRepair || textPolluted || offTopic;
 	});
 }
 
@@ -261,9 +324,14 @@ async function main(): Promise<void> {
 			concurrency(async () => {
 				const arxivOverride = await extractArxivAbstract(row.source_url);
 				const patch = buildUpdatePatch(row, arxivOverride);
+				const offTopic = isLikelyOffTopicConsumerTech(row);
 
 				if (Object.keys(patch).length > 0) {
 					textFixed += 1;
+				}
+
+				if (offTopic && row.is_hidden !== true) {
+					patch.is_hidden = true;
 				}
 
 				if (isStockImage(row.image_url)) {
@@ -271,7 +339,7 @@ async function main(): Promise<void> {
 					if (recovered) {
 						patch.image_url = recovered;
 						imageFixed += 1;
-					} else if (isSourceUnlikelyToProvideEditorialImage(row.source_url) && row.is_hidden !== true) {
+					} else if ((isSourceUnlikelyToProvideEditorialImage(row.source_url) || offTopic) && row.is_hidden !== true) {
 						patch.is_hidden = true;
 					}
 				}

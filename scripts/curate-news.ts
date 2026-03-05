@@ -457,6 +457,15 @@ const BOILERPLATE_LINE_PATTERNS: RegExp[] = [
 	/^\s*(all rights reserved|todos los derechos reservados)\b/i,
 	/^\s*(cookie policy|pol[ií]tica de cookies)\b/i,
 	/^\s*(privacy policy|pol[ií]tica de privacidad)\b/i,
+	/^\s*(zdnet recomienda|zdnet recommends)\b/i,
+	/^\s*(our process ['"]?zdnet recommends['"]?|nuestro proceso ['"]?zdnet recomienda['"]?)\b/i,
+	/^\s*(when you buy through our links|cuando compras a trav[eé]s de nuestros enlaces)\b/i,
+	/^\s*(we may earn a commission|podemos ganar una comisi[oó]n)\b/i,
+	/^\s*(editorial standards|est[aá]ndares editoriales)\b/i,
+	/^\s*(show comments|mostrar comentarios)\b/i,
+	/^\s*(sign in to comment|inicie sesi[oó]n para comentar)\b/i,
+	/^\s*(community guidelines|pautas de la comunidad)\b/i,
+	/^\s*(read original article|leer art[ií]culo original)\b/i,
 ];
 
 const BOILERPLATE_INLINE_PATTERNS: RegExp[] = [
@@ -469,6 +478,16 @@ const BOILERPLATE_INLINE_PATTERNS: RegExp[] = [
 	/\b(get status notifications?|obtener notificaciones)\b/gi,
 	/\b(herramientas bibliogr[aá]ficas|bibliographic tools)\b/gi,
 	/\barxivlabs\b/gi,
+	/\b(zdnet recommends|zdnet recomienda)\b/gi,
+	/\b(our process ['"]?zdnet recommends['"]?|nuestro proceso ['"]?zdnet recomienda['"]?)\b/gi,
+	/\b(when you buy through our links|cuando compras a trav[eé]s de nuestros enlaces)\b/gi,
+	/\b(we may earn a commission|podemos ganar una comisi[oó]n)\b/gi,
+	/\b(affiliate disclosure|disclaimer de afiliaci[oó]n)\b/gi,
+	/\b(editorial standards|est[aá]ndares editoriales)\b/gi,
+	/\b(show comments|mostrar comentarios|sign in to comment|inicie sesi[oó]n para comentar)\b/gi,
+	/\b(community guidelines|pautas de la comunidad)\b/gi,
+	/\b(read original article|leer art[ií]culo original)\b/gi,
+	/\b(kyle kucharski\/zdnet|kerry wan\/zdnet)\b/gi,
 ];
 
 function stripBoilerplateText(raw: string): string {
@@ -518,8 +537,67 @@ function containsBoilerplateArtifacts(text: string): boolean {
 		/\bview pdf\b/,
 		/\bver pdf\b/,
 		/\bhtml \(experimental\)\b/,
+		/\bzdnet recommends\b/,
+		/\bzdnet recomienda\b/,
+		/\bwhen you buy through our links\b/,
+		/\bcuando compras a trav[eé]s de nuestros enlaces\b/,
+		/\bwe may earn a commission\b/,
+		/\bpodemos ganar una comisi[oó]n\b/,
+		/\beditorial standards\b/,
+		/\best[aá]ndares editoriales\b/,
+		/\bshow comments\b/,
+		/\bmostrar comentarios\b/,
+		/\bsign in to comment\b/,
+		/\binicie sesi[oó]n para comentar\b/,
+		/\bcommunity guidelines\b/,
+		/\bpautas de la comunidad\b/,
+		/\bleer art[ií]culo original\b/,
+		/\bread original article\b/,
 	];
 	return artifactPatterns.some((pattern) => pattern.test(compact));
+}
+
+const PUBLISHER_BOILERPLATE_PATTERNS: RegExp[] = [
+	/\b(our process ['"]?zdnet recommends['"]?|nuestro proceso ['"]?zdnet recomienda['"]?)\b/i,
+	/\b(when you buy through our links|cuando compras a trav[eé]s de nuestros enlaces)\b/i,
+	/\b(we may earn a commission|podemos ganar una comisi[oó]n)\b/i,
+	/\b(editorial standards|est[aá]ndares editoriales)\b/i,
+	/\b(show comments|mostrar comentarios|sign in to comment|inicie sesi[oó]n para comentar)\b/i,
+	/\b(community guidelines|pautas de la comunidad)\b/i,
+	/\b(read original article|leer art[ií]culo original)\b/i,
+	/\b(kyle kucharski\/zdnet|kerry wan\/zdnet)\b/i,
+];
+
+function containsPublisherBoilerplate(text: string): boolean {
+	if (!text) return false;
+	return PUBLISHER_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(text.toLowerCase()));
+}
+
+function countWordOccurrences(textLower: string, token: string): number {
+	if (!token) return 0;
+	const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const matches = textLower.match(new RegExp(`\\b${escaped}\\b`, 'g'));
+	return matches?.length ?? 0;
+}
+
+function hasExcessiveSourceMentions(text: string, source: NewsSource): boolean {
+	if (!text) return false;
+	// Company/research sources are often intrinsic to the story itself.
+	if (source.category === 'company' || source.category === 'research') return false;
+
+	const lower = text.toLowerCase();
+	const normalizedSource = source.name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+	const sourceTokens = normalizedSource
+		.split(/\s+/)
+		.filter(Boolean)
+		.filter((token) => token.length >= 4)
+		.filter((token) => !['news', 'blog', 'daily', 'tech', 'media', 'review', 'the'].includes(token));
+
+	if (sourceTokens.length === 0) return false;
+	const occurrences = sourceTokens
+		.slice(0, 2)
+		.reduce((acc, token) => acc + countWordOccurrences(lower, token), 0);
+	return occurrences >= 6;
 }
 
 function cleanContent(html: string | undefined | null): string {
@@ -810,6 +888,7 @@ Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, im
 - NO usar "Leer más", "Continuar leyendo", avisos de cookies
 - NO mencionar imágenes o elementos UI que falten
 - NO incluir metadatos bibliográficos o de portal (IDs arXiv, DOI, BibTeX, historial de envío, menús, widgets)
+- NO incluir branding del medio, firmas de autor ni textos de afiliación/editoriales (p. ej. "ZDNET recomienda", "podemos ganar comisión")
 - NO pegues el nombre del medio/fuente al final del titular o el resumen (salvo que sea parte esencial del hecho)
 - Usar párrafos cortos (2-4 oraciones)
 - Incluir términos técnicos relevantes pero explicarlos
@@ -857,6 +936,7 @@ Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (conte
 - Do NOT use "Read more", "Continue reading", cookie notices
 - Do NOT mention missing images or UI elements
 - Do NOT include bibliographic/portal metadata (arXiv IDs, DOI blocks, BibTeX, submission history, navigation widgets)
+- Do NOT include outlet branding, author bylines, or affiliate/editorial disclaimers (e.g., "ZDNET recommends", "we may earn commission")
 - Do NOT append the outlet/source name to the headline or summary (unless it's essential to the fact)
 - Use short paragraphs (2-4 sentences)
 - Include relevant technical terms but briefly explain them
@@ -951,6 +1031,114 @@ const HEURISTIC_AI_KEYWORDS = [
 	'robotics',
 ];
 
+const CORE_AI_SIGNAL_PATTERNS: RegExp[] = [
+	/\bartificial intelligence\b/i,
+	/\bmachine learning\b/i,
+	/\bdeep learning\b/i,
+	/\bgenerative ai\b/i,
+	/\bai model(s)?\b/i,
+	/\blarge language model(s)?\b/i,
+	/\blanguage model(s)?\b/i,
+	/\bllm(s)?\b/i,
+	/\bneural network(s)?\b/i,
+	/\bcomputer vision\b/i,
+	/\brobotics?\b/i,
+	/\bopenai\b/i,
+	/\bchatgpt\b/i,
+	/\banthropic\b/i,
+	/\bclaude\b/i,
+	/\bdeepmind\b/i,
+	/\bgemini\b/i,
+	/\bcopilot\b/i,
+	/\bstable diffusion\b/i,
+	/\bmodel training\b/i,
+	/\bmodel inference\b/i,
+];
+
+const AI_CONTEXT_PATTERN =
+	/\b(model|models|assistant|agent|agents|inference|training|prompt|token|safety|alignment|regulation|automation|security|cyber|threat|risk|governance|feature|features|powered|computer vision|robotics|llm|gpt|chatgpt|claude|gemini|openai|anthropic|deepmind|copilot)\b/i;
+
+const CONSUMER_HARDWARE_PATTERNS: RegExp[] = [
+	/\bmacbook\b/i,
+	/\bthinkpad\b/i,
+	/\biphone\b/i,
+	/\bipad\b/i,
+	/\btelevision\b/i,
+	/\btv\b/i,
+	/\blaptop(s)?\b/i,
+	/\bport[aá]til(es)?\b/i,
+	/\bsmartphone(s)?\b/i,
+	/\btablet(s)?\b/i,
+	/\bearbuds?\b/i,
+	/\bheadphones?\b/i,
+	/\bsmartwatch\b/i,
+	/\bring\b/i,
+	/\bspeaker\b/i,
+	/\bbluetooth speaker\b/i,
+	/\bwindows pc\b/i,
+	/\bchromebook\b/i,
+	/\bgalaxy\b/i,
+	/\bpixel\b/i,
+];
+
+const CONSUMER_COMPARISON_PATTERNS: RegExp[] = [
+	/\bversus\b/i,
+	/\bvs\.?\b/i,
+	/\bwhich is better\b/i,
+	/\bcu[aá]l es (la )?mejor\b/i,
+	/\bdeber[ií]as comprar\b/i,
+	/\bshould you buy\b/i,
+	/\bbuying guide\b/i,
+	/\bgu[ií]a de compra\b/i,
+	/\breview\b/i,
+	/\ban[aá]lisis\b/i,
+	/\bhands[- ]on\b/i,
+	/\bi tested\b/i,
+	/\bofertas?\b/i,
+];
+
+function hasCoreAiSignal(textLower: string): boolean {
+	if (!textLower) return false;
+	if (CORE_AI_SIGNAL_PATTERNS.some((pattern) => pattern.test(textLower))) return true;
+	const aiTokenCount = textLower.match(/\bai\b/g)?.length ?? 0;
+	return aiTokenCount > 0 && AI_CONTEXT_PATTERN.test(textLower);
+}
+
+function isLikelyOffTopicConsumerTech(article: RawArticle, snippet: string): { reject: boolean; reason?: string } {
+	const titleLower = article.title.toLowerCase();
+	const text = `${titleLower} ${snippet}`.toLowerCase();
+	const hasAiSignalInTitle = hasCoreAiSignal(titleLower);
+	if (hasAiSignalInTitle) return { reject: false };
+
+	const hasHardwareSignalTitle = CONSUMER_HARDWARE_PATTERNS.some((pattern) => pattern.test(titleLower));
+	const hasComparisonSignalTitle = CONSUMER_COMPARISON_PATTERNS.some((pattern) => pattern.test(titleLower));
+	const hasReviewSignalTitle =
+		/\b(review|an[aá]lisis|hands[- ]on|should you buy|deber[ií]as comprar|buying guide|gu[ií]a de compra)\b/i.test(
+			titleLower,
+		);
+	const hasAiSignalInBody = hasCoreAiSignal(text);
+
+	if (hasHardwareSignalTitle && hasComparisonSignalTitle) {
+		return { reject: true, reason: 'consumer_hardware_comparison_without_ai' };
+	}
+
+	if (hasHardwareSignalTitle && hasReviewSignalTitle && !hasAiSignalInBody) {
+		return { reject: true, reason: 'consumer_hardware_review_without_ai' };
+	}
+
+	// For broad news/aggregator sources, require explicit AI signals to keep topical precision.
+	if (
+		(article.source.category === 'news' || article.source.category === 'aggregator') &&
+		hasHardwareSignalTitle &&
+		(hasComparisonSignalTitle || hasReviewSignalTitle) &&
+		!hasAiSignalInBody
+	) {
+		return { reject: true, reason: 'off_topic_consumer_tech' };
+	}
+
+	return { reject: false };
+}
+
 const HEURISTIC_CATEGORY_HINTS: Array<{ category: ArticleClassification['category']; keywords: string[] }> = [
 	{ category: 'nlp', keywords: ['llm', 'language model', 'gpt', 'chatbot', 'prompt', 'token'] },
 	{ category: 'computervision', keywords: ['computer vision', 'image', 'video', 'segmentation', 'detection'] },
@@ -972,10 +1160,8 @@ function inferHeuristicCategory(textLower: string): ArticleClassification['categ
 }
 
 function hasHeuristicAiSignal(textLower: string): boolean {
-	if (HEURISTIC_AI_KEYWORDS.some((keyword) => textLower.includes(keyword))) {
-		return true;
-	}
-	return /\bai\b/.test(textLower);
+	if (HEURISTIC_AI_KEYWORDS.some((keyword) => textLower.includes(keyword))) return true;
+	return hasCoreAiSignal(textLower);
 }
 
 function shouldUseHeuristicClassification(message: string): boolean {
@@ -991,6 +1177,9 @@ function shouldUseHeuristicClassification(message: string): boolean {
 }
 
 function classifyArticleHeuristically(article: RawArticle, snippet: string): ArticleClassification | null {
+	const offTopic = isLikelyOffTopicConsumerTech(article, snippet);
+	if (offTopic.reject) return null;
+
 	const text = `${article.title} ${snippet}`.toLowerCase();
 	if (!hasHeuristicAiSignal(text)) {
 		return null;
@@ -1436,6 +1625,12 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 
 async function classifyArticle(article: RawArticle, llmClient: LLMClient, systemPrompt: string): Promise<ArticleClassification | null> {
 	const snippet = cleanContent(article.contentEncoded) || cleanContent(article.content) || article.itunesSummary || article.contentSnippet || '';
+	const offTopic = isLikelyOffTopicConsumerTech(article, snippet);
+	if (offTopic.reject) {
+		console.log(`[Filter] Skipping off-topic article (${offTopic.reason}): ${article.title.slice(0, 80)}...`);
+		return null;
+	}
+
 	let hostname = '';
 	try {
 		hostname = new URL(article.link).hostname.replace(/^www\./, '').toLowerCase();
@@ -1449,7 +1644,7 @@ async function classifyArticle(article: RawArticle, llmClient: LLMClient, system
 		hostname ? `Source: ${article.source.name} (${hostname})` : `Source: ${article.source.name}`,
 		`Content: ${snippet.slice(0, 2200)}...`,
 		'',
-		'Is this article relevant to AI/ML/tech? Return JSON only.',
+		'Is this article primarily about AI/ML (not generic consumer tech)? Return JSON only.',
 	].join('\n');
 
 	try {
@@ -1509,6 +1704,8 @@ async function filterAndClassifyArticles(articles: RawArticle[], llmClient: LLMC
 3. For optional fields, use empty string "" instead of null or undefined
 4. Escape special characters in strings (use \\" for quotes, \\n for newlines)
 5. Numbers must be plain numbers without quotes
+6. Mark relevant=false for generic consumer-tech items (laptop/phone/tablet comparisons, buying guides, hands-on reviews) unless AI is the central topic
+7. If relevant=true, summary must describe the AI angle directly and avoid outlet self-promo language
 
 Required JSON structure:
 {
@@ -1751,6 +1948,7 @@ async function determineBilingualContent(
 	let titlePrimary = entry.article.title;
 	let summaryPrimary = summaryOriginal;
 	let contentPrimary = contentOriginal;
+	let usedSourceFallback = false;
 
 	if (REQUIRE_VALUE_ADDED_REWRITE) {
 		const normalizedTitle = normalizeForSimilarity(titlePrimary);
@@ -1769,6 +1967,7 @@ async function determineBilingualContent(
 			rewriteHardFailureCount += 1;
 			throw new Error('rewrite_required_but_failed');
 		}
+		usedSourceFallback = true;
 		rewriteFallbackCount += 1;
 		console.warn('[LLM Rewrite] Falling back to source content because rewrite failed');
 	}
@@ -1782,6 +1981,14 @@ async function determineBilingualContent(
 
 	contentPrimary = stripBoilerplateText(contentPrimary);
 	summaryPrimary = sanitizeSummary(summaryPrimary);
+
+	const hasPublisherNoise =
+		containsPublisherBoilerplate(summaryPrimary) ||
+		containsPublisherBoilerplate(contentPrimary) ||
+		hasExcessiveSourceMentions(contentPrimary, entry.article.source);
+	if (hasPublisherNoise) {
+		throw new Error(usedSourceFallback ? 'source_fallback_contains_publisher_boilerplate' : 'rewritten_content_contains_publisher_boilerplate');
+	}
 
 	const translationTarget: 'en' | 'es' = originalLanguage === 'en' ? 'es' : 'en';
 	let translation = entry.translation;
@@ -2031,7 +2238,12 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 		const message = error instanceof Error ? error.message : String(error);
 		console.warn(`[Pipeline] Skip (bilingual/rewrite failed): ${message}`);
 		entry.lastError = message;
-		if (message === 'rewrite_required_but_failed' || message === 'insufficient_source_content') {
+		if (
+			message === 'rewrite_required_but_failed' ||
+			message === 'insufficient_source_content' ||
+			message === 'source_fallback_contains_publisher_boilerplate' ||
+			message === 'rewritten_content_contains_publisher_boilerplate'
+		) {
 			return { success: false, retryable: false, reason: message };
 		}
 		return { success: false, retryable: true, reason: message };
