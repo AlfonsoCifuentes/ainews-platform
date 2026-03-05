@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { searchArticles } from '@/lib/ai/embeddings';
+import { checkRateLimit, getRateLimitKey, RATE_LIMITS } from '@/lib/api/rate-limiter';
 
 const SearchSchema = z.object({
   q: z.string().min(3).max(500),
@@ -12,6 +13,13 @@ const SearchSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    // Rate limit semantic search (uses embeddings)
+    const rlKey = getRateLimitKey('semantic-search', null, req);
+    const rl = checkRateLimit(rlKey, RATE_LIMITS.SEARCH.limit, RATE_LIMITS.SEARCH.windowMs);
+    if (!rl.allowed) {
+      return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+    }
+
     const searchParams = Object.fromEntries(req.nextUrl.searchParams);
     
     const params = SearchSchema.parse({
@@ -21,8 +29,6 @@ export async function GET(req: NextRequest) {
       category: searchParams.category,
       locale: searchParams.locale || 'en'
     });
-    
-    console.log(`[Search API] Semantic search for: "${params.q}"`);
     
     const results = await searchArticles(params.q, {
       limit: params.limit,
@@ -66,8 +72,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Search failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Search failed'
       },
       { status: 500 }
     );

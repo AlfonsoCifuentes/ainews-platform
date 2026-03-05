@@ -2177,15 +2177,13 @@ export async function POST(req: NextRequest) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({
         success: false,
-        error: 'Failed to parse course JSON from AI',
-        details: error.message
+        error: 'Failed to parse course JSON from AI'
       }, { status: 400 });
     }
 
     return NextResponse.json({
       success: false,
-      error: 'Course generation failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Course generation failed'
     }, { status: 500 });
   }
 }

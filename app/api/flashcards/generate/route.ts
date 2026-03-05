@@ -18,6 +18,15 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
+    // Auth check - prevent unauthenticated LLM calls
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     // Fetch content
     let content = '';
     let category = '';
@@ -102,10 +111,8 @@ ${content.slice(0, 3000)}`;
     }
 
     // Insert flashcards into database
-    const { data: userId } = await supabase.auth.getUser();
-    
     const cardsToInsert = flashcards.map(card => ({
-      user_id: userId?.user?.id || null,
+      user_id: user.id,
       content_id: contentId,
       content_type: contentType,
       front: card.front,

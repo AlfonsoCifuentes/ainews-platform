@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 export function usePWA() {
   const [isOnline, setIsOnline] = useState(true);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [registration] = useState<ServiceWorkerRegistration | null>(null);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     // Service Worker registration disabled temporarily (sw.js not available)
@@ -15,8 +15,7 @@ export function usePWA() {
       navigator.serviceWorker
         .register('/sw.js')
         .then((reg) => {
-          console.log('Service Worker registered:', reg);
-          setRegistration(reg);
+          registrationRef.current = reg;
         })
         .catch((error) => {
           console.error('Service Worker registration failed:', error);
@@ -44,24 +43,24 @@ export function usePWA() {
     };
   }, []);
 
-  const syncNow = async () => {
-    if (registration && 'sync' in registration) {
+  const syncNow = useCallback(async () => {
+    const reg = registrationRef.current;
+    if (reg && 'sync' in reg) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const syncManager = (registration as any).sync;
+        const syncManager = (reg as any).sync;
         await syncManager.register('sync-bookmarks');
         await syncManager.register('sync-reading-history');
-        console.log('Background sync registered');
-      } catch (error) {
-        console.error('Background sync failed:', error);
+      } catch {
+        // Background sync not available - silently ignore
       }
     }
-  };
+  }, []);
 
   return {
     isOnline,
     isInstalled,
-    registration,
+    registration: registrationRef.current,
     syncNow,
   };
 }

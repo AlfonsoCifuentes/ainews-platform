@@ -1,15 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { ultralyticsVision } from '@/lib/services/ultralytics-vision';
+import { getServerAuthUser } from '@/lib/auth/auth-config';
 
 const AnalyzeImageSchema = z.object({
   imageUrl: z.string().url('Must be a valid URL'),
 });
 
+/** Block private/internal IPs to prevent SSRF */
+function isPrivateUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr);
+    // Only allow https
+    if (url.protocol !== 'https:') return true;
+    const hostname = url.hostname.toLowerCase();
+    // Block localhost, internal IPs, metadata endpoints
+    const blocked = [
+      /^localhost$/,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,
+      /^0\./,
+      /^\[::1\]$/,
+      /^\[fc/,
+      /^\[fd/,
+      /^\[fe80/,
+      /^metadata\.google/,
+    ];
+    return blocked.some(pattern => pattern.test(hostname));
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Require authentication
+    const user = await getServerAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { imageUrl } = AnalyzeImageSchema.parse(body);
+
+    // SSRF protection: block private/internal URLs
+    if (isPrivateUrl(imageUrl)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid image URL: only public HTTPS URLs are allowed' },
+        { status: 400 }
+      );
+    }
 
     console.log(`[API] Analyzing image: ${imageUrl}`);
 
@@ -49,8 +92,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Analysis failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Analysis failed'
       },
       { status: 500 }
     );

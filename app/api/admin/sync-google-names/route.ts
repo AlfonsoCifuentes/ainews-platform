@@ -8,16 +8,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/supabase-server';
 
+// Admin-only emails allowed to run this utility
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').filter(Boolean);
+
 export async function POST(_req: NextRequest) {
+  // Block in production unless explicitly enabled
+  if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_ADMIN_SYNC) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const supabase = await createClient();
 
-    // Check if user is authenticated (optional - remove if you want public access)
+    // Require authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      // Allow unauthenticated access since this is an admin utility
-      // In production, add proper admin checks
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check admin permission
+    if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(user.email || '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Run the update to sync Google OAuth names
@@ -58,36 +70,7 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json(
         { 
           success: false,
-          error: 'RPC execution failed',
-          details: error.message,
-          instructions: 'Apply this SQL in Supabase Dashboard > SQL Editor',
-          sql: `
-UPDATE public.user_profiles
-SET 
-  display_name = COALESCE(
-    au.raw_user_meta_data->>'name',
-    au.raw_user_meta_data->>'full_name',
-    au.raw_user_meta_data->>'user_name',
-    display_name
-  ),
-  full_name = COALESCE(
-    au.raw_user_meta_data->>'name',
-    au.raw_user_meta_data->>'full_name',
-    full_name
-  ),
-  avatar_url = COALESCE(
-    au.raw_user_meta_data->>'avatar_url',
-    au.raw_user_meta_data->>'picture',
-    avatar_url
-  ),
-  updated_at = NOW()
-FROM auth.users au
-WHERE 
-  user_profiles.id = au.id
-  AND (
-    display_name LIKE 'user_%'
-    OR display_name IS NULL
-  );`
+          error: 'Sync operation failed'
         },
         { status: 500 }
       );
@@ -102,10 +85,7 @@ WHERE
   } catch (error) {
     console.error('[Sync Google Names] Unexpected error:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

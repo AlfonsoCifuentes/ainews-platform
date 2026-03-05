@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { emailService } from '../lib/email/email-service';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
@@ -230,7 +230,7 @@ if (require.main === module) {
         process.exit(1);
       });
   } else {
-    console.log('Usage: ts-node weekly-digest-generator.ts [send|record-xp]');
+    console.log('Usage: tsx weekly-digest-generator.ts [send|record-xp]');
     process.exit(1);
   }
 }

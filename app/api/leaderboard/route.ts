@@ -62,11 +62,13 @@ export async function GET(req: NextRequest) {
         streak_days: null,
       }));
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         leaderboard: leaderboard || [],
         currentUserRank,
         period,
       });
+      response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+      return response;
     }
 
     let query = db
@@ -122,11 +124,18 @@ export async function GET(req: NextRequest) {
       rank: index + 1,
     }));
 
-    return NextResponse.json({
-      leaderboard: leaderboard || [],
-      currentUserRank,
-      period,
-    });
+    return NextResponse.json(
+      {
+        leaderboard: leaderboard || [],
+        currentUserRank,
+        period,
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (error) {
     console.error('Leaderboard API error:', error);
     return NextResponse.json(

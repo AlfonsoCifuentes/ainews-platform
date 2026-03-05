@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to run agent', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to run agent' },
       { status: 500 }
     );
   }

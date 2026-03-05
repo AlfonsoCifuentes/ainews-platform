@@ -4,6 +4,7 @@ import { computeIllustrationChecksum } from '@/lib/ai/illustration-utils';
 import { fetchLatestModuleIllustration, persistModuleIllustration } from '@/lib/db/module-illustrations';
 import { VISUAL_STYLES } from '@/lib/types/illustrations';
 import { z } from 'zod';
+import { checkRateLimit, getRateLimitKey, RATE_LIMITS } from '@/lib/api/rate-limiter';
 
 const RequestSchema = z.object({
   content: z.string().min(10, 'Content must be at least 10 characters'),
@@ -35,6 +36,16 @@ function resolveVariantList(style: GenerateIllustrationRequest['style'], request
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit image generation
+    const rlKey = getRateLimitKey('illustration', null, req);
+    const rl = checkRateLimit(rlKey, RATE_LIMITS.IMAGE_GENERATION.limit, RATE_LIMITS.IMAGE_GENERATION.windowMs);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const validated = RequestSchema.safeParse(body);
 
@@ -289,7 +300,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[API/generate-illustration] Error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { success: false, error: 'Illustration generation failed' },
       { status: 500 }
     );
   }

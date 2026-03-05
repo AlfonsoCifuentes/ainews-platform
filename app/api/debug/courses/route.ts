@@ -6,6 +6,10 @@ interface CourseStatus {
 }
 
 export async function GET(_req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     const db = getSupabaseServerClient();
     

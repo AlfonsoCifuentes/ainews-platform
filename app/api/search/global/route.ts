@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { z } from 'zod';
+import { sanitizeSearchQuery } from '@/lib/api/sanitize-search';
 
 const SearchSchema = z.object({
   q: z.string().min(1),
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseServerClient();
     const searchTypes = params.types ? params.types.split(',') : ['article', 'course', 'entity'];
     const results: Record<string, unknown[]> = {};
+    const safeQ = sanitizeSearchQuery(params.q);
 
     // Search articles
     if (searchTypes.includes('article')) {
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
       const { data } = await supabase
         .from('news_articles')
         .select('id, title_en, title_es, summary_en, summary_es, image_url, created_at')
-        .or(`${titleCol}.ilike.%${params.q}%,summary_${params.locale}.ilike.%${params.q}%`)
+        .or(`${titleCol}.ilike.%${safeQ}%,summary_${params.locale}.ilike.%${safeQ}%`)
         .order('created_at', { ascending: false })
         .limit(params.limit);
       
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
       const { data } = await supabase
         .from('courses')
         .select('id, title, description, difficulty, duration_hours')
-        .or(`title.ilike.%${params.q}%,description.ilike.%${params.q}%`)
+        .or(`title.ilike.%${safeQ}%,description.ilike.%${safeQ}%`)
         .order('created_at', { ascending: false })
         .limit(params.limit);
       
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest) {
       const { data } = await supabase
         .from('entities')
         .select('id, name, type, description')
-        .or(`name.ilike.%${params.q}%,description.ilike.%${params.q}%`)
+        .or(`name.ilike.%${safeQ}%,description.ilike.%${safeQ}%`)
         .order('name', { ascending: true })
         .limit(params.limit);
       
@@ -95,7 +97,7 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[search/global] Error:', error);
+    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
   }
 }

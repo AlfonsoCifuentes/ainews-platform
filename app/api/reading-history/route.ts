@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
       .limit(params.limit);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[reading-history] GET error:', error.message);
+      return NextResponse.json({ error: 'Failed to fetch reading history' }, { status: 500 });
     }
 
     return NextResponse.json({ data });
@@ -81,7 +82,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[reading-history] POST error:', error.message);
+      return NextResponse.json({ error: 'Failed to update reading history' }, { status: 500 });
     }
 
     return NextResponse.json({ data });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { sanitizeSearchQuery } from '@/lib/api/sanitize-search';
 
 const schema = z.object({
   q: z.string().min(1),
@@ -14,10 +15,11 @@ export async function GET(req: NextRequest) {
     const db = getSupabaseServerClient();
 
     // Simple ilike search on name and aliases; vector search can be added later
+    const safeQ = sanitizeSearchQuery(params.q);
     const { data, error } = await db
       .from('entities')
       .select('*')
-      .ilike('name', `%${params.q}%`)
+      .ilike('name', `%${safeQ}%`)
       .limit(params.limit);
 
     if (error) throw error;
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/search] Error:', error);
+    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
   }
 }

@@ -212,13 +212,15 @@ export async function GET(req: NextRequest) {
 
     const csv = buildCsv([...overviewRows, ...searchRows, ...xpRows], headers);
 
-    // Persist copy locally for inspection (best-effort; ignored in serverless)
-    try {
-      const outDir = join(process.cwd(), 'analyze');
-      mkdirSync(outDir, { recursive: true });
-      writeFileSync(join(outDir, 'analytics-export.csv'), csv, 'utf8');
-    } catch (fileError) {
-      console.warn('[Analytics Export] Could not write local CSV:', fileError);
+    // Persist copy locally for inspection (dev only; ephemeral FS in serverless)
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const outDir = join(process.cwd(), 'analyze');
+        mkdirSync(outDir, { recursive: true });
+        writeFileSync(join(outDir, 'analytics-export.csv'), csv, 'utf8');
+      } catch (fileError) {
+        console.warn('[Analytics Export] Could not write local CSV:', fileError);
+      }
     }
 
     return new NextResponse(csv, {

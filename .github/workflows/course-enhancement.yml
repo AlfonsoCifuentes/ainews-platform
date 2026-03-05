@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -35,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm ci
@@ -44,16 +45,48 @@ jobs:
         id: combo
         shell: bash
         run: |
-          if [ -n "${{ github.event.inputs.combination }}" ]; then
-            combo="${{ github.event.inputs.combination }}"
-          else
-            day=$(date -u +%j)
-            if [ $((day % 2)) -eq 0 ]; then
-              combo="groq_gemini_mistral"
+          has_combo_a=true
+          has_combo_b=true
+
+          if [ -z "${GROQ_API_KEY}" ] || [ -z "${MISTRAL_API_KEY}" ] || { [ -z "${GEMINI_API_KEY}" ] && [ -z "${GOOGLE_GEMINI_API_KEY}" ]; }; then
+            has_combo_a=false
+          fi
+          if [ -z "${DEEPSEEK_API_KEY}" ] || [ -z "${OPENAI_API_KEY}" ] || [ -z "${ANTHROPIC_API_KEY}" ]; then
+            has_combo_b=false
+          fi
+
+          requested="${{ github.event.inputs.combination }}"
+          combo=""
+
+          if [ -n "${requested}" ]; then
+            if [ "${requested}" = "groq_gemini_mistral" ] && [ "${has_combo_a}" = true ]; then
+              combo="${requested}"
+            elif [ "${requested}" = "deepseek_openai_claude" ] && [ "${has_combo_b}" = true ]; then
+              combo="${requested}"
             else
-              combo="deepseek_openai_claude"
+              echo "⚠️ Requested combination ${requested} is not fully configured. Selecting available fallback..."
             fi
           fi
+
+          if [ -z "${combo}" ]; then
+            if [ "${has_combo_a}" = true ] && [ "${has_combo_b}" = true ]; then
+              day=$(date -u +%j)
+              if [ $((day % 2)) -eq 0 ]; then
+                combo="groq_gemini_mistral"
+              else
+                combo="deepseek_openai_claude"
+              fi
+            elif [ "${has_combo_a}" = true ]; then
+              combo="groq_gemini_mistral"
+            elif [ "${has_combo_b}" = true ]; then
+              combo="deepseek_openai_claude"
+            else
+              echo "❌ No complete provider combination configured."
+              echo "Need either: (GROQ + GEMINI + MISTRAL) or (DEEPSEEK + OPENAI + ANTHROPIC)."
+              exit 1
+            fi
+          fi
+
           echo "value=$combo" >> "$GITHUB_OUTPUT"
           echo "Selected combination: $combo"
 

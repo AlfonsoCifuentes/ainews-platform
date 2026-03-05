@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('[API /api/news] Supabase error:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch articles', details: error.message },
+        { error: 'Failed to fetch articles' },
         { status: 500 }
       );
     }

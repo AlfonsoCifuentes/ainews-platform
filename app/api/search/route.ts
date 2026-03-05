@@ -56,16 +56,21 @@ export async function GET(req: NextRequest) {
         .from('news_articles')
         .select('*', { count: 'exact' });
 
+      // Escape PostgREST special characters to prevent filter injection
+      const safeQuery = params.q
+        .replace(/[%_*(),."\\]/g, (char) => `\\${char}`)
+        .replace(/'/g, "''");
+
       // Build search query
       if (params.locale) {
         const searchColumn = params.locale === 'en' ? 'title_en' : 'title_es';
         const contentColumn = params.locale === 'en' ? 'content_en' : 'content_es';
         
-        query = query.or(`${searchColumn}.ilike.%${params.q}%,${contentColumn}.ilike.%${params.q}%`);
+        query = query.or(`${searchColumn}.ilike.%${safeQuery}%,${contentColumn}.ilike.%${safeQuery}%`);
       } else {
         query = query.or(
-          `title_en.ilike.%${params.q}%,title_es.ilike.%${params.q}%,` +
-          `content_en.ilike.%${params.q}%,content_es.ilike.%${params.q}%`
+          `title_en.ilike.%${safeQuery}%,title_es.ilike.%${safeQuery}%,` +
+          `content_en.ilike.%${safeQuery}%,content_es.ilike.%${safeQuery}%`
         );
       }
 
@@ -148,7 +153,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Search failed', message: String(error) },
+      { error: 'Search failed' },
       { status: 500 }
     );
   }

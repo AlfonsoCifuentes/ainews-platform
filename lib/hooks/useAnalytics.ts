@@ -131,6 +131,15 @@ export function useAnalytics() {
     trackPageView();
   }, [pathname, trackPageView]);
 
+  // Cleanup flush timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (flushTimeout.current) {
+        clearTimeout(flushTimeout.current);
+      }
+    };
+  }, []);
+
   // Flush events on page unload
   useEffect(() => {
     const handleBeforeUnload = () => {

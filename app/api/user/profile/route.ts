@@ -23,14 +23,11 @@ export async function GET(_req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log('[API] [Profile GET] User not authenticated', { error: authError?.message });
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    console.log('[API] [Profile GET] Fetching profile for user:', { userId: user.id, email: user.email });
     
     // Get profile
     const { data: profile, error: profileError } = await supabase
@@ -49,12 +46,10 @@ export async function GET(_req: NextRequest) {
     }
     
     if (profile) {
-      console.log('[API] [Profile GET] Profile found in database', { displayName: profile.display_name, id: profile.id });
       return NextResponse.json({ data: profile });
     }
 
     // No profile found, create one from user metadata
-    console.log('[API] [Profile GET] No profile found, creating fallback from OAuth metadata', { userId: user.id });
     const metadata = user.user_metadata ?? {};
     const now = new Date().toISOString();
     
@@ -92,13 +87,11 @@ export async function GET(_req: NextRequest) {
       .single();
     
     if (createError) {
-      console.error('[API] [Profile GET] Error creating profile:', { code: createError.code, message: createError.message });
+      console.error('[API] [Profile GET] Error creating profile:', { code: createError.code });
       // Return the in-memory profile anyway
-      console.log('[API] [Profile GET] Returning in-memory fallback profile');
       return NextResponse.json({ data: newProfile });
     }
 
-    console.log('[API] [Profile GET] Profile created successfully in database', { displayName: createdProfile?.display_name, id: createdProfile?.id });
     return NextResponse.json({ data: createdProfile || newProfile });
     
   } catch (error) {
@@ -116,14 +109,11 @@ export async function PATCH(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log('[API] [Profile PATCH] User not authenticated');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    console.log('[API] [Profile PATCH] Updating profile for user:', { userId: user.id });
     
     // Parse and validate request body
     const body = await req.json();
@@ -169,14 +159,12 @@ export async function PATCH(req: NextRequest) {
       .single();
     
     if (updateError) {
-      console.error('[API] [Profile PATCH] Error updating profile:', { code: updateError.code, message: updateError.message });
+      console.error('[API] [Profile PATCH] Error updating profile:', { code: updateError.code });
       return NextResponse.json(
         { error: 'Failed to update profile' },
         { status: 500 }
       );
     }
-    
-    console.log('[API] [Profile PATCH] Profile updated successfully', { displayName: updatedProfile?.display_name });
     
     return NextResponse.json({ 
       success: true,

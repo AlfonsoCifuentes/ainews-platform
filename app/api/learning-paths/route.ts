@@ -3,6 +3,8 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { LearningPathGenerator } from '@/lib/ai/learning-path-generator';
 import { createLLMClientWithFallback } from '@/lib/ai/llm-client';
 import { z } from 'zod';
+import { getServerAuthUser } from '@/lib/auth/auth-config';
+import { checkRateLimit, getRateLimitKey, RATE_LIMITS } from '@/lib/api/rate-limiter';
 
 const CreatePathSchema = z.object({
   userId: z.string(),
@@ -22,15 +24,17 @@ const UpdateProgressSchema = z.object({
   progress: z.number().min(0).max(100)
 });
 
-// GET /api/learning-paths?userId=xxx
-export async function GET(req: NextRequest) {
+// GET /api/learning-paths
+export async function GET(_req: NextRequest) {
   try {
-    const { searchParams } = req.nextUrl;
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId required' }, { status: 400 });
+    // Require authentication
+    const authUser = await getServerAuthUser();
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Use authenticated user's ID (ignore userId from query params to prevent enumeration)
+    const userId = authUser.id;
 
     const supabase = getSupabaseServerClient();
     const llmClient = await createLLMClientWithFallback();
@@ -48,6 +52,22 @@ export async function GET(req: NextRequest) {
 // POST /api/learning-paths
 export async function POST(req: NextRequest) {
   try {
+    // Require authentication
+    const authUser = await getServerAuthUser();
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit LLM generation
+    const rateLimitKey = getRateLimitKey('learning-path', authUser.id);
+    const rateCheck = checkRateLimit(rateLimitKey, RATE_LIMITS.LLM_GENERATION.limit, RATE_LIMITS.LLM_GENERATION.windowMs);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests, please try again later' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { action } = body;
 
@@ -59,7 +79,7 @@ export async function POST(req: NextRequest) {
 
       const generator = new LearningPathGenerator(llmClient, supabase);
 
-      const learningPath = await generator.generateLearningPath(data.userId, data.targetRole, {
+      const learningPath = await generator.generateLearningPath(authUser.id, data.targetRole, {
         current_skills: data.currentSkills,
         target_skills: data.targetSkills,
         experience_level: data.experienceLevel,
@@ -77,7 +97,7 @@ export async function POST(req: NextRequest) {
 
       const generator = new LearningPathGenerator(llmClient, supabase);
 
-      await generator.updateModuleProgress(data.userId, data.pathId, data.moduleId, data.progress);
+      await generator.updateModuleProgress(authUser.id, data.pathId, data.moduleId, data.progress);
 
       return NextResponse.json({ success: true });
     } else {

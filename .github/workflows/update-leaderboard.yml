@@ -3,8 +3,8 @@ name: 🤖 Auto-update AI Leaderboard
 on:
   schedule:
     # Run every 6 hours at 0, 6, 12, 18 UTC
-    - cron: '0 0,6,12,18 * * *'
-  
+    - cron: "0 0,6,12,18 * * *"
+
   # Also allow manual trigger
   workflow_dispatch:
 
@@ -13,49 +13,46 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
-      
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+          cache: "npm"
 
       - name: 📦 Install dependencies
         run: npm ci
-      
+
       - name: 🔍 Scrape Artificial Analysis leaderboard
         run: npm run ai:update-leaderboard
-      
+
       - name: 🔨 Build to verify changes
         run: npm run build --if-present
         continue-on-error: true
-      
+
       - name: 📝 Commit and push if changed
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "AI Leaderboard Bot"
-          
+
           if git diff --quiet lib/ai/fetch-real-leaderboard.ts; then
             echo "✅ No changes detected in leaderboard"
           else
             echo "📊 Leaderboard updated! Committing changes..."
             git add lib/ai/fetch-real-leaderboard.ts
-            git commit -m "🤖 Auto-update AI leaderboard from Artificial Analysis
-
-Updated rankings from https://artificialanalysis.ai/leaderboards/models
-Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-Triggered by: GitHub Actions"
+            TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+            git commit -m "🤖 Auto-update AI leaderboard from Artificial Analysis - ${TIMESTAMP}"
             git push
             echo "✅ Changes pushed!"
           fi
-      
+
       - name: 📧 Notify if scraping failed
         if: failure()
         run: |

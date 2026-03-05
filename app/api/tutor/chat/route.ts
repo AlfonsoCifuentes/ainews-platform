@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { callLLMWithCascade } from '@/lib/ai/llm-cascade';
+import { checkRateLimit, getRateLimitKey, RATE_LIMITS } from '@/lib/api/rate-limiter';
+import { getServerAuthUser } from '@/lib/auth/auth-config';
 
 const RequestSchema = z.object({
   contentId: z.string(),
@@ -61,6 +63,14 @@ Formatea cada una como:
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth + rate limit
+    const user = await getServerAuthUser();
+    const rlKey = getRateLimitKey('tutor', user?.id, req);
+    const rl = checkRateLimit(rlKey, RATE_LIMITS.LLM_GENERATION.limit, RATE_LIMITS.LLM_GENERATION.windowMs);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const body = await req.json();
     const {
       contentTitle,

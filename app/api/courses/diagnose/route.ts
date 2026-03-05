@@ -18,6 +18,11 @@ import { getAvailableProviders } from '@/lib/ai/llm-client';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  // Block in production — diagnostic endpoint for development only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   const diagnostics = {
     timestamp: new Date().toISOString(),
     status: 'unknown' as 'ok' | 'warning' | 'error',

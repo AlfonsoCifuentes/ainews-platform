@@ -117,13 +117,15 @@ export async function GET() {
       });
     }
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       todayCount: todayCount || 0,
       totalSources: uniqueSources,
       avgQualityScore,
       lastUpdated: new Date().toISOString(),
       categoryCounts
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return response;
     
   } catch (error) {
     console.error('Error fetching news stats:', error);

@@ -284,8 +284,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'Failed to generate content',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Failed to generate content'
       },
       { status: 500 }
     );

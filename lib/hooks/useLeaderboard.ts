@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface LeaderboardUser {
   id: string;
@@ -29,12 +29,12 @@ export function useLeaderboard(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/leaderboard?period=${period}&limit=${limit}`);
+      const response = await fetch(`/api/leaderboard?period=${period}&limit=${limit}`, { signal });
       const data = await response.json();
 
       if (!response.ok) {
@@ -44,17 +44,19 @@ export function useLeaderboard(
       setUsers(data.leaderboard || []);
       setCurrentUserRank(data.currentUserRank);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [period, limit]);
 
   useEffect(() => {
-    fetchLeaderboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, limit]);
+    const controller = new AbortController();
+    fetchLeaderboard(controller.signal);
+    return () => controller.abort();
+  }, [fetchLeaderboard]);
 
   return { users, currentUserRank, isLoading, error, refetch: fetchLeaderboard };
 }

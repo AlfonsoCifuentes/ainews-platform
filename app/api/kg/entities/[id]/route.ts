@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/entities/id] Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch entity' }, { status: 500 });
   }
 }

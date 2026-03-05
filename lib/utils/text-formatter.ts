@@ -7,7 +7,30 @@
  * - Proper spacing and typography
  * - Drop cap for first paragraph
  * - Preserves markdown formatting
+ * - XSS sanitization for safe HTML rendering
  */
+
+/**
+ * Sanitize HTML to prevent XSS attacks.
+ * Strips dangerous tags/attributes while preserving safe formatting.
+ */
+function sanitizeHTML(html: string): string {
+  // Remove <script> tags and their content
+  let clean = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  // Remove event handlers (onclick, onerror, onload, etc.)
+  clean = clean.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+  clean = clean.replace(/\s+on\w+\s*=\s*\S+/gi, '');
+  // Remove javascript: URLs
+  clean = clean.replace(/href\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'href="#"');
+  clean = clean.replace(/src\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'src=""');
+  // Remove data: URLs in src (can contain executable content)
+  clean = clean.replace(/src\s*=\s*["']?\s*data:text\/html[^"'>]*/gi, 'src=""');
+  // Remove <iframe>, <object>, <embed>, <form>, <input>, <style> tags
+  clean = clean.replace(/<\/?(?:iframe|object|embed|form|input|textarea|style|link|meta|base)\b[^>]*>/gi, '');
+  // Remove <svg> with potential XSS (onload, etc.)
+  clean = clean.replace(/<svg\b[^>]*on\w+[^>]*>[\s\S]*?<\/svg>/gi, '');
+  return clean;
+}
 
 /**
  * Cleans content by removing navigation elements, metadata, and redundant info
@@ -64,8 +87,8 @@ function cleanArticleContent(content: string): string {
 export function formatArticleContent(content: string): string {
   if (!content) return '';
 
-  // Clean content first
-  let formatted = cleanArticleContent(content);
+  // Sanitize content to prevent XSS
+  let formatted = sanitizeHTML(cleanArticleContent(content));
 
   // Remove excessive whitespace and normalize line breaks
   formatted = formatted

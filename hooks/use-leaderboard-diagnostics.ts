@@ -1,13 +1,17 @@
 /**
  * Hook para diagnosticar y trackear el componente AILeaderboardPodium
+ * Only active in development — no-ops in production.
  */
 'use client';
 
 import { useEffect } from 'react';
 import { logger } from '@/lib/utils/logging';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export function useLeaderboardDiagnostics() {
   useEffect(() => {
+    if (!isDev) return;
     logger.info('AILeaderboard', 'Component mounted and rendered successfully');
 
     return () => {
@@ -15,17 +19,20 @@ export function useLeaderboardDiagnostics() {
     };
   }, []);
 
-  // Track when data is being fetched
   useEffect(() => {
+    if (!isDev) return;
     logger.debug('AILeaderboard', 'useLeaderboardDiagnostics hook initialized');
   }, []);
 }
 
 /**
- * Hook para trackear el estado de carga de imágenes
+ * Hook para trackear el estado de carga de imágenes.
+ * Only active in development — no-ops in production.
  */
 export function useImageDiagnostics(src: string, alt: string) {
   useEffect(() => {
+    if (!isDev) return;
+
     const img = new Image();
     
     img.onload = () => {
@@ -37,5 +44,11 @@ export function useImageDiagnostics(src: string, alt: string) {
     };
     
     img.src = src;
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+    };
   }, [src, alt]);
 }

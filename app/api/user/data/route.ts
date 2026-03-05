@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/db/supabase-server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 
 /**
@@ -6,7 +7,7 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
  */
 export async function GET() {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = await createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -42,8 +43,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[UserData] Export error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -52,19 +53,20 @@ export async function GET() {
  */
 export async function DELETE() {
   try {
-    const supabase = getSupabaseServerClient();
-    
+    // Authenticate via cookie-based client
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Delete user data (cascading deletes will handle related records)
-    await supabase.auth.admin.deleteUser(user.id);
+    // Use service role client for admin deletion
+    const adminClient = getSupabaseServerClient();
+    await adminClient.auth.admin.deleteUser(user.id);
 
     return NextResponse.json({ success: true, message: 'Account deleted' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[UserData] Delete error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

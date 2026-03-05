@@ -28,9 +28,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      tags: data || [],
-    });
+    return NextResponse.json(
+      { tags: data || [] },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+        },
+      }
+    );
   } catch (error) {
     console.error('Get tags API error:', error);
     return NextResponse.json(

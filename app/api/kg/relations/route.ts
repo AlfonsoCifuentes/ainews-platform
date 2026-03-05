@@ -37,8 +37,8 @@ export async function GET(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/relations] GET error:', error);
+    return NextResponse.json({ error: 'Failed to fetch relations' }, { status: 500 });
   }
 }
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/relations] POST error:', error);
+    return NextResponse.json({ error: 'Failed to create relation' }, { status: 500 });
   }
 }

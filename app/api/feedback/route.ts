@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { z } from 'zod';
 
 // ============================================
@@ -19,6 +20,14 @@ const FeedbackSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getServerAuthUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const data = FeedbackSchema.parse(body);
 
@@ -34,6 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Insertar feedback
     const { error } = await db.from('ai_feedback').insert({
+      user_id: user.id,
       content_type: data.content_type,
       content_id: data.content_id,
       rating: data.rating || null,
@@ -50,8 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log para analytics
-    console.log(`✅ Feedback received: ${data.content_type} ${data.content_id} - Rating: ${data.rating || 'N/A'}`);
+    // Feedback logged via database insert; no console.log needed in production
 
     return NextResponse.json({
       success: true,
@@ -80,6 +89,14 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getServerAuthUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = req.nextUrl;
     const contentType = searchParams.get('content_type');
     const contentId = searchParams.get('content_id');

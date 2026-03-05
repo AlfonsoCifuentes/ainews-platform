@@ -1,4 +1,9 @@
-import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { createClient } from '@/lib/db/supabase-server';
+import { z } from 'zod';
+
+const OnboardingSchema = z.object({
+  interests: z.array(z.string().max(100)).min(1).max(20),
+});
 
 export async function GET() {
   return Response.json({ message: 'Onboarding API' });
@@ -6,16 +11,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { userId, interests } = await request.json();
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!userId || !Array.isArray(interests) || interests.length === 0) {
+    if (authError || !user) {
       return Response.json(
-        { error: 'Invalid request. userId and interests[] required.' },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    const supabase = getSupabaseServerClient();
+    const body = await request.json();
+    const { interests } = OnboardingSchema.parse(body);
+
+    const userId = user.id;
 
     // Insert user interests
     const interestsToInsert = interests.map((interest: string) => ({
@@ -58,6 +67,12 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        { error: 'Invalid parameters', details: error.errors },
+        { status: 400 }
+      );
+    }
     console.error('Onboarding API error:', error);
     return Response.json(
       { error: 'Internal server error' },

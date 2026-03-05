@@ -53,12 +53,14 @@ export async function GET() {
     const lastUpdate = new Date(data.updated_at);
     const nextUpdate = new Date(lastUpdate.getTime() + 7200000);
 
-    return NextResponse.json<NewsInsightsResponse>({
+    const response = NextResponse.json<NewsInsightsResponse>({
       success: true,
       data: data as NewsAnalytics,
       cached: true,
       next_update: nextUpdate.toISOString(),
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=7200, stale-while-revalidate=3600');
+    return response;
 
   } catch (error) {
     console.error('Error in /api/news/insights:', error);

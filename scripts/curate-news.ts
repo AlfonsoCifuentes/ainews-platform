@@ -125,13 +125,34 @@ type ArticleQueuePayload = {
 
 type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
-const MAX_ARTICLES_TO_PROCESS = 100;
-const MAX_RSS_CANDIDATES = 600;
+function readBooleanEnv(name: string, defaultValue: boolean): boolean {
+	const raw = (process.env[name] ?? '').trim().toLowerCase();
+	if (!raw) return defaultValue;
+	if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
+	if (['0', 'false', 'no', 'off'].includes(raw)) return false;
+	return defaultValue;
+}
+
+function readNumberEnv(name: string, defaultValue: number, minValue: number): number {
+	const raw = (process.env[name] ?? '').trim();
+	if (!raw) return defaultValue;
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) return defaultValue;
+	return Math.max(minValue, Math.floor(parsed));
+}
+
+const MAX_ARTICLES_TO_PROCESS = readNumberEnv('MAX_ARTICLES_TO_PROCESS', 25, 1);
+const MAX_RSS_CANDIDATES = readNumberEnv('MAX_RSS_CANDIDATES', 220, 50);
+const CLASSIFICATION_CONCURRENCY = readNumberEnv('CLASSIFICATION_CONCURRENCY', 4, 1);
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
 const CURRENT_REWRITE_VERSION = 4;
-const REQUIRE_VALUE_ADDED_REWRITE = true; // Do not persist near-raw RSS content
+const REQUIRE_VALUE_ADDED_REWRITE = readBooleanEnv('REQUIRE_VALUE_ADDED_REWRITE', true);
+const ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE = readBooleanEnv(
+	'ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE',
+	true,
+);
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
 const IMAGE_RETRY_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
@@ -139,6 +160,7 @@ const IMAGE_RETRY_BATCH_LIMIT = 12;
 const REWRITE_MAX_CHARS = 5200;
 const DEDUPE_LOOKBACK_DAYS = 21;
 const DEDUPE_TOKEN_SIMILARITY = 0.78;
+const HEURISTIC_CLASSIFICATION_QUALITY = 0.62;
 
 function isRedditNonNews(article: RawArticle): { reject: true; reason: string } | { reject: false } {
 	let hostname = '';
@@ -407,6 +429,8 @@ function extractTranscriptUrlFromHtml(html: string, baseUrl: string): string | n
 let recentNormalizedTitles: string[] = [];
 let recentNormalizedTitleSet = new Set<string>();
 const runNormalizedTitleSet = new Set<string>();
+let rewriteFallbackCount = 0;
+let rewriteHardFailureCount = 0;
 
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
@@ -703,6 +727,87 @@ function inferLanguageFromSource(article: RawArticle): 'en' | 'es' {
 	if (article.source.language === 'es') return 'es';
 	if (article.source.language === 'en') return 'en';
 	return 'en';
+}
+
+const HEURISTIC_AI_KEYWORDS = [
+	'artificial intelligence',
+	'machine learning',
+	'deep learning',
+	'neural network',
+	'generative ai',
+	'foundation model',
+	'large language model',
+	'language model',
+	'chatgpt',
+	'openai',
+	'anthropic',
+	'gemini',
+	'deepmind',
+	'llm',
+	'gpt',
+	'copilot',
+	'computer vision',
+	'robotics',
+];
+
+const HEURISTIC_CATEGORY_HINTS: Array<{ category: ArticleClassification['category']; keywords: string[] }> = [
+	{ category: 'nlp', keywords: ['llm', 'language model', 'gpt', 'chatbot', 'prompt', 'token'] },
+	{ category: 'computervision', keywords: ['computer vision', 'image', 'video', 'segmentation', 'detection'] },
+	{ category: 'robotics', keywords: ['robot', 'robotics', 'autonomous', 'drone'] },
+	{ category: 'ethics', keywords: ['safety', 'alignment', 'policy', 'regulation', 'ethics', 'bias'] },
+	{ category: 'tools', keywords: ['sdk', 'framework', 'library', 'api', 'platform', 'agent'] },
+	{ category: 'research', keywords: ['arxiv', 'paper', 'benchmark', 'dataset', 'study'] },
+	{ category: 'business', keywords: ['funding', 'acquisition', 'partnership', 'revenue', 'enterprise'] },
+	{ category: 'machinelearning', keywords: ['machine learning', 'deep learning', 'model training'] },
+];
+
+function inferHeuristicCategory(textLower: string): ArticleClassification['category'] {
+	for (const candidate of HEURISTIC_CATEGORY_HINTS) {
+		if (candidate.keywords.some((keyword) => textLower.includes(keyword))) {
+			return candidate.category;
+		}
+	}
+	return 'news';
+}
+
+function hasHeuristicAiSignal(textLower: string): boolean {
+	if (HEURISTIC_AI_KEYWORDS.some((keyword) => textLower.includes(keyword))) {
+		return true;
+	}
+	return /\bai\b/.test(textLower);
+}
+
+function shouldUseHeuristicClassification(message: string): boolean {
+	const lower = message.toLowerCase();
+	return (
+		lower.includes('rate limit') ||
+		lower.includes('429') ||
+		lower.includes('quota') ||
+		lower.includes('fetch failed') ||
+		lower.includes('network') ||
+		lower.includes('timeout')
+	);
+}
+
+function classifyArticleHeuristically(article: RawArticle, snippet: string): ArticleClassification | null {
+	const text = `${article.title} ${snippet}`.toLowerCase();
+	if (!hasHeuristicAiSignal(text)) {
+		return null;
+	}
+
+	const summaryBase = sanitizeSummary(snippet || article.title);
+	const summary =
+		summaryBase.length >= 24
+			? summaryBase
+			: sanitizeSummary(`AI update: ${article.title}`);
+
+	return {
+		relevant: true,
+		quality_score: HEURISTIC_CLASSIFICATION_QUALITY,
+		category: inferHeuristicCategory(text),
+		summary,
+		image_alt_text: `AI article illustration: ${article.title}`.slice(0, 180),
+	};
 }
 
 async function fetchRSSFeeds(): Promise<RawArticle[]> {
@@ -1083,6 +1188,15 @@ async function classifyArticle(article: RawArticle, llmClient: LLMClient, system
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`[LLM] ✗ Classification failed for ${article.title.slice(0, 60)}: ${message}`);
+		if (shouldUseHeuristicClassification(message)) {
+			const fallback = classifyArticleHeuristically(article, snippet);
+			if (fallback) {
+				console.warn(
+					`[LLM] ↺ Heuristic classification fallback for ${article.title.slice(0, 60)}... (category: ${fallback.category})`,
+				);
+				return fallback;
+			}
+		}
 		return null;
 	}
 }
@@ -1115,7 +1229,7 @@ async function filterAndClassifyArticles(articles: RawArticle[], llmClient: LLMC
 	}
 
 	console.log(`[LLM] Filtering ${articles.length} articles...`);
-	const limit = pLimit(5);
+	const limit = pLimit(CLASSIFICATION_CONCURRENCY);
 	const systemPrompt = `You are a strict JSON-only API. CRITICAL RULES:
 1. Return ONLY valid JSON, no markdown code blocks, no explanations
 2. Use double quotes for ALL strings
@@ -1378,7 +1492,12 @@ async function determineBilingualContent(
 
 	const rewrite = await rewriteArticleContent(titlePrimary, summaryPrimary, contentPrimary, originalLanguage, llm);
 	if (!rewrite && REQUIRE_VALUE_ADDED_REWRITE) {
-		throw new Error('rewrite_required_but_failed');
+		if (!ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE) {
+			rewriteHardFailureCount += 1;
+			throw new Error('rewrite_required_but_failed');
+		}
+		rewriteFallbackCount += 1;
+		console.warn('[LLM Rewrite] Falling back to source content because rewrite failed');
 	}
 	if (rewrite) {
 		titlePrimary = rewrite.title;
@@ -1708,6 +1827,12 @@ async function processImageRetryQueue(db: SupabaseClient, llm: LLMClient): Promi
 
 async function main(): Promise<void> {
 	console.log('[News Curator] Starting curation workflow...');
+	console.log(
+		`[News Curator] Rewrite policy: require=${REQUIRE_VALUE_ADDED_REWRITE}, allow_source_fallback=${ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE}`,
+	);
+	console.log(
+		`[News Curator] Throughput config: max_candidates=${MAX_RSS_CANDIDATES}, max_store=${MAX_ARTICLES_TO_PROCESS}, classification_concurrency=${CLASSIFICATION_CONCURRENCY}`,
+	);
 	const db = getSupabaseServerClient();
 	await initializeImageHashCache();
 
@@ -1812,8 +1937,12 @@ async function main(): Promise<void> {
 	await processImageRetryQueue(db, llm);
 
 	console.log(
-		`[News Curator] Completed. Stored: ${stored}, queued for retry: ${queued}, skipped: ${skipped}`,
+		`[News Curator] Completed. Stored: ${stored}, queued for retry: ${queued}, skipped: ${skipped}, rewrite_fallbacks: ${rewriteFallbackCount}, rewrite_hard_failures: ${rewriteHardFailureCount}`,
 	);
+
+	if (freshEntries.length > 0 && stored === 0) {
+		console.warn('[News Curator] Warning: there were fresh candidates but zero were stored in this run.');
+	}
 }
 
 main()

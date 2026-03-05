@@ -48,8 +48,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Internal server error'
       },
       { status: 500 }
     );
@@ -88,8 +87,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Analysis failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Analysis failed'
       },
       { status: 500 }
     );

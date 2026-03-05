@@ -28,6 +28,10 @@ interface OpenAIError {
 }
 
 export async function GET(_req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
@@ -75,7 +79,8 @@ export async function GET(_req: NextRequest) {
       status: 'success',
       message: 'OpenAI API is properly configured',
       configured: true,
-      apiKey: apiKey.substring(0, 10) + '...',
+      // Never expose API key prefixes
+      apiKeyConfigured: true,
       totalModels: models,
       gpt4oModels: gpt4oModels.map((m: OpenAIModel) => m.id),
       models: listData.data?.slice(0, 5).map((m: OpenAIModel) => m.id) || []

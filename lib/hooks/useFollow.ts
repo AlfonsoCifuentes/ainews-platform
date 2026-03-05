@@ -20,10 +20,10 @@ export function useFollow(userId: string): UseFollowResult {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
 
-  const fetchFollowStatus = useCallback(async () => {
+  const fetchFollowStatus = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/follow?userId=${userId}`);
+      const response = await fetch(`/api/users/follow?userId=${userId}`, { signal });
       if (!response.ok) throw new Error('Failed to fetch follow status');
 
       const data = await response.json();
@@ -31,6 +31,7 @@ export function useFollow(userId: string): UseFollowResult {
       setFollowingCount(data.followingCount);
       setIsFollowing(data.isFollowing);
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Fetch follow status error:', error);
     } finally {
       setLoading(false);
@@ -38,7 +39,9 @@ export function useFollow(userId: string): UseFollowResult {
   }, [userId]);
 
   useEffect(() => {
-    fetchFollowStatus();
+    const controller = new AbortController();
+    fetchFollowStatus(controller.signal);
+    return () => controller.abort();
   }, [fetchFollowStatus]);
 
   const follow = useCallback(async () => {

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   return NextResponse.json({
     environment: {
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,

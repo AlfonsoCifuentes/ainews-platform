@@ -72,7 +72,8 @@ export async function GET(req: NextRequest) {
       );
     }
     const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[Trending API] Error:', message);
+    return NextResponse.json({ error: 'Failed to fetch trending topics' }, { status: 500 });
   }
 }
 

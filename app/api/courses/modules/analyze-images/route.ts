@@ -162,8 +162,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: 'Failed to analyze module for images',
-        details: error instanceof Error ? error.message : String(error)
+        error: 'Failed to analyze module for images'
       },
       { status: 500 }
     );
@@ -239,8 +238,7 @@ export async function GET(request: NextRequest) {
     console.error('[API] Error checking models:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to check available models',
-        details: error instanceof Error ? error.message : String(error)
+        error: 'Failed to check available models'
       },
       { status: 500 }
     );

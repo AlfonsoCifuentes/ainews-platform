@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[fact-checks] DB error:', error.message);
+      return NextResponse.json({ error: 'Failed to fetch fact checks' }, { status: 500 });
     }
 
     return NextResponse.json({ data });
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[fact-checks] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

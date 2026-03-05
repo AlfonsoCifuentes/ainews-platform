@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Course generation failed'
+        error: 'Course generation failed'
       },
       { status: 500 }
     );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
+import { sanitizeSearchQuery } from '@/lib/api/sanitize-search';
 
 const listSchema = z.object({
   q: z.string().optional(),
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
       query = query.in('id', params.ids as string[]);
     }
     if (params.type) query = query.eq('type', params.type);
-    if (params.q) query = query.ilike('name', `%${params.q}%`);
+    if (params.q) query = query.ilike('name', `%${sanitizeSearchQuery(params.q)}%`);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -45,8 +46,8 @@ export async function GET(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/entities] GET error:', error);
+    return NextResponse.json({ error: 'Failed to fetch entities' }, { status: 500 });
   }
 }
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/entities] POST error:', error);
+    return NextResponse.json({ error: 'Failed to create entity' }, { status: 500 });
   }
 }

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getServerAuthUser } from '@/lib/auth/auth-config';
+
+const GetSchema = z.object({
+  type: z.enum(['own', 'following']).default('following'),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  offset: z.coerce.number().min(0).default(0),
+});
 
 /**
  * GET /api/activity
@@ -8,10 +15,9 @@ import { getServerAuthUser } from '@/lib/auth/auth-config';
  */
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get('type') || 'following'; // 'own' | 'following'
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const params = GetSchema.parse(
+      Object.fromEntries(req.nextUrl.searchParams)
+    );
 
     const user = await getServerAuthUser();
     if (!user) {
@@ -20,14 +26,14 @@ export async function GET(req: NextRequest) {
 
     const db = getSupabaseServerClient();
 
-    if (type === 'own') {
+    if (params.type === 'own') {
       // Get user's own activities
       const { data, error, count } = await db
         .from('user_activities')
         .select('*, user_profiles!inner(display_name, avatar_url)', { count: 'exact' })
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .range(params.offset, params.offset + params.limit - 1);
 
       if (error) {
         console.error('Get own activities error:', error);
@@ -40,7 +46,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         activities: data || [],
         count: count || 0,
-        hasMore: (count || 0) > offset + limit,
+        hasMore: (count || 0) > params.offset + params.limit,
       });
     }
 
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
       .select('*, user_profiles!inner(display_name, avatar_url)', { count: 'exact' })
       .or(`user_id.in.(${followingIds.join(',')}),visibility.eq.public`)
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(params.offset, params.offset + params.limit - 1);
 
     if (error) {
       console.error('Get following feed error:', error);
@@ -70,9 +76,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       activities: data || [],
       count: count || 0,
-      hasMore: (count || 0) > offset + limit,
+      hasMore: (count || 0) > params.offset + params.limit,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid parameters', details: error.errors },
+        { status: 400 }
+      );
+    }
     console.error('Activity feed API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

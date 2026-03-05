@@ -16,79 +16,28 @@ const ProgressSchema = z.object({
  * Updates module progress for authenticated user
  */
 export async function POST(req: NextRequest) {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log('\n' + '='.repeat(80));
-  console.log(`[PROGRESS API] [${requestId}] ====== REQUEST START ======`);
-  console.log(`[PROGRESS API] [${requestId}] Timestamp: ${new Date().toISOString()}`);
-  
-  let sanitizedBodySummary: { courseId?: string; moduleId?: string; completed?: boolean } = {};
   try {
-    // Step 1: Create API client from request cookies
-    console.log(`[PROGRESS API] [${requestId}] Step 1: Creating API client from request...`);
+    // Create API client from request cookies
     const supabase = createApiClient(req);
-    console.log(`[PROGRESS API] [${requestId}] Step 1 Complete: API client created`);
     
-    // Log cookies and header summary for debugging
-    const cookieHeader = req.headers.get('cookie') || '';
-    const headersSummary = {
-      'user-agent': req.headers.get('user-agent') || 'unknown',
-      'content-type': req.headers.get('content-type') || 'unknown',
-      hasCookieHeader: !!cookieHeader,
-      hasSbCookies: cookieHeader.includes('sb-'),
-    };
-    console.log(`[PROGRESS API] [${requestId}] Headers summary:`, headersSummary);
-    
-    // Step 2: Get authenticated user
-    console.log(`[PROGRESS API] [${requestId}] Step 2: Getting authenticated user...`);
+    // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    console.log(`[PROGRESS API] [${requestId}] Step 2 Result:`, {
-      hasUser: !!user,
-      userId: user?.id || 'NULL',
-      userEmail: user?.email || 'NULL',
-      authError: authError?.message || 'none'
-    });
 
     if (authError || !user) {
-      console.log(`[PROGRESS API] [${requestId}] ❌ UNAUTHORIZED - No user session found`);
-      console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (401) ======\n`);
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        debug: { requestId, reason: authError?.message || 'No authenticated user session', headers: headersSummary }
-      }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Parse request body
-    console.log(`[PROGRESS API] [${requestId}] Step 2: Parsing request body...`);
+    // Parse request body
     const body = await req.json();
-    // Sanitize body summary (only include allowed fields to avoid leaking user data)
-    sanitizedBodySummary = {
-      courseId: body?.courseId,
-      moduleId: body?.moduleId,
-      completed: body?.completed,
-    };
-    console.log(`[PROGRESS API] [${requestId}] Step 2 Raw body:`, JSON.stringify(body, null, 2));
-    console.log(`[PROGRESS API] [${requestId}] Step 2 Body summary:`, sanitizedBodySummary);
 
-    // Step 3: Validate with Zod
-    console.log(`[PROGRESS API] [${requestId}] Step 3: Validating with Zod schema...`);
+    // Validate with Zod
     const { courseId, moduleId, completed, score, timeSpent } =
       ProgressSchema.parse(body);
-    console.log(`[PROGRESS API] [${requestId}] Step 3 Validated:`, {
-      courseId,
-      moduleId,
-      completed,
-      score: score ?? 'undefined',
-      timeSpent: timeSpent ?? 'undefined'
-    });
 
-    // Step 4: Use the same SSR client for database operations
-    console.log(`[PROGRESS API] [${requestId}] Step 4: Using SSR client for DB operations...`);
-    const db = supabase; // Use the same client that has the auth context
-    console.log(`[PROGRESS API] [${requestId}] Step 4 Complete: Using authenticated SSR client`);
+    // Use the same client that has the auth context
+    const db = supabase;
 
-    // Step 5: Check if module exists
-    console.log(`[PROGRESS API] [${requestId}] Step 5: Verifying module exists...`);
+    // Check if module exists
     const { data: moduleCheck, error: moduleCheckError } = await db
       .from('course_modules')
       .select('id, course_id')
@@ -96,54 +45,29 @@ export async function POST(req: NextRequest) {
       .single();
     
     if (moduleCheckError || !moduleCheck) {
-      console.log(`[PROGRESS API] [${requestId}] ❌ Module not found:`, moduleCheckError);
-      return NextResponse.json({ 
-        error: 'Module not found',
-        debug: { requestId, moduleId, error: moduleCheckError?.message, sanitizedBodySummary }
-      }, { status: 404 });
+      return NextResponse.json({ error: 'Module not found' }, { status: 404 });
     }
-    console.log(`[PROGRESS API] [${requestId}] Step 5 Complete: Module verified`, moduleCheck);
 
-    // Step 6: Check existing progress
-    console.log(`[PROGRESS API] [${requestId}] Step 6: Checking existing progress record...`);
-    console.log(`[PROGRESS API] [${requestId}] Query params:`, {
-      user_id: user.id,
-      course_id: courseId,
-      module_id: moduleId
-    });
-
-    // Check if progress record exists
-    const { data: existing, error: existingError } = await db
+    // Check existing progress
+    const { data: existing } = await db
       .from('user_progress')
       .select('*')
       .eq('user_id', user.id)
       .eq('course_id', courseId)
       .eq('module_id', moduleId)
-      .maybeSingle(); // Use maybeSingle to not error when no record exists
-
-    if (existingError) {
-      console.log(`[PROGRESS API] [${requestId}] Step 6 Warning - Error checking existing:`, existingError);
-    }
-    
-    console.log(`[PROGRESS API] [${requestId}] Step 6 Result:`, {
-      exists: !!existing,
-      existingId: existing?.id || 'N/A',
-      existingCompleted: existing?.completed || false
-    });
+      .maybeSingle();
 
     let data;
     let error;
 
-    // Step 7: Insert or Update progress
+    // Insert or Update progress
     if (existing) {
-      console.log(`[PROGRESS API] [${requestId}] Step 7: UPDATING existing record (id: ${existing.id})`);
       const updatePayload = {
         completed,
         score: score !== undefined ? score : existing.score,
         time_spent: timeSpent !== undefined ? timeSpent : existing.time_spent,
         completed_at: completed ? new Date().toISOString() : existing.completed_at,
       };
-      console.log(`[PROGRESS API] [${requestId}] Update payload:`, updatePayload);
       
       ({ data, error } = await db
         .from('user_progress')
@@ -152,7 +76,6 @@ export async function POST(req: NextRequest) {
         .select()
         .single());
     } else {
-      console.log(`[PROGRESS API] [${requestId}] Step 7: INSERTING new record`);
       const insertPayload = {
         user_id: user.id,
         course_id: courseId,
@@ -162,7 +85,6 @@ export async function POST(req: NextRequest) {
         time_spent: timeSpent || 0,
         completed_at: completed ? new Date().toISOString() : null,
       };
-      console.log(`[PROGRESS API] [${requestId}] Insert payload:`, insertPayload);
       
       ({ data, error } = await db
         .from('user_progress')
@@ -172,57 +94,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (error) {
-      console.error(`[PROGRESS API] [${requestId}] ❌ Step 7 FAILED - Database error:`);
-      console.error(`[PROGRESS API] [${requestId}]   Message: ${error.message}`);
-      console.error(`[PROGRESS API] [${requestId}]   Code: ${error.code}`);
-      console.error(`[PROGRESS API] [${requestId}]   Details: ${error.details}`);
-      console.error(`[PROGRESS API] [${requestId}]   Hint: ${error.hint}`);
-      console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (500) ======\n`);
-      const headersSummary = {
-        'user-agent': req.headers.get('user-agent') || 'unknown',
-        'content-type': req.headers.get('content-type') || 'unknown',
-        hasCookieHeader: !!cookieHeader,
-        hasSbCookies: cookieHeader.includes('sb-'),
-      };
+      console.error('[PROGRESS API] Database error:', { code: error.code, hint: error.hint });
 
       return NextResponse.json(
-        { 
-          error: 'Failed to update progress',
-          debug: {
-            requestId,
-            dbError: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint,
-            headers: headersSummary,
-            sanitizedBodySummary,
-            userId: user?.id ? String(user?.id).slice(0, 8) + '...' : 'unknown'
-          }
-        },
+        { error: 'Failed to update progress' },
         { status: 500 }
       );
     }
 
-    // Step 8: Success!
-    console.log(`[PROGRESS API] [${requestId}] ✅ Step 7 SUCCESS - Progress saved`);
-    console.log(`[PROGRESS API] [${requestId}] Result:`, {
-      progressId: data?.id,
-      completed: data?.completed,
-      completedAt: data?.completed_at
-    });
-
-    // The database trigger may attempt to award XP, but not all environments have the trigger.
-    // To guarantee immediate XP award, we call the award_xp RPC here if this was a transition from uncompleted->completed.
+    // Award XP if this was a transition from uncompleted->completed.
     let awardedXP = 0;
     let updatedProfile: { total_xp?: number; level?: number } | null = null;
     try {
       const serverSupabase = await createServerClient();
-      // Only award once: if progress is newly completed
       const shouldAward = completed && (!existing || !existing.completed);
       if (shouldAward) {
-        // award 100 XP for module completion to match product expectation
         const xpAmount = 100;
-        console.log(`[PROGRESS API] [${requestId}] Awarding ${xpAmount} XP to user ${user.id}`);
         const { error: awardError } = await serverSupabase.rpc('award_xp', {
           p_user_id: user.id,
           p_xp_amount: xpAmount,
@@ -238,14 +125,12 @@ export async function POST(req: NextRequest) {
             .single();
           updatedProfile = profileData || null;
         } else {
-          console.warn(`[PROGRESS API] [${requestId}] award_xp RPC returned error:`, awardError);
+          console.warn('[PROGRESS API] award_xp RPC error:', awardError.message);
         }
       }
-    } catch (awardErr) {
-      console.warn(`[PROGRESS API] [${requestId}] Failed to award XP:`, awardErr);
+    } catch {
+      console.warn('[PROGRESS API] Failed to award XP');
     }
-
-    console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (200) ======\n`);
 
     return NextResponse.json({
       success: true,
@@ -253,40 +138,19 @@ export async function POST(req: NextRequest) {
       message: 'Progress updated successfully',
       awardedXP,
       profile: updatedProfile,
-      debug: { requestId }
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error(`[PROGRESS API] [${requestId}] ❌ Zod validation error:`, error.errors);
-      console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (400) ======\n`);
-      const headersSummary = {
-        'user-agent': req.headers.get('user-agent') || 'unknown',
-        'content-type': req.headers.get('content-type') || 'unknown',
-        hasCookieHeader: !!(req.headers.get('cookie') || ''),
-        hasSbCookies: (req.headers.get('cookie') || '').includes('sb-'),
-      };
       return NextResponse.json(
-        { 
-          error: 'Invalid request', 
-          details: error.errors,
-          debug: { requestId, zodErrors: error.errors, headers: headersSummary, sanitizedBodySummary }
-        },
+        { error: 'Invalid request', details: error.errors },
         { status: 400 }
       );
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : 'N/A';
-    
-    console.error(`[PROGRESS API] [${requestId}] ❌ Unexpected error:`, errorMessage);
-    console.error(`[PROGRESS API] [${requestId}] Stack:`, errorStack);
-    console.log(`[PROGRESS API] [${requestId}] ====== REQUEST END (500) ======\n`);
+    console.error('[PROGRESS API] Unexpected error:', error instanceof Error ? error.message : 'Unknown');
     
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        debug: { requestId, message: errorMessage }
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

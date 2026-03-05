@@ -6,6 +6,10 @@ import { createClient } from '@/lib/db/supabase-server';
  * Debug endpoint to check current session
  */
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     const supabase = await createClient();
 

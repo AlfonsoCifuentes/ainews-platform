@@ -1,20 +1,18 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { z } from 'zod';
+import { sanitizeSearchQuery } from '@/lib/api/sanitize-search';
 
 // Logger utility (inline for API routes)
 const logger = {
-  info: (label: string, data: unknown): void => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [COURSES-API] ${label}`, JSON.stringify(data, null, 2));
+  info: (_label: string, _data: unknown): void => {
+    // Stripped — use console.error for genuine errors only
   },
   error: (label: string, error: unknown): void => {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] [COURSES-API] ERROR: ${label}`, error);
+    console.error(`[COURSES-API] ${label}`, error);
   },
-  debug: (label: string, data: unknown): void => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [COURSES-API-DEBUG] ${label}`, JSON.stringify(data, null, 2));
+  debug: (_label: string, _data: unknown): void => {
+    // Stripped — use console.error for genuine errors only
   }
 };
 
@@ -95,7 +93,7 @@ export async function GET(req: NextRequest) {
     });
 
     const searchColumn = locale === 'es' ? 'title_es' : 'title_en';
-    const trimmedSearch = (search ?? '').trim();
+    const trimmedSearch = sanitizeSearchQuery((search ?? '').trim());
 
     const includeCategoryCandidates = category && category !== 'all' ? [true, false] : [false];
     const orderCandidates: Array<{ column: string; ascending: boolean; note: string }> = (() => {

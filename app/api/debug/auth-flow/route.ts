@@ -6,6 +6,10 @@ import { cookies } from 'next/headers';
  * GET /api/debug/auth-flow
  */
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return Response.json({ error: 'Not available' }, { status: 404 });
+  }
+
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
 

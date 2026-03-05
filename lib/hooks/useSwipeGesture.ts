@@ -90,6 +90,13 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
   const [isRefreshing, setIsRefreshing] = useState(false);
   const startY = useRef(0);
   const scrollTop = useRef(0);
+  const pullDistanceRef = useRef(0);
+  const isRefreshingRef = useRef(false);
+  const onRefreshRef = useRef(onRefresh);
+
+  // Keep refs in sync
+  onRefreshRef.current = onRefresh;
+  isRefreshingRef.current = isRefreshing;
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
@@ -100,7 +107,7 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (scrollTop.current > 0 || isRefreshing) return;
+      if (scrollTop.current > 0 || isRefreshingRef.current) return;
 
       const currentY = e.touches[0].clientY;
       const distance = currentY - startY.current;
@@ -109,21 +116,23 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
         setIsPulling(true);
         // Apply diminishing returns for pull distance
         const dampedDistance = Math.min(distance * 0.5, threshold * 1.5);
+        pullDistanceRef.current = dampedDistance;
         setPullDistance(dampedDistance);
       }
     };
 
     const handleTouchEnd = async () => {
-      if (pullDistance >= threshold && !isRefreshing) {
+      if (pullDistanceRef.current >= threshold && !isRefreshingRef.current) {
         setIsRefreshing(true);
         try {
-          await onRefresh();
+          await onRefreshRef.current();
         } finally {
           setIsRefreshing(false);
         }
       }
       setIsPulling(false);
       setPullDistance(0);
+      pullDistanceRef.current = 0;
     };
 
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -135,7 +144,7 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [pullDistance, threshold, onRefresh, isRefreshing]);
+  }, [threshold]);
 
   return { isPulling, pullDistance, isRefreshing };
 }

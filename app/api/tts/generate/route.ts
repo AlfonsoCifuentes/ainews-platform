@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { createClient } from '@/lib/db/supabase-server';
+import { checkRateLimit, getRateLimitKey, RATE_LIMITS } from '@/lib/api/rate-limiter';
 
 const GenerateSchema = z.object({
   contentId: z.string().uuid(),
@@ -13,6 +14,15 @@ const GenerateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit TTS requests
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const rlKey = getRateLimitKey('tts', user?.id, req);
+    const rl = checkRateLimit(rlKey, RATE_LIMITS.TTS_GENERATION.limit, RATE_LIMITS.TTS_GENERATION.windowMs);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     let body: unknown;
     try {
       body = await req.json();

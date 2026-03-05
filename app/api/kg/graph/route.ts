@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[kg/graph] Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch graph' }, { status: 500 });
   }
 }

@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[bookmarks] GET error:', error.message);
+      return NextResponse.json({ error: 'Failed to fetch bookmarks' }, { status: 500 });
     }
 
     return NextResponse.json({ data });
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[bookmarks] POST error:', error.message);
+      return NextResponse.json({ error: 'Failed to create bookmark' }, { status: 500 });
     }
 
     return NextResponse.json({ data }, { status: 201 });
@@ -126,7 +128,8 @@ export async function DELETE(req: NextRequest) {
       .eq('user_id', user.id); // Ensure user can only delete own bookmarks
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[bookmarks] DELETE error:', error.message);
+      return NextResponse.json({ error: 'Failed to delete bookmark' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Article {
   id: string;
@@ -31,13 +31,14 @@ export function useRecommendations(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await fetch(
-        `/api/recommendations?locale=${locale}&limit=${limit}`
+        `/api/recommendations?locale=${locale}&limit=${limit}`,
+        { signal }
       );
       const data = await response.json();
 
@@ -48,17 +49,19 @@ export function useRecommendations(
         throw new Error(data.error || 'Failed to fetch recommendations');
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [locale, limit]);
 
   useEffect(() => {
-    fetchRecommendations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, limit]);
+    const controller = new AbortController();
+    fetchRecommendations(controller.signal);
+    return () => controller.abort();
+  }, [fetchRecommendations]);
 
   return {
     recommendations,
