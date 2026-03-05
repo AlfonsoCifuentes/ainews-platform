@@ -104,8 +104,9 @@ export const DOMAIN_PROFILES: Record<string, DomainProfile> = {
       ],
       fallback: []
     },
-    // ArXiv PDFs often don't have images, fallback to generated
-    minWidth: 800
+    // ArXiv pages usually expose branding images in OG tags; do not trust those as article imagery.
+    minWidth: 800,
+    blacklistPatterns: [/arxiv-logo/i, /logo/i, /icon/i, /favicon/i]
   },
 
   // Medium

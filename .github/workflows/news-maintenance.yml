@@ -99,6 +99,16 @@ jobs:
           fi
           npx tsx scripts/upgrade-news-content.ts ${FLAGS}
 
+      - name: 🧹 Repair polluted content and stock images
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🧹 Repairing noisy article content and non-original images..."
+          npx tsx scripts/repair-news-quality.ts --execute --limit=60 --parallel=2
+
       - name: ✅ Log completion
         if: success()
         run: |

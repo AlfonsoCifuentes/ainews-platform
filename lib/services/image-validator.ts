@@ -13,7 +13,7 @@ import crypto from 'crypto';
 import { getSupabaseServerClient } from '../db/supabase';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
 import { imageUrlCache, domainCache } from '../utils/url-cache';
-import { estimateDimensionsFromUrl, getOrientationInfo, type OrientationInfo } from './image-orientation';
+import { estimateDimensionsFromUrl, getOrientationInfo, parseDimensionsFromUrl, type OrientationInfo } from './image-orientation';
 import { ultralyticsVision } from './ultralytics-vision';
 import { visualSimilarity } from './visual-similarity';
 
@@ -310,6 +310,19 @@ async function validateImageUrl(
       };
     }
 
+    const parsedDimensions = parseDimensionsFromUrl(url);
+    if (parsedDimensions) {
+      const minWidth = 480;
+      const minHeight = 270;
+      if (parsedDimensions.width < minWidth || parsedDimensions.height < minHeight) {
+        return {
+          isValid: false,
+          isDuplicate: false,
+          error: `Image dimensions too small (${parsedDimensions.width}x${parsedDimensions.height})`
+        };
+      }
+    }
+
     // Try to get image dimensions (optional, may require GET for some images)
     let width: number | undefined;
     let height: number | undefined;
@@ -375,9 +388,15 @@ const IMAGE_BLACKLIST_PATTERNS = [
   /avatar/i,
   /icon/i,
   /logo/i,
+  /favicon/i,
+  /apple-touch-icon/i,
   /1x1/i,
   /pixel/i,
   /transparent/i,
+  /sprite/i,
+  /social[-_]?share/i,
+  /default[-_]?social/i,
+  /logo[-_]?fb/i,
   /placeholder/i,
   /gravatar/i,
   /profile/i,

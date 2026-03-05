@@ -135,6 +135,11 @@ function toErrorPayload(error: unknown): { message: string; details?: string } {
   return { message: String(error) };
 }
 
+function isTransientFatalError(error: unknown): boolean {
+  const payload = toErrorPayload(error);
+  return isRetryableNetworkFailure(payload.message) || isRetryableNetworkFailure(payload.details ?? '');
+}
+
 async function fetchRecentArticles(): Promise<NewsArticle[]> {
   return await withRetry('fetch_recent_articles', async () => {
     const { data, error } = await supabase
@@ -408,6 +413,11 @@ analyzeNewsInsights()
     process.exit(0);
   })
   .catch((error) => {
+    if (isTransientFatalError(error)) {
+      const payload = toErrorPayload(error);
+      console.warn('⚠️ Transient network failure while analyzing insights. Will retry on next schedule.', payload);
+      process.exit(0);
+    }
     console.error('💥 Fatal error:', error);
     process.exit(1);
   });

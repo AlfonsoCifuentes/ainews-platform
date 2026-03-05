@@ -38,6 +38,7 @@
     "ai:clean-reddit": "tsx scripts/clean-reddit-metadata.ts",
     "ai:check-images": "tsx scripts/check-missing-images.ts",
     "ai:check-duplicates": "tsx scripts/check-duplicate-images.ts",
+    "ai:repair-news-quality": "tsx scripts/repair-news-quality.ts",
     "ai:test-ultralytics": "tsx scripts/test-ultralytics.ts",
     "ai:test-strategies": "tsx scripts/test-image-strategies.ts",
     "ai:diagnose-courses": "tsx scripts/diagnose-courses.ts",

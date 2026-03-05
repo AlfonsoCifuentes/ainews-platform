@@ -23,18 +23,18 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   // CORE AI COMPANY BLOGS (Primary Sources)
   // ══════════════════════════════════════════════════════════════════════════════
   { name: 'OpenAI Blog', url: 'https://openai.com/news/rss.xml', category: 'company', language: 'en', notes: 'Official OpenAI announcements' },
-  { name: 'Google DeepMind', url: 'https://deepmind.google/discover/blog/rss.xml', category: 'company', language: 'en', notes: 'DeepMind research updates' },
+  { name: 'Google DeepMind', url: 'https://blog.google/technology/ai/rss/', category: 'company', language: 'en', notes: 'Google AI + DeepMind updates (official Google AI feed)' },
   { name: 'Google AI Blog', url: 'http://googleaiblog.blogspot.com/atom.xml', category: 'company', language: 'en', notes: 'Google Research blog' },
   { name: 'Hugging Face Blog', url: 'https://huggingface.co/blog/feed.xml', category: 'company', language: 'en', notes: 'Open source AI hub' },
   { name: 'Microsoft Azure AI', url: 'https://azure.microsoft.com/en-us/blog/topics/artificial-intelligence/feed/', category: 'company', language: 'en', notes: 'Enterprise AI updates' },
   { name: 'Microsoft Research', url: 'https://www.microsoft.com/en-us/research/feed/', category: 'research', language: 'en' },
   { name: 'NVIDIA Technical Blog – AI', url: 'https://developer.nvidia.com/blog/tag/artificial-intelligence/feed/', category: 'company', language: 'en' },
   { name: 'NVIDIA Blog (General)', url: 'https://blogs.nvidia.com/feed/', category: 'company', language: 'en', notes: 'Broader NVIDIA feed; includes AI hardware + company updates' },
-  { name: 'Anthropic Blog', url: 'https://www.anthropic.com/news/rss', category: 'company', language: 'en', notes: 'Claude AI creators' },
-  { name: 'Meta AI Blog', url: 'https://ai.meta.com/blog/rss/', category: 'company', language: 'en', notes: 'LLaMA and Meta AI research' },
-  { name: 'Cohere Blog', url: 'https://cohere.com/blog/rss.xml', category: 'company', language: 'en', notes: 'Enterprise LLM provider' },
-  { name: 'Stability AI Blog', url: 'https://stability.ai/news/rss', category: 'company', language: 'en', notes: 'Stable Diffusion creators' },
-  { name: 'Mistral AI Blog', url: 'https://mistral.ai/news/rss', category: 'company', language: 'en', notes: 'European open-weights LLMs' },
+  { name: 'Anthropic Blog', url: 'https://news.google.com/rss/search?q=site:anthropic.com/news+OR+anthropic+claude&hl=en-US&gl=US&ceid=US:en', category: 'company', language: 'en', notes: 'Fallback via Google News because Anthropic has no stable public RSS feed' },
+  { name: 'Meta AI Blog', url: 'https://news.google.com/rss/search?q=site:ai.meta.com+llama+OR+site:engineering.fb.com+ai&hl=en-US&gl=US&ceid=US:en', category: 'company', language: 'en', notes: 'Fallback via Google News because ai.meta.com RSS endpoint is unavailable' },
+  { name: 'Cohere Blog', url: 'https://news.google.com/rss/search?q=site:cohere.com/blog+cohere+AI&hl=en-US&gl=US&ceid=US:en', category: 'company', language: 'en', notes: 'Fallback via Google News because cohere.com/blog/rss.xml serves HTML' },
+  { name: 'Stability AI Blog', url: 'https://news.google.com/rss/search?q=site:stability.ai+stable+diffusion+OR+stability+ai&hl=en-US&gl=US&ceid=US:en', category: 'company', language: 'en', notes: 'Fallback via Google News because stability.ai RSS endpoint is unavailable' },
+  { name: 'Mistral AI Blog', url: 'https://news.google.com/rss/search?q=site:mistral.ai+LLM+OR+mistral+ai&hl=en-US&gl=US&ceid=US:en', category: 'company', language: 'en', notes: 'Fallback via Google News because mistral.ai RSS endpoint is unavailable' },
   { name: 'AWS Machine Learning Blog', url: 'https://aws.amazon.com/blogs/machine-learning/feed', category: 'company', language: 'en', notes: 'Official AWS ML product + research updates' },
   { name: 'Amazon Science', url: 'https://www.amazon.science/index.rss', category: 'research', language: 'en', notes: 'Amazon research highlights and papers' },
 
@@ -59,7 +59,7 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'Artificial Intelligence News (TechForge)', url: 'https://www.artificialintelligence-news.com/feed/rss/', category: 'news', language: 'en' },
   { name: 'The Guardian – Artificial Intelligence', url: 'https://www.theguardian.com/technology/artificialintelligenceai/rss', category: 'news', language: 'en' },
   { name: 'Wired – AI', url: 'https://www.wired.com/feed/tag/ai/latest/rss', category: 'news', language: 'en' },
-  { name: 'Wired – Artificial Intelligence', url: 'https://www.wired.com/feed/category/artificial-intelligence/latest/rss', category: 'news', language: 'en', notes: 'Alternative Wired AI category feed (sometimes broader than tag feed)' },
+  { name: 'Wired – Artificial Intelligence', url: 'https://www.wired.com/feed/rss', category: 'news', language: 'en', notes: 'Fallback Wired general feed because category-specific RSS endpoint is unavailable' },
   { name: 'Futurism – AI', url: 'https://futurism.com/categories/ai-artificial-intelligence/feed', category: 'news', language: 'en' },
   { name: 'ScienceDaily – Artificial Intelligence', url: 'https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml', category: 'news', language: 'en' },
   { name: 'Ars Technica – AI', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', category: 'news', language: 'en', notes: 'Tech coverage with AI focus' },
@@ -70,7 +70,7 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'IEEE Spectrum – AI', url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss', category: 'news', language: 'en', notes: 'Engineering perspective on AI' },
   { name: 'CNBC AI', url: 'https://www.cnbc.com/id/10001147/device/rss/rss.html', category: 'news', language: 'en', notes: 'AI business news' },
   { name: 'Bloomberg Technology', url: 'https://feeds.bloomberg.com/technology/news.rss', category: 'news', language: 'en', notes: 'Tech/AI markets' },
-  { name: 'Analytics India Magazine', url: 'https://analyticsindiamag.com/feed/', category: 'news', language: 'en', notes: 'AI/ML and data science industry coverage' },
+  { name: 'Analytics India Magazine', url: 'https://news.google.com/rss/search?q=site:analyticsindiamag.com+AI+OR+machine+learning&hl=en-US&gl=US&ceid=US:en', category: 'news', language: 'en', notes: 'Fallback via Google News because direct feed has malformed XML for rss-parser' },
   { name: 'MarkTechPost', url: 'https://marktechpost.com/feed/', category: 'news', language: 'en', notes: 'AI research, deep learning, and applied ML updates' },
   { name: 'AI Accelerator Institute', url: 'https://aiacceleratorinstitute.com/rss/', category: 'news', language: 'en', notes: 'AI research and industry analysis' },
   { name: 'AI-TechPark', url: 'https://ai-techpark.com/feed', category: 'news', language: 'en', notes: 'AI/ML news and trends' },
@@ -84,7 +84,7 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   { name: 'Last Week in AI', url: 'https://lastweekin.ai/feed', category: 'newsletter', language: 'en' },
   { name: 'Import AI Newsletter', url: 'https://jack-clark.net/feed/', category: 'newsletter', language: 'en', notes: 'Jack Clark AI policy insights' },
   { name: 'The Algorithm (MIT)', url: 'https://www.technologyreview.com/topic/artificial-intelligence/the-algorithm/feed', category: 'newsletter', language: 'en' },
-  { name: 'The Batch (DeepLearning.AI)', url: 'https://www.deeplearning.ai/the-batch/feed/', category: 'newsletter', language: 'en', notes: 'Andrew Ng weekly newsletter' },
+  { name: 'The Batch (DeepLearning.AI)', url: 'https://news.google.com/rss/search?q=site:deeplearning.ai+the+batch+AND+ai&hl=en-US&gl=US&ceid=US:en', category: 'newsletter', language: 'en', notes: 'Fallback via Google News because deeplearning.ai no longer exposes this RSS feed' },
   // AI Breakfast, The Neuron, Superhuman AI removed - Invalid XML (malformed feeds)
   { name: 'Ahead of AI', url: 'https://magazine.sebastianraschka.com/feed', category: 'newsletter', language: 'en', notes: 'Sebastian Raschka ML research' },
   // TLDR AI, Ben's Bites, The Rundown AI, AI Tool Report removed - 404 or not valid RSS
@@ -118,10 +118,7 @@ export const AI_NEWS_SOURCES: readonly NewsSource[] = [
   // ══════════════════════════════════════════════════════════════════════════════
   // AI COMMUNITIES
   // ══════════════════════════════════════════════════════════════════════════════
-  { name: 'Reddit r/Artificial', url: 'https://www.reddit.com/r/artificial/.rss', category: 'community', language: 'en' },
-  { name: 'Reddit r/MachineLearning', url: 'https://www.reddit.com/r/MachineLearning/.rss', category: 'community', language: 'en', notes: 'Technical ML discussions' },
-  { name: 'Reddit r/LocalLLaMA', url: 'https://www.reddit.com/r/LocalLLaMA/.rss', category: 'community', language: 'en', notes: 'Open source LLM community' },
-  { name: 'Reddit r/StableDiffusion', url: 'https://www.reddit.com/r/StableDiffusion/.rss', category: 'community', language: 'en', notes: 'AI image generation' },
+  // Reddit RSS removed: all subreddit .rss endpoints return 403 in GitHub Actions and local ingestion.
   { name: 'Hacker News – AI', url: 'https://hnrss.org/newest?q=AI+OR+LLM+OR+GPT+OR+machine+learning&points=50', category: 'community', language: 'en', notes: 'Top AI posts on HN' },
 
   // ══════════════════════════════════════════════════════════════════════════════

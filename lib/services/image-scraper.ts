@@ -180,6 +180,56 @@ interface ImageCandidate {
   source: string; // Where it was found (og:image, article img, etc.)
 }
 
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isLikelyDecorativeImage(url: string): boolean {
+  const lowered = url.toLowerCase();
+  const patterns: RegExp[] = [
+    /logo/,
+    /favicon/,
+    /icon/,
+    /avatar/,
+    /sprite/,
+    /apple-touch-icon/,
+    /site\.webmanifest/,
+    /default[-_]?social/,
+    /social[-_]?share/,
+  ];
+  return patterns.some((pattern) => pattern.test(lowered));
+}
+
+function scoreCandidateForEditorialUse(candidate: ImageCandidate, articleUrl: string): number {
+  let adjusted = candidate.score;
+  const articleHost = getHostname(articleUrl);
+  const imageHost = getHostname(candidate.url);
+
+  if (articleHost && imageHost) {
+    if (imageHost === articleHost || imageHost.endsWith(`.${articleHost}`) || articleHost.endsWith(`.${imageHost}`)) {
+      adjusted += 10;
+    }
+    if (imageHost.includes('cdn') || imageHost.includes('images') || imageHost.includes('media')) {
+      adjusted += 3;
+    }
+  }
+
+  if (isLikelyDecorativeImage(candidate.url)) {
+    adjusted -= 40;
+  }
+
+  const normalized = candidate.url.toLowerCase();
+  if (normalized.includes('/wp-content/uploads/')) adjusted += 6;
+  if (normalized.includes('/uploads/')) adjusted += 4;
+  if (normalized.includes('/thumb') || normalized.includes('/thumbnail')) adjusted -= 8;
+
+  return adjusted;
+}
+
 /**
  * Scrapes article page for the best featured image
  */
@@ -504,11 +554,26 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       });
     }
 
-    // Sort candidates by score
-    candidates.sort((a, b) => b.score - a.score);
+    // De-duplicate URLs and re-score for editorial relevance.
+    const uniqueCandidates: ImageCandidate[] = [];
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      if (!candidate.url) continue;
+      const normalizedUrl = normalizeUrl(candidate.url, articleUrl);
+      if (seen.has(normalizedUrl)) continue;
+      seen.add(normalizedUrl);
+      uniqueCandidates.push({
+        ...candidate,
+        url: normalizedUrl,
+        score: scoreCandidateForEditorialUse(candidate, articleUrl),
+      });
+    }
+
+    // Sort candidates by adjusted score
+    uniqueCandidates.sort((a, b) => b.score - a.score);
 
     // Try each candidate until we find a valid one
-    for (const candidate of candidates) {
+    for (const candidate of uniqueCandidates) {
       console.log(`[ImageScraper] Testing candidate: ${candidate.url.slice(0, 60)}... (source: ${candidate.source}, score: ${candidate.score})`);
 
       // Apply domain-specific blacklist

@@ -33,6 +33,12 @@ import { enhancedImageDescription } from '../lib/services/enhanced-image-descrip
 import { visualSimilarity } from '../lib/services/visual-similarity';
 
 const parser = new Parser({
+	timeout: 15000,
+	headers: {
+		'User-Agent':
+			'Mozilla/5.0 (compatible; AINewsBot/1.0; +https://github.com/AlfonsoCifuentes/ainews-platform)',
+		Accept: 'application/rss+xml,application/atom+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
+	},
 	customFields: {
 		item: [
 			'media:content',
@@ -146,7 +152,8 @@ const MAX_RSS_CANDIDATES = readNumberEnv('MAX_RSS_CANDIDATES', 220, 50);
 const CLASSIFICATION_CONCURRENCY = readNumberEnv('CLASSIFICATION_CONCURRENCY', 4, 1);
 const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
-const USE_FALLBACK_IMAGES = true; // Enable Unsplash fallback when image scraping fails
+const USE_FALLBACK_IMAGES = readBooleanEnv('USE_FALLBACK_IMAGES', false);
+const STRICT_ORIGINAL_IMAGE = readBooleanEnv('STRICT_ORIGINAL_IMAGE', true);
 const CURRENT_REWRITE_VERSION = 4;
 const REQUIRE_VALUE_ADDED_REWRITE = readBooleanEnv('REQUIRE_VALUE_ADDED_REWRITE', true);
 const ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE = readBooleanEnv(
@@ -214,10 +221,105 @@ function isGoogleNewsUrl(url: string): boolean {
 	return url.includes('news.google.com');
 }
 
+function extractGoogleNewsArticleId(url: string): string | null {
+	try {
+		const parsed = new URL(url);
+		const match =
+			parsed.pathname.match(/\/rss\/articles\/([^/?]+)/i) ||
+			parsed.pathname.match(/\/articles\/([^/?]+)/i) ||
+			parsed.pathname.match(/\/read\/([^/?]+)/i);
+		if (!match?.[1]) return null;
+		return decodeURIComponent(match[1]);
+	} catch {
+		return null;
+	}
+}
+
+async function decodeGoogleNewsUrlViaBatch(url: string): Promise<string | null> {
+	const articleId = extractGoogleNewsArticleId(url);
+	if (!articleId) return null;
+
+	try {
+		const bootstrapUrl = `https://news.google.com/rss/articles/${encodeURIComponent(
+			articleId,
+		)}?hl=en-US&gl=US&ceid=US:en&ucbcb=1`;
+
+		const bootstrapResponse = await fetch(bootstrapUrl, {
+			headers: {
+				'User-Agent':
+					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			},
+			signal: AbortSignal.timeout(9000),
+		});
+		if (!bootstrapResponse.ok) return null;
+
+		const html = await bootstrapResponse.text();
+		const $ = load(html);
+		const dataNode = $('[data-n-a-sg][data-n-a-ts]').first();
+		const signature = dataNode.attr('data-n-a-sg');
+		const timestamp = dataNode.attr('data-n-a-ts');
+		if (!signature || !timestamp) return null;
+
+		const rpcPayload = `["garturlreq",[["en-US","US",["FINANCE_TOP_INDICES","WEB_TEST_1_0_0"],null,null,1,1,"US:en",null,180,null,null,null,null,null,0,null,null,[1608992183,723341000]],"en-US","US",1,[2,3,4,8],1,0,"655000234",0,0,null,0],"${articleId}",${timestamp},"${signature}"]`;
+		const body = new URLSearchParams({
+			'f.req': JSON.stringify([[['Fbv4je', rpcPayload, null, 'generic']]]),
+		}).toString();
+
+		const decodeResponse = await fetch(
+			'https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je',
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+					'User-Agent':
+						'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+					Referer: 'https://news.google.com/',
+				},
+				body,
+				signal: AbortSignal.timeout(9000),
+			},
+		);
+		if (!decodeResponse.ok) return null;
+
+		const responseText = await decodeResponse.text();
+		const jsonLine = responseText
+			.split('\n')
+			.find((line) => line.trim().startsWith('[['));
+		if (!jsonLine) return null;
+
+		const outer = JSON.parse(jsonLine) as unknown[];
+		for (const row of outer) {
+			if (!Array.isArray(row) || typeof row[2] !== 'string') continue;
+			try {
+				const parsed = JSON.parse(row[2]) as unknown;
+				if (Array.isArray(parsed) && typeof parsed[1] === 'string') {
+					const candidate = parsed[1];
+					if (/^https?:\/\//i.test(candidate) && !candidate.includes('news.google.com')) {
+						return candidate;
+					}
+				}
+			} catch {
+				// Ignore malformed sub-payloads and keep scanning.
+			}
+		}
+
+		return null;
+	} catch {
+		return null;
+	}
+}
+
 async function resolveGoogleNewsTargetUrl(url: string): Promise<string> {
 	if (!isGoogleNewsUrl(url)) return url;
 	const cached = googleNewsResolveCache.get(url);
 	if (cached) return cached;
+
+	const decoded = await decodeGoogleNewsUrlViaBatch(url);
+	if (decoded) {
+		googleNewsResolveCache.set(url, decoded);
+		return decoded;
+	}
 
 	try {
 		// Follow redirects to the publisher. Use GET to ensure redirects happen consistently.
@@ -334,6 +436,92 @@ function calculateNextRetryDelayMs(attempts: number): number {
 	return Math.min(delay, IMAGE_RETRY_BACKOFF_MAX_MS);
 }
 
+const BOILERPLATE_LINE_PATTERNS: RegExp[] = [
+	/^\s*arxiv:\d{4}\.\d{4,5}(v\d+)?\s*$/i,
+	/^\s*(cs|stat|math|physics)\.[a-z0-9.-]+\s*$/i,
+	/^\s*(subjects?|asignaturas)\s*:/i,
+	/^\s*(announce type|tipo de anuncio)\s*:/i,
+	/^\s*(cite as|citar como)\s*:/i,
+	/^\s*doi\s*:/i,
+	/^\s*(submission history|historial de env[íi]os)\b/i,
+	/^\s*(references and citations|referencias y citas)\b/i,
+	/^\s*(bibliographic|herramientas bibliogr[aá]ficas)\b/i,
+	/^\s*(nasa ads|google scholar|semantic scholar|bibtex)\b/i,
+	/^\s*(full-text links?|enlaces de texto completo)\b/i,
+	/^\s*(view (pdf|html)|ver (pdf|html))\b/i,
+	/^\s*(contexto de navegaci[oó]n actual|current browse context)\b/i,
+	/^\s*(author|autor)\s+[a-z].*institution/i,
+	/^\s*(toggle|alternar)\b/i,
+	/^\s*(share|compartir|copy link|copiar enlace)\b/i,
+	/^\s*(about arxivlabs|arxivlabs)\b/i,
+	/^\s*(all rights reserved|todos los derechos reservados)\b/i,
+	/^\s*(cookie policy|pol[ií]tica de cookies)\b/i,
+	/^\s*(privacy policy|pol[ií]tica de privacidad)\b/i,
+];
+
+const BOILERPLATE_INLINE_PATTERNS: RegExp[] = [
+	/\b(read more|continue reading|leer m[aá]s|continuar leyendo)\b/gi,
+	/\b(announce type|tipo de anuncio)\s*:\s*\w+\b/gi,
+	/\b(view pdf|ver pdf|html \(experimental\)|ver html \(experimental\))\b/gi,
+	/\b(nasa ads|google scholar|semantic scholar|bibtex|datacite)\b/gi,
+	/\b(references and citations|referencias y citas)\b/gi,
+	/\b(submission history|historial de env[íi]os)\b/gi,
+	/\b(get status notifications?|obtener notificaciones)\b/gi,
+	/\b(herramientas bibliogr[aá]ficas|bibliographic tools)\b/gi,
+	/\barxivlabs\b/gi,
+];
+
+function stripBoilerplateText(raw: string): string {
+	if (!raw) return '';
+
+	let text = raw
+		.replace(/\u00a0/g, ' ')
+		.replace(/\r/g, '\n')
+		.replace(/[ \t]+\n/g, '\n');
+
+	const lines = text
+		.split('\n')
+		.map((line) => line.replace(/\s+/g, ' ').trim())
+		.filter(Boolean)
+		.filter((line) => !BOILERPLATE_LINE_PATTERNS.some((pattern) => pattern.test(line)));
+
+	text = lines.join('\n');
+	for (const pattern of BOILERPLATE_INLINE_PATTERNS) {
+		text = text.replace(pattern, ' ');
+	}
+
+	text = text
+		.replace(/\b(what is mathjax\??|deshabilitar mathjax.*)$/gim, ' ')
+		.replace(/\b(enfoque para obtener m[aá]s informaci[oó]n.*)$/gim, ' ')
+		.replace(/\b(cargando\.\.\.|loading\.\.\.)\b/gim, ' ')
+		.replace(/\n{3,}/g, '\n\n')
+		.replace(/[ \t]{2,}/g, ' ')
+		.trim();
+
+	return text;
+}
+
+function containsBoilerplateArtifacts(text: string): boolean {
+	if (!text) return false;
+	const compact = text.toLowerCase();
+	const artifactPatterns: RegExp[] = [
+		/\barxiv:\d{4}\.\d{4,5}/,
+		/\bsubmission history\b/,
+		/\bhistorial de env[íi]os\b/,
+		/\breferences and citations\b/,
+		/\breferencias y citas\b/,
+		/\bbibtex\b/,
+		/\bnasa ads\b/,
+		/\bgoogle scholar\b/,
+		/\bsemantic scholar\b/,
+		/\barxivlabs\b/,
+		/\bview pdf\b/,
+		/\bver pdf\b/,
+		/\bhtml \(experimental\)\b/,
+	];
+	return artifactPatterns.some((pattern) => pattern.test(compact));
+}
+
 function cleanContent(html: string | undefined | null): string {
 	if (!html) {
 		return '';
@@ -352,18 +540,25 @@ function cleanContent(html: string | undefined | null): string {
 	$('[class*="akismet"], [class*="recaptcha"], [class*="captcha"]').remove();
 	// Remove newsletter signup and forms
 	$('[class*="newsletter"], [class*="signup"], [class*="subscribe"], .form-group, form').remove();
-	
-	const text = $('body').text() || $.text();
-	// Remove repeated whitespace
-	let cleaned = text.replace(/\s+/g, ' ').trim();
-	// Remove common footer patterns in Spanish
+
+	const blockChunks = $('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption')
+		.toArray()
+		.map((node) => $(node).text().replace(/\s+/g, ' ').trim())
+		.filter((chunk) => chunk.length >= 24);
+
+	const baseText = blockChunks.length > 0 ? blockChunks.join('\n') : $('body').text() || $.text();
+	let cleaned = stripBoilerplateText(baseText);
+
+	// Remove common footer patterns in Spanish/English
 	cleaned = cleaned.replace(/DEJA UNA RESPUESTA[\s\S]*?$/i, '');
 	cleaned = cleaned.replace(/Cancelar respuesta[\s\S]*?$/i, '');
 	cleaned = cleaned.replace(/Este sitio usa Akismet[\s\S]*?$/i, '');
 	cleaned = cleaned.replace(/Aprende cómo se procesan[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/Leave a reply[\s\S]*?$/i, '');
+	cleaned = cleaned.replace(/Powered by [\w\s.-]+$/i, '');
 	cleaned = cleaned.replace(/\+\s*Noticias[\s\S]*?$/i, '');
-	
-	return cleaned.trim();
+
+	return stripBoilerplateText(cleaned);
 }
 
 function normalizeTitleForDedupe(title: string): string {
@@ -536,6 +731,9 @@ function validateValueAddedRewrite(output: { title: string; summary: string; con
 		if (contentHeadNorm.startsWith(summaryNorm)) reasons.push('content_starts_with_summary');
 	}
 
+	if (containsBoilerplateArtifacts(output.summary)) reasons.push('summary_contains_boilerplate');
+	if (containsBoilerplateArtifacts(output.content)) reasons.push('content_contains_boilerplate');
+
 	return { ok: reasons.length === 0, reasons };
 }
 
@@ -611,6 +809,7 @@ Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, im
 - NO incluir URLs crudas en el texto
 - NO usar "Leer más", "Continuar leyendo", avisos de cookies
 - NO mencionar imágenes o elementos UI que falten
+- NO incluir metadatos bibliográficos o de portal (IDs arXiv, DOI, BibTeX, historial de envío, menús, widgets)
 - NO pegues el nombre del medio/fuente al final del titular o el resumen (salvo que sea parte esencial del hecho)
 - Usar párrafos cortos (2-4 oraciones)
 - Incluir términos técnicos relevantes pero explicarlos
@@ -657,6 +856,7 @@ Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (conte
 - Do NOT include raw URLs in the text
 - Do NOT use "Read more", "Continue reading", cookie notices
 - Do NOT mention missing images or UI elements
+- Do NOT include bibliographic/portal metadata (arXiv IDs, DOI blocks, BibTeX, submission history, navigation widgets)
 - Do NOT append the outlet/source name to the headline or summary (unless it's essential to the fact)
 - Use short paragraphs (2-4 sentences)
 - Include relevant technical terms but briefly explain them
@@ -719,8 +919,9 @@ function sanitizeSummary(summary: string): string {
 		// Normalize whitespace
 		.replace(/\s+/g, ' ')
 		.trim();
-	
-	return cleaned.slice(0, 400);
+
+	const withoutBoilerplate = stripBoilerplateText(cleaned);
+	return withoutBoilerplate.replace(/^abstract\s*:\s*/i, '').slice(0, 400);
 }
 
 function inferLanguageFromSource(article: RawArticle): 'en' | 'es' {
@@ -871,11 +1072,20 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 		}
 	}
 
+	const sourcePriorityPenalty = (article: RawArticle): number => {
+		let penalty = 0;
+		if (article.source.category === 'aggregator') penalty += 1;
+		if (isGoogleNewsUrl(article.link)) penalty += 2;
+		return penalty;
+	};
+
 	// Prefer items with real dates first; keep undated items, but do not let them crowd out dated ones.
 	deduped.sort((a, b) => {
 		const aFallback = a.pubDate === FALLBACK_PUBDATE_ISO;
 		const bFallback = b.pubDate === FALLBACK_PUBDATE_ISO;
 		if (aFallback !== bFallback) return aFallback ? 1 : -1;
+		const priorityDelta = sourcePriorityPenalty(a) - sourcePriorityPenalty(b);
+		if (priorityDelta !== 0) return priorityDelta;
 		return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
 	});
 
@@ -886,6 +1096,38 @@ async function fetchRSSFeeds(): Promise<RawArticle[]> {
 
 	console.log(`[RSS] Total unique articles fetched: ${deduped.length}`);
 	return deduped;
+}
+
+function extractArxivContent($: ReturnType<typeof load>): string {
+	const titleRaw =
+		$('meta[property="og:title"]').attr('content') ||
+		$('h1.title').first().text() ||
+		'';
+	const title = titleRaw.replace(/^title\s*:\s*/i, '').trim();
+
+	const abstractRaw =
+		$('meta[name="citation_abstract"]').attr('content') ||
+		$('blockquote.abstract').first().text() ||
+		'';
+	const abstract = abstractRaw.replace(/^abstract\s*:\s*/i, '').trim();
+
+	const sections = [title, abstract]
+		.map((part) => stripBoilerplateText(part))
+		.filter((part) => part.length > 20);
+
+	return sections.join('\n\n').trim();
+}
+
+function isKnownNoEditorialImageSource(article: RawArticle): boolean {
+	let hostname = '';
+	try {
+		hostname = new URL(article.link).hostname.replace(/^www\./, '').toLowerCase();
+	} catch {
+		return false;
+	}
+
+	if (hostname === 'arxiv.org') return true;
+	return false;
 }
 
 async function scrapeArticlePage(url: string): Promise<{ image: string | null; content: string | null }> {
@@ -905,6 +1147,15 @@ async function scrapeArticlePage(url: string): Promise<{ image: string | null; c
 
 		const html = await response.text();
 		const $ = load(html);
+		const hostname = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+
+		if (hostname === 'arxiv.org') {
+			const arxivContent = extractArxivContent($);
+			return {
+				image: null,
+				content: arxivContent || null,
+			};
+		}
 
 		// JSON-LD sometimes contains the full article body even when DOM selectors are tricky.
 		let jsonLdBody: string | null = null;
@@ -1041,13 +1292,15 @@ async function ensureArticleContent(entry: ClassifiedArticleRecord): Promise<{
 			}
 		}
 
-		const summaryOriginal = sanitizeSummary((entry.article.contentSnippet || podcastText.slice(0, 320)).trim());
-		entry.cachedContent = { contentOriginal: podcastText, summaryOriginal };
+		const cleanedPodcastText = stripBoilerplateText(podcastText);
+		const summaryOriginal = sanitizeSummary((entry.article.contentSnippet || cleanedPodcastText.slice(0, 320)).trim());
+		entry.cachedContent = { contentOriginal: cleanedPodcastText, summaryOriginal };
 		return entry.cachedContent;
 	}
 
 	const scraped = await scrapeArticlePage(entry.article.link);
-	const contentOriginal = scraped.content && scraped.content.length > 200 ? scraped.content : rssText;
+	const contentOriginalRaw = scraped.content && scraped.content.length > 200 ? scraped.content : rssText;
+	const contentOriginal = stripBoilerplateText(contentOriginalRaw);
 	const summaryOriginal = sanitizeSummary(entry.article.contentSnippet || scraped.content?.slice(0, 300) || contentOriginal.slice(0, 300));
 
 	entry.cachedContent = { contentOriginal, summaryOriginal };
@@ -1156,6 +1409,26 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 		}
 	} catch (error) {
 		console.warn('[ImageValidator] Advanced scraper failed:', error instanceof Error ? error.message : error);
+	}
+
+	// Final extraction fallback from already-scraped HTML (keeps original publisher image when possible)
+	try {
+		const scraped = await scrapeArticlePage(entry.article.link);
+		if (scraped.image) {
+			const validation = await validateImageEnhanced(scraped.image, {
+				skipRegister: true,
+				skipCache,
+			});
+
+			if (validation.isValid) {
+				const enhancedAltText = await generateEnhancedAltText(scraped.image);
+				return { url: scraped.image, validation, enhancedAltText };
+			}
+
+			console.log(`[ImageValidator] Scraped-page image rejected: ${validation.reason ?? 'unknown reason'}`);
+		}
+	} catch (error) {
+		console.warn('[ImageValidator] Scraped-page image fallback failed:', error instanceof Error ? error.message : error);
 	}
 
 	return null;
@@ -1507,6 +1780,9 @@ async function determineBilingualContent(
 		entry.translationLanguage = undefined;
 	}
 
+	contentPrimary = stripBoilerplateText(contentPrimary);
+	summaryPrimary = sanitizeSummary(summaryPrimary);
+
 	const translationTarget: 'en' | 'es' = originalLanguage === 'en' ? 'es' : 'en';
 	let translation = entry.translation;
 	if (!translation || entry.translationLanguage !== translationTarget) {
@@ -1740,6 +2016,9 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 		const reason = 'Unable to locate a valid original image';
 		console.warn(`[ImageValidator] ${reason} for ${entry.article.title.slice(0, 80)}...`);
 		entry.lastError = reason;
+		if (STRICT_ORIGINAL_IMAGE && isKnownNoEditorialImageSource(entry.article)) {
+			return { success: false, retryable: false, reason: 'no_original_image_for_source' };
+		}
 		return { success: false, retryable: true, reason };
 	}
 
@@ -1829,6 +2108,9 @@ async function main(): Promise<void> {
 	console.log('[News Curator] Starting curation workflow...');
 	console.log(
 		`[News Curator] Rewrite policy: require=${REQUIRE_VALUE_ADDED_REWRITE}, allow_source_fallback=${ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE}`,
+	);
+	console.log(
+		`[News Curator] Image policy: strict_original=${STRICT_ORIGINAL_IMAGE}, stock_fallback=${USE_FALLBACK_IMAGES}`,
 	);
 	console.log(
 		`[News Curator] Throughput config: max_candidates=${MAX_RSS_CANDIDATES}, max_store=${MAX_ARTICLES_TO_PROCESS}, classification_concurrency=${CLASSIFICATION_CONCURRENCY}`,

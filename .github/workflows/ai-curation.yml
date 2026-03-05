@@ -51,6 +51,8 @@ jobs:
           AI_MODEL_PROFILE: cost-balanced
           REQUIRE_VALUE_ADDED_REWRITE: 'true'
           ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: 'true'
+          USE_FALLBACK_IMAGES: 'false'
+          STRICT_ORIGINAL_IMAGE: 'true'
           MAX_RSS_CANDIDATES: '220'
           MAX_ARTICLES_TO_PROCESS: '25'
           CLASSIFICATION_CONCURRENCY: '2'
