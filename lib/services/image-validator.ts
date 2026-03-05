@@ -594,6 +594,7 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   skipVisualSimilarity?: boolean;
   skipCache?: boolean;
   skipRegister?: boolean;
+  skipDuplicateCheck?: boolean;
 }): Promise<{
   isValid: boolean;
   reason?: string;
@@ -622,6 +623,7 @@ export async function validateImageEnhanced(imageUrl: string, options?: {
   const basicValidation = await validateAndRegisterImage(imageUrl, {
     skipCache: options?.skipCache,
     skipRegister: options?.skipRegister,
+    skipDuplicateCheck: options?.skipDuplicateCheck,
   });
 
   if (!basicValidation.isValid) {

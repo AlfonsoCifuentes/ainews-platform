@@ -1562,12 +1562,15 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 		const fastUrl = await getBestArticleImage(entry.article.link, rssItem, {
 			skipRegister: true,
 			skipCache,
+			skipDuplicateCheck: true,
 		});
 
 		if (fastUrl) {
 			const validation = await validateImageEnhanced(fastUrl, {
 				skipRegister: true,
 				skipCache,
+				skipDuplicateCheck: true,
+				skipVisualSimilarity: true,
 			});
 
 			if (validation.isValid) {
@@ -1587,6 +1590,8 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 			const validation = await validateImageEnhanced(advancedResult.url, {
 				skipRegister: true,
 				skipCache,
+				skipDuplicateCheck: true,
+				skipVisualSimilarity: true,
 			});
 
 			if (validation.isValid) {
@@ -1607,6 +1612,8 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 			const validation = await validateImageEnhanced(scraped.image, {
 				skipRegister: true,
 				skipCache,
+				skipDuplicateCheck: true,
+				skipVisualSimilarity: true,
 			});
 
 			if (validation.isValid) {

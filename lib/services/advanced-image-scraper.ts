@@ -10,7 +10,7 @@
  * 3. Featured image selectors (60+ CSS patterns)
  * 4. Article content images (with size validation)
  * 5. Playwright real browser (for JS-rendered content)
- * 6. Screenshot fallback (last resort)
+ * 6. Optional screenshot fallback (disabled by default)
  * 7. Retry with different user agents
  * 8. Retry with proxy rotation
  */
@@ -590,9 +590,9 @@ async function layer6_Screenshot(url: string): Promise<ImageResult | null> {
 
 export async function scrapeArticleImageAdvanced(
   url: string,
-  options: { retryCount?: number; userAgentIndex?: number } = {}
+  options: { retryCount?: number; userAgentIndex?: number; allowScreenshotFallback?: boolean } = {}
 ): Promise<ImageResult | null> {
-  const { retryCount = 0, userAgentIndex = 0 } = options;
+  const { retryCount = 0, userAgentIndex = 0, allowScreenshotFallback = false } = options;
   
   console.log(`\n${'='.repeat(80)}`);
   console.log(`🔍 ADVANCED IMAGE SCRAPER - Attempt ${retryCount + 1}`);
@@ -626,7 +626,8 @@ export async function scrapeArticleImageAdvanced(
         await new Promise(resolve => setTimeout(resolve, 1000));
         return scrapeArticleImageAdvanced(url, { 
           retryCount: retryCount + 1, 
-          userAgentIndex: userAgentIndex + 1 
+          userAgentIndex: userAgentIndex + 1,
+          allowScreenshotFallback,
         });
       }
       
@@ -636,14 +637,17 @@ export async function scrapeArticleImageAdvanced(
     const html = await response.text();
     
     // Try layers sequentially
-    const layers = [
+    const layers: Array<() => Promise<ImageResult | null> | ImageResult | null> = [
       () => layer1_MetaTags(html, url),
       () => layer2_JsonLD(html, url),
       () => layer3_FeaturedSelectors(html, url),
       () => layer4_ArticleContent(html, url),
       () => layer5_PlaywrightBrowser(url),
-      () => layer6_Screenshot(url)
     ];
+
+    if (allowScreenshotFallback) {
+      layers.push(() => layer6_Screenshot(url));
+    }
     
     for (let i = 0; i < layers.length; i++) {
       try {
@@ -671,7 +675,8 @@ export async function scrapeArticleImageAdvanced(
       await new Promise(resolve => setTimeout(resolve, 2000));
       return scrapeArticleImageAdvanced(url, { 
         retryCount: retryCount + 1, 
-        userAgentIndex: userAgentIndex + 1 
+        userAgentIndex: userAgentIndex + 1,
+        allowScreenshotFallback,
       });
     }
     

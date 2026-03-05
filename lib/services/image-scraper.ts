@@ -635,6 +635,235 @@ function normalizeUrl(imageUrl: string, baseUrl: string): string {
   }
 }
 
+function extractArxivId(articleUrl: string): string | null {
+  try {
+    const parsed = new URL(articleUrl);
+    const absMatch = parsed.pathname.match(/\/abs\/([^/?#]+)/i);
+    if (absMatch?.[1]) return absMatch[1];
+
+    const pdfMatch = parsed.pathname.match(/\/pdf\/([^/?#]+?)(?:\.pdf)?$/i);
+    if (pdfMatch?.[1]) return pdfMatch[1];
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function isLikelyArxivFigureUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  const blockedPatterns: RegExp[] = [
+    /logo/,
+    /icon/,
+    /social/,
+    /license/,
+    /creativecommons/,
+    /legend/,
+    /badge/,
+  ];
+  return !blockedPatterns.some((pattern) => pattern.test(lower));
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function isRedditPostUrl(url: string): boolean {
+  const host = getHostname(url);
+  return host === 'reddit.com' || host === 'old.reddit.com' || host === 'new.reddit.com';
+}
+
+function extractRedditPostId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/\/comments\/([a-z0-9]+)/i);
+    return match?.[1] ? match[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchRedditPostData(articleUrl: string): Promise<Record<string, unknown> | null> {
+  const canonical = articleUrl.replace(/\?.*$/, '').replace(/\/$/, '');
+  const postId = extractRedditPostId(articleUrl);
+  const endpoints: string[] = [];
+
+  if (postId) {
+    endpoints.push(`https://www.reddit.com/by_id/t3_${postId}.json?raw_json=1`);
+  }
+  endpoints.push(canonical.endsWith('.json') ? canonical : `${canonical}.json?raw_json=1`);
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'User-Agent':
+            'ThotNetCore/1.0 (https://thotnet-core.vercel.app)',
+          Accept: 'application/json,text/plain,*/*',
+        },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) continue;
+
+      const payload = await response.json();
+
+      // by_id endpoint shape
+      const byIdPost = payload?.data?.children?.[0]?.data;
+      if (byIdPost && typeof byIdPost === 'object') {
+        return byIdPost as Record<string, unknown>;
+      }
+
+      // comments listing shape
+      const listing = Array.isArray(payload) ? payload[0] : payload;
+      const listingPost = listing?.data?.children?.[0]?.data;
+      if (listingPost && typeof listingPost === 'object') {
+        return listingPost as Record<string, unknown>;
+      }
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return null;
+}
+
+async function extractRedditPostImage(articleUrl: string): Promise<string | null> {
+  if (!isRedditPostUrl(articleUrl)) return null;
+
+  try {
+    const post = await fetchRedditPostData(articleUrl);
+    if (!post) return null;
+
+    const candidates: string[] = [];
+
+    const urlOverriddenByDest = post.url_overridden_by_dest;
+    if (typeof urlOverriddenByDest === 'string') {
+      candidates.push(urlOverriddenByDest);
+    }
+
+    const previewSource = (post.preview as { images?: Array<{ source?: { url?: string } }> } | undefined)
+      ?.images?.[0]?.source?.url;
+    if (typeof previewSource === 'string') {
+      candidates.push(previewSource);
+    }
+
+    const thumbnail = post.thumbnail;
+    if (typeof thumbnail === 'string' && /^https?:\/\//i.test(thumbnail)) {
+      candidates.push(thumbnail);
+    }
+
+    const galleryData = post.gallery_data as { items?: Array<{ media_id?: string }> } | undefined;
+    const mediaMetadata = post.media_metadata as Record<string, { s?: { u?: string } }> | undefined;
+    if (galleryData?.items && mediaMetadata) {
+      const galleryItems = Array.isArray(galleryData.items) ? galleryData.items : [];
+      for (const item of galleryItems) {
+        const mediaId = item?.media_id;
+        if (!mediaId) continue;
+        const media = mediaMetadata[mediaId];
+        const sourceUrl = media?.s?.u;
+        if (typeof sourceUrl === 'string') {
+          candidates.push(sourceUrl);
+        }
+      }
+    }
+
+    for (const raw of candidates) {
+      if (!raw || raw.startsWith('data:')) continue;
+      const decoded = decodeHtmlEntities(raw);
+      if (decoded.startsWith('//')) {
+        return `https:${decoded}`;
+      }
+      if (/^https?:\/\//i.test(decoded)) {
+        return decoded;
+      }
+    }
+  } catch (error) {
+    console.warn('[ImageScraper] Reddit image extraction failed:', error);
+  }
+
+  return null;
+}
+
+async function extractArxivFigureImage(articleUrl: string): Promise<string | null> {
+  const host = getHostname(articleUrl);
+  if (host !== 'arxiv.org') return null;
+
+  try {
+    const absUrl = articleUrl.includes('/abs/')
+      ? articleUrl
+      : (() => {
+          const id = extractArxivId(articleUrl);
+          return id ? `https://arxiv.org/abs/${id}` : articleUrl;
+        })();
+
+    const absResponse = await fetch(absUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!absResponse.ok) return null;
+
+    const absHtml = await absResponse.text();
+    const $abs = load(absHtml);
+
+    let htmlPath =
+      $abs('a[href*="/html/"]').toArray()
+        .map((el) => $abs(el).attr('href'))
+        .find((href) => typeof href === 'string' && /\/html\/[^/?#]+/i.test(href || '')) || null;
+
+    if (!htmlPath) {
+      const arxivId = extractArxivId(absUrl);
+      if (!arxivId) return null;
+      const withVersion = /v\d+$/i.test(arxivId) ? arxivId : `${arxivId}v1`;
+      htmlPath = `/html/${withVersion}`;
+    }
+
+    const htmlUrl = normalizeUrl(htmlPath, 'https://arxiv.org');
+    const htmlResponse = await fetch(htmlUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!htmlResponse.ok) return null;
+
+    const html = await htmlResponse.text();
+    const $ = load(html);
+
+    const candidateSelectors = [
+      'figure img[src]',
+      '.ltx_figure img[src]',
+      '.ltx_graphics[src]',
+      'img[src*="/figures/"]',
+      'img[src*="figures/"]',
+    ];
+
+    for (const selector of candidateSelectors) {
+      const nodes = $(selector).toArray();
+      for (const node of nodes) {
+        const raw = $(node).attr('src');
+        if (!raw || raw.startsWith('data:')) continue;
+        const absolute = normalizeUrl(raw, htmlUrl);
+        if (!isLikelyArxivFigureUrl(absolute)) continue;
+        return absolute;
+      }
+    }
+  } catch (error) {
+    console.warn('[ImageScraper] ArXiv figure extraction failed:', error);
+  }
+
+  return null;
+}
+
 /**
  * Extracts image from RSS item with fallback strategies
  */
@@ -714,6 +943,7 @@ export async function getBestArticleImage(
   options: {
     skipRegister?: boolean;
     skipCache?: boolean;
+    skipDuplicateCheck?: boolean;
   } = {}
 ): Promise<string | null> {
   // Strategy 0: Check if URL itself is an oEmbed-supported embed (Twitter, YouTube, etc.)
@@ -726,6 +956,32 @@ export async function getBestArticleImage(
         console.log(`[ImageScraper] ✓ Valid image from oEmbed (${oembedResult.provider})`);
         return oembedResult.imageUrl;
       }
+    }
+  }
+
+  // Strategy 0.5: ArXiv-specific figure extraction (original paper figure, not site logo)
+  if (getHostname(articleUrl) === 'arxiv.org') {
+    const arxivFigure = await extractArxivFigureImage(articleUrl);
+    if (arxivFigure) {
+      const validation = await validateAndRegisterImage(arxivFigure, options);
+      if (validation.isValid) {
+        console.log('[ImageScraper] ✓ Valid image from arXiv HTML figure');
+        return arxivFigure;
+      }
+      console.log(`[ImageScraper] ArXiv figure invalid: ${validation.error}`);
+    }
+  }
+
+  // Strategy 0.6: Reddit post media extraction (original media from post JSON)
+  if (isRedditPostUrl(articleUrl)) {
+    const redditImage = await extractRedditPostImage(articleUrl);
+    if (redditImage) {
+      const validation = await validateAndRegisterImage(redditImage, options);
+      if (validation.isValid) {
+        console.log('[ImageScraper] ✓ Valid image from Reddit post media');
+        return redditImage;
+      }
+      console.log(`[ImageScraper] Reddit media invalid: ${validation.error}`);
     }
   }
 
