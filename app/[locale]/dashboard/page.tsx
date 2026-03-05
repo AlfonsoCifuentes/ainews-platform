@@ -11,6 +11,8 @@ import { DashboardPageClient } from '@/components/dashboard/DashboardPageClient'
 import { XPProgress } from '@/components/dashboard/XPProgress';
 import { AchievementsGrid } from '@/components/dashboard/AchievementsGrid';
 
+export const dynamic = 'force-dynamic';
+
 interface DashboardPageProps {
   params: Promise<{
     locale: Locale;

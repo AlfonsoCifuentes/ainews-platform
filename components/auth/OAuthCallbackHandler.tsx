@@ -14,8 +14,6 @@ import { loggers } from '@/lib/utils/logger';
  * OAuth and we need to update the client-side state (header, nav, etc).
  */
 export function OAuthCallbackHandler() {
-  loggers.oauth('OAuthCallbackHandler component rendered');
-  
   useEffect(() => {
     loggers.oauth('OAuthCallbackHandler useEffect hook executed');
     

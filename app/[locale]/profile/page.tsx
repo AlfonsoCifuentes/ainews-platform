@@ -5,6 +5,8 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import type { Locale } from '@/i18n';
 import { ProfilePageClient } from '@/components/profile/ProfilePageClient';
 
+export const dynamic = 'force-dynamic';
+
 interface ProfilePageProps {
   params: Promise<{
     locale: Locale;

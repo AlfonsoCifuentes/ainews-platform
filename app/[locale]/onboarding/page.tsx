@@ -3,6 +3,8 @@ import { getServerAuthUser } from '@/lib/auth/auth-config';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export default async function OnboardingPage({
   params,
 }: {

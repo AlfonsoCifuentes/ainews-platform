@@ -271,7 +271,16 @@ export function ModuleIllustration({
       isActive = false;
       controller.abort();
     };
-  }, [moduleId, locale, style, resolvedVisualStyle, autoGenerate, maxAutoAttempts, slot?.id]);
+  }, [
+    moduleId,
+    locale,
+    style,
+    resolvedVisualStyle,
+    autoGenerate,
+    maxAutoAttempts,
+    allowOnDemandGeneration,
+    slot?.id,
+  ]);
 
   const handleGenerate = useCallback(async (triggeredAutomatically = false) => {
     if (!moduleId) return;
@@ -362,6 +371,7 @@ export function ModuleIllustration({
   }, [
     moduleId,
     generationContent,
+    allowOnDemandGeneration,
     locale,
     style,
     resolvedVisualStyle,

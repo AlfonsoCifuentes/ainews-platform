@@ -3,6 +3,8 @@ import { getServerAuthUser } from '@/lib/auth/auth-config';
 import type { Locale } from '@/i18n';
 import { LeaderboardPageClient } from '@/components/leaderboard/LeaderboardPageClient';
 
+export const dynamic = 'force-dynamic';
+
 interface LeaderboardPageProps {
   params: Promise<{
     locale: Locale;
