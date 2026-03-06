@@ -23,6 +23,7 @@ type NewsRow = {
   title_es: string | null;
   source_url: string;
   image_url: string | null;
+  is_hidden: boolean | null;
   created_at: string;
 };
 
@@ -34,11 +35,17 @@ type ResolvedImage = {
 
 const EXECUTE = process.argv.includes('--execute');
 const ALL = process.argv.includes('--all');
+const HIDE_UNRESOLVED = process.argv.includes('--hide-unresolved');
+const REQUIRE_TARGET = process.argv.includes('--require-target');
+const INCLUDE_HIDDEN = process.argv.includes('--include-hidden');
 const LIMIT = Number(
   (process.argv.find((arg) => arg.startsWith('--limit='))?.split('=')[1] ?? '250').trim(),
 );
 const PARALLEL = Number(
   (process.argv.find((arg) => arg.startsWith('--parallel='))?.split('=')[1] ?? '3').trim(),
+);
+const TARGET_RATIO = Number(
+  (process.argv.find((arg) => arg.startsWith('--target-ratio='))?.split('=')[1] ?? '0.90').trim(),
 );
 
 const FETCH_HEADERS = {
@@ -342,7 +349,7 @@ async function fetchFallbackRows(limit: number): Promise<NewsRow[]> {
   while (true) {
     const { data, error } = await db
       .from('news_articles')
-      .select('id,title_en,title_es,source_url,image_url,created_at')
+      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1);
 
@@ -354,6 +361,7 @@ async function fetchFallbackRows(limit: number): Promise<NewsRow[]> {
     if (rows.length === 0) break;
 
     for (const row of rows) {
+      if (!INCLUDE_HIDDEN && row.is_hidden === true) continue;
       if (!isFallbackImageUrl(row.image_url)) continue;
       matches.push(row);
       if (!ALL && matches.length >= limit) {
@@ -375,6 +383,23 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
 
   const resolved = await resolveBestOriginalImage(row);
   if (!resolved) {
+    if (EXECUTE && HIDE_UNRESOLVED && row.is_hidden !== true) {
+      const { error } = await db
+        .from('news_articles')
+        .update({
+          is_hidden: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', row.id);
+
+      if (!error) {
+        console.log('  [Restore] No original image recovered -> hidden from feed');
+        return { updated: true, reason: 'hidden_no_original_image' };
+      }
+      console.error(`  [Restore] Failed to hide unresolved article: ${error.message}`);
+      return { updated: false, reason: `hide_failed:${error.message}` };
+    }
+
     console.log('  [Restore] No original image recovered');
     return { updated: false, reason: 'no_image_found' };
   }
@@ -410,14 +435,45 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
   return { updated: true };
 }
 
+async function computeCoverageStats(): Promise<{
+  total: number;
+  fallback: number;
+  original: number;
+  ratio: number;
+}> {
+  const db = getSupabaseServerClient();
+  const { data, error } = await db
+    .from('news_articles')
+    .select('image_url,is_hidden');
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []).filter((row) => INCLUDE_HIDDEN || row.is_hidden !== true);
+  const total = rows.length;
+  const fallback = rows.filter((row) => isFallbackImageUrl(row.image_url)).length;
+  const original = total - fallback;
+  const ratio = total > 0 ? original / total : 0;
+
+  return { total, fallback, original, ratio };
+}
+
 async function main(): Promise<void> {
   const requestedLimit = Number.isFinite(LIMIT) && LIMIT > 0 ? LIMIT : 250;
   const parallelism = Number.isFinite(PARALLEL) && PARALLEL > 0 ? PARALLEL : 3;
   const mode = EXECUTE ? 'execute' : 'preview';
+  const targetRatio = Number.isFinite(TARGET_RATIO) ? Math.max(0, Math.min(1, TARGET_RATIO)) : 0.9;
 
   console.log(
-    `[Restore] Starting original image restoration (${mode}, all=${ALL}, limit=${requestedLimit}, parallel=${parallelism})`,
+    `[Restore] Starting original image restoration (${mode}, all=${ALL}, limit=${requestedLimit}, parallel=${parallelism}, include_hidden=${INCLUDE_HIDDEN}, hide_unresolved=${HIDE_UNRESOLVED})`,
   );
+
+  const initialCoverage = await computeCoverageStats();
+  console.log(
+    `[Restore] Coverage before: ${(initialCoverage.ratio * 100).toFixed(2)}% originals (${initialCoverage.original}/${initialCoverage.total}, fallback=${initialCoverage.fallback})`,
+  );
+  console.log(`[Restore] Target coverage: ${(targetRatio * 100).toFixed(2)}%`);
 
   const candidates = await fetchFallbackRows(requestedLimit);
   const rows = ALL ? candidates : candidates.slice(0, requestedLimit);
@@ -459,6 +515,17 @@ async function main(): Promise<void> {
     for (const [reason, count] of reasons.entries()) {
       console.log(`    - ${reason}: ${count}`);
     }
+  }
+
+  const finalCoverage = await computeCoverageStats();
+  console.log(
+    `[Restore] Coverage after: ${(finalCoverage.ratio * 100).toFixed(2)}% originals (${finalCoverage.original}/${finalCoverage.total}, fallback=${finalCoverage.fallback})`,
+  );
+
+  if (REQUIRE_TARGET && finalCoverage.ratio < targetRatio) {
+    throw new Error(
+      `original_image_coverage_below_target (${(finalCoverage.ratio * 100).toFixed(2)}% < ${(targetRatio * 100).toFixed(2)}%)`,
+    );
   }
 }
 

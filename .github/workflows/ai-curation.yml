@@ -60,6 +60,22 @@ jobs:
         run: npm run ai:curate
         timeout-minutes: 60
 
+      - name: Recover original images and enforce >=90% coverage
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "🧪 Dry-run mode: checking coverage without DB writes"
+            npx tsx scripts/restore-original-article-images.ts --all --parallel=3 --target-ratio=0.90
+          else
+            echo "🖼️ Restoring original images and enforcing >=90% coverage"
+            npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90 --hide-unresolved --require-target
+          fi
+        timeout-minutes: 45
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

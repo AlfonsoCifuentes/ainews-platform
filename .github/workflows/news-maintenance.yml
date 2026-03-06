@@ -109,6 +109,22 @@ jobs:
           echo "🧹 Repairing noisy article content and non-original images..."
           npx tsx scripts/repair-news-quality.ts --execute --limit=60 --parallel=2
 
+      - name: 🖼️ Enforce original image coverage (>=90%)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "🧪 Dry-run mode: checking image coverage"
+            npx tsx scripts/restore-original-article-images.ts --all --parallel=3 --target-ratio=0.90
+          else
+            echo "🖼️ Recovering originals and enforcing >=90% coverage"
+            npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90 --hide-unresolved --require-target
+          fi
+        timeout-minutes: 45
+
       - name: ✅ Log completion
         if: success()
         run: |
