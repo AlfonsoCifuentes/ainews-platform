@@ -313,6 +313,66 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       }
     });
 
+    // Strategy 3.5: Domain profile primary selectors (site-specific, score 80)
+    // These are hand-tuned CSS selectors for known publishers — higher confidence than generic list
+    if (domainProfile.domain !== 'generic') {
+      domainProfile.selectors.primary.forEach((selector) => {
+        // Skip meta selectors — already covered by Strategy 1-3
+        if (selector.startsWith('meta[')) return;
+
+        $(selector).each((_, elem) => {
+          const $elem = $(elem);
+          const srcsetCandidate = pickBestFromSrcset(
+            $elem.attr('data-srcset') || $elem.attr('srcset'),
+            articleUrl
+          );
+          const directSrc =
+            $elem.attr('src') ||
+            $elem.attr('data-src') ||
+            $elem.attr('data-lazy-src') ||
+            $elem.attr('data-original');
+          const chosen =
+            srcsetCandidate ||
+            (directSrc && !isDataUri(directSrc) ? normalizeUrl(directSrc, articleUrl) : null);
+          if (chosen) {
+            candidates.push({
+              url: chosen,
+              score: 80,
+              source: `domain-profile-primary:${selector}`,
+            });
+          }
+        });
+      });
+
+      // Strategy 3.7: Domain profile fallback selectors (site-specific, score 65)
+      domainProfile.selectors.fallback.forEach((selector) => {
+        if (selector.startsWith('meta[')) return;
+
+        $(selector).each((_, elem) => {
+          const $elem = $(elem);
+          const srcsetCandidate = pickBestFromSrcset(
+            $elem.attr('data-srcset') || $elem.attr('srcset'),
+            articleUrl
+          );
+          const directSrc =
+            $elem.attr('src') ||
+            $elem.attr('data-src') ||
+            $elem.attr('data-lazy-src') ||
+            $elem.attr('data-original');
+          const chosen =
+            srcsetCandidate ||
+            (directSrc && !isDataUri(directSrc) ? normalizeUrl(directSrc, articleUrl) : null);
+          if (chosen) {
+            candidates.push({
+              url: chosen,
+              score: 65,
+              source: `domain-profile-fallback:${selector}`,
+            });
+          }
+        });
+      });
+    }
+
     // Strategy 4: Featured image with high-value classes/IDs (ULTRA EXPANDED)
     const featuredSelectors = [
       // WordPress standard
@@ -391,6 +451,30 @@ export async function scrapeArticleImage(articleUrl: string): Promise<string | n
       '.figure img',
       '.teaser-image img',
       'img[alt*="Figure"]',
+
+      // Data-attribute image IDs (Bloomberg, Reuters, WSJ, etc.)
+      'img[data-media-id]',
+      'img[data-image-id]',
+      'img[data-imgid]',
+
+      // Component-based designs (React/Vue/Angular news sites)
+      '[data-testid*="image"] img',
+      '[data-testid*="hero"] img',
+      '[data-component*="image"] img',
+      '[data-component*="hero"] img',
+      '[data-module*="image"] img',
+
+      // Figure + figcaption proximity (editorial photos)
+      'figure:has(figcaption) > img',
+      'figure:has(figcaption) img',
+      '.article-body figure img',
+      '.article-content figure img',
+
+      // Paywall/subscription sites bypass patterns
+      '.paywall-hero img',
+      '[class*="Story_lead"] img',
+      '[class*="Article_header"] img',
+      '[class*="article-cover"] img',
       
       // Generic high-quality indicators
       'img[width="1200"]',

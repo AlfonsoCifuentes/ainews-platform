@@ -292,6 +292,33 @@ export async function persistModuleIllustration(
     return null;
   }
 
+  // Auto-cleanup: delete old versions beyond the 2 most recent for this slot,
+  // to prevent unbounded storage growth.
+  try {
+    const { data: oldRecords } = await client
+      .from('module_illustrations')
+      .select('id, storage_path')
+      .eq('module_id', input.moduleId)
+      .eq('locale', input.locale)
+      .eq('style', input.style)
+      .eq('visual_style', visualStyle)
+      .order('created_at', { ascending: false })
+      .range(2, 100); // skip newest 2, get the rest
+
+    if (oldRecords && oldRecords.length > 0) {
+      const oldIds = oldRecords.map((r) => r.id);
+      const oldPaths = oldRecords.map((r) => r.storage_path).filter(Boolean);
+
+      if (oldPaths.length > 0) {
+        await client.storage.from(BUCKET_NAME).remove(oldPaths);
+      }
+      await client.from('module_illustrations').delete().in('id', oldIds);
+    }
+  } catch (cleanupErr) {
+    // Non-fatal: log but don't fail the insert
+    console.warn('[Illustrations] Auto-cleanup of old versions failed:', cleanupErr);
+  }
+
   return data as ModuleIllustrationRecord;
 }
 

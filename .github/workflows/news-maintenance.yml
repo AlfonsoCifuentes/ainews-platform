@@ -5,21 +5,21 @@ on:
     # Run ONCE daily at 5 AM UTC (after curation at midnight, 6h, 12h, 18h)
     # ⚠️ Reduced from 2x/day to 1x/day - maintain-news.ts now has version tracking
     # to avoid reprocessing articles that already have rewrite_version >= 2
-    - cron: '0 5 * * *'
+    - cron: "0 5 * * *"
   workflow_dispatch:
     inputs:
       rewrite_days:
-        description: 'Days of articles to rewrite (default: 3)'
+        description: "Days of articles to rewrite (default: 3)"
         required: false
-        default: '3'
+        default: "3"
       dry_run:
-        description: 'Dry run (preview only)'
+        description: "Dry run (preview only)"
         required: false
-        default: 'false'
+        default: "false"
       force_upgrade:
-        description: 'Force upgrade all articles (ignore rewrite tracking) - USE WITH CAUTION'
+        description: "Force upgrade all articles (ignore rewrite tracking) - USE WITH CAUTION"
         required: false
-        default: 'false'
+        default: "false"
 
 jobs:
   maintain-news:
@@ -33,11 +33,14 @@ jobs:
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: 📚 Install dependencies
         run: npm ci
+
+      - name: 🔍 Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
 
       - name: 🔍 Check API Keys
         run: |
@@ -124,6 +127,39 @@ jobs:
             npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90 --hide-unresolved --require-target
           fi
         timeout-minutes: 45
+
+      - name: 🔗 Repair stale/broken image URLs (weekly, Sundays)
+        # HEAD-checking every article is expensive, so only run on Sundays
+        if: success() && github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          DOW="$(date +%u)"  # ISO: 1=Mon ... 7=Sun
+          if [ "$DOW" != "7" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "⏭️ Stale check skipped (only runs on Sundays, today DOW=$DOW)"
+            exit 0
+          fi
+          echo "🔗 Checking for articles with broken image URLs (last 30 days)..."
+          npx tsx scripts/restore-original-article-images.ts --execute --stale --stale-days=30 --parallel=3 --all
+        timeout-minutes: 30
+        continue-on-error: true
+
+      - name: 🗑️ Prune storage (logs 14d + old illustrations)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🗑️ Pruning stale ai_system_logs (keep 14d)..."
+          npx tsx scripts/emergency-storage-cleanup.ts --execute --logs-only --keep-logs-days=14
+          echo "🗑️ Pruning old module illustration duplicates (keep 1 per slot)..."
+          npx tsx scripts/emergency-storage-cleanup.ts --execute --illustrations-only --keep-illustrations=1
+          echo "📊 Storage health check:"
+          npx tsx scripts/emergency-storage-cleanup.ts --check
+        continue-on-error: true
 
       - name: ✅ Log completion
         if: success()

@@ -38,6 +38,11 @@ const ALL = process.argv.includes('--all');
 const HIDE_UNRESOLVED = process.argv.includes('--hide-unresolved');
 const REQUIRE_TARGET = process.argv.includes('--require-target');
 const INCLUDE_HIDDEN = process.argv.includes('--include-hidden');
+// --stale: also repair articles whose image URL returns 404/error (not just fallback-like URLs)
+const STALE_CHECK = process.argv.includes('--stale');
+const STALE_DAYS = Number(
+  (process.argv.find((arg) => arg.startsWith('--stale-days='))?.split('=')[1] ?? '30').trim(),
+);
 const LIMIT = Number(
   (process.argv.find((arg) => arg.startsWith('--limit='))?.split('=')[1] ?? '250').trim(),
 );
@@ -376,6 +381,87 @@ async function fetchFallbackRows(limit: number): Promise<NewsRow[]> {
   return matches;
 }
 
+/**
+ * Lightweight HEAD check to test whether an image URL is still alive.
+ * Returns false for 4xx/5xx responses or network errors.
+ */
+async function isImageUrlAlive(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      headers: {
+        'User-Agent': FETCH_HEADERS['User-Agent'],
+        Accept: 'image/*,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetches articles that have non-fallback image URLs created within the
+ * last STALE_DAYS days and HEAD-checks them for liveness.
+ * Returns rows where the image URL is broken (4xx / network error).
+ */
+async function fetchStaleRows(limit: number): Promise<NewsRow[]> {
+  const db = getSupabaseServerClient();
+  const since = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const pageSize = 500;
+  const candidates: NewsRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await db
+      .from('news_articles')
+      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw error;
+
+    const rows = (data as NewsRow[] | null) ?? [];
+    if (rows.length === 0) break;
+
+    for (const row of rows) {
+      if (!INCLUDE_HIDDEN && row.is_hidden === true) continue;
+      // Skip rows that would already be fixed by the fallback pass
+      if (isFallbackImageUrl(row.image_url)) continue;
+      candidates.push(row);
+      if (!ALL && candidates.length >= limit * 10) break; // over-fetch for filtering
+    }
+
+    offset += rows.length;
+    if (rows.length < pageSize) break;
+  }
+
+  console.log(`[Restore/stale] HEAD-checking ${candidates.length} non-fallback image URLs...`);
+
+  // HEAD-check in parallel (limited concurrency to avoid hammering servers)
+  const staleLimit = (await import('p-limit')).default(8);
+  const staleRows: NewsRow[] = [];
+
+  await Promise.all(
+    candidates.map((row) =>
+      staleLimit(async () => {
+        if (!row.image_url) return;
+        const alive = await isImageUrlAlive(row.image_url);
+        if (!alive) {
+          console.log(`  [stale] broken: ${row.image_url.slice(0, 100)}`);
+          staleRows.push(row);
+        }
+      }),
+    ),
+  );
+
+  return ALL ? staleRows : staleRows.slice(0, limit);
+}
+
 async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: string }> {
   const db = getSupabaseServerClient();
   const title = row.title_en || row.title_es || row.id;
@@ -475,9 +561,26 @@ async function main(): Promise<void> {
   );
   console.log(`[Restore] Target coverage: ${(targetRatio * 100).toFixed(2)}%`);
 
-  const candidates = await fetchFallbackRows(requestedLimit);
+  // Fetch rows to process: fallback-image articles + (optionally) stale-link articles
+  const fallbackCandidates = await fetchFallbackRows(requestedLimit);
+  let candidates = fallbackCandidates;
+
+  if (STALE_CHECK) {
+    console.log(`\n[Restore] Stale-link check: scanning articles from last ${STALE_DAYS} days...`);
+    const staleCandidates = await fetchStaleRows(requestedLimit);
+    console.log(`[Restore] Found ${staleCandidates.length} articles with broken image URLs`);
+    // Merge, dedup by id
+    const seen = new Set(fallbackCandidates.map((r) => r.id));
+    for (const row of staleCandidates) {
+      if (!seen.has(row.id)) {
+        candidates.push(row);
+        seen.add(row.id);
+      }
+    }
+  }
+
   const rows = ALL ? candidates : candidates.slice(0, requestedLimit);
-  console.log(`[Restore] Found ${candidates.length} articles with fallback-like image URLs`);
+  console.log(`[Restore] Found ${fallbackCandidates.length} articles with fallback-like image URLs${STALE_CHECK ? ` + stale combined = ${candidates.length}` : ''}`);
   console.log(`[Restore] Processing ${rows.length} article(s)`);
 
   if (rows.length === 0) {
