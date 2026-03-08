@@ -12,13 +12,14 @@ export const newsArticleSchema = z
     content_en: z.string().min(1),
     content_es: z.string().min(1),
     category: z.string().min(1),
-    tags: z.array(z.string()).optional().default([]),
-    source_url: z.string().url().optional().default(''),
-    image_url: z.string().url().optional().default(''),
+    // These fields can be null in the DB — .optional() only handles undefined, not null
+    tags: z.array(z.string()).nullable().optional().default([]),
+    source_url: z.string().nullable().optional().default(''), // .url() removed: empty/relative URLs from DB are valid
+    image_url: z.string().nullable().optional().default(''), // .url() removed: same reason
     published_at: isoDateStringSchema,
-    ai_generated: z.boolean().optional().default(false),
-    quality_score: z.number().min(0).max(1).optional().default(0.8),
-    reading_time_minutes: z.number().int().min(1).max(60).optional().default(5),
+    ai_generated: z.boolean().nullable().optional().default(false),
+    quality_score: z.number().min(0).max(1).nullable().optional().default(0.8),
+    reading_time_minutes: z.number().int().min(1).max(60).nullable().optional().default(5),
   })
   .transform((article) => ({
     ...article,

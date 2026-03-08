@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { defaultLocale, locales } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
-import { newsArticleArraySchema } from '@/lib/types/news';
+import { newsArticleSchema, newsArticleArraySchema } from '@/lib/types/news';
 
 const QuerySchema = z.object({
   locale: z.enum(locales).default(defaultLocale),
@@ -66,6 +66,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (error) {
+      // PostgREST 416 (range not satisfiable) — offset is beyond total rows → empty page, not error
+      const errCode = (error as { code?: string }).code;
+      if (errCode === 'PGRST103' || errCode === '416') {
+        return NextResponse.json({ data: [], hasMore: false, nextOffset: offset });
+      }
       console.error('[API /api/news] Supabase error:', error);
       return NextResponse.json(
         { error: 'Failed to fetch articles' },
@@ -73,12 +78,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const articles = newsArticleArraySchema.parse(data || []);
+    // Use safeParse so individual bad rows are skipped instead of killing the whole response
+    const rows = data ?? [];
+    const parseResult = newsArticleArraySchema.safeParse(rows);
+    let articles: z.infer<typeof newsArticleSchema>[];
+    if (parseResult.success) {
+      articles = parseResult.data;
+    } else {
+      console.warn(
+        `[API /api/news] Array schema failed at offset=${offset}, falling back to per-row parse:`,
+        parseResult.error.issues.slice(0, 3),
+      );
+      articles = rows.reduce<z.infer<typeof newsArticleSchema>[]>((acc, row) => {
+        const r = newsArticleSchema.safeParse(row);
+        if (r.success) {
+          acc.push(r.data);
+        } else {
+          console.warn('[API /api/news] Skipped invalid row:', (row as { id?: string })?.id, r.error.issues[0]);
+        }
+        return acc;
+      }, []);
+    }
 
     return NextResponse.json({
       data: articles,
-      hasMore: articles.length === limit,
-      nextOffset: offset + articles.length,
+      hasMore: rows.length === limit,
+      nextOffset: offset + rows.length,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
