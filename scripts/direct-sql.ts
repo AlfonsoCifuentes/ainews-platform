@@ -160,7 +160,7 @@ async function main() {
   console.log('\n🎯 MANUAL EXECUTION REQUIRED');
   console.log('=' .repeat(80));
   console.log('\n📋 Copy this SQL to Supabase SQL Editor:');
-  console.log('🔗 https://supabase.com/dashboard/project/yabsciwdpblqzskfupnj/sql/new\n');
+  console.log('🔗 https://supabase.com/dashboard/project/hggbwmuyjnhkehxegdix/sql/new\n');
   console.log('```sql');
   console.log([SQL_1, SQL_2, SQL_3, SQL_4, SQL_5, SQL_6.replace(/DO \$\$[\s\S]+?\$\$/g, 'CREATE POLICY IF NOT EXISTS "Allow anonymous read access to image_visual_hashes" ON image_visual_hashes FOR SELECT TO anon USING (true)'), SQL_7.replace(/DO \$\$[\s\S]+?\$\$/g, 'CREATE POLICY IF NOT EXISTS "Allow service role full access to image_visual_hashes" ON image_visual_hashes TO service_role USING (true) WITH CHECK (true)')].join('\n\n'));
   console.log('```\n');

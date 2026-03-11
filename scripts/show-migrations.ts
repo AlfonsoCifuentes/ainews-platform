@@ -54,7 +54,7 @@ async function main() {
   ];
 
   console.log('📋 SQL to execute manually in Supabase SQL Editor:\n');
-  console.log('🔗 URL: https://supabase.com/dashboard/project/yabsciwdpblqzskfupnj/sql/new\n');
+  console.log('🔗 URL: https://supabase.com/dashboard/project/hggbwmuyjnhkehxegdix/sql/new\n');
   console.log('=' .repeat(80));
 
   for (const migration of migrations) {

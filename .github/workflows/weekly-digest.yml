@@ -1,15 +1,36 @@
-name: Weekly Digest Email
+# Weekly Digest & Daily XP Recording
+#
+# Schedule:
+#   - Daily 23:59 UTC:   Record XP snapshots for leaderboard
+#   - Monday 9:00 AM UTC: Send weekly digest emails + record XP
+
+name: Weekly Digest & Daily XP
 
 on:
   schedule:
-    # Run every Monday at 9:00 AM UTC
-    - cron: '0 9 * * 1'
-  workflow_dispatch: # Allow manual triggering
+    # Daily XP recording at end of day
+    - cron: "59 23 * * *"
+    # Weekly digest on Mondays at 9 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task to run"
+        required: true
+        type: choice
+        options:
+          - record-xp
+          - send-digest
+          - both
 
 jobs:
-  send-digests:
+  record-xp:
     runs-on: ubuntu-latest
-    
+    # Always record XP (daily schedule, Monday schedule, or manual)
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.inputs.task == 'record-xp' ||
+      github.event.inputs.task == 'both'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,8 +38,35 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Record daily XP
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx scripts/weekly-digest-generator.ts record-xp
+
+  send-digest:
+    runs-on: ubuntu-latest
+    # Only on Mondays or manual trigger
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 9 * * 1') ||
+      github.event.inputs.task == 'send-digest' ||
+      github.event.inputs.task == 'both'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -30,26 +78,3 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: npx tsx scripts/weekly-digest-generator.ts send
-
-  record-xp:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Record daily XP
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx tsx scripts/weekly-digest-generator.ts record-xp

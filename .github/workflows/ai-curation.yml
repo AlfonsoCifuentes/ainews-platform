@@ -3,19 +3,19 @@ name: AI News Curation
 on:
   schedule:
     # Run every 6 hours
-    - cron: '0 */6 * * *'
+    - cron: "0 */6 * * *"
   workflow_dispatch:
     # Allow manual trigger
     inputs:
       dry_run:
-        description: 'Dry run (don''t store articles)'
+        description: "Dry run (don't store articles)"
         required: false
-        default: 'false'
+        default: "false"
 
 jobs:
   curate-news:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,24 +23,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
-
-      - name: Debug - Check secrets availability
-        run: |
-          echo "🔍 Checking which secrets are available..."
-          echo "NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL != '' && '✓ Set' || '✗ Missing' }}"
-          echo "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' && '✓ Set (GPT-4o-mini enabled)' || '✗ Missing (fallback to free providers)' }}"
-          echo "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "GROQ_API_KEY: ${{ secrets.GROQ_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
 
       - name: Run AI curation
         env:
@@ -52,13 +42,13 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_MODEL_PROFILE: cost-balanced
-          REQUIRE_VALUE_ADDED_REWRITE: 'true'
-          ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: 'true'
-          USE_FALLBACK_IMAGES: 'false'
-          STRICT_ORIGINAL_IMAGE: 'true'
-          MAX_RSS_CANDIDATES: '220'
-          MAX_ARTICLES_TO_PROCESS: '25'
-          CLASSIFICATION_CONCURRENCY: '2'
+          REQUIRE_VALUE_ADDED_REWRITE: "true"
+          ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: "true"
+          USE_FALLBACK_IMAGES: "false"
+          STRICT_ORIGINAL_IMAGE: "true"
+          MAX_RSS_CANDIDATES: "220"
+          MAX_ARTICLES_TO_PROCESS: "25"
+          CLASSIFICATION_CONCURRENCY: "2"
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: npm run ai:curate
         timeout-minutes: 60
@@ -106,4 +96,3 @@ jobs:
           echo "❌ AI curation failed at $(date)"
           echo "Check artifacts for detailed logs"
           echo "At least one LLM API key must be configured in repository secrets"
-

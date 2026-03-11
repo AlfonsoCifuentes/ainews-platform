@@ -1,11 +1,9 @@
-name: 🤖 Auto-update AI Leaderboard
+name: Auto-update AI Leaderboard
 
 on:
   schedule:
-    # Run every 6 hours at 0, 6, 12, 18 UTC
-    - cron: "0 0,6,12,18 * * *"
-
-  # Also allow manual trigger
+    # Run daily at 8:00 AM UTC (leaderboard data changes slowly)
+    - cron: "0 8 * * *"
   workflow_dispatch:
 
 jobs:
@@ -24,7 +22,7 @@ jobs:
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: "npm"
 
       - name: 📦 Install dependencies

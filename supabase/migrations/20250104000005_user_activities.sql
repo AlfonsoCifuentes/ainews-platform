@@ -10,14 +10,14 @@ CREATE TABLE IF NOT EXISTS user_activities (
   description TEXT,
   metadata JSONB, -- Flexible data for different activity types
   visibility VARCHAR(20) DEFAULT 'public', -- 'public', 'followers', 'private'
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- Indexes
-  INDEX (user_id, created_at DESC),
-  INDEX (activity_type),
-  INDEX (visibility),
-  INDEX (created_at DESC)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_user_activities_user_created ON user_activities(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_activities_type ON user_activities(activity_type);
+CREATE INDEX IF NOT EXISTS idx_user_activities_visibility ON user_activities(visibility);
+CREATE INDEX IF NOT EXISTS idx_user_activities_created ON user_activities(created_at DESC);
 
 -- RLS Policies
 ALTER TABLE user_activities ENABLE ROW LEVEL SECURITY;

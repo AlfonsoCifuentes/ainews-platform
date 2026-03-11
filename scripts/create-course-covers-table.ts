@@ -36,7 +36,7 @@ async function main() {
 
   if (checkError.code === 'PGRST205') {
     console.log('Table does not exist. Please create it manually in Supabase Dashboard.\n');
-    console.log('Go to: https://supabase.com/dashboard/project/yabsciwdpblqzskfupnj/sql/new');
+    console.log('Go to: https://supabase.com/dashboard/project/hggbwmuyjnhkehxegdix/sql/new');
     console.log('\nPaste this SQL:\n');
     console.log(`
 CREATE TABLE IF NOT EXISTS public.course_covers (

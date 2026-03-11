@@ -29,8 +29,8 @@ import {
 	registerImageHash,
 	validateImageEnhanced,
 } from '../lib/services/image-validator';
-import { enhancedImageDescription } from '../lib/services/enhanced-image-description';
-import { visualSimilarity } from '../lib/services/visual-similarity';
+// NOTE: AI image services (enhancedImageDescription, visualSimilarity) intentionally NOT
+// imported — news images are scraped from original sources only (zero API cost).
 
 const parser = new Parser({
 	timeout: 15000,
@@ -1532,19 +1532,8 @@ function generateFallbackImage(category: string, title: string): ResolvedImageDa
 	};
 }
 
-async function generateEnhancedAltText(imageUrl: string): Promise<string | undefined> {
-	if (!enhancedImageDescription.isAvailable()) {
-		return undefined;
-	}
-
-	try {
-		const description = await enhancedImageDescription.generateDescription(imageUrl);
-		return description.accessibilityAlt;
-	} catch (error) {
-		console.warn('[EnhancedAlt] Failed to generate:', error instanceof Error ? error.message : error);
-		return undefined;
-	}
-}
+// generateEnhancedAltText removed — was calling paid BLIP/Ultralytics APIs per image.
+// Alt text is now derived from the article title + classification (free).
 
 async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt: number): Promise<ResolvedImageData | null> {
 	const skipCache = totalAttempt > 1;
@@ -1571,11 +1560,12 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 				skipCache,
 				skipDuplicateCheck: true,
 				skipVisualSimilarity: true,
+				skipAI: true,
+				skipComputerVision: true,
 			});
 
 			if (validation.isValid) {
-				const enhancedAltText = await generateEnhancedAltText(fastUrl);
-				return { url: fastUrl, validation, enhancedAltText };
+				return { url: fastUrl, validation };
 			}
 
 			console.log(`[ImageValidator] Fast path rejected: ${validation.reason ?? 'unknown reason'}`);
@@ -1592,11 +1582,12 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 				skipCache,
 				skipDuplicateCheck: true,
 				skipVisualSimilarity: true,
+				skipAI: true,
+				skipComputerVision: true,
 			});
 
 			if (validation.isValid) {
-				const enhancedAltText = await generateEnhancedAltText(advancedResult.url);
-				return { url: advancedResult.url, validation, enhancedAltText };
+				return { url: advancedResult.url, validation };
 			}
 
 			console.log(`[ImageValidator] Advanced path rejected: ${validation.reason ?? 'unknown reason'}`);
@@ -1614,11 +1605,12 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 				skipCache,
 				skipDuplicateCheck: true,
 				skipVisualSimilarity: true,
+				skipAI: true,
+				skipComputerVision: true,
 			});
 
 			if (validation.isValid) {
-				const enhancedAltText = await generateEnhancedAltText(scraped.image);
-				return { url: scraped.image, validation, enhancedAltText };
+				return { url: scraped.image, validation };
 			}
 
 			console.log(`[ImageValidator] Scraped-page image rejected: ${validation.reason ?? 'unknown reason'}`);
@@ -2153,18 +2145,6 @@ async function persistArticle(
 		}
 
 		registerImageHash(imageData.url);
-
-		const perceptualHash = imageData.validation.visualSimilarity?.hash && imageData.validation.visualSimilarity.hash !== 'error'
-			? imageData.validation.visualSimilarity.hash
-			: imageData.validation.hash;
-
-		if (perceptualHash) {
-			try {
-				await visualSimilarity.storeHash(imageData.url, perceptualHash, articleId);
-			} catch (error) {
-				console.warn('[VisualSimilarity] Failed to store hash:', error instanceof Error ? error.message : error);
-			}
-		}
 
 		console.log(`[DB] ✓ Stored article: ${entry.article.title.slice(0, 80)}...`);
 		return { success: true, retryable: false };

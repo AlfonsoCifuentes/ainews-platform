@@ -42,29 +42,7 @@ jobs:
       - name: 🔍 Install Playwright Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: 🔍 Check API Keys
-        run: |
-          echo "🔑 Checking API keys..."
-          echo "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "GROQ_API_KEY: ${{ secrets.GROQ_API_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          echo "NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL != '' && '✓ Set' || '✗ Missing' }}"
-          echo "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && '✓ Set' || '✗ Missing' }}"
-          if [ -z "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" ] && [ -z "${{ secrets.SUPABASE_URL }}" ]; then
-            echo "❌ Supabase URL is required (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)"
-            exit 1
-          fi
-          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            echo "❌ SUPABASE_SERVICE_ROLE_KEY is required"
-            exit 1
-          fi
-          if [ -z "${{ secrets.OPENAI_API_KEY }}" ] && [ -z "${{ secrets.GEMINI_API_KEY }}" ] && [ -z "${{ secrets.OPENROUTER_API_KEY }}" ] && [ -z "${{ secrets.GROQ_API_KEY }}" ]; then
-            echo "❌ At least one LLM API key is required (OPENAI, GEMINI, OPENROUTER, or GROQ)"
-            exit 1
-          fi
-
-      - name: 🔧 Run News Maintenance (Rewrite with GPT-4o-mini)
+      - name: Run News Maintenance (Rewrite with GPT-4o-mini)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

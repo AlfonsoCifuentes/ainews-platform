@@ -7,11 +7,11 @@ CREATE TABLE IF NOT EXISTS tags (
   name VARCHAR(100) NOT NULL UNIQUE,
   slug VARCHAR(100) NOT NULL UNIQUE,
   category VARCHAR(50), -- 'topic', 'technology', 'industry', 'skill_level'
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  INDEX (slug),
-  INDEX (category)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_tags_slug ON tags(slug);
+CREATE INDEX IF NOT EXISTS idx_tags_category ON tags(category);
 
 -- user_interests (many-to-many relationship)
 CREATE TABLE IF NOT EXISTS user_interests (
@@ -19,10 +19,11 @@ CREATE TABLE IF NOT EXISTS user_interests (
   tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
-  PRIMARY KEY (user_id, tag_id),
-  INDEX (user_id),
-  INDEX (tag_id)
+  PRIMARY KEY (user_id, tag_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_user_interests_user ON user_interests(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_interests_tag ON user_interests(tag_id);
 
 -- content_tags (many-to-many for articles/courses)
 CREATE TABLE IF NOT EXISTS content_tags (
@@ -31,10 +32,11 @@ CREATE TABLE IF NOT EXISTS content_tags (
   tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
-  PRIMARY KEY (content_id, tag_id),
-  INDEX (tag_id),
-  INDEX (content_type)
+  PRIMARY KEY (content_id, tag_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_content_tags_tag ON content_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_content_tags_type ON content_tags(content_type);
 
 -- RLS Policies for tags
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;

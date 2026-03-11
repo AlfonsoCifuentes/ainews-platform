@@ -10,13 +10,13 @@ CREATE TABLE IF NOT EXISTS user_follows (
   
   -- Prevent self-follows and duplicates
   CHECK (follower_id != following_id),
-  UNIQUE (follower_id, following_id),
-  
-  -- Indexes for performance
-  INDEX (follower_id),
-  INDEX (following_id),
-  INDEX (created_at DESC)
+  UNIQUE (follower_id, following_id)
 );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_created ON user_follows(created_at DESC);
 
 -- RLS Policies
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;

@@ -1,13 +1,14 @@
-# GitHub Actions Workflow - AI Agents Scheduler
-# Runs autonomous AI agents on schedule
-# 
-# ⚠️ NOTE: Trend Detector is DISABLED here - use detect-trending.yml instead (avoids duplication)
-# 
-# Agents:
-# - Trend Detector: DISABLED (use detect-trending.yml)
-# - Fact Checker: Daily at 2 AM UTC
-# - Bias Auditor: Daily at 3:30 AM UTC (offset from learning-agent)
-# - Multi-Perspective: On-demand via manual trigger
+# GitHub Actions Workflow - AI Agents Scheduler (Unified)
+#
+# Consolidates ALL scheduled AI agent tasks into a single workflow.
+#
+# Schedule overview (UTC):
+#   - Trend Detector:     Every 6h (0:15, 6:15, 12:15, 18:15)
+#   - News Insights:      Every 6h (0:30, 6:30, 12:30, 18:30)
+#   - Fact Checker:       Daily 2:00 AM
+#   - Learning Agent:     Daily 3:00 AM
+#   - Bias Auditor:       Daily 3:30 AM
+#   - Entity Extraction:  Daily 4:00 AM
 
 name: AI Agents Scheduler
 
@@ -17,38 +18,53 @@ concurrency:
 
 on:
   schedule:
-    # Trend Detector - DISABLED (use detect-trending.yml instead to avoid duplicate API calls)
-    # - cron: '0 */6 * * *'
-    # Fact Checker - Daily at 2 AM UTC
-    - cron: '0 2 * * *'
-    # Bias Auditor - Daily at 3:30 AM UTC (offset 30 min from learning-agent to avoid race condition)
-    - cron: '30 3 * * *'
-  
-  # Allow manual triggers
+    # Trend Detector - Every 6 hours (offset 15 min from curation)
+    - cron: "15 */6 * * *"
+    # News Insights - Every 6 hours (offset 30 min from curation)
+    - cron: "30 */6 * * *"
+    # Fact Checker - Daily at 2:00 AM
+    - cron: "0 2 * * *"
+    # Learning Agent - Daily at 3:00 AM
+    - cron: "0 3 * * *"
+    # Bias Auditor - Daily at 3:30 AM
+    - cron: "30 3 * * *"
+    # Entity Extraction - Daily at 4:00 AM
+    - cron: "0 4 * * *"
+
   workflow_dispatch:
     inputs:
       agent:
-        description: 'Agent to run'
+        description: "Agent to run"
         required: true
         type: choice
         options:
           - fact_checker
+          - learning_agent
           - bias_auditor
+          - entity_extraction
+          - trend_detector
+          - news_insights
           - multi_perspective
           - all
+      limit:
+        description: "Entity extraction limit (only for entity_extraction)"
+        required: false
+        default: "50"
 
 jobs:
   run-agents:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,71 +72,93 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run scheduled/selected agent(s)
+      - name: Determine agent(s) to run
+        id: resolve
         env:
           AGENT_INPUT: ${{ github.event.inputs.agent }}
           SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          set -euo pipefail
+          agents=""
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            case "${SCHEDULE}" in
+              '15 */6 * * *')  agents="trend_detector" ;;
+              '30 */6 * * *')  agents="news_insights" ;;
+              '0 2 * * *')     agents="fact_checker" ;;
+              '0 3 * * *')     agents="learning_agent" ;;
+              '30 3 * * *')    agents="bias_auditor" ;;
+              '0 4 * * *')     agents="entity_extraction" ;;
+              *)
+                echo "No agent mapped for schedule: ${SCHEDULE}"
+                exit 0 ;;
+            esac
+          else
+            if [ "${AGENT_INPUT}" = "all" ]; then
+              agents="fact_checker learning_agent bias_auditor entity_extraction trend_detector news_insights multi_perspective"
+            else
+              agents="${AGENT_INPUT}"
+            fi
+          fi
+
+          echo "agents=${agents}" >> "$GITHUB_OUTPUT"
+          echo "Agents to run: ${agents}"
+
+      - name: Run agent(s)
+        env:
+          AGENTS: ${{ steps.resolve.outputs.agents }}
+          ENTITY_LIMIT: ${{ github.event.inputs.limit || '50' }}
           REQUEST_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          SUPABASE_NETWORK_RETRIES: "5"
+          SUPABASE_NETWORK_RETRY_DELAY_MS: "1500"
         run: |
           set -euo pipefail
 
-          echo "Event: ${{ github.event_name }}"
-          echo "Schedule: ${SCHEDULE:-<none>}"
-          echo "Input agent: ${AGENT_INPUT:-<none>}"
-          echo "Request ID: ${REQUEST_ID}"
+          for agent in ${AGENTS}; do
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚀 Running: ${agent}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          agents=()
-
-          # Scheduled runs map cron -> agent
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            case "${SCHEDULE}" in
-              '0 2 * * *') agents+=("fact_checker") ;;
-              '30 3 * * *') agents+=("bias_auditor") ;;
-              *)
-                echo "ℹ️ No agent mapped for this schedule: ${SCHEDULE}"
-                exit 0
+            case "${agent}" in
+              trend_detector)
+                npm run ai:detect-trends
                 ;;
-            esac
-          else
-            # Manual runs
-            case "${AGENT_INPUT}" in
+              news_insights)
+                npx tsx scripts/analyze-news-insights.ts
+                ;;
+              learning_agent)
+                npm run ai:learn
+                ;;
+              entity_extraction)
+                npm run ai:extract-entities -- "${ENTITY_LIMIT}"
+                ;;
               fact_checker|bias_auditor|multi_perspective)
-                agents+=("${AGENT_INPUT}")
-                ;;
-              all)
-                agents+=("fact_checker" "bias_auditor" "multi_perspective")
+                npx tsx scripts/run-ai-agents.ts --agent "${agent}" --request-id "${REQUEST_ID}"
                 ;;
               *)
-                echo "❌ Unknown agent input: ${AGENT_INPUT}"
+                echo "❌ Unknown agent: ${agent}"
                 exit 1
                 ;;
             esac
-          fi
 
-          echo "Agents to run: ${agents[*]}"
-
-          for agent in "${agents[@]}"; do
-            echo "🚀 Running agent locally: ${agent}"
-            npx tsx scripts/run-ai-agents.ts --agent "${agent}" --request-id "${REQUEST_ID}"
+            echo "✅ ${agent} completed"
           done
 
-      - name: Upload responses (on failure)
+      - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-agents-responses-${{ github.run_id }}-${{ github.run_attempt }}
-          path: /tmp/ai-agents/*.json
+          name: ai-agents-logs-${{ github.run_id }}
+          path: |
+            *.log
+            logs/
+            /tmp/ai-agents/*.json
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "Agent execution failed. Check logs for details."
-          # Add Slack/Discord notification here if needed

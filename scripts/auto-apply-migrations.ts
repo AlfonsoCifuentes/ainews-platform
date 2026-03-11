@@ -114,7 +114,7 @@ async function main() {
   }
 
   console.log('\n⚠️  If automatic application failed, please apply manually:');
-  console.log('🔗 https://supabase.com/dashboard/project/yabsciwdpblqzskfupnj/sql/new');
+  console.log('🔗 https://supabase.com/dashboard/project/hggbwmuyjnhkehxegdix/sql/new');
   console.log('\nRun: npx tsx scripts/show-migrations.ts');
 }
 

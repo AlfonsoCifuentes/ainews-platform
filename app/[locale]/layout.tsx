@@ -20,6 +20,7 @@ import { PWAInstaller } from '@/components/pwa/PWAInstaller';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { UnifiedDebugPanel } from '@/components/shared/UnifiedDebugPanel';
 import { BookModeProvider } from '@/lib/hooks/useBookMode';
+import { UserProvider } from '@/lib/hooks/useUser';
 import { routing } from '@/i18n/routing';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -226,6 +227,7 @@ console.log('[CookieNorm] Starting normalization...');
           <NextIntlClientProvider messages={messages} locale={locale}>
             <BadgeNotificationProvider locale={locale as 'en' | 'es'}>
               <BookModeProvider>
+              <UserProvider>
                 <OAuthCallbackHandler />
                 <div className="relative flex min-h-screen flex-col bg-[#020309]">
                   <Header />
@@ -247,6 +249,7 @@ console.log('[CookieNorm] Starting normalization...');
                   {/* Unified Debug Panel (LogDashboard + ServerDebugPanel) */}
                   <UnifiedDebugPanel />
                 </div>
+              </UserProvider>
               </BookModeProvider>
             </BadgeNotificationProvider>
           </NextIntlClientProvider>

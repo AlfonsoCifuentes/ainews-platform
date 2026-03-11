@@ -10,12 +10,12 @@ CREATE TABLE IF NOT EXISTS notifications (
   message TEXT NOT NULL,
   data JSONB, -- Additional metadata
   read BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- Add index for faster queries
-  INDEX (user_id, created_at DESC),
-  INDEX (user_id, read)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read);
 
 -- RLS Policies
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;

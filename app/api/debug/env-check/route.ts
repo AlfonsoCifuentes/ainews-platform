@@ -6,11 +6,11 @@ export async function GET(_req: NextRequest) {
   }
 
   const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const hasAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const hasAnonKey = !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY);
   const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT SET';
-  const anonKeyPrefix = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 10) + '...' || 'NOT SET';
+  const anonKeyPrefix = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)?.substring(0, 10) + '...' || 'NOT SET';
   const serviceKeyPrefix = process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...' || 'NOT SET';
 
   return NextResponse.json({

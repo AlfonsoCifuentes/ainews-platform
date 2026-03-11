@@ -138,7 +138,7 @@ async function main() {
     console.log('📋 MANUAL MIGRATION REQUIRED');
     console.log('='.repeat(80));
     console.log('\n1. Open Supabase SQL Editor:');
-    console.log('   https://supabase.com/dashboard/project/yabsciwdpblqzskfupnj/sql/new\n');
+    console.log('   https://supabase.com/dashboard/project/hggbwmuyjnhkehxegdix/sql/new\n');
     console.log('2. Run: npx tsx scripts/show-migrations.ts');
     console.log('3. Copy and paste the SQL shown');
     console.log('4. Click "Run" in Supabase\n');

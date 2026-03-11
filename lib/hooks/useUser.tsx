@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getClientAuthClient } from '@/lib/auth/auth-client';
 import type { UserProfile } from '@/lib/types/user';
@@ -64,7 +65,16 @@ function ensureVisualPreferences(profile: UserProfile): UserProfile {
   };
 }
 
-export function useUser() {
+interface UserContextValue {
+  profile: UserProfile | null;
+  locale: 'en' | 'es';
+  isLoading: boolean;
+  refetch: () => Promise<void>;
+}
+
+const UserContext = createContext<UserContextValue | undefined>(undefined);
+
+export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [locale, setLocale] = useState<'en' | 'es'>('en');
   const [isLoading, setIsLoading] = useState(true);
@@ -443,5 +453,19 @@ export function useUser() {
     return () => window.removeEventListener('auth-state-changed', handleAuthEvent as EventListener);
   }, [refetch]);
 
-  return { profile, locale, isLoading, refetch };
+  const value = useMemo(
+    () => ({ profile, locale, isLoading, refetch }),
+    [profile, locale, isLoading, refetch],
+  );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+}
+
+export function useUser(): UserContextValue {
+  const ctx = useContext(UserContext);
+  if (!ctx) {
+    // Safe defaults when rendered outside UserProvider (SSR, etc.)
+    return { profile: null, locale: 'en', isLoading: false, refetch: async () => {} };
+  }
+  return ctx;
 }
