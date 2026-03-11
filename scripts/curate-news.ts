@@ -22,8 +22,7 @@ import { batchTranslate, detectLanguage, translateArticle } from '../lib/ai/tran
 import { generateEmbedding } from '../lib/ai/embeddings';
 import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getSupabaseServerClient } from '../lib/db/supabase';
-import { getBestArticleImage } from '../lib/services/image-scraper';
-import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scraper';
+import { resolveArticleImage, type RSSImageHints } from '../lib/services/image-pipeline';
 import {
 	initializeImageHashCache,
 	registerImageHash,
@@ -1535,10 +1534,9 @@ function generateFallbackImage(category: string, title: string): ResolvedImageDa
 // generateEnhancedAltText removed — was calling paid BLIP/Ultralytics APIs per image.
 // Alt text is now derived from the article title + classification (free).
 
-async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt: number): Promise<ResolvedImageData | null> {
-	const skipCache = totalAttempt > 1;
-
-	const rssItem = {
+async function resolveOriginalImage(entry: ClassifiedArticleRecord, _totalAttempt: number): Promise<ResolvedImageData | null> {
+	// Build RSS hints from the parsed feed item
+	const rssHints: RSSImageHints = {
 		enclosure: entry.article.enclosure || undefined,
 		content: entry.article.contentEncoded || entry.article.content,
 		contentSnippet: entry.article.contentSnippet,
@@ -1548,75 +1546,19 @@ async function resolveOriginalImage(entry: ClassifiedArticleRecord, totalAttempt
 	};
 
 	try {
-		const fastUrl = await getBestArticleImage(entry.article.link, rssItem, {
-			skipRegister: true,
-			skipCache,
-			skipDuplicateCheck: true,
-		});
-
-		if (fastUrl) {
-			const validation = await validateImageEnhanced(fastUrl, {
-				skipRegister: true,
-				skipCache,
-				skipDuplicateCheck: true,
-				skipVisualSimilarity: true,
-				skipAI: true,
-				skipComputerVision: true,
-			});
-
-			if (validation.isValid) {
-				return { url: fastUrl, validation };
-			}
-
-			console.log(`[ImageValidator] Fast path rejected: ${validation.reason ?? 'unknown reason'}`);
+		const result = await resolveArticleImage(entry.article.link, rssHints);
+		if (result) {
+			console.log(`[ImagePipeline] ✓ Found image via ${result.layer} (confidence: ${result.confidence.toFixed(2)})`);
+			return {
+				url: result.url,
+				validation: {
+					isValid: true,
+					reason: undefined,
+				},
+			};
 		}
 	} catch (error) {
-		console.warn('[ImageValidator] Fast extraction failed:', error instanceof Error ? error.message : error);
-	}
-
-	try {
-		const advancedResult = await scrapeArticleImageAdvanced(entry.article.link);
-		if (advancedResult?.url && advancedResult.confidence > 0.4) {
-			const validation = await validateImageEnhanced(advancedResult.url, {
-				skipRegister: true,
-				skipCache,
-				skipDuplicateCheck: true,
-				skipVisualSimilarity: true,
-				skipAI: true,
-				skipComputerVision: true,
-			});
-
-			if (validation.isValid) {
-				return { url: advancedResult.url, validation };
-			}
-
-			console.log(`[ImageValidator] Advanced path rejected: ${validation.reason ?? 'unknown reason'}`);
-		}
-	} catch (error) {
-		console.warn('[ImageValidator] Advanced scraper failed:', error instanceof Error ? error.message : error);
-	}
-
-	// Final extraction fallback from already-scraped HTML (keeps original publisher image when possible)
-	try {
-		const scraped = await scrapeArticlePage(entry.article.link);
-		if (scraped.image) {
-			const validation = await validateImageEnhanced(scraped.image, {
-				skipRegister: true,
-				skipCache,
-				skipDuplicateCheck: true,
-				skipVisualSimilarity: true,
-				skipAI: true,
-				skipComputerVision: true,
-			});
-
-			if (validation.isValid) {
-				return { url: scraped.image, validation };
-			}
-
-			console.log(`[ImageValidator] Scraped-page image rejected: ${validation.reason ?? 'unknown reason'}`);
-		}
-	} catch (error) {
-		console.warn('[ImageValidator] Scraped-page image fallback failed:', error instanceof Error ? error.message : error);
+		console.warn('[ImagePipeline] Pipeline error:', error instanceof Error ? error.message : error);
 	}
 
 	return null;
