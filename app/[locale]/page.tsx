@@ -9,6 +9,7 @@ import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { SITE_NAME, siteTagline } from '@/lib/config/site';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
+import { Reveal } from '@/components/shared/Reveal';
 import type { INewsArticle } from '@/lib/types/news';
 
 type HomePageProps = {
@@ -93,7 +94,8 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* FEATURED */}
       {lead && (
         <section className="relative px-5 pb-20 md:px-12">
-          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <Reveal className="mx-auto max-w-7xl">
+            <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
             {/* lead story */}
             <Link href={`/${locale}/news/${lead.id}`} className="group relative block overflow-hidden border border-white/10">
               <div className="relative aspect-[16/10] min-h-[340px] overflow-hidden">
@@ -149,14 +151,15 @@ export default async function HomePage({ params }: HomePageProps) {
                 );
               })}
             </div>
-          </div>
+            </div>
+          </Reveal>
         </section>
       )}
 
       {/* LATEST LIST */}
       {rest.length > 0 && (
         <section className="relative px-5 pb-28 md:px-12">
-          <div className="mx-auto max-w-7xl">
+          <Reveal className="mx-auto max-w-7xl">
             <div className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
               <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">
                 {locale === 'es' ? 'Lo último' : 'Latest'}
@@ -194,7 +197,7 @@ export default async function HomePage({ params }: HomePageProps) {
                 );
               })}
             </div>
-          </div>
+          </Reveal>
         </section>
       )}
     </main>
