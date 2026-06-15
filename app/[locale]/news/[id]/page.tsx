@@ -183,9 +183,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       <article className="container mx-auto px-4 py-16">
         <div className="mx-auto max-w-4xl">
           {/* Summary */}
-          <div className="mb-12 rounded-3xl border border-primary/20 bg-primary/5 p-8">
-            <h2 className="mb-4 text-2xl font-bold text-primary">
-              {locale === 'en' ? 'Summary' : 'Resumen'}
+          <div className="mb-12 border-l-2 border-signal bg-signal/[0.06] p-8">
+            <h2 className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.25em] text-signal-soft">
+              {locale === 'en' ? 'The gist' : 'En resumen'}
             </h2>
             <p className="text-lg leading-relaxed text-foreground/90">
               {summary}

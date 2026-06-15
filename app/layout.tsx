@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Inter, Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
+import { SITE_NAME, SITE_DESCRIPTION_EN } from '@/lib/config/site';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const grotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
 const plexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'ThotNet Core · AI News & Learning Nexus',
-  description: 'Bilingual AI intelligence hub delivering news, textbook-grade courses, and autonomous agents.',
+  title: `${SITE_NAME} · AI News`,
+  description: SITE_DESCRIPTION_EN,
 };
 
 type RootLayoutProps = {

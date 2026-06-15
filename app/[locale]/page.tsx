@@ -42,10 +42,10 @@ export default async function HomePage({ params }: HomePageProps) {
 
   const ranked = topStories.length > 0 ? topStories : latest;
   const lead = ranked[0];
-  const secondary = ranked.slice(1, 5);
+  const secondary = ranked.slice(1, 3);
 
   const shownIds = new Set([lead?.id, ...secondary.map((a) => a.id)].filter(Boolean));
-  const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 8);
+  const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 10);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#04050a] text-white">
@@ -62,7 +62,7 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* HERO */}
       <section className="relative px-5 pt-32 pb-16 md:px-12 md:pt-40">
         <div className="mx-auto max-w-7xl">
-          <p className="mb-6 font-mono text-xs uppercase tracking-[0.3em] text-[#6366f1]">
+          <p className="mb-6 font-mono text-xs uppercase tracking-[0.3em] text-signal">
             {SITE_NAME} — {AI_NEWS_SOURCES.length}+ {locale === 'es' ? 'fuentes' : 'sources'}
           </p>
           <h1 className="max-w-4xl text-4xl font-black leading-[1.05] tracking-tight md:text-7xl">
@@ -76,7 +76,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
               href={`/${locale}/news`}
-              className="bg-white px-8 py-3 text-xs font-mono uppercase tracking-[0.2em] text-black transition-colors hover:bg-[#6366f1] hover:text-white"
+              className="bg-white px-8 py-3 text-xs font-mono uppercase tracking-[0.2em] text-black transition-colors hover:bg-signal hover:text-white"
             >
               {locale === 'es' ? 'Ver noticias' : 'Read the news'}
             </Link>
@@ -93,10 +93,10 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* FEATURED */}
       {lead && (
         <section className="relative px-5 pb-20 md:px-12">
-          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
+          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.6fr_1fr]">
             {/* lead story */}
             <Link href={`/${locale}/news/${lead.id}`} className="group relative block overflow-hidden border border-white/10">
-              <div className="relative aspect-[16/10] overflow-hidden">
+              <div className="relative aspect-[16/10] min-h-[340px] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={articleImage(lead, getLocalizedString(lead, 'title', locale))}
@@ -121,35 +121,29 @@ export default async function HomePage({ params }: HomePageProps) {
               </div>
             </Link>
 
-            {/* secondary stories */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* secondary stories — text-forward, stacked */}
+            <div className="grid grid-rows-2 gap-6">
               {secondary.map((article) => {
                 const title = getLocalizedString(article, 'title', locale);
                 return (
                   <Link
                     key={article.id}
                     href={`/${locale}/news/${article.id}`}
-                    className="group flex flex-col border border-white/10 transition-colors hover:border-white/30"
+                    className="group flex min-h-[160px] flex-col justify-between border border-white/10 bg-white/[0.015] p-5 transition-colors hover:border-signal/60"
                   >
-                    <div className="relative aspect-[16/9] overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={articleImage(article, title)}
-                        alt={title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex flex-1 flex-col p-4">
-                      <span className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#6366f1]">
+                    <div>
+                      <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.2em] text-signal-soft">
                         {article.category}
                       </span>
-                      <h3 className="line-clamp-3 text-sm font-semibold leading-snug">{title}</h3>
-                      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-                        <span className="font-mono text-[10px] text-white/40">
-                          {formatRelativeTimeFromNow(article.published_at, locale)}
-                        </span>
-                        <CorroborationBadge count={article.corroboration_count} locale={locale} variant="outline" />
-                      </div>
+                      <h3 className="line-clamp-3 text-lg font-semibold leading-snug transition-colors group-hover:text-signal-soft">
+                        {title}
+                      </h3>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-white/40">
+                        {formatRelativeTimeFromNow(article.published_at, locale)}
+                      </span>
+                      <CorroborationBadge count={article.corroboration_count} locale={locale} variant="outline" />
                     </div>
                   </Link>
                 );
@@ -167,7 +161,7 @@ export default async function HomePage({ params }: HomePageProps) {
               <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">
                 {locale === 'es' ? 'Lo último' : 'Latest'}
               </h2>
-              <Link href={`/${locale}/news`} className="font-mono text-xs uppercase tracking-[0.2em] text-[#6366f1] hover:text-white">
+              <Link href={`/${locale}/news`} className="font-mono text-xs uppercase tracking-[0.2em] text-signal hover:text-white">
                 {locale === 'es' ? 'Ver todo →' : 'View all →'}
               </Link>
             </div>
@@ -192,7 +186,7 @@ export default async function HomePage({ params }: HomePageProps) {
                       <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
                         {article.category} · {formatRelativeTimeFromNow(article.published_at, locale)}
                       </span>
-                      <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug group-hover:text-[#6366f1]">
+                      <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug group-hover:text-signal">
                         {title}
                       </h3>
                     </div>

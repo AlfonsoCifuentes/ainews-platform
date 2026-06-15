@@ -20,6 +20,12 @@ const config: Config = {
   	extend: {
 			colors: {
 				void: '#020309',
+				// Brand accent (indigo) — corroboration signal + interactive accents
+				signal: {
+					DEFAULT: '#6366f1',
+					soft: '#a5b4fc',
+					deep: '#4338ca',
+				},
 				surface: '#0A0A0A',
 				'surface-hover': '#121212',
 				'off-white': '#EAEAEA',
