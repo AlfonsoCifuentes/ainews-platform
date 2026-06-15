@@ -10,6 +10,8 @@ import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { SITE_NAME, siteTagline } from '@/lib/config/site';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
 import { Reveal } from '@/components/shared/Reveal';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { SITE_BASE_URL } from '@/lib/config/site';
 import type { INewsArticle } from '@/lib/types/news';
 
 type HomePageProps = {
@@ -48,8 +50,23 @@ export default async function HomePage({ params }: HomePageProps) {
   const shownIds = new Set([lead?.id, ...secondary.map((a) => a.id)].filter(Boolean));
   const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 10);
 
+  const siteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: `${SITE_BASE_URL}/${locale}`,
+    inLanguage: locale,
+    description: siteTagline(locale),
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE_BASE_URL}/${locale}/search?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#04050a] text-white">
+      <JsonLd data={siteJsonLd} />
       {/* faint grid backdrop */}
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.04]"

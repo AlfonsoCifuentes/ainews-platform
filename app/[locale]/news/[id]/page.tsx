@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
@@ -8,6 +9,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { SITE_NAME, SITE_BASE_URL } from '@/lib/config/site';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -57,6 +60,45 @@ async function fetchRelatedArticles(category: string, currentId: string, limit =
   }
 
   return data as INewsArticle[];
+}
+
+export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
+  const { locale, id } = await params;
+  const article = await fetchArticleById(id);
+  if (!article) return { title: `Not found · ${SITE_NAME}` };
+
+  const title = getLocalizedString(article, 'title', locale);
+  const description = sanitizeScrapedContent(getLocalizedString(article, 'summary', locale)).slice(0, 200);
+  const canonical = `${SITE_BASE_URL}/${locale}/news/${id}`;
+  const image = article.image_url || undefined;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: {
+        en: `${SITE_BASE_URL}/en/news/${id}`,
+        es: `${SITE_BASE_URL}/es/news/${id}`,
+      },
+    },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      siteName: SITE_NAME,
+      publishedTime: article.published_at,
+      locale: locale === 'es' ? 'es_ES' : 'en_US',
+      images: image ? [{ url: image, alt: title }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
@@ -118,8 +160,23 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       .trim();
   })();
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: title,
+    description: summary,
+    image: article.image_url ? [article.image_url] : undefined,
+    datePublished: article.published_at,
+    dateModified: article.published_at,
+    inLanguage: locale,
+    author: { '@type': 'Organization', name: SITE_NAME },
+    publisher: { '@type': 'Organization', name: SITE_NAME },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_BASE_URL}/${locale}/news/${article.id}` },
+  };
+
   return (
     <main className="min-h-screen">
+      <JsonLd data={jsonLd} />
       {/* Hero Image Section */}
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
         <div
