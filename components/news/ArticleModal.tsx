@@ -10,7 +10,6 @@ import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { calculateReadingTime, extractPlainText } from '@/lib/utils/content-formatter';
 import { formatArticleContent } from '@/lib/utils/text-formatter';
 import { ShareButtons } from '@/components/shared/ShareButtons';
-import { BookmarkButton } from '@/components/shared/BookmarkButton';
 
 type ArticleModalProps = {
   article: INewsArticle | null;
@@ -166,13 +165,8 @@ export function ArticleModal({
                   </a>
                   
                   <div className="flex items-center gap-3">
-                    <BookmarkButton 
-                      article={article} 
-                      locale={locale}
-                      showLabel
-                    />
-                    <ShareButtons 
-                      article={article} 
+                    <ShareButtons
+                      article={article}
                       locale={locale}
                     />
                   </div>

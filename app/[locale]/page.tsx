@@ -1,30 +1,17 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { setRequestLocale } from 'next-intl/server';
+import Link from 'next/link';
 import { routing } from '@/i18n/routing';
 import type { Locale } from '@/i18n';
-import {
-  KineticHero,
-  TodayDigestRail,
-  OrbitingTopicsRail,
-  CourseGalaxyNavigator,
-  AIPlaygroundStrip,
-  LeaderboardStrip,
-  DeepDiveFeatures,
-  FooterCTA,
-} from '@/components/home';
 import { fetchLatestNews } from '@/lib/db/news';
-import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { assignFallbackImagesToArticles, generateCourseFallbackImage, getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
-import { getTrendingTopicsFromCache, type TrendingTopic } from '@/lib/ai/trending';
+import { SITE_NAME, siteTagline } from '@/lib/config/site';
 import type { INewsArticle } from '@/lib/types/news';
 
 type HomePageProps = {
-  params: Promise<{
-    locale: Locale;
-  }>;
+  params: Promise<{ locale: Locale }>;
 };
 
 export const revalidate = 300;
@@ -33,536 +20,173 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+function articleImage(article: INewsArticle & { computed_image_url?: string }, title: string): string {
+  if (article.computed_image_url && article.computed_image_url.trim() !== '') {
+    return article.computed_image_url;
+  }
+  return getImageWithFallback(article.image_url, title, article.category, article.id);
+}
+
 export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const t = await getTranslations({ locale, namespace: 'home' });
+  const articles = await fetchLatestNews({ locale, limit: 13 });
 
-  const articles = await fetchLatestNews({ locale, limit: 12 });
-  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const hasSupabase = Boolean(supabaseUrl && supabaseKey);
-  const supabase = hasSupabase ? getSupabaseServerClient() : null;
-
-  const [courseData, leaderboardData, agents, trendingRecords, _articleCount] = await Promise.all([
-    loadCourseGalaxyData(supabase, locale),
-    loadLeaderboardData(supabase, locale),
-    loadAgentTelemetry(supabase, locale),
-    loadTrendingTopicRecords(hasSupabase),
-    getArticleCount(supabase),
-  ]);
-
-  const digestArticles = buildDigestArticles(articles, locale);
-  const trendingTopics = buildTrendingTopics(trendingRecords, articles);
-
-  const heroStats = {
-    sources: AI_NEWS_SOURCES.length,
-    freshnessMinutes: getFreshnessMinutes(articles),
-    courses: courseData.totalCourses,
-  };
-
-  const featureBlocks = getFeatureBlocks(locale);
+  const lead = articles[0];
+  const secondary = articles.slice(1, 5);
+  const rest = articles.slice(5, 13);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020309]">
-      {/* Subtle animated background grid */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.02]">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '60px 60px',
-          }}
-        />
-      </div>
-
-      {/* Hero Section */}
-      <KineticHero
-        locale={locale}
-        headline={t('hero.title')}
-        subheadline={t('hero.subtitle')}
-        stats={heroStats}
-        primaryCta={{ label: t('hero.cta'), href: '/news' }}
-        secondaryCta={{ label: t('hero.ctaSecondary'), href: '/courses' }}
-      />
-
-      {/* Today's Digest */}
-      <TodayDigestRail articles={digestArticles} locale={locale} />
-
-      {/* Trending Topics */}
-      <OrbitingTopicsRail topics={trendingTopics} locale={locale} />
-
-      {/* Course Galaxy */}
-      <CourseGalaxyNavigator
-            courses={courseData.courses}
-            featuredCourseId={courseData.featuredCourseId}
-            locale={locale}
-          />
-
-      {/* AI Playground */}
-      <AIPlaygroundStrip agents={agents} locale={locale} />
-
-      {/* Leaderboard */}
-      <LeaderboardStrip
-        leaders={leaderboardData.leaders}
-        summary={leaderboardData.summary}
-        locale={locale}
-      />
-
-      {/* Deep Dive Features */}
-      <DeepDiveFeatures blocks={featureBlocks} locale={locale} />
-
-      {/* Footer CTA */}
-      <FooterCTA
-        title={locale === 'en' ? 'Ready to master AI?' : '¿Listo para dominar la IA?'}
-        subtitle={locale === 'en'
-          ? 'Join thousands of learners exploring the future of artificial intelligence.'
-          : 'Únete a miles de estudiantes explorando el futuro de la inteligencia artificial.'
-        }
-        primaryCta={{
-          label: locale === 'en' ? 'Start Learning Free' : 'Comienza Gratis',
-          href: '/courses',
+    <main className="relative min-h-screen overflow-hidden bg-[#04050a] text-white">
+      {/* faint grid backdrop */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
         }}
-        secondaryCta={{
-          label: locale === 'en' ? 'Explore News' : 'Explorar Noticias',
-          href: '/news',
-        }}
-        locale={locale}
       />
+
+      {/* HERO */}
+      <section className="relative px-5 pt-32 pb-16 md:px-12 md:pt-40">
+        <div className="mx-auto max-w-7xl">
+          <p className="mb-6 font-mono text-xs uppercase tracking-[0.3em] text-[#6366f1]">
+            {SITE_NAME} — {AI_NEWS_SOURCES.length}+ {locale === 'es' ? 'fuentes' : 'sources'}
+          </p>
+          <h1 className="max-w-4xl text-4xl font-black leading-[1.05] tracking-tight md:text-7xl">
+            {siteTagline(locale)}
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg text-white/60">
+            {locale === 'es'
+              ? 'Las noticias de IA más importantes del día, contrastadas entre decenas de medios y explicadas con claridad.'
+              : "The day's most important AI stories, cross-checked across dozens of outlets and explained clearly."}
+          </p>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link
+              href={`/${locale}/news`}
+              className="bg-white px-8 py-3 text-xs font-mono uppercase tracking-[0.2em] text-black transition-colors hover:bg-[#6366f1] hover:text-white"
+            >
+              {locale === 'es' ? 'Ver noticias' : 'Read the news'}
+            </Link>
+            <Link
+              href={`/${locale}/trending`}
+              className="border border-white/20 px-8 py-3 text-xs font-mono uppercase tracking-[0.2em] text-white transition-colors hover:border-white"
+            >
+              {locale === 'es' ? 'Tendencias' : 'Trending'}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURED */}
+      {lead && (
+        <section className="relative px-5 pb-20 md:px-12">
+          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
+            {/* lead story */}
+            <Link href={`/${locale}/news/${lead.id}`} className="group relative block overflow-hidden border border-white/10">
+              <div className="relative aspect-[16/10] overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={articleImage(lead, getLocalizedString(lead, 'title', locale))}
+                  alt={getLocalizedString(lead, 'title', locale)}
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+              </div>
+              <div className="absolute bottom-0 p-7">
+                <span className="mb-3 inline-block border border-white/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/80">
+                  {lead.category}
+                </span>
+                <h2 className="max-w-xl text-2xl font-bold leading-tight md:text-4xl">
+                  {getLocalizedString(lead, 'title', locale)}
+                </h2>
+                <p className="mt-2 font-mono text-xs text-white/50">
+                  {formatRelativeTimeFromNow(lead.published_at, locale)}
+                </p>
+              </div>
+            </Link>
+
+            {/* secondary stories */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {secondary.map((article) => {
+                const title = getLocalizedString(article, 'title', locale);
+                return (
+                  <Link
+                    key={article.id}
+                    href={`/${locale}/news/${article.id}`}
+                    className="group flex flex-col border border-white/10 transition-colors hover:border-white/30"
+                  >
+                    <div className="relative aspect-[16/9] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={articleImage(article, title)}
+                        alt={title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <span className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#6366f1]">
+                        {article.category}
+                      </span>
+                      <h3 className="line-clamp-3 text-sm font-semibold leading-snug">{title}</h3>
+                      <p className="mt-auto pt-3 font-mono text-[10px] text-white/40">
+                        {formatRelativeTimeFromNow(article.published_at, locale)}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* LATEST LIST */}
+      {rest.length > 0 && (
+        <section className="relative px-5 pb-28 md:px-12">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
+              <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">
+                {locale === 'es' ? 'Lo último' : 'Latest'}
+              </h2>
+              <Link href={`/${locale}/news`} className="font-mono text-xs uppercase tracking-[0.2em] text-[#6366f1] hover:text-white">
+                {locale === 'es' ? 'Ver todo →' : 'View all →'}
+              </Link>
+            </div>
+            <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+              {rest.map((article) => {
+                const title = getLocalizedString(article, 'title', locale);
+                return (
+                  <Link
+                    key={article.id}
+                    href={`/${locale}/news/${article.id}`}
+                    className="group flex gap-4 border-b border-white/5 pb-6"
+                  >
+                    <div className="relative h-20 w-28 shrink-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={articleImage(article, title)}
+                        alt={title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div>
+                      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+                        {article.category} · {formatRelativeTimeFromNow(article.published_at, locale)}
+                      </span>
+                      <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug group-hover:text-[#6366f1]">
+                        {title}
+                      </h3>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
-}
-
-function buildDigestArticles(articles: INewsArticle[], locale: Locale) {
-  const slice = articles.slice(0, 8);
-  const withSpacedFallbacks = assignFallbackImagesToArticles(slice, 5);
-
-  return withSpacedFallbacks.map((article) => {
-    const localizedTitle = getLocalizedString(article, 'title', locale);
-    const title = localizedTitle || article.title_en;
-    return {
-      id: article.id,
-      category: translateCategory(article.category, locale),
-      title,
-      relativeTime: formatRelativeTimeFromNow(article.published_at, locale),
-      href: `/news/${article.id}`,
-      image:
-        (article.computed_image_url && article.computed_image_url.trim() !== '')
-          ? article.computed_image_url
-          : getImageWithFallback(article.image_url, title, article.category, article.id),
-      preferredFallback:
-        (article.preferred_fallback_image_url && article.preferred_fallback_image_url.trim() !== '')
-          ? article.preferred_fallback_image_url
-          : getImageWithFallback('', title, article.category, article.id),
-      fallbackCategory: article.category,
-    };
-  });
-}
-
-function translateCategory(category: string, locale: Locale) {
-  const normalized = category?.toLowerCase().replace(/\s+/g, '') || 'all';
-  const labels: Record<string, { en: string; es: string }> = {
-    all: { en: 'AI', es: 'IA' },
-    machinelearning: { en: 'Machine Learning', es: 'Aprendizaje automático' },
-    nlp: { en: 'NLP', es: 'PLN' },
-    computervision: { en: 'Computer Vision', es: 'Visión' },
-    robotics: { en: 'Robotics', es: 'Robótica' },
-    ethics: { en: 'Ethics', es: 'Ética' },
-    industry: { en: 'Industry', es: 'Industria' },
-    research: { en: 'Research', es: 'Investigación' },
-  };
-
-  return labels[normalized]?.[locale] || labels.all[locale];
-}
-
-function getFreshnessMinutes(articles: INewsArticle[]) {
-  if (!articles.length) return 0;
-  const latest = new Date(articles[0].published_at);
-  const diffMinutes = Math.max(1, Math.round((Date.now() - latest.getTime()) / 60000));
-  return diffMinutes;
-}
-
-function getFeatureBlocks(locale: Locale) {
-  return [
-    {
-      id: 'curated-news',
-      title: locale === 'en' ? 'AI-Curated News' : 'Noticias Curadas por IA',
-      copy:
-        locale === 'en'
-          ? 'Our autonomous AI agents monitor 50+ sources 24/7, filtering signal from noise to bring you only the most relevant and impactful AI news.'
-          : 'Nuestros agentes IA autónomos monitorean 50+ fuentes 24/7, filtrando señal del ruido para traerte solo las noticias más relevantes e impactantes.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/news-curation.json',
-      icon: '📰',
-    },
-    {
-      id: 'personalized-learning',
-      title: locale === 'en' ? 'Personalized Learning' : 'Aprendizaje Personalizado',
-      copy:
-        locale === 'en'
-          ? 'Generate custom courses on any AI topic in seconds. Our RAG-powered system creates comprehensive, textbook-quality content tailored to your level.'
-          : 'Genera cursos personalizados sobre cualquier tema de IA en segundos. Nuestro sistema RAG crea contenido comprehensivo de calidad universitaria adaptado a tu nivel.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/learning-path.json',
-      icon: '🎓',
-    },
-    {
-      id: 'knowledge-graph',
-      title: locale === 'en' ? 'Interactive Knowledge Graph' : 'Grafo de Conocimiento Interactivo',
-      copy:
-        locale === 'en'
-          ? 'Explore the interconnected world of AI through our visual knowledge graph. Discover relationships between concepts, companies, and technologies.'
-          : 'Explora el mundo interconectado de la IA a través de nuestro grafo visual. Descubre relaciones entre conceptos, empresas y tecnologías.',
-      mediaType: 'lottie' as const,
-      mediaSrc: '/animations/knowledge-graph.json',
-      icon: '🕸️',
-    },
-  ];
-}
-
-async function loadCourseGalaxyData(supabase: SupabaseClient | null, locale: Locale) {
-  if (!supabase) {
-    return { courses: [], totalCourses: 0, featuredCourseId: undefined };
-  }
-
-  try {
-    const [{ data }, { count }] = await Promise.all([
-      supabase
-        .from('courses')
-        .select(
-          `id, title_en, title_es, description_en, description_es, difficulty, duration_minutes, topics, completion_rate`
-        )
-        .eq('status', 'published')
-        .order('created_at', { ascending: false })
-        .limit(6),
-      supabase.from('courses').select('*', { count: 'exact', head: true }),
-    ]);
-
-    const courseIds = (data || []).map((c) => c.id).filter(Boolean);
-    const preferredCoversMap: Record<string, string> = {};
-    const fallbackCoversMap: Record<string, string> = {};
-    const fallbackLocale = locale === 'en' ? 'es' : 'en';
-
-    if (courseIds.length) {
-      const coversRes = await supabase
-        .from('course_covers')
-        .select('course_id, image_url, locale')
-        .in('course_id', courseIds)
-        .in('locale', [locale, fallbackLocale]);
-
-      if (!coversRes.error && Array.isArray(coversRes.data)) {
-        coversRes.data.forEach((row) => {
-          const courseId = typeof row.course_id === 'string' ? row.course_id : null;
-          const imageUrl = typeof row.image_url === 'string' ? row.image_url : null;
-          const rowLocale = typeof row.locale === 'string' ? row.locale : null;
-          if (!courseId || !imageUrl || !rowLocale) return;
-          if (rowLocale === locale) preferredCoversMap[courseId] = imageUrl;
-          if (rowLocale === fallbackLocale) fallbackCoversMap[courseId] = imageUrl;
-        });
-      }
-    }
-
-    const courses = (data || []).map((course) => ({
-      id: course.id,
-      title: locale === 'en' ? course.title_en : course.title_es,
-      level: (course.difficulty as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
-      duration: formatCourseDuration(course.duration_minutes),
-      progress:
-        typeof course.completion_rate === 'number'
-          ? Math.round(Number(course.completion_rate))
-          : undefined,
-      description: locale === 'en' ? course.description_en : course.description_es,
-      moduleCount: Array.isArray(course.topics) ? course.topics.length : undefined,
-      heroImage:
-        preferredCoversMap[course.id] ??
-        fallbackCoversMap[course.id] ??
-        generateCourseFallbackImage({ category: 'default' }),
-    }));
-
-    const featuredCourseId =
-      courses.find((c) => Boolean(preferredCoversMap[c.id] ?? fallbackCoversMap[c.id]))?.id ??
-      courses[0]?.id;
-
-    return { courses, totalCourses: count ?? 0, featuredCourseId };
-  } catch (error) {
-    console.error('[home] Failed to load courses:', error);
-    return { courses: [], totalCourses: 0, featuredCourseId: undefined };
-  }
-}
-
-function formatCourseDuration(minutes?: number | null) {
-  if (!minutes || Number.isNaN(minutes)) return '—';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return `${hours}h`;
-}
-
-async function loadLeaderboardData(supabase: SupabaseClient | null, locale: Locale) {
-  if (!supabase) {
-    return {
-      leaders: [],
-      summary: { totalUsers: 0, weeklyXpAwarded: 0 },
-    };
-  }
-
-  try {
-    const xpCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    const [{ data: leaderboard }, xpTransactions, userCount] = await Promise.all([
-      supabase
-        .from('leaderboard_weekly')
-        .select('id, display_name, avatar_url, total_xp, rank')
-        .order('rank', { ascending: true })
-        .limit(5),
-      supabase
-        .from('xp_transactions')
-        .select('user_id, xp_amount')
-        .gte('created_at', xpCutoff),
-      supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
-    ]);
-
-    const xpMap = new Map<string, number>();
-    let weeklyXpAwarded = 0;
-    (xpTransactions.data || []).forEach((row: { user_id: string; xp_amount: number | null }) => {
-      const amount = row.xp_amount ?? 0;
-      weeklyXpAwarded += amount;
-      xpMap.set(row.user_id, (xpMap.get(row.user_id) || 0) + amount);
-    });
-
-    const leaders = (leaderboard || []).map((entry, index) => ({
-      id: entry.id,
-      name: entry.display_name || (locale === 'en' ? 'Explorer' : 'Explorador'),
-      avatarUrl: entry.avatar_url ?? undefined,
-      xp: entry.total_xp ?? 0,
-      weeklyDelta: xpMap.get(entry.id) ?? 0,
-      rank: entry.rank ?? index + 1,
-    }));
-
-    return {
-      leaders,
-      summary: {
-        totalUsers: userCount.count ?? 0,
-        weeklyXpAwarded,
-      },
-    };
-  } catch (error) {
-    console.error('[home] Failed to load leaderboard:', error);
-    return {
-      leaders: [],
-      summary: { totalUsers: 0, weeklyXpAwarded: 0 },
-    };
-  }
-}
-
-async function loadAgentTelemetry(supabase: SupabaseClient | null, locale: Locale) {
-  const blueprints = getAgentBlueprints(locale);
-
-  if (!supabase) {
-    return blueprints.map((agent) => ({
-      ...agent,
-      metrics: { processed: 0 },
-    }));
-  }
-
-  try {
-    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-
-    const { data } = await supabase
-      .from('ai_system_logs')
-      .select('agent_type, action_type, status, success, created_at, timestamp')
-      .gte('timestamp', cutoff)
-      .order('timestamp', { ascending: false })
-      .limit(600);
-
-    const logs = data || [];
-
-    return blueprints.map((agent) => {
-      const relevant = logs.filter((log) =>
-        (agent.agentType && log.agent_type === agent.agentType) ||
-        (agent.actionType && log.action_type === agent.actionType)
-      );
-
-      const processed = relevant.length;
-      const successCount = relevant.filter(
-        (log) => log.success === true || log.status === 'success'
-      ).length;
-      const lastRunIso = relevant[0]?.created_at || relevant[0]?.timestamp;
-      const derivedStatus = relevant.length > 0 ? deriveAgentStatus(relevant[0]) : agent.status;
-
-      return {
-        ...agent,
-        status: derivedStatus,
-        metrics: {
-          processed,
-          accuracy: processed ? Math.round((successCount / processed) * 100) : undefined,
-          lastRun: lastRunIso ? formatRelativeTimeFromNow(lastRunIso, locale) : undefined,
-        },
-      };
-    });
-  } catch (error) {
-    console.error('[home] Failed to load agent telemetry:', error);
-    return blueprints.map((agent) => ({
-      ...agent,
-      metrics: { processed: 0 },
-    }));
-  }
-}
-
-function getAgentBlueprints(locale: Locale) {
-  return [
-    {
-      id: 'trend-detector',
-      name: locale === 'en' ? 'Trend Detector' : 'Detector de Tendencias',
-      cadence: locale === 'en' ? 'Every 6 hours' : 'Cada 6 horas',
-      stack: ['Embeddings', 'NLP', 'LLM'],
-      status: 'active' as const,
-      agentType: 'trend_detector',
-    },
-    {
-      id: 'fact-checker',
-      name: locale === 'en' ? 'Fact Checker' : 'Verificador',
-      cadence: locale === 'en' ? 'Per article' : 'Por artículo',
-      stack: ['Search', 'LLM'],
-      status: 'active' as const,
-      agentType: 'fact_checker',
-    },
-    {
-      id: 'multi-perspective',
-      name: locale === 'en' ? 'Multi-Perspective' : 'Perspectivas Múltiples',
-      cadence: locale === 'en' ? 'On-demand' : 'Bajo demanda',
-      stack: ['Summaries', 'LLM'],
-      status: 'learning' as const,
-      agentType: 'multi_perspective',
-    },
-    {
-      id: 'bias-auditor',
-      name: locale === 'en' ? 'Bias Auditor' : 'Auditor de Sesgos',
-      cadence: locale === 'en' ? 'Daily' : 'Diario',
-      stack: ['Sentiment', 'Analytics'],
-      status: 'idle' as const,
-      agentType: 'bias_auditor',
-    },
-    {
-      id: 'course-generator',
-      name: locale === 'en' ? 'Course Generator' : 'Generador de Cursos',
-      cadence: locale === 'en' ? 'On-demand' : 'Bajo demanda',
-      stack: ['RAG', 'LLM', 'Vision'],
-      status: 'idle' as const,
-      actionType: 'course_generation',
-    },
-    {
-      id: 'learning-agent',
-      name: locale === 'en' ? 'Learning Agent' : 'Agente Aprendiz',
-      cadence: locale === 'en' ? 'Daily' : 'Diario',
-      stack: ['Feedback', 'RL'],
-      status: 'learning' as const,
-      actionType: 'learning_cycle',
-    },
-  ];
-}
-
-type AgentStatus = 'active' | 'idle' | 'learning';
-
-function deriveAgentStatus(log?: { status?: string | null; success?: boolean | null }): AgentStatus {
-  if (!log) return 'idle';
-  if (log.status === 'running') return 'active';
-  if (log.status === 'success' || log.success) return 'active';
-  if (log.status === 'error' || log.success === false) return 'learning';
-  return 'idle';
-}
-
-async function loadTrendingTopicRecords(hasSupabase: boolean) {
-  if (!hasSupabase) return [] as TrendingTopic[];
-  try {
-    const { topics } = await getTrendingTopicsFromCache();
-    return topics ?? [];
-  } catch (error) {
-    console.error('[home] Failed to load trending topics:', error);
-    return [];
-  }
-}
-
-function buildTrendingTopics(records: TrendingTopic[], articles: INewsArticle[]) {
-  if (!records.length) {
-    return buildFallbackTrendingTopics(articles);
-  }
-
-  return records.slice(0, 12).map((topic) => ({
-    slug: slugifyTopic(topic.topic),
-    label: formatTopicLabel(topic.topic),
-    deltaArticles: Math.max(1, Math.round(topic.momentum ?? topic.count ?? 1)),
-  }));
-}
-
-function buildFallbackTrendingTopics(articles: INewsArticle[]) {
-  const topicStats = extractArticleTopicStats(articles);
-  if (!topicStats.length) {
-    return ['GPT-5', 'Claude 4.5', 'Gemini 3', 'Open Source', 'Agents', 'RAG'].map((label) => ({
-      slug: slugifyTopic(label),
-      label,
-      deltaArticles: 1,
-    }));
-  }
-
-  return topicStats.slice(0, 8).map(({ label, count }) => ({
-    slug: slugifyTopic(label),
-    label,
-    deltaArticles: count,
-  }));
-}
-
-function _deriveTopicsFromArticles(articles: INewsArticle[]) {
-  const stats = extractArticleTopicStats(articles);
-  if (!stats.length) {
-    return ['GPT-5', 'Claude 4.5', 'Gemini 3', 'Open Source', 'Agents', 'RAG'];
-  }
-
-  return stats.slice(0, 8).map(({ label }) => label);
-}
-
-function slugifyTopic(topic: string) {
-  return topic
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '') || 'topic';
-}
-
-function formatTopicLabel(topic: string) {
-  return topic
-    .replace(/[-_]/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-async function getArticleCount(supabase: SupabaseClient | null) {
-  if (!supabase) return 0;
-  try {
-    const { count } = await supabase
-      .from('news_articles')
-      .select('*', { count: 'exact', head: true });
-    return count ?? 0;
-  } catch (error) {
-    console.error('[home] Failed to count articles:', error);
-    return 0;
-  }
-}
-
-function extractArticleTopicStats(articles: INewsArticle[]) {
-  const counts = new Map<string, number>();
-  articles.forEach((article) => {
-    article.tags?.forEach((tag) => {
-      const normalized = formatTopicLabel(tag);
-      counts.set(normalized, (counts.get(normalized) || 0) + 1);
-    });
-  });
-
-  return Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, count]) => ({ label, count }));
 }

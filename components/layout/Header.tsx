@@ -1,33 +1,25 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect, useId } from 'react';
-import { useTranslations } from 'next-intl';
+import { useMemo, useState, useEffect, useId } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname } from '@/i18n';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { UserAvatarMenu } from '@/components/layout/UserAvatarMenu';
-import { XPAnimator } from '@/components/gamification/XPAnimator';
-import { NotificationBell } from '@/components/layout/NotificationBell';
 import { Search } from '@/components/search/Search';
-import { useUser } from '@/lib/hooks/useUser';
-import { useBookMode } from '@/lib/hooks/useBookMode';
-import { AuthModalProvider } from '@/components/auth/AuthModalProvider';
-import Image from 'next/image';
+import { SITE_SHORT_NAME } from '@/lib/config/site';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Primary navigation items
-const NAV_ITEMS: Array<{ key: 'news' | 'courses' | 'coursesLibrary' | 'analytics'; href: string }> = [
+// Primary navigation — news-only
+const NAV_ITEMS: Array<{ key: 'news' | 'trending' | 'about'; href: string }> = [
   { key: 'news', href: '/news' },
-  { key: 'courses', href: '/courses' },
-  { key: 'coursesLibrary', href: '/courses-library' },
-  { key: 'analytics', href: '/analytics' },
+  { key: 'trending', href: '/trending' },
+  { key: 'about', href: '/about' },
 ];
 
 export function Header() {
   const t = useTranslations('common.nav');
+  const locale = useLocale();
   const pathname = usePathname();
-  const { profile, locale } = useUser();
-  const { isBookMode } = useBookMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const mobileMenuId = useId();
@@ -44,20 +36,13 @@ export function Header() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!mobileMenuOpen) {
-      return;
-    }
-
+    if (!mobileMenuOpen) return;
     const previousOverflow = document.body.style.overflow;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMobileMenuOpen(false);
-      }
+      if (event.key === 'Escape') setMobileMenuOpen(false);
     };
-
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleEscape);
-
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleEscape);
@@ -77,28 +62,9 @@ export function Header() {
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
-  const mapSegmentToKey = (segment: string): string => {
-    if (segment === 'courses-library') return 'coursesLibrary';
-    return segment;
-  };
-
-  const handleLoginClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent('request-login', {}));
-    closeMobileMenu();
-  }, []);
-
-  const handleSignupClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent('request-signup', {}));
-    closeMobileMenu();
-  }, []);
-
-  if (isBookMode) return null;
-
   return (
-    <motion.header 
-      className={`no-print fixed top-0 left-0 right-0 z-50 px-2 md:px-4 py-3 transition-all duration-500 ${
+    <motion.header
+      className={`no-print fixed top-0 left-0 right-0 z-50 px-3 md:px-6 py-3 transition-all duration-500 ${
         scrolled ? 'bg-black/90 backdrop-blur-lg border-b border-white/5 py-2' : 'bg-transparent'
       }`}
       initial={{ y: -100 }}
@@ -106,29 +72,18 @@ export function Header() {
       transition={{ duration: 0.8 }}
     >
       <div className="w-full flex items-center justify-between gap-3">
-        {/* Left: Logo */}
-        <Link 
-          href="/" 
-          className="flex items-center gap-2 shrink-0"
-          onClick={closeMobileMenu}
-        >
-          <div className="relative w-6 h-6">
-            <Image
-              src="/logos/thotnet-core-white-only.svg"
-              alt="ThotNet Core Logo"
-              fill
-              sizes="24px"
-              className="object-contain"
-              priority
-            />
-          </div>
-          <span className="font-bold text-base tracking-tight text-white hidden sm:block">THOTNET</span>
+        {/* Left: Wordmark */}
+        <Link href="/" className="flex items-center gap-2 shrink-0" onClick={closeMobileMenu}>
+          <span className="font-black text-lg tracking-tight text-white">
+            {SITE_SHORT_NAME}
+            <span className="text-[#6366f1]">.</span>
+          </span>
         </Link>
 
         {/* Center: Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-xs font-mono uppercase tracking-wider text-[#888]">
+        <nav className="hidden md:flex items-center gap-7 text-xs font-mono uppercase tracking-wider text-[#888]">
           {NAV_ITEMS.map((item) => {
-            const isActive = mapSegmentToKey(activeSegment) === item.key;
+            const isActive = activeSegment === item.key;
             return (
               <Link
                 key={item.key}
@@ -144,28 +99,12 @@ export function Header() {
           })}
         </nav>
 
-        {/* Right: Search + Auth + Language */}
+        {/* Right: Search + Language */}
         <div className="flex items-center gap-3 shrink-0">
-          <Search locale={locale} />
-          
-          {profile ? (
-            <div className="flex items-center gap-2">
-              <NotificationBell />
-              <UserAvatarMenu profile={profile} locale={locale} />
-            </div>
-          ) : (
-            <button 
-              onClick={handleLoginClick}
-              className="hidden md:block px-4 py-1.5 border border-white/20 text-white text-[10px] font-mono tracking-widest hover:bg-white hover:text-black transition-all"
-            >
-              LOGIN
-            </button>
-          )}
-          
+          <Search locale={locale as 'en' | 'es'} />
           <div className="hidden sm:flex">
             <LanguageSwitcher />
           </div>
-          
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-1"
@@ -174,17 +113,10 @@ export function Header() {
             aria-controls={mobileMenuId}
             aria-haspopup="menu"
           >
-            {mobileMenuOpen ? (
-              <X className="w-5 h-5 text-white" />
-            ) : (
-              <Menu className="w-5 h-5 text-white" />
-            )}
+            {mobileMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
           </button>
         </div>
       </div>
-
-      {/* XP Animator */}
-      <XPAnimator />
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -214,51 +146,26 @@ export function Header() {
           >
             <nav className="py-4 flex flex-col gap-2">
               {NAV_ITEMS.map((item) => {
-                const isActive = mapSegmentToKey(activeSegment) === item.key;
+                const isActive = activeSegment === item.key;
                 return (
                   <Link
                     key={item.key}
                     href={item.href}
                     onClick={closeMobileMenu}
-                    className={`px-4 py-3 transition-all ${
-                      isActive ? 'text-white font-medium' : 'text-[#888] hover:text-white'
-                    }`}
+                    className={`px-4 py-3 transition-all ${isActive ? 'text-white font-medium' : 'text-[#888] hover:text-white'}`}
                   >
                     {t(item.key)}
                   </Link>
                 );
               })}
-
-              {/* Mobile Language Switcher */}
               <div className="sm:hidden flex items-center justify-between px-4 py-3 mt-2 border-t border-white/10">
-                <span className="text-sm text-[#888]">{t('language') || 'Language'}</span>
+                <span className="text-sm text-[#888]">{locale === 'es' ? 'Idioma' : 'Language'}</span>
                 <LanguageSwitcher />
               </div>
-
-              {/* Auth on mobile */}
-              {!profile && (
-                <div className="mt-2 pt-2 border-t border-white/10">
-                  <button
-                    onClick={handleLoginClick}
-                    className="w-full px-4 py-3 text-left text-[#888] hover:text-white transition-colors"
-                  >
-                    {t('login')}
-                  </button>
-                  <button
-                    onClick={handleSignupClick}
-                    className="w-full px-4 py-3 text-left text-[#888] hover:text-white transition-colors"
-                  >
-                    {t('signup')}
-                  </button>
-                </div>
-              )}
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Auth Modal Provider */}
-      <AuthModalProvider locale={locale} />
     </motion.header>
   );
 }
