@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { AdvancedSearch } from '@/components/search/AdvancedSearch';
+import { SITE_NAME } from '@/lib/config/site';
 import type { Locale } from '@/i18n';
 
 interface SearchPageProps {
@@ -18,12 +19,12 @@ export async function generateMetadata({ params, searchParams }: SearchPageProps
 
   return {
     title: query
-      ? `${locale === 'en' ? 'Search' : 'Buscar'}: ${query} | ThotNet Core`
-      : `${locale === 'en' ? 'Search' : 'Buscar'} | ThotNet Core`,
+      ? `${locale === 'en' ? 'Search' : 'Buscar'}: ${query} · ${SITE_NAME}`
+      : `${locale === 'en' ? 'Search' : 'Buscar'} · ${SITE_NAME}`,
     description:
       locale === 'en'
-        ? 'Search AI news, courses, and research with advanced filters and semantic search.'
-        : 'Busca noticias de IA, cursos e investigación con filtros avanzados y búsqueda semántica.',
+        ? 'Search AI news with advanced filters and semantic search.'
+        : 'Busca noticias de IA con filtros avanzados y búsqueda semántica.',
   };
 }
 
@@ -34,16 +35,19 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
   const initialQuery = sp.q || '';
 
   return (
-    <main className="min-h-screen pt-20 pb-16">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+    <main className="min-h-screen bg-[#04050a] px-5 pb-16 pt-32 md:px-12 md:pt-36">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-10">
+          <p className="mb-3 font-mono text-xs uppercase tracking-[0.3em] text-signal">
             {locale === 'en' ? 'Search' : 'Buscar'}
+          </p>
+          <h1 className="text-4xl font-black tracking-tight md:text-6xl">
+            {locale === 'en' ? 'Find any AI story' : 'Encuentra cualquier noticia'}
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
+          <p className="mt-4 text-lg text-white/60">
             {locale === 'en'
-              ? 'Discover AI news, courses, and research with powerful search and filters'
-              : 'Descubre noticias de IA, cursos e investigación con búsqueda y filtros potentes'}
+              ? 'Search across the news with semantic matching and filters.'
+              : 'Busca en las noticias con coincidencia semántica y filtros.'}
           </p>
         </div>
 
