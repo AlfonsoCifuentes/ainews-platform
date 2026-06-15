@@ -7,6 +7,7 @@ import { calculateReadingTime, extractPlainText, sanitizeScrapedContent } from '
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
+import { CorroborationBadge } from '@/components/news/CorroborationBadge';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -172,6 +173,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
               <span>{readingTime} min {locale === 'en' ? 'read' : 'lectura'}</span>
               <span>•</span>
               <span>{Math.round(article.quality_score * 100)}% {locale === 'en' ? 'Quality Score' : 'Puntuación de Calidad'}</span>
+              <CorroborationBadge count={article.corroboration_count ?? 1} locale={locale} />
             </div>
           </div>
         </div>
@@ -237,6 +239,38 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </a>
+            </div>
+          )}
+
+          {/* Corroborating sources — why this story matters */}
+          {(article.corroboration_count ?? 1) > 1 && Array.isArray(article.corroborating_sources) && article.corroborating_sources.length > 0 && (
+            <div className="mt-8 rounded-2xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-6">
+              <div className="mb-3 flex items-center gap-3">
+                <CorroborationBadge count={article.corroboration_count ?? 1} locale={locale} />
+              </div>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {locale === 'en'
+                  ? 'We surfaced this story because several independent outlets are reporting it. Here is who else is covering it:'
+                  : 'Destacamos esta noticia porque varios medios independientes la están cubriendo. Estos son los que también la reportan:'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {article.corroborating_sources.map((src, i) => {
+                  const domain = typeof src?.domain === 'string' ? src.domain : '';
+                  if (!domain) return null;
+                  const href = typeof src?.url === 'string' && src.url ? src.url : `https://${domain}`;
+                  return (
+                    <a
+                      key={`${domain}-${i}`}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:border-primary hover:text-primary"
+                    >
+                      {domain}
+                    </a>
+                  );
+                })}
+              </div>
             </div>
           )}
 

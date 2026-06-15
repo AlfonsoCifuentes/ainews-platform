@@ -14,6 +14,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "ai:curate": "tsx scripts/curate-news.ts",
+    "ai:cluster": "tsx scripts/cluster-news.ts",
     "ai:detect-trends": "tsx scripts/detect-trending.ts",
     "ai:gen-embeddings": "tsx scripts/generate-embeddings.ts",
     "ai:analyze-articles": "tsx scripts/analyze-articles.ts analyze",

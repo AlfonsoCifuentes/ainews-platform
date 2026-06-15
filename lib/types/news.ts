@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-const isoDateStringSchema = z.coerce.date().transform((date) => date.toISOString());
+const isoDateStringSchema = z
+  .union([z.string(), z.date()])
+  .transform((value) => (value instanceof Date ? value : new Date(value)).toISOString());
 
 export const newsArticleSchema = z
   .object({
@@ -20,6 +22,25 @@ export const newsArticleSchema = z
     ai_generated: z.boolean().nullable().optional().default(false),
     quality_score: z.number().min(0).max(1).nullable().optional().default(0.8),
     reading_time_minutes: z.number().int().min(1).max(60).nullable().optional().default(5),
+    // Multi-source corroboration (Phase 2). Optional so rows predating the
+    // migration / clustering job still validate.
+    story_cluster_id: z.string().nullable().optional().default(null),
+    corroboration_count: z.coerce.number().int().min(1).nullable().optional().default(1),
+    importance_score: z.coerce.number().nullable().optional().default(0),
+    corroborating_sources: z
+      .array(
+        z
+          .object({
+            domain: z.string(),
+            url: z.string().nullable().optional(),
+            tier: z.string().nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .nullable()
+      .optional()
+      .default([]),
+    is_cluster_primary: z.boolean().nullable().optional().default(true),
   })
   .transform((article) => ({
     ...article,
@@ -29,9 +50,17 @@ export const newsArticleSchema = z
     ai_generated: article.ai_generated ?? false,
     quality_score: article.quality_score ?? 0.8,
     reading_time_minutes: article.reading_time_minutes ?? 5,
+    story_cluster_id: article.story_cluster_id ?? null,
+    corroboration_count: article.corroboration_count ?? 1,
+    importance_score: article.importance_score ?? 0,
+    corroborating_sources: article.corroborating_sources ?? [],
+    is_cluster_primary: article.is_cluster_primary ?? true,
   }));
 
 export type INewsArticle = z.infer<typeof newsArticleSchema>;
+
+/** Loose input shape (before defaults/transform) — useful for seed/sample data. */
+export type NewsArticleInput = z.input<typeof newsArticleSchema>;
 
 // Partial article type for recommendations (only required fields)
 export type IArticlePreview = Pick<

@@ -2,12 +2,13 @@ import { setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import { routing } from '@/i18n/routing';
 import type { Locale } from '@/i18n';
-import { fetchLatestNews } from '@/lib/db/news';
+import { fetchLatestNews, fetchTopStories } from '@/lib/db/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { SITE_NAME, siteTagline } from '@/lib/config/site';
+import { CorroborationBadge } from '@/components/news/CorroborationBadge';
 import type { INewsArticle } from '@/lib/types/news';
 
 type HomePageProps = {
@@ -31,11 +32,20 @@ export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const articles = await fetchLatestNews({ locale, limit: 13 });
+  // Top stories are ranked by multi-source corroboration (importance), with each
+  // story collapsed to one representative article. The "Latest" rail stays
+  // chronological. Falls back gracefully before the clustering job has run.
+  const [topStories, latest] = await Promise.all([
+    fetchTopStories({ locale, limit: 5 }),
+    fetchLatestNews({ locale, limit: 16 }),
+  ]);
 
-  const lead = articles[0];
-  const secondary = articles.slice(1, 5);
-  const rest = articles.slice(5, 13);
+  const ranked = topStories.length > 0 ? topStories : latest;
+  const lead = ranked[0];
+  const secondary = ranked.slice(1, 5);
+
+  const shownIds = new Set([lead?.id, ...secondary.map((a) => a.id)].filter(Boolean));
+  const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 8);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#04050a] text-white">
@@ -96,9 +106,12 @@ export default async function HomePage({ params }: HomePageProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
               </div>
               <div className="absolute bottom-0 p-7">
-                <span className="mb-3 inline-block border border-white/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/80">
-                  {lead.category}
-                </span>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-block border border-white/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/80">
+                    {lead.category}
+                  </span>
+                  <CorroborationBadge count={lead.corroboration_count} locale={locale} />
+                </div>
                 <h2 className="max-w-xl text-2xl font-bold leading-tight md:text-4xl">
                   {getLocalizedString(lead, 'title', locale)}
                 </h2>
@@ -131,9 +144,12 @@ export default async function HomePage({ params }: HomePageProps) {
                         {article.category}
                       </span>
                       <h3 className="line-clamp-3 text-sm font-semibold leading-snug">{title}</h3>
-                      <p className="mt-auto pt-3 font-mono text-[10px] text-white/40">
-                        {formatRelativeTimeFromNow(article.published_at, locale)}
-                      </p>
+                      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+                        <span className="font-mono text-[10px] text-white/40">
+                          {formatRelativeTimeFromNow(article.published_at, locale)}
+                        </span>
+                        <CorroborationBadge count={article.corroboration_count} locale={locale} variant="outline" />
+                      </div>
                     </div>
                   </Link>
                 );
