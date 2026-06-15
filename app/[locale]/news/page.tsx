@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { fetchLatestNews } from '@/lib/db/news';
-import { NewsContent } from '@/components/news/NewsContent';
+import { NewsFeed } from '@/components/news/NewsFeed';
 import { generateLocalizedMetadata } from '@/lib/utils/seo';
 import { Metadata } from 'next';
 
@@ -46,13 +46,13 @@ export default async function NewsPage({ params }: NewsPageProps) {
 
   const t = await getTranslations('news');
 
-  // Fetch initial batch of articles (maximum allowed for better client-side filtering)
+  // Fetch a deep batch for client-side category filtering.
   const articles = await fetchLatestNews({ locale, limit: 50 });
 
   if (articles.length === 0) {
     return (
-      <main className="min-h-screen px-4 py-16">
-        <div className="container mx-auto max-w-3xl text-center">
+      <main className="min-h-screen px-4 py-32 text-center">
+        <div className="container mx-auto max-w-3xl">
           <h1 className="mb-4 text-4xl font-bold md:text-5xl">{t('title')}</h1>
           <p className="text-lg text-muted-foreground">{t('empty.subtitle')}</p>
         </div>
@@ -60,5 +60,5 @@ export default async function NewsPage({ params }: NewsPageProps) {
     );
   }
 
-  return <NewsContent initialArticles={articles} locale={locale} />;
+  return <NewsFeed articles={articles} locale={locale} />;
 }
