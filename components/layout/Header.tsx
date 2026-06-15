@@ -74,9 +74,9 @@ export function Header() {
       <div className="w-full flex items-center justify-between gap-3">
         {/* Left: Wordmark */}
         <Link href="/" className="flex items-center gap-2 shrink-0" onClick={closeMobileMenu}>
-          <span className="font-black text-lg tracking-tight text-white">
+          <span className="font-black text-sm md:text-base tracking-tight text-white whitespace-nowrap">
             {SITE_SHORT_NAME}
-            <span className="text-[#6366f1]">.</span>
+            <span className="text-signal">.</span>
           </span>
         </Link>
 

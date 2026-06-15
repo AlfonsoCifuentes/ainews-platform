@@ -13,9 +13,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-24">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <span className="font-black text-2xl tracking-tighter text-white">
+              <span className="font-black text-xl tracking-tight text-white">
                 {SITE_SHORT_NAME}
-                <span className="text-[#6366f1]">.</span>
+                <span className="text-signal">.</span>
               </span>
             </div>
             <p className="text-[#888] text-sm leading-relaxed max-w-xs">

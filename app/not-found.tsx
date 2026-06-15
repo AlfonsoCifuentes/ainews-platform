@@ -2,8 +2,10 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
+import { SITE_NAME } from '@/lib/config/site';
+
 export const metadata: Metadata = {
-  title: '404 - Page Not Found | ThotNet Core',
+  title: `404 · ${SITE_NAME}`,
   description: 'The page you are looking for does not exist',
 };
 
@@ -65,10 +67,10 @@ export default function NotFound() {
             <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-white/40">Navigation</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {[
-                { href: '/news', label: 'News grid' },
-                { href: '/courses', label: 'Course library' },
-                { href: '/trending', label: 'Trending topics' },
-                { href: '/leaderboard', label: 'Leaderboard' },
+                { href: '/news', label: 'News' },
+                { href: '/trending', label: 'Trending' },
+                { href: '/about', label: 'About' },
+                { href: '/search', label: 'Search' },
               ].map((link) => (
                 <Link key={link.href} href={link.href}>
                   <span className="inline-flex rounded-lg border border-white/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:bg-white/10">

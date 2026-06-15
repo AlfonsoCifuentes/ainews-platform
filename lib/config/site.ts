@@ -6,8 +6,8 @@
  * (header, footer, metadata, OpenGraph, etc.).
  */
 
-export const SITE_NAME = 'Pulse AI';
-export const SITE_SHORT_NAME = 'Pulse';
+export const SITE_NAME = 'Las Noticias de la IA';
+export const SITE_SHORT_NAME = 'Las Noticias de la IA';
 export const SITE_TAGLINE_EN = 'AI news, explained like a friend would.';
 export const SITE_TAGLINE_ES = 'Noticias de IA, explicadas como te las contaría un amigo.';
 

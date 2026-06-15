@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - ThotNet Core',
-  description: 'Privacy Policy and Data Protection information for ThotNet Core.',
+  title: 'Privacy Policy - Las Noticias de la IA',
+  description: 'Privacy Policy and Data Protection information for Las Noticias de la IA.',
 };
 
 export default async function PrivacyPolicyPage({
@@ -31,8 +31,8 @@ export default async function PrivacyPolicyPage({
           </p>
           <p>
             {isEs
-              ? 'En ThotNet Core, accesible desde thotnet.ai, una de nuestras principales prioridades es la privacidad de nuestros visitantes. Este documento de Política de Privacidad contiene tipos de información que es recopilada y registrada por ThotNet Core y cómo la usamos.'
-              : 'At ThotNet Core, accessible from thotnet.ai, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains types of information that is collected and recorded by ThotNet Core and how we use it.'}
+              ? 'En Las Noticias de la IA, accesible desde lasnoticiasdelaia.com, una de nuestras principales prioridades es la privacidad de nuestros visitantes. Este documento de Política de Privacidad contiene tipos de información que es recopilada y registrada por Las Noticias de la IA y cómo la usamos.'
+              : 'At Las Noticias de la IA, accessible from lasnoticiasdelaia.com, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains types of information that is collected and recorded by Las Noticias de la IA and how we use it.'}
           </p>
         </section>
 
@@ -84,8 +84,8 @@ export default async function PrivacyPolicyPage({
           </h2>
           <p>
             {isEs
-              ? 'ThotNet Core sigue un procedimiento estándar de uso de archivos de registro. Estos archivos registran a los visitantes cuando visitan sitios web. Todas las empresas de alojamiento hacen esto y es parte del análisis de los servicios de alojamiento. La información recopilada por los archivos de registro incluye direcciones de protocolo de Internet (IP), tipo de navegador, proveedor de servicios de Internet (ISP), fecha y hora, páginas de referencia/salida y posiblemente el número de clics.'
-              : 'ThotNet Core follows a standard procedure of using log files. These files log visitors when they visit websites. All hosting companies do this and a part of hosting services\' analytics. The information collected by log files include internet protocol (IP) addresses, browser type, Internet Service Provider (ISP), date and time stamp, referring/exit pages, and possibly the number of clicks.'}
+              ? 'Las Noticias de la IA sigue un procedimiento estándar de uso de archivos de registro. Estos archivos registran a los visitantes cuando visitan sitios web. Todas las empresas de alojamiento hacen esto y es parte del análisis de los servicios de alojamiento. La información recopilada por los archivos de registro incluye direcciones de protocolo de Internet (IP), tipo de navegador, proveedor de servicios de Internet (ISP), fecha y hora, páginas de referencia/salida y posiblemente el número de clics.'
+              : 'Las Noticias de la IA follows a standard procedure of using log files. These files log visitors when they visit websites. All hosting companies do this and a part of hosting services\' analytics. The information collected by log files include internet protocol (IP) addresses, browser type, Internet Service Provider (ISP), date and time stamp, referring/exit pages, and possibly the number of clicks.'}
           </p>
         </section>
 
@@ -95,8 +95,8 @@ export default async function PrivacyPolicyPage({
           </h2>
           <p>
             {isEs
-              ? 'Como cualquier otro sitio web, ThotNet Core utiliza "cookies". Estas cookies se utilizan para almacenar información, incluidas las preferencias de los visitantes y las páginas del sitio web a las que el visitante accedió o visitó. La información se utiliza para optimizar la experiencia de los usuarios personalizando el contenido de nuestra página web según el tipo de navegador de los visitantes y/u otra información.'
-              : 'Like any other website, ThotNet Core uses "cookies". These cookies are used to store information including visitors\' preferences, and the pages on the website that the visitor accessed or visited. The information is used to optimize the users\' experience by customizing our web page content based on visitors\' browser type and/or other information.'}
+              ? 'Como cualquier otro sitio web, Las Noticias de la IA utiliza "cookies". Estas cookies se utilizan para almacenar información, incluidas las preferencias de los visitantes y las páginas del sitio web a las que el visitante accedió o visitó. La información se utiliza para optimizar la experiencia de los usuarios personalizando el contenido de nuestra página web según el tipo de navegador de los visitantes y/u otra información.'
+              : 'Like any other website, Las Noticias de la IA uses "cookies". These cookies are used to store information including visitors\' preferences, and the pages on the website that the visitor accessed or visited. The information is used to optimize the users\' experience by customizing our web page content based on visitors\' browser type and/or other information.'}
           </p>
         </section>
 
@@ -117,18 +117,18 @@ export default async function PrivacyPolicyPage({
           </h2>
           <p>
             {isEs
-              ? 'Puede consultar esta lista para encontrar la Política de privacidad de cada uno de los socios publicitarios de ThotNet Core.'
-              : 'You may consult this list to find the Privacy Policy for each of the advertising partners of ThotNet Core.'}
+              ? 'Puede consultar esta lista para encontrar la Política de privacidad de cada uno de los socios publicitarios de Las Noticias de la IA.'
+              : 'You may consult this list to find the Privacy Policy for each of the advertising partners of Las Noticias de la IA.'}
           </p>
           <p className="mt-4">
             {isEs
-              ? 'Los servidores de anuncios de terceros o las redes publicitarias utilizan tecnologías como cookies, JavaScript o Web Beacons que se utilizan en sus respectivos anuncios y enlaces que aparecen en ThotNet Core, que se envían directamente al navegador de los usuarios. Reciben automáticamente su dirección IP cuando esto ocurre. Estas tecnologías se utilizan para medir la efectividad de sus campañas publicitarias y/o para personalizar el contenido publicitario que ve en los sitios web que visita.'
-              : 'Third-party ad servers or ad networks uses technologies like cookies, JavaScript, or Web Beacons that are used in their respective advertisements and links that appear on ThotNet Core, which are sent directly to users\' browser. They automatically receive your IP address when this occurs. These technologies are used to measure the effectiveness of their advertising campaigns and/or to personalize the advertising content that you see on websites that you visit.'}
+              ? 'Los servidores de anuncios de terceros o las redes publicitarias utilizan tecnologías como cookies, JavaScript o Web Beacons que se utilizan en sus respectivos anuncios y enlaces que aparecen en Las Noticias de la IA, que se envían directamente al navegador de los usuarios. Reciben automáticamente su dirección IP cuando esto ocurre. Estas tecnologías se utilizan para medir la efectividad de sus campañas publicitarias y/o para personalizar el contenido publicitario que ve en los sitios web que visita.'
+              : 'Third-party ad servers or ad networks uses technologies like cookies, JavaScript, or Web Beacons that are used in their respective advertisements and links that appear on Las Noticias de la IA, which are sent directly to users\' browser. They automatically receive your IP address when this occurs. These technologies are used to measure the effectiveness of their advertising campaigns and/or to personalize the advertising content that you see on websites that you visit.'}
           </p>
           <p className="mt-4 font-bold">
             {isEs
-              ? 'Tenga en cuenta que ThotNet Core no tiene acceso ni control sobre estas cookies que utilizan los anunciantes de terceros.'
-              : 'Note that ThotNet Core has no access to or control over these cookies that are used by third-party advertisers.'}
+              ? 'Tenga en cuenta que Las Noticias de la IA no tiene acceso ni control sobre estas cookies que utilizan los anunciantes de terceros.'
+              : 'Note that Las Noticias de la IA has no access to or control over these cookies that are used by third-party advertisers.'}
           </p>
         </section>
 
