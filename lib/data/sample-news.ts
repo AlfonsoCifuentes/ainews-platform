@@ -1,6 +1,6 @@
-import type { INewsArticle } from '@/lib/types/news';
+import type { NewsArticleInput } from '@/lib/types/news';
 
-export const sampleNewsArticles: INewsArticle[] = [
+export const sampleNewsArticles: NewsArticleInput[] = [
   {
     id: 'sample-1',
     title_en: 'OpenAI Launches Autonomous Research Assistant',

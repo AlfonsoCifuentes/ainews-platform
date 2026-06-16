@@ -2,14 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n';
-import { useBookMode } from '@/lib/hooks/useBookMode';
-import Image from 'next/image';
+import { SITE_NAME, SITE_SHORT_NAME } from '@/lib/config/site';
 
 export function Footer() {
   const t = useTranslations();
-  const { isBookMode } = useBookMode();
-
-  if (isBookMode) return null;
 
   return (
     <footer className="no-print bg-black pt-24 pb-12 border-t border-[#1F1F1F] relative z-20">
@@ -17,24 +13,18 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-24">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="relative w-8 h-8">
-                <Image
-                  src="/logos/thotnet-core-white-only.svg"
-                  alt="ThotNet Core Logo"
-                  fill
-                  sizes="32px"
-                  className="object-contain"
-                />
-              </div>
-              <span className="font-bold text-xl tracking-tighter text-white">THOTNET</span>
+              <span className="font-black text-xl tracking-tight text-white">
+                {SITE_SHORT_NAME}
+                <span className="text-signal">.</span>
+              </span>
             </div>
             <p className="text-[#888] text-sm leading-relaxed max-w-xs">
               {t('common.footer.builtWith')}
             </p>
           </div>
-          
+
           <div>
-            <h4 className="text-white font-bold mb-6">PLATFORM</h4>
+            <h4 className="text-white font-bold mb-6">{t('common.nav.news')}</h4>
             <ul className="space-y-4 text-sm text-[#888]">
               <li>
                 <Link href="/news" className="hover:text-white transition-colors">
@@ -42,13 +32,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/courses" className="hover:text-white transition-colors">
-                  {t('common.nav.courses')}
-                </Link>
-              </li>
-              <li>
-                <Link href="/kg" className="hover:text-white transition-colors">
-                  Knowledge Graph
+                <Link href="/trending" className="hover:text-white transition-colors">
+                  {t('common.nav.trending')}
                 </Link>
               </li>
               <li>
@@ -82,8 +67,6 @@ export function Footer() {
                   data-testid="footer-cookie-settings-button"
                   onClick={() => {
                     if (typeof window !== 'undefined') {
-                      // Prefer Google Privacy & Messaging (Funding Choices) revocation.
-                      // Per Google docs, the supported way is to use the callbackQueue.
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       const w = window as any;
                       w.googlefc = w.googlefc || {};
@@ -128,13 +111,13 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        
+
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/5">
           <p className="text-xs text-[#888] font-mono uppercase tracking-widest">
-            © {new Date().getFullYear()} ThotNet Core. All Systems Operational.
+            © {new Date().getFullYear()} {SITE_NAME}
           </p>
           <p className="text-xs text-[#888] font-mono mt-4 md:mt-0">
-            DESIGNED BY ALFONSO CIFUENTES
+            {t('common.nav.news')}
           </p>
         </div>
       </div>

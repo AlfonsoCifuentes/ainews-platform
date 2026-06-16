@@ -4,11 +4,12 @@ import { Link } from '@/i18n';
 import { WifiOff, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect } from 'react';
+import { SITE_NAME } from '@/lib/config/site';
 
 export default function OfflinePage() {
   useEffect(() => {
     // Set page title dynamically
-    document.title = 'Offline - ThotNet Core';
+    document.title = `Offline · ${SITE_NAME}`;
   }, []);
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-black via-gray-900 to-black">

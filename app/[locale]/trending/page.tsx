@@ -1,20 +1,28 @@
-import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n';
 import { getTrendingTopicsFromCache } from '@/lib/ai/trending';
-import { TrendingPageClient } from '@/components/trending/TrendingPageClient';
-import { TrendingGrid } from '@/components/trending/TrendingGrid';
+import { TrendingBoard } from '@/components/trending/TrendingBoard';
+import { SITE_NAME } from '@/lib/config/site';
 import type { TrendingTopic } from '@/lib/ai/trending';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 21600; // Revalidar cada 6 horas (matching GitHub Action)
+export const revalidate = 21600; // every 6h, matching the GitHub Action
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return {
+    title: `${locale === 'es' ? 'Tendencias' : 'Trending'} · ${SITE_NAME}`,
+    description:
+      locale === 'es'
+        ? 'Los temas de IA con más impulso en las últimas horas.'
+        : 'The AI topics with the most momentum in the last hours.',
+  };
+}
 
 export default async function TrendingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'common' });
-  
+  const isEs = locale === 'es';
+
   let topics: TrendingTopic[] = [];
   let lastUpdate: Date | null = null;
-  
   try {
     const result = await getTrendingTopicsFromCache();
     topics = result.topics;
@@ -22,24 +30,28 @@ export default async function TrendingPage({ params }: { params: Promise<{ local
   } catch (error) {
     console.error('Failed to fetch trending topics:', error);
   }
-  
+
   return (
-    <TrendingPageClient
-      title="🔥 Trending Topics"
-      subtitle={
-        lastUpdate 
-          ? `Updated automatically every 6 hours • Last update: ${lastUpdate.toLocaleString(locale)}`
-          : "Topics with the highest momentum in the last 24 hours"
-      }
-    >
-      <TrendingGrid 
-        topics={topics} 
-        noResults="No trending topics found. Check back later!" 
-      />
-      
-      <div className="mt-8 text-sm text-muted-foreground">
-        <Link href="/">← {t('nav.home')}</Link>
+    <main className="relative min-h-screen bg-[#04050a] px-5 pb-28 pt-32 text-white md:px-12 md:pt-40">
+      <div className="mx-auto max-w-4xl">
+        <header className="mb-12">
+          <p className="mb-3 font-mono text-xs uppercase tracking-[0.3em] text-signal">
+            {isEs ? 'Tendencias' : 'Trending'}
+          </p>
+          <h1 className="text-4xl font-black tracking-tight md:text-6xl">
+            {isEs ? 'Lo que más se mueve' : "What's moving most"}
+          </h1>
+          <p className="mt-4 font-mono text-xs uppercase tracking-[0.12em] text-white/40">
+            {lastUpdate
+              ? `${isEs ? 'Actualizado' : 'Updated'} ${lastUpdate.toLocaleString(locale)}`
+              : isEs
+                ? 'Temas con más impulso en las últimas 24 h'
+                : 'Topics with the most momentum in the last 24h'}
+          </p>
+        </header>
+
+        <TrendingBoard topics={topics} locale={locale} />
       </div>
-    </TrendingPageClient>
+    </main>
   );
 }

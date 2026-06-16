@@ -52,8 +52,8 @@ export default async function UnsubscribePage({
           
           <p className="text-sm text-muted-foreground">
             {locale === 'en'
-              ? 'You will no longer receive weekly digest emails from ThotNet Core.'
-              : 'Ya no recibirás emails de resumen semanal de ThotNet Core.'}
+              ? 'You will no longer receive newsletter emails from Las Noticias de la IA.'
+              : 'Ya no recibirás emails del boletín de Las Noticias de la IA.'}
           </p>
 
           <button
@@ -64,19 +64,17 @@ export default async function UnsubscribePage({
           </button>
 
           <a
-            href={`/${locale}/settings#notifications`}
+            href={`/${locale}/news`}
             className="block text-sm text-primary hover:underline"
           >
-            {locale === 'en' 
-              ? 'Go to notification settings instead' 
-              : 'Ir a configuración de notificaciones'}
+            {locale === 'en' ? 'Back to the news' : 'Volver a las noticias'}
           </a>
         </form>
 
         <p className="text-xs text-muted-foreground">
           {locale === 'en'
-            ? 'You can always re-enable email notifications from your account settings.'
-            : 'Siempre puedes reactivar las notificaciones por email desde la configuración de tu cuenta.'}
+            ? 'You can re-subscribe any time from the site.'
+            : 'Puedes volver a suscribirte cuando quieras desde el sitio.'}
         </p>
       </div>
     </div>
@@ -86,9 +84,9 @@ export default async function UnsubscribePage({
 export async function generateMetadata({ params }: { params: Promise<{ locale: 'en' | 'es' }> }) {
   const { locale } = await params;
   return {
-    title: locale === 'en' ? 'Unsubscribe - ThotNet Core' : 'Cancelar Suscripción - ThotNet Core',
-    description: locale === 'en' 
-      ? 'Unsubscribe from ThotNet Core email notifications' 
-      : 'Cancelar suscripción de notificaciones por email de ThotNet Core',
+    title: locale === 'en' ? 'Unsubscribe · Las Noticias de la IA' : 'Cancelar Suscripción · Las Noticias de la IA',
+    description: locale === 'en'
+      ? 'Unsubscribe from Las Noticias de la IA newsletter emails'
+      : 'Cancelar suscripción del boletín de Las Noticias de la IA',
   };
 }

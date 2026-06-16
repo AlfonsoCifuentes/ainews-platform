@@ -1,161 +1,106 @@
 import { setRequestLocale } from 'next-intl/server';
-import Image from 'next/image';
+import Link from 'next/link';
+import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
+import { SITE_NAME, siteTagline } from '@/lib/config/site';
 
 export const metadata = {
-  title: 'About Us - ThotNet Core',
-  description: 'Learn about ThotNet Core, our mission to democratize AI education, and the technology behind our autonomous learning platform.',
+  title: `About · ${SITE_NAME}`,
+  description: `How ${SITE_NAME} finds the most important AI stories by cross-checking dozens of sources and explains them in plain language.`,
 };
 
 export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-
   const isEs = locale === 'es';
 
+  const pillars = isEs
+    ? [
+        {
+          k: 'Corroboración multi-fuente',
+          v: `Vigilamos ${AI_NEWS_SOURCES.length}+ fuentes —blogs de empresas, papers, prensa, newsletters, podcasts y YouTube—. Cuando una misma noticia aparece en varios medios independientes, sube en importancia. Si algo se está extendiendo por internet, aquí lo verás primero.`,
+        },
+        {
+          k: 'Sin plagio, con criterio',
+          v: 'No copiamos. Tomamos varias versiones de una noticia y escribimos la nuestra desde cero, fiel a los hechos, cifras y citas originales.',
+        },
+        {
+          k: 'Como te lo contaría un amigo',
+          v: 'Lenguaje claro y cercano, con un punto de buen profesor: explicamos los conceptos enrevesados y las siglas para que entiendas todo sin tropezar.',
+        },
+        {
+          k: 'Imagen original',
+          v: 'Cada noticia lleva la imagen que la acompaña en su fuente original, no ilustraciones genéricas.',
+        },
+      ]
+    : [
+        {
+          k: 'Multi-source corroboration',
+          v: `We watch ${AI_NEWS_SOURCES.length}+ sources — company blogs, papers, press, newsletters, podcasts and YouTube. When the same story shows up across several independent outlets, it rises in importance. If it's spreading across the internet, you'll see it here first.`,
+        },
+        {
+          k: 'No plagiarism, real judgement',
+          v: "We don't copy. We take several versions of a story and write our own from scratch — faithful to the original facts, figures and quotes.",
+        },
+        {
+          k: 'Like a friend would explain it',
+          v: 'Clear, warm language with a good-teacher streak: we unpack tangled concepts and spell out acronyms so nothing trips you up.',
+        },
+        {
+          k: 'Original imagery',
+          v: 'Every story carries the image that accompanies it at the original source — not generic stock art.',
+        },
+      ];
+
   return (
-    <main className="container mx-auto px-4 py-12 max-w-4xl">
-      {/* Hero Section */}
-      <div className="text-center mb-16">
-        <div className="flex justify-center mb-6">
-          <Image 
-            src="/logos/thotnet-core-white-only.svg" 
-            alt="ThotNet Core Logo" 
-            width={120}
-            height={120}
-            className="drop-shadow-[0_0_30px_rgba(59,130,246,0.5)]"
-          />
-        </div>
-        <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-          {isEs ? 'Democratizando la Educación en IA' : 'Democratizing AI Education'}
+    <main className="relative min-h-screen bg-[#04050a] px-5 pb-28 pt-32 text-white md:px-12 md:pt-40">
+      <div className="mx-auto max-w-4xl">
+        <p className="mb-5 font-mono text-xs uppercase tracking-[0.3em] text-signal">
+          {isEs ? 'Sobre nosotros' : 'About'}
+        </p>
+        <h1 className="text-4xl font-black leading-[1.05] tracking-tight md:text-6xl">
+          {siteTagline(locale)}
         </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          {isEs 
-            ? 'ThotNet Core es una plataforma de aprendizaje autónoma impulsada por IA, diseñada para curar noticias y generar cursos educativos de clase mundial.'
-            : 'ThotNet Core is an autonomous AI-powered learning platform designed to curate news and generate world-class educational courses.'}
-        </p>
-      </div>
-
-      {/* Mission Section */}
-      <section className="mb-16 space-y-6">
-        <h2 className="text-3xl font-bold mb-4 border-b border-white/10 pb-2">
-          {isEs ? 'Nuestra Misión' : 'Our Mission'}
-        </h2>
-        <div className="prose prose-invert max-w-none text-muted-foreground">
-          <p>
-            {isEs
-              ? 'En una era donde la Inteligencia Artificial avanza a un ritmo exponencial, mantenerse actualizado se ha convertido en un desafío casi imposible para los profesionales y estudiantes. La brecha de conocimiento se amplía cada día.'
-              : 'In an era where Artificial Intelligence advances at an exponential pace, staying updated has become a nearly impossible challenge for professionals and students. The knowledge gap widens every day.'}
-          </p>
-          <p>
-            {isEs
-              ? 'Nuestra misión en ThotNet Core es cerrar esa brecha. No somos solo un agregador de noticias; somos un motor de síntesis de conocimiento. Utilizamos agentes de IA avanzados para leer, analizar y destilar miles de fuentes de información diariamente, convirtiendo el ruido en señales claras y accionables.'
-              : 'Our mission at ThotNet Core is to bridge that gap. We are not just a news aggregator; we are a knowledge synthesis engine. We use advanced AI agents to read, analyze, and distill thousands of information sources daily, turning noise into clear, actionable signals.'}
-          </p>
-          <p>
-            {isEs
-              ? 'Creemos que la educación de alta calidad sobre IA debe ser accesible, gratuita y estar siempre actualizada. Por eso hemos construido una infraestructura que se mantiene a sí misma, aprendiendo y mejorando continuamente.'
-              : 'We believe that high-quality AI education should be accessible, free, and always up-to-date. That is why we have built an infrastructure that sustains itself, learning and improving continuously.'}
-          </p>
-        </div>
-      </section>
-
-      {/* Technology Section */}
-      <section className="mb-16 space-y-6">
-        <h2 className="text-3xl font-bold mb-4 border-b border-white/10 pb-2">
-          {isEs ? 'Nuestra Tecnología' : 'Our Technology'}
-        </h2>
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-card border rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-3 text-primary">
-              {isEs ? 'Agentes Autónomos' : 'Autonomous Agents'}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {isEs
-                ? 'Nuestra flota de agentes de IA trabaja 24/7. El "News Curator" escanea más de 50 fuentes globales, filtra contenido de baja calidad y genera resúmenes técnicos. El "Course Generator" crea planes de estudio completos bajo demanda.'
-                : 'Our fleet of AI agents works 24/7. The "News Curator" scans over 50 global sources, filters low-quality content, and generates technical summaries. The "Course Generator" creates comprehensive study plans on demand.'}
-            </p>
-          </div>
-          <div className="bg-card border rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-3 text-primary">
-              {isEs ? 'Gráfico de Conocimiento' : 'Knowledge Graph'}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {isEs
-                ? 'Todo el contenido está interconectado a través de nuestro Knowledge Graph vectorial. Esto nos permite identificar tendencias emergentes y conectar conceptos aparentemente no relacionados para ofrecer una experiencia de aprendizaje holística.'
-                : 'All content is interconnected through our vector Knowledge Graph. This allows us to identify emerging trends and connect seemingly unrelated concepts to offer a holistic learning experience.'}
-            </p>
-          </div>
-          <div className="bg-card border rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-3 text-primary">
-              {isEs ? 'Generación RAG' : 'RAG Generation'}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {isEs
-                ? 'Utilizamos Retrieval-Augmented Generation (RAG) para asegurar que nuestros cursos no sean alucinaciones, sino que estén fundamentados en la documentación técnica más reciente y en noticias verificadas.'
-                : 'We use Retrieval-Augmented Generation (RAG) to ensure our courses are not hallucinations, but are grounded in the latest technical documentation and verified news.'}
-            </p>
-          </div>
-          <div className="bg-card border rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-3 text-primary">
-              {isEs ? 'Infraestructura Zero-Cost' : 'Zero-Cost Infrastructure'}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {isEs
-                ? 'Operamos bajo una filosofía de eficiencia extrema. Utilizamos niveles gratuitos de proveedores de nube de primer nivel y optimizamos cada ciclo de cómputo para mantener la plataforma sostenible y gratuita para los usuarios.'
-                : 'We operate under a philosophy of extreme efficiency. We utilize free tiers from top-tier cloud providers and optimize every compute cycle to keep the platform sustainable and free for users.'}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Editorial Standards */}
-      <section className="mb-16 space-y-6">
-        <h2 className="text-3xl font-bold mb-4 border-b border-white/10 pb-2">
-          {isEs ? 'Estándares Editoriales' : 'Editorial Standards'}
-        </h2>
-        <div className="prose prose-invert max-w-none text-muted-foreground">
-          <p>
-            {isEs
-              ? 'Aunque utilizamos IA para escalar nuestra producción, mantenemos estándares editoriales rigurosos. Priorizamos la precisión técnica sobre el sensacionalismo. Nuestro contenido está diseñado para ingenieros, investigadores y entusiastas serios.'
-              : 'Although we use AI to scale our production, we maintain rigorous editorial standards. We prioritize technical accuracy over sensationalism. Our content is designed for engineers, researchers, and serious enthusiasts.'}
-          </p>
-          <ul className="list-disc pl-6 space-y-2 mt-4">
-            <li>
-              {isEs 
-                ? 'Verificación de fuentes cruzadas para evitar desinformación.' 
-                : 'Cross-source verification to avoid misinformation.'}
-            </li>
-            <li>
-              {isEs 
-                ? 'Transparencia total sobre el uso de IA en la generación de contenido.' 
-                : 'Full transparency regarding the use of AI in content generation.'}
-            </li>
-            <li>
-              {isEs 
-                ? 'Enfoque en "Deep Dives" y explicaciones técnicas, no solo titulares.' 
-                : 'Focus on "Deep Dives" and technical explanations, not just headlines.'}
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      {/* Contact CTA */}
-      <section className="bg-primary/5 border border-primary/20 rounded-2xl p-8 text-center">
-        <h2 className="text-2xl font-bold mb-4">
-          {isEs ? '¿Tienes preguntas?' : 'Have Questions?'}
-        </h2>
-        <p className="text-muted-foreground mb-6">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/60">
           {isEs
-            ? 'Estamos siempre buscando mejorar. Si tienes sugerencias o encuentras un error, contáctanos.'
-            : 'We are always looking to improve. If you have suggestions or find a bug, contact us.'}
+            ? `${SITE_NAME} no es un agregador más. Es un filtro de señal: leemos el ruido de la IA por ti, detectamos qué noticias importan de verdad y te las contamos para que las entiendas.`
+            : `${SITE_NAME} isn't just another aggregator. It's a signal filter: we read the noise of AI for you, detect which stories genuinely matter, and tell them in a way you'll actually understand.`}
         </p>
-        <a 
-          href={`/${locale}/contact`} 
-          className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-        >
-          {isEs ? 'Contáctanos' : 'Contact Us'}
-        </a>
-      </section>
+
+        <section className="mt-16 grid gap-px border border-white/10 bg-white/10 md:grid-cols-2">
+          {pillars.map((p) => (
+            <div key={p.k} className="bg-[#04050a] p-7">
+              <h2 className="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-signal-soft">{p.k}</h2>
+              <p className="text-sm leading-relaxed text-white/65">{p.v}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-16 border-l-2 border-signal bg-signal/[0.06] p-8">
+          <h2 className="mb-3 font-mono text-xs uppercase tracking-[0.25em] text-signal-soft">
+            {isEs ? 'Transparencia' : 'Transparency'}
+          </h2>
+          <p className="text-base leading-relaxed text-white/75">
+            {isEs
+              ? 'Usamos modelos de IA —los más eficientes que dan la calidad necesaria— para resumir y redactar. Mantenemos los hechos fieles a la fuente y enlazamos siempre al artículo original para que puedas comprobarlo.'
+              : 'We use AI models — the most efficient ones that still deliver the quality we need — to summarize and write. We keep facts faithful to the source and always link back to the original article so you can verify it yourself.'}
+          </p>
+        </section>
+
+        <div className="mt-16 flex flex-wrap gap-4">
+          <Link
+            href={`/${locale}/news`}
+            className="bg-white px-8 py-3 font-mono text-xs uppercase tracking-[0.2em] text-black transition-colors hover:bg-signal hover:text-white"
+          >
+            {isEs ? 'Leer las noticias' : 'Read the news'}
+          </Link>
+          <Link
+            href={`/${locale}/contact`}
+            className="border border-white/20 px-8 py-3 font-mono text-xs uppercase tracking-[0.2em] text-white transition-colors hover:border-white"
+          >
+            {isEs ? 'Contacto' : 'Contact'}
+          </Link>
+        </div>
+      </div>
     </main>
   );
 }

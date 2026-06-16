@@ -1,9 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { createClient } from '@/lib/db/supabase-server';
+import { SITE_BASE_URL } from '@/lib/config/site';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://thotnet-core.vercel.app';
-  
+  const baseUrl = SITE_BASE_URL;
+
   const supabase = await createClient();
 
   // Helper to create entry with alternates
@@ -29,15 +30,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Static pages with alternates
   const staticPages: MetadataRoute.Sitemap = [
-    createEntry('', { changeFrequency: 'daily', priority: 1 }),
+    createEntry('', { changeFrequency: 'hourly', priority: 1 }),
     createEntry('/news', { changeFrequency: 'hourly', priority: 0.9 }),
-    createEntry('/courses', { changeFrequency: 'daily', priority: 0.8 }),
-    createEntry('/courses-library', { changeFrequency: 'daily', priority: 0.7 }),
     createEntry('/trending', { changeFrequency: 'hourly', priority: 0.8 }),
-    createEntry('/kg', { changeFrequency: 'daily', priority: 0.7 }),
-    createEntry('/leaderboard', { changeFrequency: 'daily', priority: 0.6 }),
-    createEntry('/privacy', { changeFrequency: 'monthly', priority: 0.4 }),
-    createEntry('/terms', { changeFrequency: 'monthly', priority: 0.4 }),
+    createEntry('/search', { changeFrequency: 'weekly', priority: 0.5 }),
+    createEntry('/about', { changeFrequency: 'monthly', priority: 0.5 }),
+    createEntry('/contact', { changeFrequency: 'monthly', priority: 0.4 }),
+    createEntry('/privacy', { changeFrequency: 'monthly', priority: 0.3 }),
+    createEntry('/terms', { changeFrequency: 'monthly', priority: 0.3 }),
   ];
 
   // Dynamic pages - News articles
@@ -55,21 +55,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   );
 
-  // Dynamic pages - Courses
-  const { data: courses } = await supabase
-    .from('courses')
-    .select('id, updated_at, created_at')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false })
-    .limit(500);
-
-  const coursePages: MetadataRoute.Sitemap = (courses || []).map((course) =>
-    createEntry(`/courses/${course.id}`, {
-      lastModified: new Date(course.updated_at || course.created_at),
-      changeFrequency: 'weekly',
-      priority: 0.6,
-    })
-  );
-
-  return [...staticPages, ...articlePages, ...coursePages];
+  return [...staticPages, ...articlePages];
 }

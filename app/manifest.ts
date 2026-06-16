@@ -1,14 +1,15 @@
 import type { MetadataRoute } from 'next'
- 
+import { SITE_NAME, SITE_DESCRIPTION_EN } from '@/lib/config/site'
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'ThotNet Core · AI News & Learning Nexus',
-    short_name: 'ThotNet',
-    description: 'ThotNet Core is your bilingual AI news and learning hub with book-style courses and autonomous agents.',
+    name: `${SITE_NAME} · AI News`,
+    short_name: 'Noticias IA',
+    description: SITE_DESCRIPTION_EN,
     start_url: '/en',
     display: 'standalone',
-    background_color: '#0a0a0f',
-    theme_color: '#3b82f6',
+    background_color: '#04050a',
+    theme_color: '#6366f1',
     orientation: 'portrait',
     icons: [
       {

@@ -1,135 +1,90 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Mail, MapPin, MessageSquare } from 'lucide-react';
+import { setRequestLocale } from 'next-intl/server';
+import { Mail, MessageSquare, Rss } from 'lucide-react';
+import { SITE_NAME } from '@/lib/config/site';
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const t = await getTranslations({ locale, namespace: 'common.nav' });
-
   return {
-    title: 'Contact Us - ThotNet Core',
-    description: 'Get in touch with the ThotNet Core team for inquiries, support, or feedback.',
+    title: `Contact · ${SITE_NAME}`,
+    description:
+      locale === 'es'
+        ? `Escríbenos: sugerencias, erratas o una noticia de IA que deberíamos cubrir.`
+        : `Get in touch: feedback, corrections, or an AI story we should cover.`,
   };
 }
 
-export default async function ContactPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+// NOTE: placeholder contact address — change to the real inbox when chosen.
+const CONTACT_EMAIL = 'hello@pulse.ai';
+
+export default async function ContactPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const isEs = locale === 'es';
+
+  const channels = [
+    {
+      icon: Mail,
+      title: isEs ? 'Escríbenos' : 'Email us',
+      body: isEs ? 'Para cualquier consulta o sugerencia:' : 'For any question or suggestion:',
+      action: CONTACT_EMAIL,
+      href: `mailto:${CONTACT_EMAIL}`,
+    },
+    {
+      icon: Rss,
+      title: isEs ? 'Una pista' : 'A tip',
+      body: isEs
+        ? '¿Una noticia de IA que se está extendiendo y no hemos cubierto? Cuéntanosla.'
+        : "An AI story spreading that we haven't covered? Send it our way.",
+    },
+    {
+      icon: MessageSquare,
+      title: isEs ? 'Erratas' : 'Corrections',
+      body: isEs
+        ? 'Si ves un dato erróneo, avísanos y lo corregimos rápido.'
+        : 'Spot a factual error? Let us know and we fix it fast.',
+    },
+  ];
 
   return (
-    <main className="container mx-auto px-4 py-12 max-w-4xl">
-      <h1 className="text-4xl font-bold mb-8">Contact Us</h1>
-      
-      <div className="grid md:grid-cols-2 gap-12">
-        <div className="space-y-8">
-          <p className="text-lg text-muted-foreground">
-            We value your feedback and inquiries. Whether you have a question about our AI courses, 
-            need technical support, or want to discuss partnership opportunities, we&apos;re here to help.
-          </p>
+    <main className="relative min-h-screen bg-[#04050a] px-5 pb-28 pt-32 text-white md:px-12 md:pt-40">
+      <div className="mx-auto max-w-4xl">
+        <p className="mb-5 font-mono text-xs uppercase tracking-[0.3em] text-signal">
+          {isEs ? 'Contacto' : 'Contact'}
+        </p>
+        <h1 className="text-4xl font-black tracking-tight md:text-6xl">
+          {isEs ? 'Hablemos' : "Let's talk"}
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/60">
+          {isEs
+            ? 'Valoramos tu opinión. Sugerencias, erratas o una noticia que deberíamos contar — todo suma.'
+            : 'We value your input. Feedback, corrections, or a story we should tell — it all helps.'}
+        </p>
 
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                <Mail className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Email Us</h3>
-                <p className="text-muted-foreground mb-2">For general inquiries and support:</p>
-                <a href="mailto:contact@thotnet.ai" className="text-primary hover:underline font-medium">
-                  contact@thotnet.ai
+        <div className="mt-14 grid gap-px border border-white/10 bg-white/10 md:grid-cols-3">
+          {channels.map(({ icon: Icon, title, body, action, href }) => (
+            <div key={title} className="flex flex-col bg-[#04050a] p-7">
+              <Icon className="mb-4 h-5 w-5 text-signal" aria-hidden />
+              <h2 className="mb-2 text-lg font-semibold">{title}</h2>
+              <p className="text-sm leading-relaxed text-white/55">{body}</p>
+              {action && href && (
+                <a
+                  href={href}
+                  className="mt-4 font-mono text-xs uppercase tracking-[0.12em] text-signal-soft hover:text-white"
+                >
+                  {action}
                 </a>
-              </div>
+              )}
             </div>
-
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                <MessageSquare className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Support</h3>
-                <p className="text-muted-foreground">
-                  Our AI agents and human team monitor support requests 24/7. 
-                  Expect a response within 24-48 hours.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Location</h3>
-                <p className="text-muted-foreground">
-                  ThotNet Core operates as a distributed, cloud-native organization.
-                  <br />
-                  Global Headquarters: Digital Realm (US-East-1)
-                </p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="bg-card border rounded-2xl p-8 shadow-sm">
-          <h2 className="text-2xl font-bold mb-6">Send us a message</h2>
-          <form className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-2">Name</label>
-              <input 
-                type="text" 
-                id="name" 
-                className="w-full px-4 py-2 rounded-lg border bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">Email</label>
-              <input 
-                type="email" 
-                id="email" 
-                className="w-full px-4 py-2 rounded-lg border bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                placeholder="your@email.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="subject" className="block text-sm font-medium mb-2">Subject</label>
-              <select 
-                id="subject" 
-                className="w-full px-4 py-2 rounded-lg border bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-              >
-                <option>General Inquiry</option>
-                <option>Technical Support</option>
-                <option>Content Feedback</option>
-                <option>Partnership</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium mb-2">Message</label>
-              <textarea 
-                id="message" 
-                rows={5}
-                className="w-full px-4 py-2 rounded-lg border bg-background focus:ring-2 focus:ring-primary/50 outline-none transition-all resize-none"
-                placeholder="How can we help you?"
-              ></textarea>
-            </div>
-            <button 
-              type="button" // Changed to button to prevent submission for now
-              className="w-full py-3 px-6 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Send Message
-            </button>
-            <p className="text-xs text-muted-foreground text-center mt-4">
-              By sending this message, you agree to our Privacy Policy and Terms of Service.
-            </p>
-          </form>
+        <div className="mt-12">
+          <a
+            href={`mailto:${CONTACT_EMAIL}`}
+            className="inline-block bg-white px-8 py-3 font-mono text-xs uppercase tracking-[0.2em] text-black transition-colors hover:bg-signal hover:text-white"
+          >
+            {isEs ? 'Enviar un email' : 'Send an email'}
+          </a>
         </div>
       </div>
     </main>

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
@@ -7,10 +8,9 @@ import { calculateReadingTime, extractPlainText, sanitizeScrapedContent } from '
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
-import { AudioPlayer } from '@/components/content/AudioPlayer';
-import { HighlightSystem } from '@/components/content/HighlightSystem';
-import { FlashcardDeck } from '@/components/flashcards/FlashcardDeck';
-import { DiscussionThread } from '@/components/content/DiscussionThread';
+import { CorroborationBadge } from '@/components/news/CorroborationBadge';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { SITE_NAME, SITE_BASE_URL } from '@/lib/config/site';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -60,6 +60,45 @@ async function fetchRelatedArticles(category: string, currentId: string, limit =
   }
 
   return data as INewsArticle[];
+}
+
+export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
+  const { locale, id } = await params;
+  const article = await fetchArticleById(id);
+  if (!article) return { title: `Not found · ${SITE_NAME}` };
+
+  const title = getLocalizedString(article, 'title', locale);
+  const description = sanitizeScrapedContent(getLocalizedString(article, 'summary', locale)).slice(0, 200);
+  const canonical = `${SITE_BASE_URL}/${locale}/news/${id}`;
+  const image = article.image_url || undefined;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: {
+        en: `${SITE_BASE_URL}/en/news/${id}`,
+        es: `${SITE_BASE_URL}/es/news/${id}`,
+      },
+    },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      siteName: SITE_NAME,
+      publishedTime: article.published_at,
+      locale: locale === 'es' ? 'es_ES' : 'en_US',
+      images: image ? [{ url: image, alt: title }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
@@ -121,8 +160,23 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       .trim();
   })();
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: title,
+    description: summary,
+    image: article.image_url ? [article.image_url] : undefined,
+    datePublished: article.published_at,
+    dateModified: article.published_at,
+    inLanguage: locale,
+    author: { '@type': 'Organization', name: SITE_NAME },
+    publisher: { '@type': 'Organization', name: SITE_NAME },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_BASE_URL}/${locale}/news/${article.id}` },
+  };
+
   return (
     <main className="min-h-screen">
+      <JsonLd data={jsonLd} />
       {/* Hero Image Section */}
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
         <div
@@ -176,6 +230,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
               <span>{readingTime} min {locale === 'en' ? 'read' : 'lectura'}</span>
               <span>•</span>
               <span>{Math.round(article.quality_score * 100)}% {locale === 'en' ? 'Quality Score' : 'Puntuación de Calidad'}</span>
+              <CorroborationBadge count={article.corroboration_count ?? 1} locale={locale} />
             </div>
           </div>
         </div>
@@ -185,9 +240,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       <article className="container mx-auto px-4 py-16">
         <div className="mx-auto max-w-4xl">
           {/* Summary */}
-          <div className="mb-12 rounded-3xl border border-primary/20 bg-primary/5 p-8">
-            <h2 className="mb-4 text-2xl font-bold text-primary">
-              {locale === 'en' ? 'Summary' : 'Resumen'}
+          <div className="mb-12 border-l-2 border-signal bg-signal/[0.06] p-8">
+            <h2 className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.25em] text-signal-soft">
+              {locale === 'en' ? 'The gist' : 'En resumen'}
             </h2>
             <p className="text-lg leading-relaxed text-foreground/90">
               {summary}
@@ -244,6 +299,38 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
             </div>
           )}
 
+          {/* Corroborating sources — why this story matters */}
+          {(article.corroboration_count ?? 1) > 1 && Array.isArray(article.corroborating_sources) && article.corroborating_sources.length > 0 && (
+            <div className="mt-8 rounded-2xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-6">
+              <div className="mb-3 flex items-center gap-3">
+                <CorroborationBadge count={article.corroboration_count ?? 1} locale={locale} />
+              </div>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {locale === 'en'
+                  ? 'We surfaced this story because several independent outlets are reporting it. Here is who else is covering it:'
+                  : 'Destacamos esta noticia porque varios medios independientes la están cubriendo. Estos son los que también la reportan:'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {article.corroborating_sources.map((src, i) => {
+                  const domain = typeof src?.domain === 'string' ? src.domain : '';
+                  if (!domain) return null;
+                  const href = typeof src?.url === 'string' && src.url ? src.url : `https://${domain}`;
+                  return (
+                    <a
+                      key={`${domain}-${i}`}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:border-primary hover:text-primary"
+                    >
+                      {domain}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Share Buttons */}
           <div className="mt-12 flex items-center gap-4">
             <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -266,49 +353,8 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
             </div>
           </div>
 
-          {/* Audio Player - Phase 5+ */}
-          <div className="mt-12">
-            <AudioPlayer 
-              contentId={article.id} 
-              contentType="article" 
-              locale={locale} 
-            />
-          </div>
-
-          {/* Highlight System - Phase 5+ */}
-          <div className="mt-12">
-            <HighlightSystem 
-              contentId={article.id} 
-              locale={locale} 
-            />
-          </div>
         </div>
       </article>
-
-      {/* Flashcard Study System - Phase 5+ */}
-      <section className="border-t border-border bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-16">
-        <div className="container mx-auto px-4">
-          <FlashcardDeck 
-            contentId={article.id} 
-            contentType="article" 
-            locale={locale} 
-          />
-        </div>
-      </section>
-
-      {/* Discussion Thread - Phase 5+ */}
-      <section className="border-t border-border bg-muted/30 py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="mb-8 text-3xl font-black md:text-4xl">
-            {locale === 'en' ? 'Discussion' : 'Discusión'}
-          </h2>
-          <DiscussionThread 
-            contentId={article.id} 
-            contentType="article" 
-            locale={locale} 
-          />
-        </div>
-      </section>
 
       {/* Related Articles */}
       {relatedArticles.length > 0 && (

@@ -69,15 +69,16 @@ jobs:
           fi
         timeout-minutes: 45
 
-      - name: 🗑️ Preventive illustration cleanup
+      - name: 🛰️ Cluster stories by multi-source corroboration
         if: success() && github.event.inputs.dry_run != 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "🗑️ Removing old illustration versions (keep newest 1 per slot)..."
-          npx tsx scripts/emergency-storage-cleanup.ts --execute --illustrations-only --keep-illustrations=1
+          echo "🛰️ Clustering the same story across independent outlets and scoring importance..."
+          npm run ai:cluster -- --days 5
+        timeout-minutes: 20
         continue-on-error: true
 
       - name: Upload logs on failure

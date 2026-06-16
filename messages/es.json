@@ -367,7 +367,7 @@
     "markAllRead": "Marcar todas como leídas"
   },
   "search": {
-    "placeholder": "Buscar artículos y cursos...",
+    "placeholder": "Buscar noticias de IA...",
     "searching": "Buscando...",
     "noResults": "No se encontraron resultados para \"{query}\"",
     "resultsCount": "{count} resultados para \"{query}\"",
