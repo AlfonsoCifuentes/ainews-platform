@@ -5,7 +5,7 @@ import type { Locale } from '@/i18n';
 import { fetchLatestNews, fetchTopStories } from '@/lib/db/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
+import { getImageWithFallback, assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { SITE_NAME, siteTagline } from '@/lib/config/site';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
@@ -47,12 +47,21 @@ export default async function HomePage({ params }: HomePageProps) {
 
   // The featured story is the most important one that actually has a real
   // (original, non-empty) photo — never a fallback image in the hero slot.
-  const hasRealImage = (a: INewsArticle) => typeof a.image_url === 'string' && a.image_url.trim() !== '';
+  const hasRealImage = (a: INewsArticle) =>
+    typeof a.image_url === 'string' && a.image_url.trim() !== '' && !a.image_url.startsWith('data:');
   const lead = ranked.find(hasRealImage) ?? ranked[0];
   const secondary = ranked.filter((a) => a.id !== lead?.id).slice(0, 2);
 
   const shownIds = new Set([lead?.id, ...secondary.map((a) => a.id)].filter(Boolean));
   const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 10);
+
+  // Assign fallback photos round-robin across the whole page (in render order)
+  // so the same fallback never repeats close together.
+  const withFallbacks = assignFallbackImagesToArticles(
+    [lead, ...secondary, ...rest].filter(Boolean) as INewsArticle[],
+  );
+  const imageById = new Map(withFallbacks.map((a) => [a.id, a.computed_image_url]));
+  const imageOf = (a: INewsArticle, title: string) => imageById.get(a.id) ?? articleImage(a, title);
 
   const siteJsonLd = {
     '@context': 'https://schema.org',
@@ -122,7 +131,7 @@ export default async function HomePage({ params }: HomePageProps) {
               <div className="relative aspect-[16/10] min-h-[340px] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={articleImage(lead, getLocalizedString(lead, 'title', locale))}
+                  src={imageOf(lead, getLocalizedString(lead, 'title', locale))}
                   alt={getLocalizedString(lead, 'title', locale)}
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
@@ -201,7 +210,7 @@ export default async function HomePage({ params }: HomePageProps) {
                     <div className="relative h-20 w-28 shrink-0 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={articleImage(article, title)}
+                        src={imageOf(article, title)}
                         alt={title}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />

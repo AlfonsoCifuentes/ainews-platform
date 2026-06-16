@@ -70,8 +70,5 @@ artifacts/
 app/ejemplo1.pdf
 app/ejemplo2.pdf
 
-# Local fallback image sources (already uploaded to Supabase)
-public/images/fallback_images/
-
 # Legacy local fallback folder (deprecated)
 app/images_fallback/

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { NewsCard } from '@/components/news/NewsCard';
+import { assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
 import type { INewsArticle } from '@/lib/types/news';
 import type { Locale } from '@/i18n';
 
@@ -48,7 +49,10 @@ export function NewsFeed({ articles, locale }: NewsFeedProps) {
     return articles.filter((a) => (a.category?.toLowerCase().replace(/\s+/g, '') || 'other') === active);
   }, [articles, active]);
 
-  const [lead, ...rest] = filtered;
+  // Assign fallback photos round-robin (in display order) so consecutive cards
+  // never share the same fallback.
+  const withImages = useMemo(() => assignFallbackImagesToArticles(filtered), [filtered]);
+  const [lead, ...rest] = withImages;
 
   return (
     <div className="relative min-h-screen bg-[#04050a] px-5 pb-28 pt-28 text-white md:px-12 md:pt-36">

@@ -250,30 +250,17 @@ export function generateCourseFallbackImage(config: CourseFallbackImageConfig): 
   return svgToDataURL(svg);
 }
 
-// Import fallback images list - statically imported for best performance
+// Local fallback photos (in public/images/fallback_images), stored in a fixed
+// RANDOM order. Used only when an original photo is impossible to obtain.
 import fallbackImagesList from '@/lib/fallback-images-list.json';
 
-// Hard denylist: images that must never be used as fallback.
-// Keep this in addition to removing them from the JSON list, to remain safe if the list is regenerated.
-const FALLBACK_IMAGE_DENYLIST = new Set<string>([
-  'fallback_chatgpt_image_23_dic_2025_05_07_24.webp',
-  'fallback_chatgpt_image_23_dic_2025_05_10_35.webp',
-  'fallback_chatgpt_image_23_dic_2025_05_13_17.webp',
-  'fallback_chatgpt_image_23_dic_2025_05_14_44.webp',
-]);
-
-function filterDeniedFallbackImages(urls: string[]): string[] {
-  return urls.filter((u) => {
-    for (const denied of FALLBACK_IMAGE_DENYLIST) {
-      if (u.includes(denied)) return false;
-    }
-    return true;
-  });
-}
+/** Shuffled list of local fallback photo paths (URL-encoded, public/). */
+export const FALLBACK_IMAGES: string[] = (fallbackImagesList as string[]).filter(
+  (u) => typeof u === 'string' && u.trim() !== '',
+);
 
 /**
- * Seeded random number generator for consistent results
- * Uses article ID as seed to ensure same article always gets same image
+ * Seeded hash for consistent per-article selection (same article → same image).
  */
 function seededRandom(seed: string): number {
   let hash = 0;
@@ -285,23 +272,17 @@ function seededRandom(seed: string): number {
   return Math.abs(hash % 1000000) / 1000000;
 }
 
-/**
- * Get a fallback image URL for an article
- * Uses seeded randomization based on article ID or title for consistency
- */
+/** Deterministic fallback pick for a single article (no list context). */
 export function getFallbackImageUrl(identifier: string): string {
-  const images = filterDeniedFallbackImages(fallbackImagesList as string[]);
-  if (!images || images.length === 0) {
-    return '';
-  }
-  
-  const index = Math.floor(seededRandom(identifier) * images.length);
-  return images[index];
+  if (FALLBACK_IMAGES.length === 0) return '';
+  const index = Math.floor(seededRandom(identifier) * FALLBACK_IMAGES.length);
+  return FALLBACK_IMAGES[index];
 }
 
 /**
- * Hook para obtener la URL de imagen con fallback automático
- * Ahora usa imágenes de Supabase como fallback primario
+ * Image with fallback for a SINGLE article (e.g. the article detail hero, where
+ * spacing is irrelevant). Uses the article's own photo, else a deterministic
+ * local fallback, else a generated cover.
  */
 export function getImageWithFallback(
   imageUrl: string | null | undefined,
@@ -309,23 +290,24 @@ export function getImageWithFallback(
   category?: string,
   articleId?: string
 ): string {
-  // Use the article's own image when present.
-  if (imageUrl && imageUrl.trim() !== '') {
+  // A real, external photo (not an inline data-URL placeholder).
+  if (imageUrl && imageUrl.trim() !== '' && !imageUrl.startsWith('data:')) {
     return imageUrl;
   }
-
-  // Otherwise a self-contained generated cover (data URL) — never 404s, varied
-  // per article via the id seed. (The previous Supabase fallback bucket no
-  // longer exists, so we no longer depend on external storage.)
+  if (FALLBACK_IMAGES.length > 0) {
+    return getFallbackImageUrl(articleId || title);
+  }
   return generateFallbackImage({ title, category, seed: articleId || title });
 }
 
 /**
- * Process a list of articles and assign fallback images avoiding repetition
- * Returns articles with computed fallback_image_url property
+ * Assign fallback images to a LIST of articles (home, feed, search) in render
+ * order. Fallbacks are drawn ROUND-ROBIN from the shuffled FALLBACK_IMAGES
+ * array (0, 1, 2, … cycling), so the same fallback never reappears until all
+ * others have been used — maximum spacing between repeats.
  */
-export function assignFallbackImagesToArticles<T extends { 
-  id: string; 
+export function assignFallbackImagesToArticles<T extends {
+  id: string;
   image_url?: string | null;
   title_en?: string;
   title_es?: string;
@@ -333,14 +315,27 @@ export function assignFallbackImagesToArticles<T extends {
   articles: T[],
   _windowSize = 5
 ): (T & { computed_image_url: string; preferred_fallback_image_url: string })[] {
+  const n = FALLBACK_IMAGES.length;
+  let fbIndex = 0;
+
   return articles.map((article) => {
-    const title = article.title_en || article.title_es || 'Article';
-    const preferredFallback = generateFallbackImage({
-      title,
-      category: (article as { category?: string }).category,
-      seed: article.id,
-    });
-    const hasOwnImage = !!(article.image_url && article.image_url.trim() !== '');
+    let preferredFallback: string;
+    if (n > 0) {
+      preferredFallback = FALLBACK_IMAGES[fbIndex % n];
+      fbIndex += 1; // advance every article so consecutive fallbacks differ
+    } else {
+      const title = article.title_en || article.title_es || 'Article';
+      preferredFallback = generateFallbackImage({
+        title,
+        category: (article as { category?: string }).category,
+        seed: article.id,
+      });
+    }
+    const hasOwnImage = !!(
+      article.image_url &&
+      article.image_url.trim() !== '' &&
+      !article.image_url.startsWith('data:')
+    );
     return {
       ...article,
       preferred_fallback_image_url: preferredFallback,
