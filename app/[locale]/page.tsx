@@ -44,8 +44,12 @@ export default async function HomePage({ params }: HomePageProps) {
   ]);
 
   const ranked = topStories.length > 0 ? topStories : latest;
-  const lead = ranked[0];
-  const secondary = ranked.slice(1, 3);
+
+  // The featured story is the most important one that actually has a real
+  // (original, non-empty) photo — never a fallback image in the hero slot.
+  const hasRealImage = (a: INewsArticle) => typeof a.image_url === 'string' && a.image_url.trim() !== '';
+  const lead = ranked.find(hasRealImage) ?? ranked[0];
+  const secondary = ranked.filter((a) => a.id !== lead?.id).slice(0, 2);
 
   const shownIds = new Set([lead?.id, ...secondary.map((a) => a.id)].filter(Boolean));
   const rest = latest.filter((a) => !shownIds.has(a.id)).slice(0, 10);

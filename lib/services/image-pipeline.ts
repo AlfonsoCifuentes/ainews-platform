@@ -30,6 +30,7 @@
 
 import { load, type CheerioAPI } from 'cheerio';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
+import { stripImageOverlays, looksLikeBrandedImageUrl } from './watermark-guard';
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -152,9 +153,12 @@ function resolveUrl(candidate: string | undefined | null, base: string): string 
   const trimmed = candidate.trim();
   if (!trimmed || trimmed.startsWith('data:')) return null;
   try {
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-    if (trimmed.startsWith('//')) return `https:${trimmed}`;
-    return new URL(trimmed, base).href;
+    let abs: string;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) abs = trimmed;
+    else if (trimmed.startsWith('//')) abs = `https:${trimmed}`;
+    else abs = new URL(trimmed, base).href;
+    // Strip publisher-CDN branding overlays so we keep the clean original photo.
+    return stripImageOverlays(abs);
   } catch { return null; }
 }
 
@@ -163,6 +167,9 @@ function isBlacklisted(url: string): boolean {
   if (BLACKLIST_PATTERNS.some((p) => lower.includes(p))) return true;
   const host = getHostname(url);
   if (STOCK_DOMAINS.has(host)) return true;
+  // Reject branded share-card / watermarked-agency image variants so the
+  // pipeline falls through to the clean editorial photo.
+  if (looksLikeBrandedImageUrl(url)) return true;
   // SSRF check
   if (!validateUrlForSSRFSync(url)) return true;
   return false;

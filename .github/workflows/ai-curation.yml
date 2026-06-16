@@ -2,8 +2,10 @@ name: AI News Curation
 
 on:
   schedule:
-    # Run every 6 hours
-    - cron: "0 */6 * * *"
+    # Daily morning ingestion (~07:00–08:00 Europe/Madrid) + a midday refresh so
+    # the front page always shows current news.
+    - cron: "0 6 * * *"
+    - cron: "0 12 * * *"
   workflow_dispatch:
     # Allow manual trigger
     inputs:
@@ -44,7 +46,9 @@ jobs:
           AI_MODEL_PROFILE: cost-balanced
           REQUIRE_VALUE_ADDED_REWRITE: "true"
           ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: "true"
-          USE_FALLBACK_IMAGES: "false"
+          # Original photo whenever possible; a local category fallback ONLY when
+          # the original is impossible (instead of hiding the article).
+          USE_FALLBACK_IMAGES: "true"
           STRICT_ORIGINAL_IMAGE: "true"
           MAX_RSS_CANDIDATES: "220"
           MAX_ARTICLES_TO_PROCESS: "25"
@@ -64,8 +68,8 @@ jobs:
             echo "🧪 Dry-run mode: checking coverage without DB writes"
             npx tsx scripts/restore-original-article-images.ts --all --parallel=3 --target-ratio=0.90
           else
-            echo "🖼️ Restoring original images and enforcing >=90% coverage"
-            npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90 --hide-unresolved --require-target
+            echo "🖼️ Restoring original images (articles without one keep a category fallback, not hidden)"
+            npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90
           fi
         timeout-minutes: 45
 
@@ -79,6 +83,18 @@ jobs:
           echo "🛰️ Clustering the same story across independent outlets and scoring importance..."
           npm run ai:cluster -- --days 5
         timeout-minutes: 20
+        continue-on-error: true
+
+      - name: 🛡️ Watermark sweep (strip outlet-branded photos)
+        if: success() && github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🛡️ OCR-scanning recent images for outlet watermarks/credits..."
+          npm run ai:scan-watermarks -- --days 2 --execute
+        timeout-minutes: 30
         continue-on-error: true
 
       - name: Upload logs on failure
