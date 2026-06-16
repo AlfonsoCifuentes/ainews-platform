@@ -30,7 +30,7 @@
 
 import { load, type CheerioAPI } from 'cheerio';
 import { validateUrlForSSRFSync } from '../utils/ssrf-protection';
-import { stripImageOverlays, looksLikeBrandedImageUrl } from './watermark-guard';
+import { stripImageOverlays, looksLikeBrandedImageUrl, looksLikeLogoOrBrandAsset } from './watermark-guard';
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -170,6 +170,8 @@ function isBlacklisted(url: string): boolean {
   // Reject branded share-card / watermarked-agency image variants so the
   // pipeline falls through to the clean editorial photo.
   if (looksLikeBrandedImageUrl(url)) return true;
+  // Reject source logos / brand assets (e.g. arXiv logo) — never editorial photos.
+  if (looksLikeLogoOrBrandAsset(url)) return true;
   // SSRF check
   if (!validateUrlForSSRFSync(url)) return true;
   return false;

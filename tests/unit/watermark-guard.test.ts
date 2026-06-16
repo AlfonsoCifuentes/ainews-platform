@@ -3,7 +3,25 @@ import {
   textHasBrandCredit,
   stripImageOverlays,
   looksLikeBrandedImageUrl,
+  looksLikeLogoOrBrandAsset,
 } from '@/lib/services/watermark-guard';
+
+describe('looksLikeLogoOrBrandAsset', () => {
+  it('rejects the arXiv logo and any arxiv.org image', () => {
+    expect(looksLikeLogoOrBrandAsset('https://arxiv.org/static/browse/0.3.4/images/arxiv-logo-fb.png')).toBe(true);
+    expect(looksLikeLogoOrBrandAsset('https://arxiv.org/anything.jpg')).toBe(true);
+  });
+  it('rejects generic logo / favicon / brand assets', () => {
+    expect(looksLikeLogoOrBrandAsset('https://site.com/assets/site-logo.svg')).toBe(true);
+    expect(looksLikeLogoOrBrandAsset('https://site.com/favicon-512.png')).toBe(true);
+    expect(looksLikeLogoOrBrandAsset('https://site.com/img/og-default.jpg')).toBe(true);
+    expect(looksLikeLogoOrBrandAsset('https://site.com/placeholder.png')).toBe(true);
+  });
+  it('passes real editorial photos', () => {
+    expect(looksLikeLogoOrBrandAsset('https://cdn.arstechnica.net/wp-content/uploads/2026/01/musk-photo.jpg')).toBe(false);
+    expect(looksLikeLogoOrBrandAsset('https://i.guim.co.uk/img/media/abc/master/5000.jpg?width=1200')).toBe(false);
+  });
+});
 
 describe('textHasBrandCredit', () => {
   it('flags outlet names printed on the image', () => {

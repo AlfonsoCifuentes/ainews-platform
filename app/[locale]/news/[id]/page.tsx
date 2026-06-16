@@ -4,11 +4,13 @@ import { locales, type Locale } from '@/i18n';
 import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
+import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
 import { calculateReadingTime, extractPlainText, sanitizeScrapedContent } from '@/lib/utils/content-formatter';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
+import { CopyLinkButton } from '@/components/news/CopyLinkButton';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { SITE_NAME, SITE_BASE_URL } from '@/lib/config/site';
 import ReactMarkdown from 'react-markdown';
@@ -174,6 +176,8 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_BASE_URL}/${locale}/news/${article.id}` },
   };
 
+  const heroImage = getImageWithFallback(article.image_url, title, article.category, article.id);
+
   return (
     <main className="min-h-screen">
       <JsonLd data={jsonLd} />
@@ -181,7 +185,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${article.image_url})` }}
+          style={{ backgroundImage: `url("${heroImage}")` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
         
@@ -337,19 +341,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
               {locale === 'en' ? 'Share:' : 'Compartir:'}
             </span>
             <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    navigator.clipboard.writeText(window.location.href);
-                  }
-                }}
-                className="rounded-full border border-border bg-card p-3 transition-all hover:border-primary hover:bg-primary/10"
-                aria-label={locale === 'en' ? 'Copy link' : 'Copiar enlace'}
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </button>
+              <CopyLinkButton locale={locale} />
             </div>
           </div>
 
@@ -375,7 +367,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
                     <div className="relative h-48 overflow-hidden">
                       <div
                         className="absolute inset-0 scale-105 bg-cover bg-center transition-transform duration-500 group-hover:scale-100"
-                        style={{ backgroundImage: `url(${related.image_url})` }}
+                        style={{ backgroundImage: `url("${getImageWithFallback(related.image_url, getLocalizedString(related, 'title', locale), related.category, related.id)}")` }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
                     </div>

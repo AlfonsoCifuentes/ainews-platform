@@ -16,6 +16,7 @@
     "ai:curate": "tsx scripts/curate-news.ts",
     "ai:cluster": "tsx scripts/cluster-news.ts",
     "ai:scan-watermarks": "tsx scripts/scan-watermarks.ts",
+    "ai:fix-images-quality": "tsx scripts/fix-image-quality.ts",
     "ai:detect-trends": "tsx scripts/detect-trending.ts",
     "ai:gen-embeddings": "tsx scripts/generate-embeddings.ts",
     "ai:analyze-articles": "tsx scripts/analyze-articles.ts analyze",

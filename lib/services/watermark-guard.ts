@@ -108,9 +108,44 @@ export function looksLikeBrandedImageUrl(url: string): boolean {
   if (!url) return false;
   const lower = url.toLowerCase();
   if (BRANDED_URL_PATTERNS.some((p) => p.test(lower))) return true;
-  // Known stock/agency hosts that always watermark previews.
   const h = host(url);
+  // The Guardian's 1200x630 i.guim.co.uk render is the social card with the
+  // masthead baked in — reject it so we fall through to the clean photo crop.
+  if (h.includes('guim.co.uk') && /[?&]height=6(?:30|29|31|40)\b/.test(lower)) return true;
+  // Known stock/agency hosts that always watermark previews.
   return ['gettyimages.com', 'shutterstock.com', 'istockphoto.com', 'alamy.com', 'depositphotos.com'].includes(h);
+}
+
+/** Source logos, favicons, sprites and other brand assets — never editorial photos. */
+const LOGO_ASSET_PATTERNS: RegExp[] = [
+  /[-_/.]logo[-_.]/i,
+  /[-_/.]logo\.(png|svg|jpe?g|webp|gif)/i,
+  /\blogo[-_]/i,
+  /[-_]logo\b/i,
+  /favicon/i,
+  /\bsprite\b/i,
+  /masthead/i,
+  /[-_/.]brand(?:ing)?[-_/.]/i,
+  /\bplaceholder\b/i,
+  /default[-_]?(?:image|thumb|thumbnail)/i,
+  /\bno[-_]?image\b/i,
+  /opengraph[-_]?default|og[-_]?default|social[-_]?default/i,
+];
+
+/**
+ * True when the URL points at a SOURCE LOGO / brand asset rather than an
+ * editorial photo. We must never display the original outlet's logo, and these
+ * assets are also the typical cause of the same image repeating across many
+ * articles (e.g. arXiv's logo). arXiv has no editorial imagery at all, so every
+ * image from it is rejected.
+ */
+export function looksLikeLogoOrBrandAsset(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  const h = host(url);
+  if (h === 'arxiv.org' || h.endsWith('.arxiv.org')) return true;
+  if (lower.includes('static.arxiv.org') || lower.includes('arxiv-logo')) return true;
+  return LOGO_ASSET_PATTERNS.some((p) => p.test(lower));
 }
 
 // ── OCR scan (lazy, optional) ────────────────────────────────────────────────

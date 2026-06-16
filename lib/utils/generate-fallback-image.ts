@@ -8,6 +8,9 @@ export interface FallbackImageConfig {
   category?: string;
   width?: number;
   height?: number;
+  /** Optional seed (e.g. article id) to vary the gradient so consecutive
+   *  same-category articles don't share an identical cover. */
+  seed?: string;
 }
 
 export interface CourseFallbackImageConfig {
@@ -73,9 +76,14 @@ const categoryGradients: Record<string, { from: string; to: string; icon: string
  * Genera un SVG de respaldo para artículos sin imagen
  */
 export function generateFallbackImageSVG(config: FallbackImageConfig): string {
-  const { title, category = 'default', width = 1200, height = 630 } = config;
+  const { title, category = 'default', width = 1200, height = 630, seed } = config;
 
-  const gradient = categoryGradients[category] || categoryGradients.default;
+  // Pick a gradient. With a seed we spread across the whole palette so that even
+  // same-category covers differ; without one we use the category gradient.
+  const palette = Object.values(categoryGradients);
+  const gradient = seed
+    ? palette[Math.floor(seededRandom(seed) * palette.length)]
+    : categoryGradients[category] || categoryGradients.default;
   
   // Truncar título si es muy largo
   const truncatedTitle = title.length > 80 ? title.substring(0, 77) + '...' : title;
@@ -301,21 +309,15 @@ export function getImageWithFallback(
   category?: string,
   articleId?: string
 ): string {
-  // Si tiene imagen propia, usarla
+  // Use the article's own image when present.
   if (imageUrl && imageUrl.trim() !== '') {
     return imageUrl;
   }
-  
-  // Intentar usar imagen de fallback de Supabase
-  const identifier = articleId || title;
-  const supabaseFallback = getFallbackImageUrl(identifier);
-  
-  if (supabaseFallback) {
-    return supabaseFallback;
-  }
-  
-  // Fallback final: SVG generado
-  return generateFallbackImage({ title, category });
+
+  // Otherwise a self-contained generated cover (data URL) — never 404s, varied
+  // per article via the id seed. (The previous Supabase fallback bucket no
+  // longer exists, so we no longer depend on external storage.)
+  return generateFallbackImage({ title, category, seed: articleId || title });
 }
 
 /**
@@ -329,75 +331,22 @@ export function assignFallbackImagesToArticles<T extends {
   title_es?: string;
 }>(
   articles: T[],
-  windowSize = 5
+  _windowSize = 5
 ): (T & { computed_image_url: string; preferred_fallback_image_url: string })[] {
-  const images = filterDeniedFallbackImages(fallbackImagesList as string[]);
-  const result: (T & { computed_image_url: string; preferred_fallback_image_url: string })[] = [];
-
-  // Track the last position where a given fallback image was assigned.
-  // This enables a greedy "maximize distance" strategy to keep repetitions as far apart as possible.
-  const lastUsedAt = new Map<string, number>();
-  const minDistance = Math.max(0, Math.floor(windowSize));
-
-  function selectSpacedFallbackImage(articleId: string, position: number): string {
-    if (!Array.isArray(images) || images.length === 0) return '';
-
-    const baseIndex = Math.floor(seededRandom(articleId) * images.length);
-
-    // Iterate candidates in a seeded order, and pick the one that maximizes distance since last use.
-    // If there are candidates beyond the minDistance threshold, prefer those.
-    let bestCandidate = images[baseIndex];
-    let bestDistance = -1;
-    let bestIsBeyondThreshold = false;
-
-    for (let offset = 0; offset < images.length; offset++) {
-      const candidate = images[(baseIndex + offset) % images.length];
-      const last = lastUsedAt.get(candidate);
-      const distance = last === undefined ? Number.POSITIVE_INFINITY : position - last;
-      const isBeyond = distance > minDistance;
-
-      // Prefer candidates that are beyond the threshold. Among them, maximize distance.
-      // Tie-break by seeded iteration order (first encountered wins).
-      if (isBeyond && !bestIsBeyondThreshold) {
-        bestCandidate = candidate;
-        bestDistance = distance;
-        bestIsBeyondThreshold = true;
-        continue;
-      }
-
-      if (isBeyond === bestIsBeyondThreshold) {
-        if (distance > bestDistance) {
-          bestCandidate = candidate;
-          bestDistance = distance;
-        }
-      }
-    }
-
-    return bestCandidate;
-  }
-
-  for (let i = 0; i < articles.length; i++) {
-    const article = articles[i];
-
-    // Always compute a preferred fallback URL for this article.
-    // This is used both when the article has no image_url and when an existing image fails to load.
-    let preferredFallback = '';
-    if (Array.isArray(images) && images.length > 0) {
-      preferredFallback = selectSpacedFallbackImage(article.id, i);
-      lastUsedAt.set(preferredFallback, i);
-    } else {
-      const title = article.title_en || article.title_es || 'Article';
-      preferredFallback = generateFallbackImage({ title, category: (article as { category?: string }).category });
-    }
-
+  return articles.map((article) => {
+    const title = article.title_en || article.title_es || 'Article';
+    const preferredFallback = generateFallbackImage({
+      title,
+      category: (article as { category?: string }).category,
+      seed: article.id,
+    });
     const hasOwnImage = !!(article.image_url && article.image_url.trim() !== '');
-    result.push({
+    return {
       ...article,
       preferred_fallback_image_url: preferredFallback,
       computed_image_url: hasOwnImage ? (article.image_url as string) : preferredFallback,
-    });
-  }
-
-  return result;
+    };
+  });
 }
+
 
