@@ -51,6 +51,9 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          NEWS_WRITER_PROVIDER: deepseek
+          NEWS_WRITER_MODEL: deepseek-v4-flash
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           AI_MODEL_PROFILE: cost-balanced
         run: |

@@ -645,7 +645,36 @@ function getActiveModelProfile(): 'latest' | 'cost-balanced' {
  * - Default: existing fallback strategy (cloud providers)
  * - cost-balanced: prefer OpenAI for selected tasks when OPENAI_API_KEY is present
  */
+/**
+ * Primary writer for news articles. Configurable via NEWS_WRITER_PROVIDER /
+ * NEWS_WRITER_MODEL; defaults to DeepSeek `deepseek-v4-flash`. Returns null when
+ * the provider key is missing so the caller falls back to the normal cascade.
+ */
+function tryCreateNewsWriter(): LLMClient | null {
+  const provider = ((process.env.NEWS_WRITER_PROVIDER || 'deepseek').trim().toLowerCase()) as LLMProvider;
+  const model =
+    (process.env.NEWS_WRITER_MODEL || '').trim() ||
+    (provider === 'deepseek' ? 'deepseek-v4-flash' : undefined);
+  try {
+    const client = createLLMClient(provider, model);
+    console.log(`[LLM] ✓ News writer: ${provider} (${model ?? 'default'})`);
+    return client;
+  } catch (error) {
+    console.warn(
+      `[LLM] News writer (${provider}) unavailable, using fallback cascade:`,
+      error instanceof Error ? error.message : 'unknown',
+    );
+    return null;
+  }
+}
+
 export async function createLLMClientForTask(task: LLMTask): Promise<LLMClient> {
+  // News writing uses the configured primary writer first (default: DeepSeek).
+  if (task === 'news_rewrite') {
+    const writer = tryCreateNewsWriter();
+    if (writer) return writer;
+  }
+
   const profile = getActiveModelProfile();
 
   if (profile === 'cost-balanced' && process.env.OPENAI_API_KEY) {

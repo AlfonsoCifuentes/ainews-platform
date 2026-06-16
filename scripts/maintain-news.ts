@@ -123,15 +123,9 @@ async function createMaintenanceLLM(args: MaintainArgs): Promise<LLMClient> {
 		return createLLMClient(args.provider, args.model);
 	}
 
-	// For this operational maintenance script we prefer OpenAI when configured
-	// to avoid local-model structured-output drift.
-	if (process.env.OPENAI_API_KEY) {
-		const model = args.model || 'gpt-4o-mini';
-		const client = createLLMClient('openai', model);
-		console.log(`[LLM] ✓ Using OpenAI (${model}) for maintain-news`);
-		return client;
-	}
-
+	// Use the same primary news writer as the curation pipeline
+	// (NEWS_WRITER_PROVIDER / NEWS_WRITER_MODEL — default DeepSeek deepseek-v4-flash),
+	// falling back to the multi-provider cascade when it is unavailable.
 	return await createLLMClientForTask('news_rewrite');
 }
 
@@ -533,7 +527,7 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 				continue;
 			}
 
-			const rewriteModelLabel = args.model || 'gpt-4o-mini';
+			const rewriteModelLabel = args.model || process.env.NEWS_WRITER_MODEL || 'deepseek-v4-flash';
 			const { error: updateError } = await db
 				.from('news_articles')
 				.update({
