@@ -38,11 +38,21 @@ export interface StoryCluster {
   importance: number;
 }
 
-/** Cosine threshold for "same story, different wording/source". Looser than the
- *  pipeline's dedup threshold (~0.93) so paraphrased coverage still groups. */
-export const DEFAULT_CLUSTER_THRESHOLD = 0.82;
-/** Title Jaccard fallback when one/both embeddings are missing. */
-export const TITLE_FALLBACK_THRESHOLD = 0.5;
+/** Cosine threshold for "same story, different wording/source".
+ *  AI-news embeddings encode heavy TOPIC similarity (distinct stories routinely
+ *  hit 0.85–0.90), so we sit just under the pipeline's dedup threshold (~0.93)
+ *  to capture genuine same-story coverage without merging the whole topic. */
+export const DEFAULT_CLUSTER_THRESHOLD = 0.91;
+/** Title Jaccard fallback when one/both embeddings are missing. Kept strict:
+ *  lexical overlap alone over-merges topically-similar AI stories. */
+export const TITLE_FALLBACK_THRESHOLD = 0.65;
+/** Lighter headline-overlap guard applied when content similarity is ALREADY
+ *  high. Blocks distinct stories that merely embed alike (different headlines →
+ *  ~0 overlap) while still allowing paraphrased same-story coverage. */
+export const COMBINED_TITLE_GUARD = 0.3;
+/** Same-story coverage clusters in time. Articles further apart than this are
+ *  never merged, even if their content embeds similarly. */
+export const DEFAULT_MAX_HOURS_APART = 72;
 
 // ── domain / source helpers ────────────────────────────────────────────────
 
@@ -160,9 +170,13 @@ export function isSameStory(
   clusterThreshold = DEFAULT_CLUSTER_THRESHOLD,
 ): boolean {
   if (a.embedding && b.embedding && a.embedding.length && b.embedding.length) {
-    return cosineSimilarity(a.embedding, b.embedding) >= clusterThreshold;
+    // Same story requires high content similarity AND some headline overlap.
+    // Embeddings alone over-merge topically-similar AI stories, so a light title
+    // guard supplies precision without killing paraphrased coverage.
+    if (cosineSimilarity(a.embedding, b.embedding) < clusterThreshold) return false;
+    return titleSimilarity(a.title, b.title) >= COMBINED_TITLE_GUARD;
   }
-  // Fallback to lexical title overlap when embeddings are unavailable.
+  // Without comparable embeddings, fall back to a strict headline match only.
   return titleSimilarity(a.title, b.title) >= TITLE_FALLBACK_THRESHOLD;
 }
 
@@ -215,15 +229,24 @@ export function computeImportance(input: ImportanceInput): number {
  */
 export function clusterArticles(
   articles: ClusterableArticle[],
-  options: { clusterThreshold?: number; now?: number } = {},
+  options: { clusterThreshold?: number; maxHoursApart?: number; now?: number } = {},
 ): StoryCluster[] {
   const clusterThreshold = options.clusterThreshold ?? DEFAULT_CLUSTER_THRESHOLD;
+  const maxHoursApart = options.maxHoursApart ?? DEFAULT_MAX_HOURS_APART;
   const now = options.now ?? Date.now();
   const n = articles.length;
   const uf = new UnionFind(n);
 
+  const hoursApart = (a: ClusterableArticle, b: ClusterableArticle): number => {
+    const ta = new Date(a.publishedAt).getTime();
+    const tb = new Date(b.publishedAt).getTime();
+    if (!Number.isFinite(ta) || !Number.isFinite(tb)) return Infinity;
+    return Math.abs(ta - tb) / 3_600_000;
+  };
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
+      if (hoursApart(articles[i], articles[j]) > maxHoursApart) continue;
       if (isSameStory(articles[i], articles[j], clusterThreshold)) {
         uf.union(i, j);
       }
