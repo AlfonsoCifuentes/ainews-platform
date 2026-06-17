@@ -2091,7 +2091,15 @@ async function persistArticle(
 		console.log(`[DB] ✓ Stored article: ${entry.article.title.slice(0, 80)}...`);
 		return { success: true, retryable: false };
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+		// Supabase errors are plain objects ({message, details, hint, code}), not
+		// Error instances — stringify them so the real cause isn't masked as
+		// "[object Object]".
+		const message =
+			error instanceof Error
+				? error.message
+				: error && typeof error === 'object'
+					? JSON.stringify(error)
+					: String(error);
 		console.error('[DB] ✗ Failed to store article:', message);
 		entry.lastError = message;
 		return { success: false, retryable: true, reason: message };

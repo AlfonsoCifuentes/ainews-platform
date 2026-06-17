@@ -67,6 +67,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_NETWORK_RETRIES: "5"
+          SUPABASE_NETWORK_RETRY_DELAY_MS: "1500"
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             echo "🧪 Dry-run mode: checking coverage without DB writes"
@@ -76,6 +78,8 @@ jobs:
             npx tsx scripts/restore-original-article-images.ts --all --execute --parallel=3 --target-ratio=0.90
           fi
         timeout-minutes: 45
+        # A transient Supabase fetch error here must NOT fail the whole ingestion.
+        continue-on-error: true
 
       - name: 🛰️ Cluster stories by multi-source corroboration
         if: success() && github.event.inputs.dry_run != 'true'
@@ -99,6 +103,18 @@ jobs:
           echo "🛡️ OCR-scanning recent images for outlet watermarks/credits..."
           npm run ai:scan-watermarks -- --days 2 --execute
         timeout-minutes: 30
+        continue-on-error: true
+
+      - name: 📈 Detect trending topics
+        if: success() && github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📈 Refreshing trending topics for /trending..."
+          npm run ai:detect-trends
+        timeout-minutes: 10
         continue-on-error: true
 
       - name: Upload logs on failure

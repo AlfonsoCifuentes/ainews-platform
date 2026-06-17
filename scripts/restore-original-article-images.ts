@@ -52,6 +52,8 @@ const PARALLEL = Number(
 const TARGET_RATIO = Number(
   (process.argv.find((arg) => arg.startsWith('--target-ratio='))?.split('=')[1] ?? '0.90').trim(),
 );
+const MAX_NETWORK_RETRIES = Number(process.env.SUPABASE_NETWORK_RETRIES ?? '4');
+const BASE_RETRY_DELAY_MS = Number(process.env.SUPABASE_NETWORK_RETRY_DELAY_MS ?? '1500');
 
 const FETCH_HEADERS = {
   'User-Agent':
@@ -90,6 +92,80 @@ const FALLBACK_URL_PATTERNS: RegExp[] = [
 ];
 
 const GOOGLE_NEWS_CACHE = new Map<string, string>();
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveWait) => setTimeout(resolveWait, ms));
+}
+
+function stringifyError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null) {
+    const payload = error as Record<string, unknown>;
+    const parts = [payload.message, payload.details, payload.hint, payload.code]
+      .filter((part): part is string => typeof part === 'string' && part.length > 0);
+    if (parts.length > 0) return parts.join(' ');
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
+function isRetryableNetworkFailure(error: unknown): boolean {
+  const text = stringifyError(error).toLowerCase();
+
+  return (
+    text.includes('fetch failed') ||
+    text.includes('network') ||
+    text.includes('enotfound') ||
+    text.includes('econnreset') ||
+    text.includes('etimedout') ||
+    text.includes('socket') ||
+    text.includes('temporarily unavailable') ||
+    text.includes('502') ||
+    text.includes('503') ||
+    text.includes('504')
+  );
+}
+
+async function withSupabaseRetry<T>(label: string, task: () => PromiseLike<T>): Promise<T> {
+  const maxAttempts =
+    Number.isFinite(MAX_NETWORK_RETRIES) && MAX_NETWORK_RETRIES > 0
+      ? Math.floor(MAX_NETWORK_RETRIES)
+      : 1;
+  const baseDelay =
+    Number.isFinite(BASE_RETRY_DELAY_MS) && BASE_RETRY_DELAY_MS > 0
+      ? BASE_RETRY_DELAY_MS
+      : 1500;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      const retryable = isRetryableNetworkFailure(error);
+      if (!retryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const delay = Math.min(baseDelay * 2 ** (attempt - 1), 12000);
+      console.warn(
+        `[Restore/Retry] ${label} failed (attempt ${attempt}/${maxAttempts}): ${stringifyError(
+          error,
+        )}. Retrying in ${delay}ms`,
+      );
+      await sleep(delay);
+    }
+  }
+
+  throw lastError ?? new Error(`${label} failed after retries`);
+}
 
 function getHost(url: string | null | undefined): string {
   if (!url) return '';
@@ -352,11 +428,13 @@ async function fetchFallbackRows(limit: number): Promise<NewsRow[]> {
   let offset = 0;
 
   while (true) {
-    const { data, error } = await db
-      .from('news_articles')
-      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    const { data, error } = await withSupabaseRetry(`fetch fallback rows at offset ${offset}`, () =>
+      db
+        .from('news_articles')
+        .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1),
+    );
 
     if (error) {
       throw error;
@@ -416,12 +494,14 @@ async function fetchStaleRows(limit: number): Promise<NewsRow[]> {
   let offset = 0;
 
   while (true) {
-    const { data, error } = await db
-      .from('news_articles')
-      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    const { data, error } = await withSupabaseRetry(`fetch stale rows at offset ${offset}`, () =>
+      db
+        .from('news_articles')
+        .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1),
+    );
 
     if (error) throw error;
 
@@ -470,13 +550,15 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
   const resolved = await resolveBestOriginalImage(row);
   if (!resolved) {
     if (EXECUTE && HIDE_UNRESOLVED && row.is_hidden !== true) {
-      const { error } = await db
-        .from('news_articles')
-        .update({
-          is_hidden: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', row.id);
+      const { error } = await withSupabaseRetry(`hide unresolved article ${row.id}`, () =>
+        db
+          .from('news_articles')
+          .update({
+            is_hidden: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', row.id),
+      );
 
       if (!error) {
         console.log('  [Restore] No original image recovered -> hidden from feed');
@@ -508,10 +590,12 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await db
-    .from('news_articles')
-    .update(patch)
-    .eq('id', row.id);
+  const { error } = await withSupabaseRetry(`update article image ${row.id}`, () =>
+    db
+      .from('news_articles')
+      .update(patch)
+      .eq('id', row.id),
+  );
 
   if (error) {
     console.error(`  [Restore] Update failed: ${error.message}`);
@@ -528,12 +612,20 @@ async function computeCoverageStats(): Promise<{
   ratio: number;
 }> {
   const db = getSupabaseServerClient();
-  const { data, error } = await db
-    .from('news_articles')
-    .select('image_url,is_hidden');
+  const { data, error } = await withSupabaseRetry('compute coverage stats', () =>
+    db
+      .from('news_articles')
+      .select('image_url,is_hidden'),
+  );
 
   if (error) {
-    throw error;
+    // Coverage stats are only a report — a transient Supabase fetch error here
+    // must not abort the whole run. Assume "covered" so we don't over-process.
+    console.warn(
+      '[Restore] Coverage stats unavailable (transient):',
+      error instanceof Error ? error.message : JSON.stringify(error),
+    );
+    return { total: 0, fallback: 0, original: 0, ratio: 1 };
   }
 
   const rows = (data ?? []).filter((row) => INCLUDE_HIDDEN || row.is_hidden !== true);
