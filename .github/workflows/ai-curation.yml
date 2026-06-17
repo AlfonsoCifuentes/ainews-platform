@@ -43,9 +43,10 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Paid DeepSeek is the LAST resort — free providers (Groq/Gemini/
+          # OpenRouter/Together) are tried first. NEWS_WRITER_MODEL only sets the
+          # model used WHEN DeepSeek is reached.
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          # Primary news writer (falls back to the cascade if unavailable)
-          NEWS_WRITER_PROVIDER: deepseek
           NEWS_WRITER_MODEL: deepseek-v4-flash
           AI_MODEL_PROFILE: cost-balanced
           REQUIRE_VALUE_ADDED_REWRITE: "true"

@@ -639,54 +639,96 @@ function getActiveModelProfile(): 'latest' | 'cost-balanced' {
   return 'latest';
 }
 
-/**
- * Task-aware client selection.
- *
- * - Default: existing fallback strategy (cloud providers)
- * - cost-balanced: prefer OpenAI for selected tasks when OPENAI_API_KEY is present
- */
-/**
- * Primary writer for news articles. Configurable via NEWS_WRITER_PROVIDER /
- * NEWS_WRITER_MODEL; defaults to DeepSeek `deepseek-v4-flash`. Returns null when
- * the provider key is missing so the caller falls back to the normal cascade.
- */
-function tryCreateNewsWriter(): LLMClient | null {
-  const provider = ((process.env.NEWS_WRITER_PROVIDER || 'deepseek').trim().toLowerCase()) as LLMProvider;
-  const model =
-    (process.env.NEWS_WRITER_MODEL || '').trim() ||
-    (provider === 'deepseek' ? 'deepseek-v4-flash' : undefined);
-
-  // The #1 reason the writer silently falls back to the free Groq cascade is a
-  // missing/empty provider key in the *process env* (even when a GitHub secret
-  // exists). Make that explicit and loud in the logs.
-  const keyEnv = `${provider.toUpperCase()}_API_KEY`;
-  if (!process.env[keyEnv] || process.env[keyEnv]!.trim() === '') {
-    console.warn(
-      `[LLM] ⚠️  News writer "${provider}" (${model ?? 'default'}) requested but ${keyEnv} is NOT set in the environment — ` +
-        `falling back to the free cascade (Groq → Gemini → …, which can hit daily limits). ` +
-        `Ensure ${keyEnv} is a repository Actions secret and exported in the workflow env.`,
-    );
-    return null;
-  }
-
-  try {
-    const client = createLLMClient(provider, model);
-    console.log(`[LLM] ✓ News writer ACTIVE: ${provider} (${model ?? 'default'})`);
-    return client;
-  } catch (error) {
-    console.warn(
-      `[LLM] News writer (${provider}) init failed, using fallback cascade:`,
-      error instanceof Error ? error.message : 'unknown',
-    );
-    return null;
+/** Quiet check whether a provider's API key is present in the environment. */
+function providerHasKey(provider: LLMProvider): boolean {
+  switch (provider) {
+    case 'openai': return !!process.env.OPENAI_API_KEY;
+    case 'openrouter': return !!process.env.OPENROUTER_API_KEY;
+    case 'groq': return !!process.env.GROQ_API_KEY;
+    case 'gemini': return !!process.env.GEMINI_API_KEY;
+    case 'anthropic': return !!process.env.ANTHROPIC_API_KEY;
+    case 'together': return !!process.env.TOGETHER_API_KEY;
+    case 'deepseek': return !!process.env.DEEPSEEK_API_KEY;
+    case 'mistral': return !!process.env.MISTRAL_API_KEY;
+    default: return false;
   }
 }
 
+/**
+ * News pipeline provider order: FREE tiers first, the PAID DeepSeek only as a
+ * last resort, then other paid providers (used only if their key exists).
+ */
+const NEWS_REWRITE_PROVIDER_ORDER: LLMProvider[] = [
+  'groq', 'gemini', 'openrouter', 'together', // free tiers — try these first
+  'deepseek',                                  // paid (yours) — last resort
+  'mistral', 'openai', 'anthropic',            // other paid, only if configured
+];
+
+/**
+ * An LLMClient that tries multiple providers IN ORDER, failing over at runtime
+ * on retryable errors (rate-limit / timeout / network) and skipping providers
+ * that are cooling down. This exhausts free providers before the paid DeepSeek.
+ * Extends LLMClient so existing call sites (`generate`, `classify`) work as-is.
+ */
+export class CascadeLLMClient extends LLMClient {
+  constructor(
+    private readonly order: LLMProvider[],
+    private readonly modelByProvider: Partial<Record<LLMProvider, string>> = {},
+  ) {
+    super('cascade', 'https://cascade.invalid', 'cascade', 'groq');
+  }
+
+  private async run<T>(label: string, fn: (client: LLMClient) => Promise<T>): Promise<T> {
+    const providers = this.order.filter(providerHasKey);
+    if (providers.length === 0) {
+      throw new Error('No LLM providers configured (set GROQ_API_KEY / GEMINI_API_KEY / DEEPSEEK_API_KEY …)');
+    }
+    let lastError: unknown;
+    for (const provider of providers) {
+      if ((providerCooldowns.get(provider) ?? 0) > Date.now()) continue; // skip cooling-down provider
+      let client: LLMClient;
+      try {
+        client = createLLMClient(provider, this.modelByProvider[provider]);
+      } catch {
+        continue;
+      }
+      try {
+        const result = await fn(client);
+        providerCooldowns.delete(provider);
+        console.log(`[LLM Cascade] ${label} via ${provider}${provider === 'deepseek' ? ' (paid fallback)' : ''}`);
+        return result;
+      } catch (error) {
+        lastError = error;
+        const info = classifyLLMError(error);
+        if (info.type === 'rate_limit') {
+          providerCooldowns.set(provider, Date.now() + (info.retryAfterMs ?? 60_000));
+        }
+        console.warn(`[LLM Cascade] ${provider} ${info.type} for ${label} — trying next provider`);
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('All providers in cascade failed');
+  }
+
+  async generate(prompt: string, options?: Partial<GenerateOptions>): Promise<LLMResponse> {
+    return this.run('generate', (client) => client.generate(prompt, options));
+  }
+
+  async classify<T>(text: string, schema: z.ZodSchema<T>, systemPrompt?: string): Promise<T> {
+    return this.run('classify', (client) => client.classify(text, schema, systemPrompt));
+  }
+}
+
+/**
+ * Task-aware client selection.
+ * - news_rewrite: FREE providers first, paid DeepSeek last (CascadeLLMClient).
+ * - cost-balanced: prefer OpenAI for other tasks when OPENAI_API_KEY is present.
+ */
 export async function createLLMClientForTask(task: LLMTask): Promise<LLMClient> {
-  // News writing uses the configured primary writer first (default: DeepSeek).
+  // News writing + classification: exhaust free providers before paid DeepSeek.
   if (task === 'news_rewrite') {
-    const writer = tryCreateNewsWriter();
-    if (writer) return writer;
+    return new CascadeLLMClient(NEWS_REWRITE_PROVIDER_ORDER, {
+      deepseek: (process.env.NEWS_WRITER_MODEL || 'deepseek-v4-flash').trim(),
+    });
   }
 
   const profile = getActiveModelProfile();
@@ -696,7 +738,6 @@ export async function createLLMClientForTask(task: LLMTask): Promise<LLMClient> 
       switch (task) {
         case 'course_generation':
           return 'gpt-4o';
-        case 'news_rewrite':
         case 'visual_planning':
         case 'general':
         default:
