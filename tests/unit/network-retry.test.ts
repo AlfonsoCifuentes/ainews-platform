@@ -4,7 +4,7 @@ import { isRetryableNetworkFailure, withNetworkRetry } from '@/lib/utils/network
 describe('isRetryableNetworkFailure', () => {
   it('detects fetch and transient network failures', () => {
     expect(isRetryableNetworkFailure(new Error('TypeError: fetch failed'))).toBe(true);
-    expect(isRetryableNetworkFailure({ message: 'getaddrinfo ENOTFOUND example.com' })).toBe(true);
+    expect(isRetryableNetworkFailure({ code: 'ENOTFOUND', detail: 'dns lookup failed' })).toBe(true);
     expect(isRetryableNetworkFailure('socket hang up')).toBe(true);
   });
 

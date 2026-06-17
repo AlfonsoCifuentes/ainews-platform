@@ -1,3 +1,5 @@
+const MAX_RETRY_DELAY_MS = 12000;
+
 function errorToString(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -10,7 +12,7 @@ function errorToString(error: unknown): string {
   try {
     return JSON.stringify(error);
   } catch {
-    return String(error);
+    return '[Unstringifiable error object]';
   }
 }
 
@@ -56,7 +58,7 @@ export async function withNetworkRetry<T>(
         throw error;
       }
 
-      const delay = Math.min(baseDelayMs * 2 ** (attempt - 1), 12000);
+      const delay = Math.min(baseDelayMs * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS);
       console.warn(
         `[Retry] ${label} failed (attempt ${attempt}/${maxRetries}): ${errorToString(error)}. Retrying in ${delay}ms`,
       );
