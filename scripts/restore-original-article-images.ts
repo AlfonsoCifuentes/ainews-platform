@@ -16,6 +16,7 @@ import { getSupabaseServerClient } from '../lib/db/supabase';
 import { getBestArticleImage } from '../lib/services/image-scraper';
 import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scraper';
 import { validateImageEnhanced } from '../lib/services/image-validator';
+import { withNetworkRetry } from '../lib/utils/network-retry';
 
 type NewsRow = {
   id: string;
@@ -352,11 +353,13 @@ async function fetchFallbackRows(limit: number): Promise<NewsRow[]> {
   let offset = 0;
 
   while (true) {
-    const { data, error } = await db
-      .from('news_articles')
-      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    const { data, error } = await withNetworkRetry(`restore_fallback_rows:${offset}`, async () =>
+      db
+        .from('news_articles')
+        .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1),
+    );
 
     if (error) {
       throw error;
@@ -416,12 +419,14 @@ async function fetchStaleRows(limit: number): Promise<NewsRow[]> {
   let offset = 0;
 
   while (true) {
-    const { data, error } = await db
-      .from('news_articles')
-      .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    const { data, error } = await withNetworkRetry(`restore_stale_rows:${offset}`, async () =>
+      db
+        .from('news_articles')
+        .select('id,title_en,title_es,source_url,image_url,is_hidden,created_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1),
+    );
 
     if (error) throw error;
 
@@ -470,13 +475,15 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
   const resolved = await resolveBestOriginalImage(row);
   if (!resolved) {
     if (EXECUTE && HIDE_UNRESOLVED && row.is_hidden !== true) {
-      const { error } = await db
+    const { error } = await withNetworkRetry(`restore_hide_row:${row.id}`, async () =>
+      db
         .from('news_articles')
         .update({
           is_hidden: true,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', row.id);
+        .eq('id', row.id),
+    );
 
       if (!error) {
         console.log('  [Restore] No original image recovered -> hidden from feed');
@@ -508,10 +515,12 @@ async function processRow(row: NewsRow): Promise<{ updated: boolean; reason?: st
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await db
-    .from('news_articles')
-    .update(patch)
-    .eq('id', row.id);
+  const { error } = await withNetworkRetry(`restore_update_row:${row.id}`, async () =>
+    db
+      .from('news_articles')
+      .update(patch)
+      .eq('id', row.id),
+  );
 
   if (error) {
     console.error(`  [Restore] Update failed: ${error.message}`);
@@ -528,9 +537,11 @@ async function computeCoverageStats(): Promise<{
   ratio: number;
 }> {
   const db = getSupabaseServerClient();
-  const { data, error } = await db
-    .from('news_articles')
-    .select('image_url,is_hidden');
+  const { data, error } = await withNetworkRetry('restore_coverage_stats', async () =>
+    db
+      .from('news_articles')
+      .select('image_url,is_hidden'),
+  );
 
   if (error) {
     throw error;
