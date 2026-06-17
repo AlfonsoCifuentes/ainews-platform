@@ -655,13 +655,27 @@ function tryCreateNewsWriter(): LLMClient | null {
   const model =
     (process.env.NEWS_WRITER_MODEL || '').trim() ||
     (provider === 'deepseek' ? 'deepseek-v4-flash' : undefined);
+
+  // The #1 reason the writer silently falls back to the free Groq cascade is a
+  // missing/empty provider key in the *process env* (even when a GitHub secret
+  // exists). Make that explicit and loud in the logs.
+  const keyEnv = `${provider.toUpperCase()}_API_KEY`;
+  if (!process.env[keyEnv] || process.env[keyEnv]!.trim() === '') {
+    console.warn(
+      `[LLM] ⚠️  News writer "${provider}" (${model ?? 'default'}) requested but ${keyEnv} is NOT set in the environment — ` +
+        `falling back to the free cascade (Groq → Gemini → …, which can hit daily limits). ` +
+        `Ensure ${keyEnv} is a repository Actions secret and exported in the workflow env.`,
+    );
+    return null;
+  }
+
   try {
     const client = createLLMClient(provider, model);
-    console.log(`[LLM] ✓ News writer: ${provider} (${model ?? 'default'})`);
+    console.log(`[LLM] ✓ News writer ACTIVE: ${provider} (${model ?? 'default'})`);
     return client;
   } catch (error) {
     console.warn(
-      `[LLM] News writer (${provider}) unavailable, using fallback cascade:`,
+      `[LLM] News writer (${provider}) init failed, using fallback cascade:`,
       error instanceof Error ? error.message : 'unknown',
     );
     return null;
