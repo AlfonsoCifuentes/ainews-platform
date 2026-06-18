@@ -47,7 +47,7 @@ const openai = new OpenAI({
 });
 
 const MODEL = 'gpt-4o-mini'; // Fast, cheap, no rate limits
-export const REWRITE_VERSION = 5; // Increment when prompt changes significantly
+export const REWRITE_VERSION = 6; // Increment when prompt changes significantly
 export const REWRITE_MODEL = 'gpt-4o-mini';
 
 // =============================================================================
@@ -82,7 +82,7 @@ const ArticleRewriteSchema = z.object({
 	content: z.union([
 		z.string(),
 		z.object({}).passthrough(), // Accept object and convert later
-	]).describe('Flowing article text (1500-2500 words)'),
+	]).describe('Concise article text (450-650 words target)'),
 	value_score: z.number().min(0).max(1).optional().describe('Self-assessed quality score'),
 }).transform((data) => {
 	// If content is an object, convert to flowing text (NO markdown headings)
@@ -95,11 +95,8 @@ const ArticleRewriteSchema = z.object({
 	} else {
 		contentStr = data.content as string;
 	}
-	// Remove any markdown headings that might have been included, then ensure
-	// the stored article is readable Markdown rather than one giant paragraph.
-	contentStr = normalizeNewsArticleMarkdown(
-		contentStr.replace(/^##?\s+.+$/gm, '').replace(/\n{3,}/g, '\n\n').trim(),
-	);
+	// Ensure the stored article is readable Markdown rather than one giant paragraph.
+	contentStr = normalizeNewsArticleMarkdown(contentStr.replace(/\n{3,}/g, '\n\n').trim());
 	return {
 		title: data.title,
 		summary: sanitizeScrapedContent(data.summary),
@@ -110,8 +107,7 @@ const ArticleRewriteSchema = z.object({
 	z.object({
 		title: z.string().min(8).max(180),
 		summary: z.string().min(80).max(900),
-		// Allow much longer content for comprehensive news articles (1500-2500 words = ~9000-15000 chars).
-		content: z.string().min(5000).max(15000),
+		content: z.string().min(900).max(7000),
 		value_score: z.number().min(0).max(1).optional(),
 	}),
 );
@@ -134,7 +130,7 @@ function buildValueAddedPrompt(
 		return `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
 
 ## OBJETIVO
-Transformar noticias básicas en contenido premium que aporte valor real al lector.
+Transformar noticias básicas en contenido útil, claro y rápido de leer.
 
 ## ESTRUCTURA REQUERIDA
 
@@ -143,38 +139,35 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 - Gancho informativo que capte la atención
 - Máximo 110 caracteres, evitar clickbait vacío
 
-### Resumen (summary) - 120-240 palabras
+### Resumen (summary) - 45-90 palabras
 - Párrafo de entrada que enganche al lector
 - Responder: ¿Qué pasó? ¿Por qué importa?
 - Lenguaje claro y directo
 - Reformular (no calcar el resumen original)
 
-### Contenido (content) - 1500-2500 palabras (OBLIGATORIO: contenido extenso y detallado)
-IMPORTANTE: Escribe como un artículo periodístico profesional EXTENSO, con secciones claras y lectura fluida.
+### Contenido (content) - 450-650 palabras objetivo, 850 máximo
+IMPORTANTE: Escribe como un artículo periodístico profesional, sintético y con lectura fluida.
 - Usa encabezados Markdown ##/### cuando ayuden a ordenar la lectura
 - Evita títulos de sección genéricos o mecánicos
 - NO uses listas con bullets o números
-- Escribe párrafos fluidos que integren naturalmente:
-  * Qué ocurrió exactamente (con todos los detalles técnicos relevantes)
-  * La tecnología involucrada (explicada con claridad y profundidad)
-  * Contexto amplio (antecedentes históricos, evolución del campo)
-  * El impacto en usuarios/industria/sociedad
-  * Análisis técnico profundo (cómo funciona, arquitectura, innovaciones clave)
-  * Comparación con alternativas / estado del arte (si aplica)
-  * Implicaciones futuras y qué vigilar
-  * Riesgos, limitaciones o contrapesos
-  * Una conclusión memorable
+- Escribe párrafos fluidos que integren solo lo esencial:
+  * Qué ocurrió exactamente
+  * Por qué importa ahora
+  * Contexto técnico mínimo
+  * Implicaciones o riesgos principales
+  * Qué vigilar después
 
 El contenido debe leerse como prosa periodística, no como un documento estructurado.
 
 ## REGLAS
 - NO incluir URLs crudas
 - NO usar "Leer más", avisos de cookies
-- Párrafos cortos (2-4 oraciones)
-- Usar subtítulos Markdown ##/### cuando ayuden y negrita **moderada** para conceptos clave
+- Párrafos cortos (1-3 oraciones)
+- Usar 2-4 subtítulos Markdown ##/### como máximo y negrita **moderada** para conceptos clave
 - Separar SIEMPRE cada párrafo con una línea en blanco (\n\n); nunca devolver un único bloque largo.
-- Ningún párrafo debe superar 900 caracteres.
+- Ningún párrafo debe superar 650 caracteres.
 - Términos técnicos explicados brevemente
+- No rellenes con historia amplia, ejemplos largos ni conclusiones repetitivas
 
 IMPORTANTE: NO copies frases largas del original. Reformula.
 
@@ -192,7 +185,7 @@ Contenido: ${workingContent}`;
 	return `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT.
 
 ## OBJECTIVE
-Transform basic news into premium content that provides real value to readers.
+Transform basic news into useful, clear content that is quick to read.
 
 ## REQUIRED STRUCTURE
 
@@ -201,38 +194,35 @@ Transform basic news into premium content that provides real value to readers.
 - Informative hook that captures attention
 - Maximum 110 characters, avoid empty clickbait
 
-### Summary (summary) - 120-240 words
+### Summary (summary) - 45-90 words
 - Opening paragraph that hooks the reader
 - Answer: What happened? Why does it matter?
 - Clear and direct language
 - Rephrase (do not mirror the original summary wording)
 
-### Content (content) - 1500-2500 words (MANDATORY: comprehensive and detailed content)
-IMPORTANT: Write as a professional EXTENSIVE journalistic article, with clear sections and flowing prose.
+### Content (content) - 450-650 words target, 850 maximum
+IMPORTANT: Write as a professional, concise journalistic article with clear sections and flowing prose.
 - Use Markdown ##/### subheadings when they help structure the reading
 - Avoid generic or mechanical section titles
 - Do NOT use bullet lists or numbered lists
-- Write smooth flowing paragraphs that naturally integrate:
-  * What exactly happened (with all relevant technical details)
-  * The technology involved (explained clearly and in-depth)
-  * Broad context (historical background, field evolution)
-  * Impact on users/industry/society
-  * Deep technical analysis (how it works, architecture, key innovations)
-  * Comparisons to alternatives / prior state (if applicable)
-  * Future implications and what to watch
-  * Risks, limitations or counterpoints
-  * A memorable conclusion
+- Write smooth flowing paragraphs that include only the essentials:
+  * What exactly happened
+  * Why it matters now
+  * Minimal technical context
+  * Main implications or risks
+  * What to watch next
 
 The content should read like journalistic prose, not a structured document.
 
 ## RULES
 - Do NOT include raw URLs in the text
 - Do NOT use "Read more", cookie notices
-- Short paragraphs (2-4 sentences)
-- Use Markdown ##/### subheadings when helpful and moderate **bold** for key concepts
+- Short paragraphs (1-3 sentences)
+- Use 2-4 Markdown ##/### subheadings maximum and moderate **bold** for key concepts
 - ALWAYS separate each paragraph with a blank line (\n\n); never return one long block.
-- No paragraph may exceed 900 characters.
+- No paragraph may exceed 650 characters.
 - Technical terms explained briefly
+- Do not pad with broad history, long example lists, or repetitive conclusions
 
 IMPORTANT: Do not copy long phrases from the original. Paraphrase.
 
@@ -255,6 +245,12 @@ function normalizeForSimilarity(text: string): string {
 		.replace(/[^a-z0-9\s]/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+}
+
+function estimateWordCount(text: string): number {
+	const cleaned = text.replace(/\s+/g, ' ').trim();
+	if (!cleaned) return 0;
+	return cleaned.split(' ').filter(Boolean).length;
 }
 
 function tokenSet(text: string): Set<string> {
@@ -316,6 +312,9 @@ function validateValueAddedRewrite(output: { title: string; summary: string; con
 		if (contentHeadNorm === summaryNorm) reasons.push('content_equals_summary');
 		if (contentHeadNorm.startsWith(summaryNorm)) reasons.push('content_starts_with_summary');
 	}
+	const words = estimateWordCount(output.content);
+	if (words < 280) reasons.push(`content_too_short_words:${words}`);
+	if (words > 850) reasons.push(`content_too_long_words:${words}`);
 	const formatting = assessNewsArticleFormatting(output.content);
 	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
 		reasons.push(...formatting.reasons);
@@ -338,14 +337,14 @@ async function generateAIAnalysis(
 	const basePrompt = buildValueAddedPrompt(title, summary, content, language);
 
 	const attempts: Array<{ temperature: number; max_tokens: number; extra: string }> = [
-		{ temperature: 0.7, max_tokens: 5000, extra: '' },
+		{ temperature: 0.7, max_tokens: 2200, extra: '' },
 		{
-			temperature: 0.85,
-			max_tokens: 6000,
+			temperature: 0.8,
+			max_tokens: 2600,
 			extra:
 				language === 'es'
-					? '\n\nSEGUNDO INTENTO: cambia el titular con una frase totalmente distinta. El resumen NO puede empezar repitiendo el titular ni contener el nombre del medio/fuente al final. RECUERDA: el contenido debe tener MÍNIMO 1500 palabras.'
-					: '\n\nSECOND ATTEMPT: change the headline with totally different phrasing. The summary MUST NOT start by repeating the headline or append the outlet/source name. REMEMBER: content must have MINIMUM 1500 words.',
+					? '\n\nSEGUNDO INTENTO: cambia el titular con una frase totalmente distinta. El resumen NO puede empezar repitiendo el titular ni contener el nombre del medio/fuente al final. Mantén el contenido entre 450 y 650 palabras; nunca superes 850 palabras.'
+					: '\n\nSECOND ATTEMPT: change the headline with totally different phrasing. The summary MUST NOT start by repeating the headline or append the outlet/source name. Keep content between 450 and 650 words; never exceed 850 words.',
 		},
 	];
 
@@ -519,6 +518,7 @@ async function updateArticle(
 		rewrite_at?: string;
 		value_score?: number;
 		ai_generated?: boolean;
+		reading_time_minutes?: number;
 	},
 ): Promise<boolean> {
 	const { error } = await supabase
@@ -607,6 +607,10 @@ async function processArticle(
 	updates.rewrite_at = new Date().toISOString();
 	updates.value_score = valueScore;
 	updates.ai_generated = true;
+	const readingBasis = updates.content_en || updates.content_es;
+	if (typeof readingBasis === 'string') {
+		updates.reading_time_minutes = Math.max(1, Math.ceil(estimateWordCount(readingBasis) / 200));
+	}
 
 	if (dryRun) {
 		console.log(`  📝 [DRY-RUN] Would update article ${article.id.slice(0, 8)}...`);

@@ -25,46 +25,46 @@ const ArticleRewriteSchema = z.object({
 }).transform((data) => {
   let contentStr: string;
   if (typeof data.content === 'object' && data.content !== null) {
-    // Convert object sections to flowing paragraphs (NO markdown headings)
+    // Convert object sections to paragraphs.
     contentStr = Object.entries(data.content)
       .map(([, value]) => String(value))
       .join('\n\n');
   } else {
     contentStr = data.content as string;
   }
-  // Remove any remaining markdown headings that might have been included
-  contentStr = contentStr.replace(/^##?\s+.+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  contentStr = contentStr.replace(/\n{3,}/g, '\n\n').trim();
   return { title: data.title, summary: data.summary, content: contentStr, value_score: data.value_score ?? 0.8 };
 });
 
+function estimateWordCount(text: string): number {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  return cleaned ? cleaned.split(' ').filter(Boolean).length : 0;
+}
+
 async function rewriteArticle(title: string, summary: string, content: string, lang: 'en' | 'es') {
   const prompt = lang === 'es' 
-    ? `Eres un analista senior de IA. Reescribe esta noticia en español con VALOR EDITORIAL AÑADIDO EXTENSO.
+    ? `Eres un analista senior de IA. Reescribe esta noticia en español con VALOR EDITORIAL AÑADIDO, pero de forma sintética.
 
 Estructura requerida:
 1. Título profesional y atractivo (máx 100 caracteres)
-2. Resumen ejecutivo (120-300 palabras)  
-3. Contenido como TEXTO FLUIDO (1500-2500 palabras) con estos elementos integrados naturalmente:
-   - Qué pasó exactamente (con todos los detalles técnicos relevantes)
-   - La tecnología involucrada explicada con profundidad
-   - Contexto histórico y evolución del campo
-   - Impacto en usuarios/industria/sociedad
-   - Análisis técnico profundo (cómo funciona, arquitectura, innovaciones)
-   - Comparación con alternativas o estado del arte
-   - Implicaciones futuras y qué vigilar
-   - Riesgos, limitaciones o contrapesos
-   - Una conclusión clara y memorable
+2. Resumen ejecutivo (45-90 palabras)
+3. Contenido de 450-650 palabras, 850 máximo, con estos elementos integrados naturalmente:
+   - Qué pasó exactamente
+   - Por qué importa ahora
+   - Contexto técnico mínimo
+   - Implicaciones o riesgos principales
+   - Qué vigilar después
 
-IMPORTANTE: El contenido debe ser TEXTO CORRIDO EXTENSO, como un artículo periodístico profesional.
-NO uses encabezados markdown (##), ni títulos de sección, ni bullets.
-Escribe párrafos fluidos que se lean naturalmente.
+IMPORTANTE: El contenido debe ser breve, claro y fácil de terminar.
+Usa 2-4 encabezados Markdown ##/### como máximo. No uses bullets.
+Escribe párrafos fluidos de 1-3 oraciones.
 
 REGLAS:
 - NO incluir URLs crudas en el texto
 - NO usar "Leer más", avisos de cookies
-- Párrafos cortos (2-4 oraciones)
+- Ningún párrafo debe superar 650 caracteres
 - Autoevalúa calidad (value_score 0-1)
-- MÍNIMO 1500 palabras de contenido
+- Nunca superes 850 palabras de contenido
 
 Devuelve SOLO JSON válido con: title, summary, content, value_score
 
@@ -72,32 +72,28 @@ ARTÍCULO ORIGINAL:
 Título: ${title}
 Resumen: ${summary}
 Contenido: ${content.slice(0, 6000)}`
-    : `You are a senior AI analyst. Rewrite this news with EXTENSIVE EDITORIAL VALUE ADDED.
+    : `You are a senior AI analyst. Rewrite this news with EDITORIAL VALUE ADDED, but keep it concise.
 
 Required structure:
 1. Professional, engaging title (max 100 chars)
-2. Executive summary (120-300 words)
-3. Content as FLOWING TEXT (1500-2500 words) with these elements naturally integrated:
-   - What happened exactly (with all relevant technical details)
-   - The technology involved explained in-depth
-   - Historical context and field evolution
-   - Impact on users/industry/society
-   - Deep technical analysis (how it works, architecture, innovations)
-   - Comparison with alternatives or state of the art
-   - Future implications and what to watch
-   - Risks, limitations or counterpoints
-   - A clear and memorable conclusion
+2. Executive summary (45-90 words)
+3. Content of 450-650 words, 850 maximum, with these elements naturally integrated:
+   - What happened exactly
+   - Why it matters now
+   - Minimal technical context
+   - Main implications or risks
+   - What to watch next
 
-IMPORTANT: Content must be EXTENSIVE FLOWING TEXT, like a professional news article.
-DO NOT use markdown headings (##), section titles, or bullets.
-Write fluid paragraphs that read naturally.
+IMPORTANT: Content must be brief, clear, and easy to finish.
+Use 2-4 Markdown ##/### headings maximum. Do not use bullets.
+Write fluid paragraphs of 1-3 sentences.
 
 RULES:
 - NO raw URLs
 - NO "Read more", cookie notices
-- Short paragraphs (2-4 sentences)
+- No paragraph may exceed 650 characters
 - Self-evaluate quality (value_score 0-1)
-- MINIMUM 1500 words of content
+- Never exceed 850 words of content
 
 Return ONLY valid JSON with: title, summary, content, value_score
 
@@ -110,7 +106,7 @@ Content: ${content.slice(0, 6000)}`;
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
-    max_tokens: 5000,
+    max_tokens: 2500,
     response_format: { type: 'json_object' },
   });
 
@@ -171,8 +167,9 @@ async function main() {
       summary_es: es.summary,
       content_es: es.content,
       rewrite_model: 'gpt-4o',
-      rewrite_version: 4,
+      rewrite_version: 6,
       rewrite_at: new Date().toISOString(),
+      reading_time_minutes: Math.max(1, Math.ceil(estimateWordCount(en.content) / 200)),
       value_score: Math.max(en.value_score, es.value_score),
       ai_generated: true,
       updated_at: new Date().toISOString(),

@@ -159,7 +159,7 @@ const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = readBooleanEnv('USE_FALLBACK_IMAGES', false);
 const STRICT_ORIGINAL_IMAGE = readBooleanEnv('STRICT_ORIGINAL_IMAGE', true);
-const CURRENT_REWRITE_VERSION = 5;
+const CURRENT_REWRITE_VERSION = 6;
 const REQUIRE_VALUE_ADDED_REWRITE = readBooleanEnv('REQUIRE_VALUE_ADDED_REWRITE', true);
 const ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE = readBooleanEnv(
 	'ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE',
@@ -804,10 +804,9 @@ const ArticleRewriteSchema = z.object({
 			}
 			return value;
 		},
-		// Allow much longer content for comprehensive news articles.
-		// Keep a moderate minimum to avoid over-skipping when a model under-shoots;
-		// prompt enforces the long-form target.
-		z.string().min(5000).max(15000),
+		// Keep articles concise enough for a 2-3 minute read while preserving
+		// enough structure for paragraphs and useful subheadings.
+		z.string().min(1200).max(7000),
 	),
 });
 
@@ -833,6 +832,12 @@ function normalizeForSimilarity(text: string): string {
 		.replace(/[^a-z0-9\s]/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+}
+
+function estimateWordCount(text: string): number {
+	const cleaned = text.replace(/\s+/g, ' ').trim();
+	if (!cleaned) return 0;
+	return cleaned.split(' ').filter(Boolean).length;
 }
 
 function similarityTokenSet(text: string): Set<string> {
@@ -923,6 +928,9 @@ function validateValueAddedRewrite(output: { title: string; summary: string; con
 
 	if (containsBoilerplateArtifacts(output.summary)) reasons.push('summary_contains_boilerplate');
 	if (containsBoilerplateArtifacts(output.content)) reasons.push('content_contains_boilerplate');
+	const words = estimateWordCount(output.content);
+	if (words < 280) reasons.push(`content_too_short_words:${words}`);
+	if (words > 850) reasons.push(`content_too_long_words:${words}`);
 	const formatting = assessNewsArticleFormatting(output.content);
 	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
 		reasons.push(...formatting.reasons);
@@ -969,12 +977,12 @@ async function rewriteArticleContent(
 		vertical: 'news',
 	});
 
-	// Value-Added AI Analyst mode for AdSense optimization
+	// Concise analyst mode: value-added, but designed for a quick read.
 	const basePrompt = language === 'es' 
-		? `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO.
+		? `Eres un analista senior de IA y periodista tecnológico experto. Reescribe el artículo siguiente en español con VALOR EDITORIAL AÑADIDO, pero en formato breve y muy sintético.
 
 ## OBJETIVO
-Transformar noticias básicas en contenido premium que aporte valor real al lector y sea atractivo para anunciantes de tecnología.
+Transformar noticias básicas en una pieza clara, útil y rápida de leer. El lector debe entender el hecho, por qué importa y qué vigilar sin perder interés.
 
 ## ESTRUCTURA REQUERIDA
 
@@ -984,20 +992,18 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 - Incluir la innovación clave o el impacto principal
 - Máximo 110 caracteres, evitar clickbait vacío
 
-### Resumen (summary) - 60-200 palabras
+### Resumen (summary) - 45-90 palabras
 - Párrafo de entrada que enganche al lector
 - Responder: ¿Qué pasó? ¿Por qué importa?
 - Lenguaje claro y directo
 
-### Contenido (content) - 1500-2500 palabras (OBLIGATORIO: contenido extenso y detallado)
-Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, implicaciones y trade-offs). Integra de forma natural:
-- Qué ocurrió exactamente (con todos los detalles técnicos relevantes)
-- Contexto amplio (antecedentes históricos, comparación con tecnologías similares, evolución del campo)
-- Por qué importa (impacto real en la industria, usuarios y sociedad)
-- Análisis técnico profundo (cómo funciona, arquitectura, innovaciones clave)
-- Qué cambia a partir de ahora / qué vigilar (implicaciones futuras)
-- Riesgos, limitaciones o contrapesos (análisis crítico)
-- Opiniones de expertos o comparativas con competidores (si aplica)
+### Contenido (content) - 450-650 palabras objetivo, 850 máximo
+Genera una noticia sintética y editorial. Debe aportar valor real sin alargarse. Integra solo lo esencial:
+- Qué ocurrió exactamente
+- Por qué importa ahora
+- Contexto técnico mínimo para entenderlo
+- Implicaciones prácticas o riesgos principales
+- Qué vigilar después
 
 ## REGLAS ESTRICTAS
 - NO incluir URLs crudas en el texto
@@ -1006,10 +1012,11 @@ Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, im
 - NO incluir metadatos bibliográficos o de portal (IDs arXiv, DOI, BibTeX, historial de envío, menús, widgets)
 - NO incluir branding del medio, firmas de autor ni textos de afiliación/editoriales (p. ej. "ZDNET recomienda", "podemos ganar comisión")
 - NO pegues el nombre del medio/fuente al final del titular o el resumen (salvo que sea parte esencial del hecho)
-- Usar Markdown legible dentro de content: subtítulos ##/### cuando ayuden, alguna negrita **solo** para conceptos clave y párrafos cortos (2-3 oraciones)
+- Usar Markdown legible dentro de content: 2-4 subtítulos ##/### como máximo, alguna negrita **solo** para conceptos clave y párrafos cortos (1-3 oraciones)
 - Separar SIEMPRE cada párrafo con una línea en blanco (\\n\\n). Nunca devuelvas un único bloque largo.
-- Ningún párrafo debe superar 900 caracteres.
+- Ningún párrafo debe superar 650 caracteres.
 - Incluir términos técnicos relevantes pero explicarlos
+- No rellenar con historia amplia, listas largas de ejemplos ni conclusión repetitiva.
 
 Devuelve SOLO JSON válido con: title, summary, content
 
@@ -1021,10 +1028,10 @@ Resumen: ${summary}
 IMPORTANTE: NO copies frases largas del original. Reformula.
 
 Contenido: ${workingContent}`
-		: `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT.
+		: `You are a senior AI analyst and expert tech journalist. Rewrite the article below in English with VALUE-ADDED EDITORIAL CONTENT, but keep it brief and highly synthesized.
 
 ## OBJECTIVE
-Transform basic news into premium content that provides real value to readers and is attractive to technology advertisers.
+Transform basic news into a clear, useful, quick read. The reader should understand what happened, why it matters, and what to watch without losing interest.
 
 ## REQUIRED STRUCTURE
 
@@ -1034,20 +1041,18 @@ Transform basic news into premium content that provides real value to readers an
 - Include the key innovation or main impact
 - Maximum 110 characters, avoid empty clickbait
 
-### Summary (summary) - 60-200 words
+### Summary (summary) - 45-90 words
 - Opening paragraph that hooks the reader
 - Answer: What happened? Why does it matter?
 - Clear and direct language
 
-### Content (content) - 1500-2500 words (MANDATORY: comprehensive and detailed content)
-Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (context, implications, trade-offs). Naturally integrate:
-- What exactly happened (with all relevant technical details)
-- Broad context (historical background, comparison with similar technologies, field evolution)
-- Why it matters (real impact on industry, users and society)
-- Deep technical analysis (how it works, architecture, key innovations)
-- What changes next / what to watch (future implications)
-- Risks, limitations, counterpoints (critical analysis)
-- Expert opinions or competitor comparisons (if applicable)
+### Content (content) - 450-650 words target, 850 maximum
+Generate a concise editorial news article. Add real value without stretching it. Naturally integrate only the essentials:
+- What exactly happened
+- Why it matters now
+- The minimum technical context needed to understand it
+- Main practical implications or risks
+- What to watch next
 
 ## STRICT RULES
 - Do NOT include raw URLs in the text
@@ -1056,10 +1061,11 @@ Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (conte
 - Do NOT include bibliographic/portal metadata (arXiv IDs, DOI blocks, BibTeX, submission history, navigation widgets)
 - Do NOT include outlet branding, author bylines, or affiliate/editorial disclaimers (e.g., "ZDNET recommends", "we may earn commission")
 - Do NOT append the outlet/source name to the headline or summary (unless it's essential to the fact)
-- Use readable Markdown inside content: ##/### subheadings when useful, occasional **bold** only for key concepts, and short paragraphs (2-3 sentences)
+- Use readable Markdown inside content: 2-4 ##/### subheadings maximum, occasional **bold** only for key concepts, and short paragraphs (1-3 sentences)
 - ALWAYS separate each paragraph with a blank line (\\n\\n). Never return one giant block.
-- No paragraph may exceed 900 characters.
+- No paragraph may exceed 650 characters.
 - Include relevant technical terms but briefly explain them
+- Do not pad with broad history, long example lists, or repetitive conclusions.
 
 Return ONLY valid JSON with: title, summary, content
 
@@ -1073,10 +1079,10 @@ IMPORTANT: Do not copy long phrases from the original. Paraphrase.
 Content: ${workingContent}`;
 
 	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
-		{ temperature: 0.7, maxTokens: 5000, extra: '' },
-		{ temperature: 0.85, maxTokens: 6000, extra: language === 'es'
-			? '\n\nSEGUNDO INTENTO: obliga a cambiar el titular y reformular el resumen con vocabulario distinto. RECUERDA: el contenido debe tener MÍNIMO 1500 palabras.'
-			: '\n\nSECOND ATTEMPT: force a different headline and rephrase the summary with different vocabulary. REMEMBER: content must have MINIMUM 1500 words.' },
+		{ temperature: 0.7, maxTokens: 2200, extra: '' },
+		{ temperature: 0.8, maxTokens: 2600, extra: language === 'es'
+			? '\n\nSEGUNDO INTENTO: cambia el titular, reformula el resumen y mantén el contenido entre 450 y 650 palabras. No superes 850 palabras.'
+			: '\n\nSECOND ATTEMPT: change the headline, rephrase the summary, and keep content between 450 and 650 words. Do not exceed 850 words.' },
 	];
 
 	for (let i = 0; i < attempts.length; i += 1) {

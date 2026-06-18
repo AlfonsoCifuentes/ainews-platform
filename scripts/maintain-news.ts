@@ -28,12 +28,11 @@ type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 const ArticleRewriteSchema = z.object({
 	title: z.string().min(8).max(180),
 	summary: z.string().min(80).max(900),
-	// We allow shorter drafts through schema validation, then enforce long-form via
-	// word-count checks + expansion prompts. This avoids mass failures when the
-	// model under-shoots the first attempt.
+	// Concise news articles should still have enough room for paragraphs and
+	// context, but should not become long-form essays.
 	content: z.preprocess(
 		(value) => (typeof value === 'string' ? normalizeNewsArticleMarkdown(value) : value),
-		z.string().min(1200).max(25000),
+		z.string().min(900).max(7000),
 	),
 });
 
@@ -245,11 +244,9 @@ function isRewriteQualityOk(rewrite: ArticleRewrite): { ok: boolean; reasons: st
 
 	if (title.length < 8) reasons.push('title_too_short');
 	if (summary.length < 80) reasons.push('summary_too_short');
-	// Enforce long-form intent (final gate). Drafts can be shorter but will be expanded.
-	// We use a pragmatic minimum to avoid mass-skips while still producing long articles.
-	if (words < 1200) reasons.push(`content_too_short_words:${words}`);
-	// Allow up to ~25k chars for exhaustive coverage
-	if (content.length > 25000) reasons.push('content_too_long');
+	if (words < 280) reasons.push(`content_too_short_words:${words}`);
+	if (words > 850) reasons.push(`content_too_long_words:${words}`);
+	if (content.length > 7000) reasons.push('content_too_long');
 	if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
@@ -270,8 +267,8 @@ function isRewriteStructurallyOk(rewrite: ArticleRewrite): { ok: boolean; reason
 
 	if (title.length < 8) reasons.push('title_too_short');
 	if (summary.length < 80) reasons.push('summary_too_short');
-	if (content.length < 1200) reasons.push('content_too_short_draft');
-	if (content.length > 25000) reasons.push('content_too_long');
+	if (content.length < 900) reasons.push('content_too_short_draft');
+	if (content.length > 7000) reasons.push('content_too_long');
 	if (looksLikeUrlOnly(summary)) reasons.push('summary_url_only');
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
@@ -284,26 +281,27 @@ function isRewriteStructurallyOk(rewrite: ArticleRewrite): { ok: boolean; reason
 	return { ok: reasons.length === 0, reasons };
 }
 
-async function expandToLongForm(
+async function reviseToConciseForm(
 	llm: LLMClient,
 	systemPrompt: string,
 	input: { originalTitle: string; originalSummary: string },
 	draft: ArticleRewrite,
-	options: { minWords: number; targetWords: number; maxTokens: number },
+	options: { minWords: number; targetWords: number; maxWords: number; maxTokens: number },
 ): Promise<ArticleRewrite> {
 	const draftWords = estimateWordCount(draft.content);
-	const userPrompt = `You previously produced a rewritten article JSON, but it is TOO SHORT.
+	const userPrompt = `You previously produced a rewritten article JSON, but its content length is not right for this product.
 
 Task:
-- Expand ONLY the content to be long-form.
+- Revise ONLY the content so it becomes a concise, useful news article.
 
 Hard rules:
 - Keep title and summary semantically consistent (you may lightly edit for clarity, but do not revert to the original phrasing).
 - Do NOT include raw URLs.
 - Remove boilerplate (cookies, newsletters, "read more", etc.).
-- The final content MUST be at least ${options.minWords} words. Target ${options.targetWords} words.
-- Add depth: background context, technical explanation, implications, trade-offs, what to watch next.
-- Format content as readable Markdown prose: use useful ##/### subheadings, occasional **bold** for key concepts, separate every paragraph with a blank line (\\n\\n), 2-3 sentences per paragraph, no paragraph over 900 characters.
+- The final content MUST be between ${options.minWords} and ${options.maxWords} words. Target about ${options.targetWords} words.
+- Keep only what helps the reader understand the fact, why it matters, the minimum technical context, and what to watch next.
+- Do not pad with broad history, long example lists, or repetitive conclusions.
+- Format content as readable Markdown prose: use 2-4 useful ##/### subheadings maximum, occasional **bold** for key concepts, separate every paragraph with a blank line (\\n\\n), 1-3 sentences per paragraph, no paragraph over 650 characters.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -359,21 +357,21 @@ async function generateRewriteJson(
 
 async function rewriteInEnglish(llm: LLMClient, input: { title: string; summary: string; content: string }): Promise<ArticleRewrite | null> {
 	const systemPrompt = buildVerticalVoiceSystemPrompt({ locale: 'en', vertical: 'news' });
-	const basePrompt = `Rewrite the article below in English with strong editorial value-add.
+	const basePrompt = `Rewrite the article below in English with strong editorial value-add, but keep it concise and easy to finish.
 
 Hard rules:
 - Do NOT include raw URLs in the summary or content.
 - Remove boilerplate like "Read more", "Continue reading", cookie/privacy banners, subscription prompts, republish notices.
 - Do NOT reference missing images or UI elements.
-- Keep output lengths within limits: title <= 180 chars, summary 80-900 chars, content <= 25000 chars.
+- Keep output lengths within limits: title <= 180 chars, summary 80-900 chars, content 450-650 words target and 850 words maximum.
 - The rewritten title MUST be clearly different from the original headline (do not reuse the same phrasing).
 - The rewritten summary MUST be rephrased with different vocabulary.
-- CRITICAL: Generate COMPREHENSIVE content with deep technical analysis, historical context, industry implications, and expert perspectives. Articles must be EXHAUSTIVE, not brief summaries.
-- CRITICAL: Format content as readable Markdown prose. Use useful ##/### subheadings, occasional **bold** for key concepts, separate paragraphs with a blank line (\\n\\n), use 2-3 sentences per paragraph, and never return one giant paragraph.
+- CRITICAL: Generate a synthesized news article, not an exhaustive essay. Keep the most important technical context, impact, risks, and what to watch next.
+- CRITICAL: Format content as readable Markdown prose. Use 2-4 useful ##/### subheadings maximum, occasional **bold** for key concepts, separate paragraphs with a blank line (\\n\\n), use 1-3 sentences per paragraph, and never return one giant paragraph.
 
 Length target:
-- Content should be 1500-2500 words. HARD MINIMUM: 1200 words.
-- If you're under the minimum, expand with more context, comparisons, and technical depth.
+- Content should be 450-650 words. HARD MAXIMUM: 850 words.
+- If the source is dense, compress it. Do not include broad history, long example lists, or repetitive conclusions.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -382,9 +380,9 @@ Original summary: ${input.summary}
 Original content: ${truncateForRewrite(input.content)}`;
 
 	const attempts: Array<{ temperature: number; maxTokens: number; extra: string }> = [
-		{ temperature: 0.7, maxTokens: 5000, extra: '' },
-		{ temperature: 0.85, maxTokens: 6000, extra: '\n\nSECOND ATTEMPT: Force a new headline and a more distinct summary; avoid matching the original phrasing. REMEMBER: content must have MINIMUM 1500 words.' },
-		{ temperature: 0.65, maxTokens: 7000, extra: '\n\nTHIRD ATTEMPT (LENGTH ENFORCEMENT): The content MUST be long-form (minimum 1500 words). If you are tempted to summarize, stop and expand with deeper technical explanation, context, trade-offs, and what-to-watch next.' },
+		{ temperature: 0.7, maxTokens: 2200, extra: '' },
+		{ temperature: 0.8, maxTokens: 2600, extra: '\n\nSECOND ATTEMPT: Force a new headline and a more distinct summary; avoid matching the original phrasing. Keep content between 450 and 650 words and never exceed 850 words.' },
+		{ temperature: 0.65, maxTokens: 3000, extra: '\n\nTHIRD ATTEMPT (CONCISION ENFORCEMENT): The content MUST be concise. Target 450-650 words. Remove broad background, redundant examples, and repeated conclusions.' },
 	];
 
 	for (const attempt of attempts) {
@@ -409,22 +407,25 @@ Original content: ${truncateForRewrite(input.content)}`;
 				continue;
 			}
 
-			const minWords = 1200;
-			const targetWords = 2000;
+			const minWords = 280;
+			const targetWords = 550;
+			const maxWords = 850;
 			let words = estimateWordCount(rewritten.content);
-			if (words < minWords) {
-				rewritten = await expandToLongForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
+			if (words < minWords || words > maxWords) {
+				rewritten = await reviseToConciseForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
 					minWords,
 					targetWords,
-					maxTokens: 7000,
+					maxWords,
+					maxTokens: 3000,
 				});
 				words = estimateWordCount(rewritten.content);
 			}
-			if (words < minWords) {
-				rewritten = await expandToLongForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
+			if (words < minWords || words > maxWords) {
+				rewritten = await reviseToConciseForm(llm, systemPrompt, { originalTitle: input.title, originalSummary: input.summary }, rewritten, {
 					minWords,
 					targetWords,
-					maxTokens: 8000,
+					maxWords,
+					maxTokens: 3000,
 				});
 			}
 
@@ -443,7 +444,7 @@ Original content: ${truncateForRewrite(input.content)}`;
 }
 
 // Current rewrite version - only reprocess if version is lower
-const CURRENT_REWRITE_VERSION = 5;
+const CURRENT_REWRITE_VERSION = 6;
 
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
@@ -509,7 +510,7 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			if (args.rewriteShortOnly) {
 				const currentWords = estimateWordCount(row.content_en || '');
 				const isDegenerateHidden = Boolean(row.is_hidden) && row.hidden_reason === 'degenerate_rewrite';
-				const isShort = currentWords > 0 && currentWords < 1200;
+				const isShort = currentWords > 0 && currentWords < 280;
 				const isEmpty = !normalizeForChecks(row.content_en || '');
 				const formatting = assessNewsArticleFormatting(row.content_en || '');
 				const isPoorlyFormatted =
@@ -575,6 +576,7 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 					rewrite_model: rewriteModelLabel,
 					rewrite_version: CURRENT_REWRITE_VERSION,
 					rewrite_at: new Date().toISOString(),
+					reading_time_minutes: Math.max(1, Math.ceil(estimateWordCount(english.content) / 200)),
 					updated_at: new Date().toISOString(),
 				})
 				.eq('id', row.id);
