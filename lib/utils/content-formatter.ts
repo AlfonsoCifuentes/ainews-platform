@@ -104,7 +104,6 @@ const SOURCE_BOILERPLATE_PATTERNS: RegExp[] = [
   /\b(cookie policy|privacy policy|pol[ií]tica de cookies|pol[ií]tica de privacidad)\b/i,
   /\b(sign up|subscribe|newsletter|suscr[ií]bete|bolet[ií]n)\b/i,
   /\b(share this article|copy link|compartir este art[ií]culo|copiar enlace)\b/i,
-  /\b(advertisement|sponsored content|publicidad|contenido patrocinado)\b/i,
 ];
 
 const SOURCE_BOILERPLATE_LINE_PATTERNS: RegExp[] = [

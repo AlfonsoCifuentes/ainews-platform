@@ -53,4 +53,20 @@ describe('news content formatting', () => {
     expect(formatted).toContain('**El cambio clave**');
     expect(formatted).toContain('\n\n');
   });
+
+  it('does not reject legitimate articles about advertising', () => {
+    const content = [
+      '## Publicidad con IA',
+      'La publicidad digital usa modelos generativos para planificar campañas con mayor contexto y más control operativo.',
+      '## Qué cambia',
+      'Los equipos de marketing pueden medir resultados, comparar alternativas y ajustar mensajes sin depender de un bloque promocional.',
+      '## Riesgos',
+      'La automatización exige supervisión humana, controles de marca y métricas claras para evitar sesgos o promesas exageradas.',
+    ].join('\n\n');
+
+    const report = assessNewsArticleFormatting(content);
+
+    expect(report.hasSourceBoilerplate).toBe(false);
+    expect(report.reasons).not.toContain('source_boilerplate');
+  });
 });
