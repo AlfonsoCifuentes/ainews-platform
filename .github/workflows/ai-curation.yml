@@ -36,7 +36,7 @@ jobs:
 
       - name: Run AI curation
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -46,11 +46,11 @@ jobs:
           # Paid DeepSeek is the LAST resort — free providers (Groq/Gemini/
           # OpenRouter/Together) are tried first. NEWS_WRITER_MODEL only sets the
           # model used WHEN DeepSeek is reached.
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEL_API_KEY }}
           NEWS_WRITER_MODEL: deepseek-v4-flash
           AI_MODEL_PROFILE: cost-balanced
           REQUIRE_VALUE_ADDED_REWRITE: "true"
-          ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: "true"
+          ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE: "false"
           # Original photo whenever possible; a local category fallback ONLY when
           # the original is impossible (instead of hiding the article).
           USE_FALLBACK_IMAGES: "true"
@@ -58,6 +58,8 @@ jobs:
           MAX_RSS_CANDIDATES: "220"
           MAX_ARTICLES_TO_PROCESS: "25"
           CLASSIFICATION_CONCURRENCY: "2"
+          SUPABASE_NETWORK_RETRIES: "5"
+          SUPABASE_NETWORK_RETRY_DELAY_MS: "1500"
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: npm run ai:curate
         timeout-minutes: 60
@@ -65,7 +67,7 @@ jobs:
       - name: Recover original images and enforce >=90% coverage
         if: success()
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_NETWORK_RETRIES: "5"
@@ -85,7 +87,7 @@ jobs:
       - name: 🛰️ Cluster stories by multi-source corroboration
         if: success() && github.event.inputs.dry_run != 'true'
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
@@ -97,7 +99,7 @@ jobs:
       - name: 🛡️ Watermark sweep (strip outlet-branded photos)
         if: success() && github.event.inputs.dry_run != 'true'
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
@@ -109,7 +111,7 @@ jobs:
       - name: 📈 Detect trending topics
         if: success() && github.event.inputs.dry_run != 'true'
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |

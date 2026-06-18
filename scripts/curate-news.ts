@@ -24,6 +24,12 @@ import { AI_NEWS_SOURCES, type NewsSource } from '../lib/ai/news-sources';
 import { getSupabaseServerClient } from '../lib/db/supabase';
 import { resolveArticleImage, type RSSImageHints } from '../lib/services/image-pipeline';
 import {
+	assessNewsArticleFormatting,
+	normalizeNewsArticleMarkdown,
+	sanitizeScrapedContent,
+} from '../lib/utils/content-formatter';
+import { parseJSON, sanitizeAndFixJSON } from '../lib/utils/json-fixer';
+import {
 	initializeImageHashCache,
 	registerImageHash,
 	validateImageEnhanced,
@@ -153,11 +159,11 @@ const MIN_QUALITY_SCORE = 0.6;
 const MAX_IMAGE_ATTEMPTS = 3;
 const USE_FALLBACK_IMAGES = readBooleanEnv('USE_FALLBACK_IMAGES', false);
 const STRICT_ORIGINAL_IMAGE = readBooleanEnv('STRICT_ORIGINAL_IMAGE', true);
-const CURRENT_REWRITE_VERSION = 4;
+const CURRENT_REWRITE_VERSION = 5;
 const REQUIRE_VALUE_ADDED_REWRITE = readBooleanEnv('REQUIRE_VALUE_ADDED_REWRITE', true);
 const ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE = readBooleanEnv(
 	'ALLOW_ORIGINAL_CONTENT_ON_REWRITE_FAILURE',
-	true,
+	false,
 );
 const IMAGE_RETRY_DELAY_MS = 4000;
 const IMAGE_RETRY_BACKOFF_BASE_MS = 15 * 60 * 1000;
@@ -167,6 +173,8 @@ const REWRITE_MAX_CHARS = 5200;
 const DEDUPE_LOOKBACK_DAYS = 21;
 const DEDUPE_TOKEN_SIMILARITY = 0.78;
 const HEURISTIC_CLASSIFICATION_QUALITY = 0.62;
+const SUPABASE_NETWORK_RETRIES = readNumberEnv('SUPABASE_NETWORK_RETRIES', 4, 0);
+const SUPABASE_NETWORK_RETRY_DELAY_MS = readNumberEnv('SUPABASE_NETWORK_RETRY_DELAY_MS', 1500, 100);
 
 function isRedditNonNews(article: RawArticle): { reject: true; reason: string } | { reject: false } {
 	let hostname = '';
@@ -213,6 +221,85 @@ const SEMANTIC_DEDUPE_THRESHOLD = 0.93;
 const FALLBACK_PUBDATE_ISO = new Date(0).toISOString();
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function isRetryableSupabaseFailure(error: unknown): boolean {
+	const message =
+		error instanceof Error
+			? error.message
+			: error && typeof error === 'object'
+				? JSON.stringify(error)
+				: String(error);
+	const lower = message.toLowerCase();
+	return (
+		lower.includes('fetch failed') ||
+		lower.includes('network') ||
+		lower.includes('timeout') ||
+		lower.includes('etimedout') ||
+		lower.includes('econnreset') ||
+		lower.includes('und_err')
+	);
+}
+
+function formatUnknownError(error: unknown): string {
+	return error instanceof Error
+		? error.message
+		: error && typeof error === 'object'
+			? JSON.stringify(error)
+			: String(error);
+}
+
+async function withSupabaseRetry<T extends { error?: unknown }>(
+	label: string,
+	operation: () => Promise<T>,
+): Promise<T> {
+	let lastResult: T | undefined;
+	let lastThrown: unknown;
+	const maxAttempts = Math.max(1, SUPABASE_NETWORK_RETRIES + 1);
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			const result = await operation();
+			lastResult = result;
+			if (!result.error || !isRetryableSupabaseFailure(result.error) || attempt === maxAttempts) {
+				return result;
+			}
+			console.warn(
+				`[Supabase] ${label} failed (${formatUnknownError(result.error)}); retrying ${attempt}/${maxAttempts - 1}...`,
+			);
+		} catch (error) {
+			lastThrown = error;
+			if (!isRetryableSupabaseFailure(error) || attempt === maxAttempts) {
+				throw error;
+			}
+			console.warn(
+				`[Supabase] ${label} threw (${formatUnknownError(error)}); retrying ${attempt}/${maxAttempts - 1}...`,
+			);
+		}
+
+		await sleep(SUPABASE_NETWORK_RETRY_DELAY_MS * attempt);
+	}
+
+	if (lastThrown) throw lastThrown;
+	return lastResult as T;
+}
+
+async function preflightSupabase(db: SupabaseClient): Promise<void> {
+	const configuredUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+	let host = 'unknown';
+	try {
+		host = configuredUrl ? new URL(configuredUrl).host : 'missing-url';
+	} catch {
+		host = 'invalid-url';
+	}
+
+	console.log(`[Supabase] Preflight host=${host}, retries=${SUPABASE_NETWORK_RETRIES}`);
+	const { error } = await withSupabaseRetry('preflight', () =>
+		db.from('news_articles').select('id').limit(1),
+	);
+	if (error) {
+		throw new Error(`[Supabase] Preflight failed for ${host}: ${formatUnknownError(error)}`);
+	}
+}
 
 const googleNewsResolveCache = new Map<string, string>();
 
@@ -710,7 +797,10 @@ const ArticleRewriteSchema = z.object({
 	content: z.preprocess(
 		(value) => {
 			if (Array.isArray(value)) {
-				return value.filter((part) => typeof part === 'string').join('\n\n');
+				return normalizeNewsArticleMarkdown(value.filter((part) => typeof part === 'string').join('\n\n'));
+			}
+			if (typeof value === 'string') {
+				return normalizeNewsArticleMarkdown(value);
 			}
 			return value;
 		},
@@ -785,6 +875,29 @@ function isMeaningfullyDifferent(input: { title: string; summary: string }, outp
 	return { ok: reasons.length === 0, reasons };
 }
 
+function getLongNormalizedSentences(text: string): string[] {
+	return text
+		.replace(/\s+/g, ' ')
+		.split(/(?<=[.!?])\s+/)
+		.map((sentence) => normalizeForSimilarity(sentence))
+		.filter((sentence) => sentence.split(' ').length >= 18 && sentence.length >= 120);
+}
+
+function detectCopiedSourcePassages(sourceContent: string, rewrittenContent: string): string[] {
+	const rewrittenNormalized = normalizeForSimilarity(rewrittenContent);
+	if (!rewrittenNormalized) return [];
+
+	const copied: string[] = [];
+	for (const sentence of getLongNormalizedSentences(sourceContent)) {
+		if (rewrittenNormalized.includes(sentence)) {
+			copied.push(sentence.slice(0, 120));
+			if (copied.length >= 3) break;
+		}
+	}
+
+	return copied;
+}
+
 function validateValueAddedRewrite(output: { title: string; summary: string; content: string }): { ok: boolean; reasons: string[] } {
 	const reasons: string[] = [];
 	const titleNorm = normalizeForSimilarity(output.title);
@@ -810,6 +923,10 @@ function validateValueAddedRewrite(output: { title: string; summary: string; con
 
 	if (containsBoilerplateArtifacts(output.summary)) reasons.push('summary_contains_boilerplate');
 	if (containsBoilerplateArtifacts(output.content)) reasons.push('content_contains_boilerplate');
+	const formatting = assessNewsArticleFormatting(output.content);
+	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
+		reasons.push(...formatting.reasons);
+	}
 
 	return { ok: reasons.length === 0, reasons };
 }
@@ -820,7 +937,7 @@ function extractJsonObject(raw: string): unknown {
 	if (!match) {
 		throw new Error('No JSON object found in LLM output');
 	}
-	return JSON.parse(match[0]);
+	return parseJSON(sanitizeAndFixJSON(match[0]), 'curate-news LLM response');
 }
 
 async function generateRewriteJson(
@@ -889,7 +1006,9 @@ Genera un artículo COMPLETO y EXHAUSTIVO. Debe aportar valor real (contexto, im
 - NO incluir metadatos bibliográficos o de portal (IDs arXiv, DOI, BibTeX, historial de envío, menús, widgets)
 - NO incluir branding del medio, firmas de autor ni textos de afiliación/editoriales (p. ej. "ZDNET recomienda", "podemos ganar comisión")
 - NO pegues el nombre del medio/fuente al final del titular o el resumen (salvo que sea parte esencial del hecho)
-- Usar párrafos cortos (2-4 oraciones)
+- Usar Markdown legible dentro de content: subtítulos ##/### cuando ayuden, alguna negrita **solo** para conceptos clave y párrafos cortos (2-3 oraciones)
+- Separar SIEMPRE cada párrafo con una línea en blanco (\\n\\n). Nunca devuelvas un único bloque largo.
+- Ningún párrafo debe superar 900 caracteres.
 - Incluir términos técnicos relevantes pero explicarlos
 
 Devuelve SOLO JSON válido con: title, summary, content
@@ -937,7 +1056,9 @@ Generate a COMPLETE and EXHAUSTIVE article. Must add real editorial value (conte
 - Do NOT include bibliographic/portal metadata (arXiv IDs, DOI blocks, BibTeX, submission history, navigation widgets)
 - Do NOT include outlet branding, author bylines, or affiliate/editorial disclaimers (e.g., "ZDNET recommends", "we may earn commission")
 - Do NOT append the outlet/source name to the headline or summary (unless it's essential to the fact)
-- Use short paragraphs (2-4 sentences)
+- Use readable Markdown inside content: ##/### subheadings when useful, occasional **bold** only for key concepts, and short paragraphs (2-3 sentences)
+- ALWAYS separate each paragraph with a blank line (\\n\\n). Never return one giant block.
+- No paragraph may exceed 900 characters.
 - Include relevant technical terms but briefly explain them
 
 Return ONLY valid JSON with: title, summary, content
@@ -976,6 +1097,11 @@ Content: ${workingContent}`;
 			const quality = validateValueAddedRewrite(rewrite);
 			if (!quality.ok) {
 				console.warn(`[LLM Rewrite] Reject (degenerate output): ${quality.reasons.join(', ')}`);
+				continue;
+			}
+			const copied = detectCopiedSourcePassages(workingContent, rewrite.content);
+			if (copied.length > 0) {
+				console.warn(`[LLM Rewrite] Reject (source copy overlap): ${copied.length} long passage(s)`);
 				continue;
 			}
 			return rewrite;
@@ -1583,13 +1709,17 @@ async function classifyArticle(article: RawArticle, llmClient: LLMClient, system
 	const prompt = [
 		`Title: ${article.title}`,
 		hostname ? `Source: ${article.source.name} (${hostname})` : `Source: ${article.source.name}`,
-		`Content: ${snippet.slice(0, 2200)}...`,
+		`Content: ${snippet.slice(0, 900)}...`,
 		'',
-		'Is this article primarily about AI/ML (not generic consumer tech)? Return JSON only.',
+		'Is this article primarily about AI/ML (not generic consumer tech)? Return compact JSON only.',
 	].join('\n');
 
 	try {
-		const result = await llmClient.classify(prompt, ArticleClassificationSchema, systemPrompt);
+		const response = await llmClient.generate(`${systemPrompt}\n\n${prompt}`, {
+			temperature: 0.2,
+			maxTokens: 500,
+		});
+		const result = ArticleClassificationSchema.parse(extractJsonObject(response.content));
 		console.log(
 			`[LLM] ✓ ${article.title.slice(0, 60)}... (score: ${result.quality_score.toFixed(2)}, category: ${result.category})`,
 		);
@@ -1613,11 +1743,13 @@ async function classifyArticle(article: RawArticle, llmClient: LLMClient, system
 async function isSemanticDuplicate(db: SupabaseClient, embedding: number[]): Promise<boolean | null> {
 	if (!USE_SEMANTIC_DEDUPE) return null;
 	try {
-		const { data, error } = await db.rpc('match_bilingual_content', {
-			query_embedding: embedding,
-			match_threshold: 0.9,
-			match_count: 1,
-		});
+		const { data, error } = await withSupabaseRetry('semantic duplicate check', async () =>
+			db.rpc('match_bilingual_content', {
+				query_embedding: embedding,
+				match_threshold: 0.9,
+				match_count: 1,
+			}),
+		);
 
 		if (error) {
 			// Most commonly: function missing or insufficient permissions. Treat as unavailable.
@@ -1713,10 +1845,12 @@ async function filterExistingArticles(
 		const batch = entries.slice(i, i + batchSize);
 		const links = batch.map((entry) => entry.article.link);
 		
-		const { data, error } = await db
-			.from('news_articles')
-			.select('source_url')
-			.in('source_url', links);
+		const { data, error } = await withSupabaseRetry('existing article lookup', async () =>
+			db
+				.from('news_articles')
+				.select('source_url')
+				.in('source_url', links),
+		);
 
 		if (error) {
 			console.warn('[DB] Failed to fetch existing articles batch, proceeding without dedupe:', error);
@@ -1915,13 +2049,18 @@ async function determineBilingualContent(
 	if (rewrite) {
 		titlePrimary = rewrite.title;
 		summaryPrimary = rewrite.summary;
-		contentPrimary = rewrite.content;
+		contentPrimary = normalizeNewsArticleMarkdown(rewrite.content);
 		entry.translation = undefined;
 		entry.translationLanguage = undefined;
 	}
 
-	contentPrimary = stripBoilerplateText(contentPrimary);
+	contentPrimary = normalizeNewsArticleMarkdown(stripBoilerplateText(contentPrimary));
 	summaryPrimary = sanitizeSummary(summaryPrimary);
+
+	const formatting = assessNewsArticleFormatting(contentPrimary);
+	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
+		throw new Error(`poor_article_format:${formatting.reasons.join(',')}`);
+	}
 
 	const hasPublisherNoise =
 		containsPublisherBoilerplate(summaryPrimary) ||
@@ -1942,6 +2081,11 @@ async function determineBilingualContent(
 				originalLanguage,
 				translationTarget,
 			);
+			translation = {
+				...translation,
+				summary: sanitizeScrapedContent(translation.summary),
+				content: normalizeNewsArticleMarkdown(translation.content),
+			};
 			entry.translation = translation;
 			entry.translationLanguage = translationTarget;
 		} catch (error) {
@@ -1995,8 +2139,12 @@ async function persistArticle(
 		const titleEs = originalLanguage === 'es' ? titlePrimary : translation?.title || titlePrimary;
 		const summaryEn = originalLanguage === 'en' ? summaryPrimary : translation?.summary || summaryPrimary;
 		const summaryEs = originalLanguage === 'es' ? summaryPrimary : translation?.summary || summaryPrimary;
-		const contentEn = originalLanguage === 'en' ? contentPrimary : translation?.content || contentPrimary;
-		const contentEs = originalLanguage === 'es' ? contentPrimary : translation?.content || contentPrimary;
+		const contentEn = normalizeNewsArticleMarkdown(
+			originalLanguage === 'en' ? contentPrimary : translation?.content || contentPrimary,
+		);
+		const contentEs = normalizeNewsArticleMarkdown(
+			originalLanguage === 'es' ? contentPrimary : translation?.content || contentPrimary,
+		);
 
 		const baseTags = new Set<string>([
 			entry.classification.category,
@@ -2057,11 +2205,13 @@ async function persistArticle(
 			value_score: entry.classification.quality_score,
 		};
 
-		const { data: insertedArticle, error: insertError } = await db
-			.from('news_articles')
-			.insert(insertPayload)
-			.select('id')
-			.single();
+		const { data: insertedArticle, error: insertError } = await withSupabaseRetry('insert article', async () =>
+			db
+				.from('news_articles')
+				.insert(insertPayload)
+				.select('id')
+				.single(),
+		);
 
 		if (insertError) {
 			throw insertError;
@@ -2070,11 +2220,13 @@ async function persistArticle(
 		const articleId = insertedArticle?.id as string | undefined;
 
 		if (Array.isArray(embedding) && articleId) {
-			const { error: embeddingError } = await db.from('content_embeddings').insert({
-				content_id: articleId,
-				content_type: 'article',
-				embedding,
-			});
+			const { error: embeddingError } = await withSupabaseRetry('insert content embedding', async () =>
+				db.from('content_embeddings').insert({
+					content_id: articleId,
+					content_type: 'article',
+					embedding,
+				}),
+			);
 			if (embeddingError) {
 				console.warn('[Embeddings] Insert failed:', embeddingError);
 			}
@@ -2179,7 +2331,8 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 			message === 'rewrite_required_but_failed' ||
 			message === 'insufficient_source_content' ||
 			message === 'source_fallback_contains_publisher_boilerplate' ||
-			message === 'rewritten_content_contains_publisher_boilerplate'
+			message === 'rewritten_content_contains_publisher_boilerplate' ||
+			message.startsWith('poor_article_format:')
 		) {
 			return { success: false, retryable: false, reason: message };
 		}
@@ -2265,17 +2418,20 @@ async function main(): Promise<void> {
 		`[News Curator] Throughput config: max_candidates=${MAX_RSS_CANDIDATES}, max_store=${MAX_ARTICLES_TO_PROCESS}, classification_concurrency=${CLASSIFICATION_CONCURRENCY}`,
 	);
 	const db = getSupabaseServerClient();
+	await preflightSupabase(db);
 	await initializeImageHashCache();
 
 	// Build a lightweight in-memory dedupe index for recent articles.
 	try {
 		const since = new Date(Date.now() - DEDUPE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-		const { data, error } = await db
-			.from('news_articles')
-			.select('title_en,title_es,published_at')
-			.gte('published_at', since)
-			.order('published_at', { ascending: false })
-			.limit(2000);
+		const { data, error } = await withSupabaseRetry('recent title index', async () =>
+			db
+				.from('news_articles')
+				.select('title_en,title_es,published_at')
+				.gte('published_at', since)
+				.order('published_at', { ascending: false })
+				.limit(2000),
+		);
 		if (error) throw error;
 		recentNormalizedTitles = [];
 		recentNormalizedTitleSet = new Set<string>();
@@ -2372,7 +2528,7 @@ async function main(): Promise<void> {
 	);
 
 	if (freshEntries.length > 0 && stored === 0) {
-		console.warn('[News Curator] Warning: there were fresh candidates but zero were stored in this run.');
+		throw new Error('[News Curator] Fresh candidates existed but zero articles were stored.');
 	}
 }
 

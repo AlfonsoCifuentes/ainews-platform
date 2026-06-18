@@ -16,6 +16,12 @@ import { getSupabaseServerClient } from '../lib/db/supabase';
 import { createLLMClient, createLLMClientForTask, type LLMClient, type LLMProvider } from '../lib/ai/llm-client';
 import { buildVerticalVoiceSystemPrompt } from '../lib/ai/prompt-voice';
 import { translateArticle } from '../lib/ai/translator';
+import {
+	assessNewsArticleFormatting,
+	normalizeNewsArticleMarkdown,
+	sanitizeScrapedContent,
+} from '../lib/utils/content-formatter';
+import { parseJSON, sanitizeAndFixJSON } from '../lib/utils/json-fixer';
 
 type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
@@ -25,7 +31,10 @@ const ArticleRewriteSchema = z.object({
 	// We allow shorter drafts through schema validation, then enforce long-form via
 	// word-count checks + expansion prompts. This avoids mass failures when the
 	// model under-shoots the first attempt.
-	content: z.string().min(1200).max(25000),
+	content: z.preprocess(
+		(value) => (typeof value === 'string' ? normalizeNewsArticleMarkdown(value) : value),
+		z.string().min(1200).max(25000),
+	),
 });
 
 type ArticleRewrite = z.infer<typeof ArticleRewriteSchema>;
@@ -245,6 +254,10 @@ function isRewriteQualityOk(rewrite: ArticleRewrite): { ok: boolean; reasons: st
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
 	if (containsBoilerplateArtifacts(`${summary}\n${content}`)) reasons.push('boilerplate_artifacts');
+	const formatting = assessNewsArticleFormatting(rewrite.content);
+	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
+		reasons.push(...formatting.reasons);
+	}
 
 	return { ok: reasons.length === 0, reasons };
 }
@@ -263,6 +276,10 @@ function isRewriteStructurallyOk(rewrite: ArticleRewrite): { ok: boolean; reason
 	if (looksLikeUrlOnly(content)) reasons.push('content_url_only');
 	if (countUrls(`${summary} ${content}`) > 2) reasons.push('too_many_urls');
 	if (containsBoilerplateArtifacts(`${summary}\n${content}`)) reasons.push('boilerplate_artifacts');
+	const formatting = assessNewsArticleFormatting(rewrite.content);
+	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
+		reasons.push(...formatting.reasons);
+	}
 
 	return { ok: reasons.length === 0, reasons };
 }
@@ -286,6 +303,7 @@ Hard rules:
 - Remove boilerplate (cookies, newsletters, "read more", etc.).
 - The final content MUST be at least ${options.minWords} words. Target ${options.targetWords} words.
 - Add depth: background context, technical explanation, implications, trade-offs, what to watch next.
+- Format content as readable Markdown prose: use useful ##/### subheadings, occasional **bold** for key concepts, separate every paragraph with a blank line (\\n\\n), 2-3 sentences per paragraph, no paragraph over 900 characters.
 
 Return ONLY JSON with keys title, summary, content.
 
@@ -321,7 +339,7 @@ function extractJsonObject(raw: string): unknown {
 	if (!match) {
 		throw new Error('No JSON object found in LLM output');
 	}
-	return JSON.parse(match[0]);
+	return parseJSON(sanitizeAndFixJSON(match[0]), 'maintain-news rewrite response');
 }
 
 async function generateRewriteJson(
@@ -351,6 +369,7 @@ Hard rules:
 - The rewritten title MUST be clearly different from the original headline (do not reuse the same phrasing).
 - The rewritten summary MUST be rephrased with different vocabulary.
 - CRITICAL: Generate COMPREHENSIVE content with deep technical analysis, historical context, industry implications, and expert perspectives. Articles must be EXHAUSTIVE, not brief summaries.
+- CRITICAL: Format content as readable Markdown prose. Use useful ##/### subheadings, occasional **bold** for key concepts, separate paragraphs with a blank line (\\n\\n), use 2-3 sentences per paragraph, and never return one giant paragraph.
 
 Length target:
 - Content should be 1500-2500 words. HARD MINIMUM: 1200 words.
@@ -424,7 +443,7 @@ Original content: ${truncateForRewrite(input.content)}`;
 }
 
 // Current rewrite version - only reprocess if version is lower
-const CURRENT_REWRITE_VERSION = 4;
+const CURRENT_REWRITE_VERSION = 5;
 
 async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: MaintainArgs): Promise<void> {
 	const now = Date.now();
@@ -492,7 +511,12 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 				const isDegenerateHidden = Boolean(row.is_hidden) && row.hidden_reason === 'degenerate_rewrite';
 				const isShort = currentWords > 0 && currentWords < 1200;
 				const isEmpty = !normalizeForChecks(row.content_en || '');
-				if (!isDegenerateHidden && !isShort && !isEmpty) {
+				const formatting = assessNewsArticleFormatting(row.content_en || '');
+				const isPoorlyFormatted =
+					formatting.hasOversizedParagraph ||
+					!formatting.hasEnoughParagraphs ||
+					formatting.hasSourceBoilerplate;
+				if (!isDegenerateHidden && !isShort && !isEmpty && !isPoorlyFormatted) {
 					notNeededCount += 1;
 					continue;
 				}
@@ -513,6 +537,11 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 			let spanish;
 			try {
 				spanish = await translateArticle(english.title, english.summary, english.content, 'en', 'es');
+				spanish = {
+					...spanish,
+					summary: sanitizeScrapedContent(spanish.summary),
+					content: normalizeNewsArticleMarkdown(spanish.content),
+				};
 			} catch (e) {
 				console.warn(`${progress} Skip (translation failed): ${row.id} (${e instanceof Error ? e.message : String(e)})`);
 				skippedCount += 1;
@@ -532,11 +561,11 @@ async function rewriteLastDays(db: SupabaseClient, llm: LLMClient, args: Maintai
 				.from('news_articles')
 				.update({
 					title_en: english.title,
-					summary_en: english.summary,
-					content_en: english.content,
+					summary_en: sanitizeScrapedContent(english.summary),
+					content_en: normalizeNewsArticleMarkdown(english.content),
 					title_es: spanish.title,
-					summary_es: spanish.summary,
-					content_es: spanish.content,
+					summary_es: sanitizeScrapedContent(spanish.summary),
+					content_es: normalizeNewsArticleMarkdown(spanish.content),
 					ai_generated: true,
 					// If the previous run hid the article due to a degenerate rewrite,
 					// a successful rewrite should bring it back to the feed.

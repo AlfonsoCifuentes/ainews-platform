@@ -5,7 +5,12 @@ import { getSupabaseServerClient } from '@/lib/db/supabase';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
 import { getImageWithFallback } from '@/lib/utils/generate-fallback-image';
-import { calculateReadingTime, extractPlainText, sanitizeScrapedContent } from '@/lib/utils/content-formatter';
+import {
+  calculateReadingTime,
+  extractPlainText,
+  normalizeNewsArticleMarkdown,
+  sanitizeScrapedContent,
+} from '@/lib/utils/content-formatter';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { INewsArticle } from '@/lib/types/news';
@@ -151,12 +156,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 
 
   const normalizedMarkdown = (() => {
-    const raw = sanitizeScrapedContent(content || '');
+    const raw = normalizeNewsArticleMarkdown(content || '');
     if (!raw) return '';
-    // Defensive: if content is being displayed as plain text somewhere,
-    // strip markdown headings lines so section titles never show up.
     return raw
-      .replace(/^\s*#{1,6}(?:\s+|$).*$/gm, '')
       .replace(/^\s*[-=]{3,}\s*$/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
@@ -260,12 +262,21 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw, rehypeSanitize]}
                 components={{
-                  h1: () => null,
-                  h2: () => null,
-                  h3: () => null,
-                  h4: () => null,
-                  h5: () => null,
-                  h6: () => null,
+                  h1: ({ children }) => (
+                    <h2 className="mt-10 text-3xl font-black leading-tight text-foreground">
+                      {children}
+                    </h2>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="mt-10 text-3xl font-black leading-tight text-foreground">
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="mt-8 text-2xl font-bold leading-tight text-foreground">
+                      {children}
+                    </h3>
+                  ),
                 }}
               >
                 {normalizedMarkdown}

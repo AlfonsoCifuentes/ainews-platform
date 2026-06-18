@@ -19,40 +19,8 @@ export function stripUnwantedSectionHeadings(text: string): string {
     /^\s*#{1,6}\s*\(?\s*[IVXLCM]{1,8}\s*\)?\s*[\.)\-:]\s*.+$/gim,
   ];
 
-  // Extra safety net for unnumbered template headings that sometimes slip through.
-  // (Keep this list short and generic; the numbered-heading rule is the primary fix.)
-  const sectionTitles = [
-    // Spanish
-    'la noticia',
-    'contexto técnico',
-    'contexto tecnico',
-    'por qué importa',
-    'por que importa',
-    'punto clave',
-    'puntos clave',
-    'implicaciones futuras',
-    // English
-    'the news',
-    'technical context',
-    'why it matters',
-    'key takeaway',
-    'key takeaways',
-    'key points',
-    'bottom line',
-  ];
-
-  const titleGroup = sectionTitles
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|');
-
   const patterns: RegExp[] = [
     ...numberedHeadingPatterns,
-    // Markdown headings without numbering: ## Por qué importa
-    new RegExp(`^\\s*#{1,6}\\s*(?:${titleGroup})\\s*$`, 'gim'),
-    // Plain numbered lines: 1. La Noticia
-    new RegExp(`^\\s*\\(?\\s*\\d{1,3}\\s*\\)?\\s*[\\.)\\-:]\\s*(?:${titleGroup})\\s*$`, 'gim'),
-    // Plain title lines: Por qué importa
-    new RegExp(`^\\s*(?:${titleGroup})\\s*$`, 'gim'),
   ];
 
   let cleaned = text;
@@ -82,12 +50,19 @@ export function sanitizeScrapedContent(text: string): string {
     /\[.*?\]/g,                             // Bracketed annotations like [ad]
     /©\s*\d{4}\s+.+$/gm,                   // Copyright notices
     /Follow\s+us\s+on\s+.+$/gim,           // Social media prompts
+    /\s*La entrada\s+.{0,260}?\s+(?:se\s+)?public[oó]\s+primero\s+en\s+.+$/gis,
+    /\s*El post\s+.{0,260}?\s+(?:se\s+)?public[oó]\s+primero\s+en\s+.+$/gis,
+    /\s*The post\s+.{0,260}?\s+(?:appeared|was published)\s+(?:first\s+)?on\s+.+$/gis,
+    /\s*The entry\s+.{0,260}?\s+(?:appeared|was published)\s+(?:first\s+)?on\s+.+$/gis,
   ];
   
   let cleaned = text;
 
   // Strip internal editorial template headings that sometimes leak into stored summaries/contents.
   cleaned = stripUnwantedSectionHeadings(cleaned);
+  cleaned = cleaned
+    .replace(/\barxiv:\d{4}\.\d{4,5}(?:v\d+)?\s*(?:abstract|resumen)?\s*:?\s*/gi, '')
+    .replace(/^\s*(?:abstract|resumen)\s*:\s*/i, '');
   
   // Apply all patterns
   for (const pattern of uiPatterns) {
@@ -98,10 +73,286 @@ export function sanitizeScrapedContent(text: string): string {
   cleaned = cleaned
     .replace(/\n{3,}/g, '\n\n')             // Max 2 consecutive newlines
     .replace(/[ \t]{2,}/g, ' ')             // Max 1 space
-    .replace(/^\s+/gm, '')                  // Trim line starts
+    .replace(/^[ \t]+/gm, '')               // Trim line starts without removing paragraph breaks
     .trim();
   
   return cleaned;
+}
+
+type NewsMarkdownOptions = {
+  minParagraphChars?: number;
+  maxParagraphChars?: number;
+  maxSentencesPerParagraph?: number;
+};
+
+export type NewsContentFormattingReport = {
+  paragraphCount: number;
+  maxParagraphChars: number;
+  wordCount: number;
+  hasEnoughParagraphs: boolean;
+  hasOversizedParagraph: boolean;
+  hasSourceBoilerplate: boolean;
+  reasons: string[];
+};
+
+const SOURCE_BOILERPLATE_PATTERNS: RegExp[] = [
+  /\bLa entrada\b.{0,260}\bpublic[oó]\s+primero\s+en\b/i,
+  /\bEl post\b.{0,260}\bpublic[oó]\s+primero\s+en\b/i,
+  /\bThe post\b.{0,260}\b(?:appeared|was published)\s+(?:first\s+)?on\b/i,
+  /\bThe entry\b.{0,260}\b(?:appeared|was published)\s+(?:first\s+)?on\b/i,
+  /\b(read more|continue reading|leer m[aá]s|continuar leyendo)\b/i,
+  /\b(cookie policy|privacy policy|pol[ií]tica de cookies|pol[ií]tica de privacidad)\b/i,
+  /\b(sign up|subscribe|newsletter|suscr[ií]bete|bolet[ií]n)\b/i,
+  /\b(share this article|copy link|compartir este art[ií]culo|copiar enlace)\b/i,
+  /\b(advertisement|sponsored content|publicidad|contenido patrocinado)\b/i,
+];
+
+const SOURCE_BOILERPLATE_LINE_PATTERNS: RegExp[] = [
+  /^\s*(read more|continue reading|leer m[aá]s|continuar leyendo)\b.*$/i,
+  /^\s*(sign up|subscribe|newsletter|suscr[ií]bete|bolet[ií]n)\b.*$/i,
+  /^\s*(share|copy link|compartir|copiar enlace)\b.*$/i,
+  /^\s*(advertisement|sponsored content|publicidad|contenido patrocinado)\s*$/i,
+  /^\s*(related stories|more stories|contenido relacionado|noticias relacionadas)\b.*$/i,
+];
+
+const SENTENCE_ABBREVIATIONS = new Set([
+  'mr.',
+  'mrs.',
+  'ms.',
+  'dr.',
+  'dra.',
+  'prof.',
+  'sr.',
+  'sra.',
+  'jr.',
+  'inc.',
+  'ltd.',
+  'corp.',
+  'co.',
+  'vs.',
+  'etc.',
+  'e.g.',
+  'i.e.',
+  'p.ej.',
+]);
+
+function stripHtmlForMarkdown(text: string): string {
+  return text
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/\s*(p|div|section|article|h[1-6]|blockquote)\s*>/gi, '\n\n')
+    .replace(/<\s*li[^>]*>/gi, '- ')
+    .replace(/<\s*\/\s*li\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+}
+
+function removeSourceBoilerplate(text: string): string {
+  let cleaned = text
+    .replace(/\[\s*(?:…|\.{3})\s*\]/g, ' ')
+    .replace(/\s*La entrada\s+.{0,260}?\s+(?:se\s+)?public[oó]\s+primero\s+en\s+.+$/gis, '')
+    .replace(/\s*El post\s+.{0,260}?\s+(?:se\s+)?public[oó]\s+primero\s+en\s+.+$/gis, '')
+    .replace(/\s*The post\s+.{0,260}?\s+(?:appeared|was published)\s+(?:first\s+)?on\s+.+$/gis, '')
+    .replace(/\s*The entry\s+.{0,260}?\s+(?:appeared|was published)\s+(?:first\s+)?on\s+.+$/gis, '');
+
+  cleaned = cleaned
+    .split('\n')
+    .filter((line) => !SOURCE_BOILERPLATE_LINE_PATTERNS.some((pattern) => pattern.test(line.trim())))
+    .join('\n');
+
+  return cleaned;
+}
+
+function normalizeMarkdownWhitespace(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeTextForParagraphs(raw: string): string {
+  const htmlFlattened = /<[^>]+>/.test(raw) ? stripHtmlForMarkdown(raw) : raw;
+  return normalizeMarkdownWhitespace(removeSourceBoilerplate(sanitizeScrapedContent(htmlFlattened)));
+}
+
+function lastWordLower(text: string): string {
+  return (text.trim().split(/\s+/).pop() ?? '').toLowerCase();
+}
+
+function isSentenceBoundary(buffer: string, char: string, nextChar: string | undefined): boolean {
+  if (!'.!?'.includes(char)) return false;
+  if (char === '.' && SENTENCE_ABBREVIATIONS.has(lastWordLower(buffer))) return false;
+  if (!nextChar) return true;
+  return /\s/.test(nextChar);
+}
+
+function splitIntoSentences(text: string): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+
+  const sentences: string[] = [];
+  let current = '';
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    const nextChar = normalized[i + 1];
+    current += char;
+
+    if (!isSentenceBoundary(current, char, nextChar)) continue;
+
+    let lookahead = i + 1;
+    while (lookahead < normalized.length && /\s/.test(normalized[lookahead])) {
+      lookahead += 1;
+    }
+
+    if (
+      lookahead >= normalized.length ||
+      /["'“”‘’«»¿¡(]?[A-ZÁÉÍÓÚÜÑ0-9]/.test(normalized.slice(lookahead, lookahead + 2))
+    ) {
+      const sentence = current.trim();
+      if (sentence) sentences.push(sentence);
+      current = '';
+      i = lookahead - 1;
+    }
+  }
+
+  const tail = current.trim();
+  if (tail) sentences.push(tail);
+  return sentences;
+}
+
+function groupSentencesIntoParagraphs(
+  sentences: string[],
+  options: Required<NewsMarkdownOptions>,
+): string[] {
+  const paragraphs: string[] = [];
+  let buffer: string[] = [];
+  let bufferChars = 0;
+
+  const flush = () => {
+    const paragraph = buffer.join(' ').replace(/\s+/g, ' ').trim();
+    if (paragraph) paragraphs.push(paragraph);
+    buffer = [];
+    bufferChars = 0;
+  };
+
+  for (const sentence of sentences) {
+    buffer.push(sentence);
+    bufferChars += sentence.length;
+
+    const shouldFlush =
+      buffer.length >= options.maxSentencesPerParagraph ||
+      bufferChars >= options.maxParagraphChars ||
+      (buffer.length >= 2 && bufferChars >= options.minParagraphChars && /[!?]$/.test(sentence));
+
+    if (shouldFlush) flush();
+  }
+
+  if (buffer.length > 0) flush();
+  return paragraphs;
+}
+
+function splitOversizedParagraph(paragraph: string, options: Required<NewsMarkdownOptions>): string[] {
+  const clean = paragraph.replace(/\s+/g, ' ').trim();
+  if (clean.length <= options.maxParagraphChars) return [clean];
+
+  const sentences = splitIntoSentences(clean);
+  if (sentences.length <= 1) {
+    const chunks: string[] = [];
+    for (let i = 0; i < clean.length; i += options.maxParagraphChars) {
+      chunks.push(clean.slice(i, i + options.maxParagraphChars).trim());
+    }
+    return chunks.filter(Boolean);
+  }
+
+  return groupSentencesIntoParagraphs(sentences, options);
+}
+
+function splitInitialBlocks(cleaned: string): string[] {
+  const blankSeparated = cleaned
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (blankSeparated.length > 1) return blankSeparated;
+
+  return cleaned
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function normalizeNewsArticleMarkdown(
+  text: string,
+  options: NewsMarkdownOptions = {},
+): string {
+  if (!text) return '';
+
+  const resolvedOptions: Required<NewsMarkdownOptions> = {
+    minParagraphChars: options.minParagraphChars ?? 280,
+    maxParagraphChars: options.maxParagraphChars ?? 760,
+    maxSentencesPerParagraph: options.maxSentencesPerParagraph ?? 3,
+  };
+
+  const cleaned = normalizeTextForParagraphs(text);
+  if (!cleaned) return '';
+
+  const paragraphs: string[] = [];
+  for (const block of splitInitialBlocks(cleaned)) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
+    if (/^#{1,6}\s+\S/.test(trimmed) || /^[-*]\s+\S/.test(trimmed) || /^\d+[.)]\s+\S/.test(trimmed)) {
+      paragraphs.push(trimmed);
+      continue;
+    }
+
+    paragraphs.push(...splitOversizedParagraph(trimmed, resolvedOptions));
+  }
+
+  return paragraphs
+    .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+export function assessNewsArticleFormatting(
+  text: string,
+  options: NewsMarkdownOptions = {},
+): NewsContentFormattingReport {
+  const resolvedOptions: Required<NewsMarkdownOptions> = {
+    minParagraphChars: options.minParagraphChars ?? 280,
+    maxParagraphChars: options.maxParagraphChars ?? 900,
+    maxSentencesPerParagraph: options.maxSentencesPerParagraph ?? 3,
+  };
+
+  const cleaned = normalizeTextForParagraphs(text);
+  const paragraphs = cleaned
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const maxParagraphChars = paragraphs.reduce((max, paragraph) => Math.max(max, paragraph.length), 0);
+  const wordCount = cleaned ? cleaned.split(/\s+/).length : 0;
+  const hasSourceBoilerplate = SOURCE_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(text));
+  const hasEnoughParagraphs = wordCount < 350 || paragraphs.length >= 3;
+  const hasOversizedParagraph = maxParagraphChars > resolvedOptions.maxParagraphChars;
+
+  const reasons: string[] = [];
+  if (!hasEnoughParagraphs) reasons.push(`too_few_paragraphs:${paragraphs.length}`);
+  if (hasOversizedParagraph) reasons.push(`oversized_paragraph:${maxParagraphChars}`);
+  if (hasSourceBoilerplate) reasons.push('source_boilerplate');
+
+  return {
+    paragraphCount: paragraphs.length,
+    maxParagraphChars,
+    wordCount,
+    hasEnoughParagraphs,
+    hasOversizedParagraph,
+    hasSourceBoilerplate,
+    reasons,
+  };
 }
 
 /**

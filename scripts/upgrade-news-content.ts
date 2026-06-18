@@ -31,6 +31,12 @@ import pLimit from 'p-limit';
 import OpenAI from 'openai';
 import { buildVerticalVoiceSystemPrompt } from '../lib/ai/prompt-voice';
 import { getSupabaseServerClient } from '../lib/db/supabase';
+import {
+	assessNewsArticleFormatting,
+	normalizeNewsArticleMarkdown,
+	sanitizeScrapedContent,
+} from '../lib/utils/content-formatter';
+import { parseJSON, sanitizeAndFixJSON } from '../lib/utils/json-fixer';
 
 // =============================================================================
 // OpenAI Client (GPT-4o-mini for cost efficiency)
@@ -41,7 +47,7 @@ const openai = new OpenAI({
 });
 
 const MODEL = 'gpt-4o-mini'; // Fast, cheap, no rate limits
-export const REWRITE_VERSION = 4; // Increment when prompt changes significantly
+export const REWRITE_VERSION = 5; // Increment when prompt changes significantly
 export const REWRITE_MODEL = 'gpt-4o-mini';
 
 // =============================================================================
@@ -89,11 +95,14 @@ const ArticleRewriteSchema = z.object({
 	} else {
 		contentStr = data.content as string;
 	}
-	// Remove any markdown headings that might have been included
-	contentStr = contentStr.replace(/^##?\\s+.+$/gm, '').replace(/\\n{3,}/g, '\\n\\n').trim();
+	// Remove any markdown headings that might have been included, then ensure
+	// the stored article is readable Markdown rather than one giant paragraph.
+	contentStr = normalizeNewsArticleMarkdown(
+		contentStr.replace(/^##?\s+.+$/gm, '').replace(/\n{3,}/g, '\n\n').trim(),
+	);
 	return {
 		title: data.title,
-		summary: data.summary,
+		summary: sanitizeScrapedContent(data.summary),
 		content: contentStr,
 		value_score: data.value_score,
 	};
@@ -141,9 +150,9 @@ Transformar noticias básicas en contenido premium que aporte valor real al lect
 - Reformular (no calcar el resumen original)
 
 ### Contenido (content) - 1500-2500 palabras (OBLIGATORIO: contenido extenso y detallado)
-IMPORTANTE: Escribe como TEXTO CORRIDO, como un artículo periodístico profesional EXTENSO.
-- NO uses encabezados markdown (##) 
-- NO uses títulos de sección
+IMPORTANTE: Escribe como un artículo periodístico profesional EXTENSO, con secciones claras y lectura fluida.
+- Usa encabezados Markdown ##/### cuando ayuden a ordenar la lectura
+- Evita títulos de sección genéricos o mecánicos
 - NO uses listas con bullets o números
 - Escribe párrafos fluidos que integren naturalmente:
   * Qué ocurrió exactamente (con todos los detalles técnicos relevantes)
@@ -162,6 +171,9 @@ El contenido debe leerse como prosa periodística, no como un documento estructu
 - NO incluir URLs crudas
 - NO usar "Leer más", avisos de cookies
 - Párrafos cortos (2-4 oraciones)
+- Usar subtítulos Markdown ##/### cuando ayuden y negrita **moderada** para conceptos clave
+- Separar SIEMPRE cada párrafo con una línea en blanco (\n\n); nunca devolver un único bloque largo.
+- Ningún párrafo debe superar 900 caracteres.
 - Términos técnicos explicados brevemente
 
 IMPORTANTE: NO copies frases largas del original. Reformula.
@@ -196,9 +208,9 @@ Transform basic news into premium content that provides real value to readers.
 - Rephrase (do not mirror the original summary wording)
 
 ### Content (content) - 1500-2500 words (MANDATORY: comprehensive and detailed content)
-IMPORTANT: Write as FLOWING TEXT, like a professional EXTENSIVE journalistic article.
-- Do NOT use markdown headings (##)
-- Do NOT use section titles
+IMPORTANT: Write as a professional EXTENSIVE journalistic article, with clear sections and flowing prose.
+- Use Markdown ##/### subheadings when they help structure the reading
+- Avoid generic or mechanical section titles
 - Do NOT use bullet lists or numbered lists
 - Write smooth flowing paragraphs that naturally integrate:
   * What exactly happened (with all relevant technical details)
@@ -217,6 +229,9 @@ The content should read like journalistic prose, not a structured document.
 - Do NOT include raw URLs in the text
 - Do NOT use "Read more", cookie notices
 - Short paragraphs (2-4 sentences)
+- Use Markdown ##/### subheadings when helpful and moderate **bold** for key concepts
+- ALWAYS separate each paragraph with a blank line (\n\n); never return one long block.
+- No paragraph may exceed 900 characters.
 - Technical terms explained briefly
 
 IMPORTANT: Do not copy long phrases from the original. Paraphrase.
@@ -301,6 +316,10 @@ function validateValueAddedRewrite(output: { title: string; summary: string; con
 		if (contentHeadNorm === summaryNorm) reasons.push('content_equals_summary');
 		if (contentHeadNorm.startsWith(summaryNorm)) reasons.push('content_starts_with_summary');
 	}
+	const formatting = assessNewsArticleFormatting(output.content);
+	if (!formatting.hasEnoughParagraphs || formatting.hasOversizedParagraph || formatting.hasSourceBoilerplate) {
+		reasons.push(...formatting.reasons);
+	}
 
 	return { ok: reasons.length === 0, reasons };
 }
@@ -360,7 +379,7 @@ async function generateAIAnalysis(
 		
 		// Try to parse JSON
 		try {
-			const parsed = JSON.parse(jsonStr);
+			const parsed = parseJSON(sanitizeAndFixJSON(jsonStr), 'upgrade-news rewrite response');
 			const result = ArticleRewriteSchema.parse(parsed);
 			// Ensure value_score is set
 			if (result.value_score === undefined) {
@@ -394,7 +413,7 @@ async function generateAIAnalysis(
 			if (startIdx !== -1 && endIdx !== -1) {
 				const extracted = fixedJson.slice(startIdx, endIdx + 1);
 				try {
-					const parsed = JSON.parse(extracted);
+					const parsed = parseJSON(sanitizeAndFixJSON(extracted), 'upgrade-news extracted rewrite response');
 					const result = ArticleRewriteSchema.parse(parsed);
 					if (result.value_score === undefined) {
 						result.value_score = 0.7;
@@ -551,8 +570,8 @@ async function processArticle(
 
 		if (analysisEn) {
 			updates.title_en = analysisEn.title;
-			updates.summary_en = analysisEn.summary;
-			updates.content_en = analysisEn.content;
+			updates.summary_en = sanitizeScrapedContent(analysisEn.summary);
+			updates.content_en = normalizeNewsArticleMarkdown(analysisEn.content);
 			valueScore = analysisEn.value_score ?? 0.7;
 		}
 		
@@ -572,8 +591,8 @@ async function processArticle(
 
 		if (analysisEs) {
 			updates.title_es = analysisEs.title;
-			updates.summary_es = analysisEs.summary;
-			updates.content_es = analysisEs.content;
+			updates.summary_es = sanitizeScrapedContent(analysisEs.summary);
+			updates.content_es = normalizeNewsArticleMarkdown(analysisEs.content);
 		}
 	}
 

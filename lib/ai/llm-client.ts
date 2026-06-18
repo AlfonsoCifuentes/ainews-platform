@@ -570,10 +570,9 @@ export function createLLMClient(
     case 'openrouter':
       apiKey = process.env.OPENROUTER_API_KEY;
       baseUrl = 'https://openrouter.ai/api/v1';
-      // OpenRouter provides access to latest models from multiple providers
-      // Priority: Latest Gemini 2.0 Flash (free tier, excellent for JSON)
-      // Alternatives: google/gemini-2.0-flash-thinking-exp:free, anthropic/claude-3.7-sonnet
-      defaultModel = 'google/gemini-2.0-flash-exp:free';
+      // Keep this on a currently listed free endpoint; the previous Gemini
+      // experimental OpenRouter route now returns 404.
+      defaultModel = 'qwen/qwen3-next-80b-a3b-instruct:free';
       break;
 
     case 'groq':
@@ -608,7 +607,7 @@ export function createLLMClient(
       break;
 
     case 'deepseek':
-      apiKey = process.env.DEEPSEEK_API_KEY;
+      apiKey = process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEL_API_KEY;
       baseUrl = 'https://api.deepseek.com/v1';
       // DeepSeek V3 (latest, Dec 2024) - 671B MoE model, GPT-4 level performance
       defaultModel = 'deepseek-chat';
@@ -648,7 +647,7 @@ function providerHasKey(provider: LLMProvider): boolean {
     case 'gemini': return !!process.env.GEMINI_API_KEY;
     case 'anthropic': return !!process.env.ANTHROPIC_API_KEY;
     case 'together': return !!process.env.TOGETHER_API_KEY;
-    case 'deepseek': return !!process.env.DEEPSEEK_API_KEY;
+    case 'deepseek': return !!(process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEL_API_KEY);
     case 'mistral': return !!process.env.MISTRAL_API_KEY;
     default: return false;
   }
@@ -659,7 +658,7 @@ function providerHasKey(provider: LLMProvider): boolean {
  * last resort, then other paid providers (used only if their key exists).
  */
 const NEWS_REWRITE_PROVIDER_ORDER: LLMProvider[] = [
-  'groq', 'gemini', 'openrouter', 'together', // free tiers — try these first
+  'gemini', 'openrouter', 'groq', 'together', // free tiers — try these first
   'deepseek',                                  // paid (yours) — last resort
   'mistral', 'openai', 'anthropic',            // other paid, only if configured
 ];

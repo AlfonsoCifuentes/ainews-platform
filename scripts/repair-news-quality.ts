@@ -17,6 +17,11 @@ import { getSupabaseServerClient } from '../lib/db/supabase';
 import { getBestArticleImage } from '../lib/services/image-scraper';
 import { scrapeArticleImageAdvanced } from '../lib/services/advanced-image-scraper';
 import { validateImageEnhanced } from '../lib/services/image-validator';
+import {
+	assessNewsArticleFormatting,
+	normalizeNewsArticleMarkdown,
+	sanitizeScrapedContent,
+} from '../lib/utils/content-formatter';
 
 type SupabaseClient = ReturnType<typeof getSupabaseServerClient>;
 
@@ -143,10 +148,25 @@ function cleanBoilerplateText(raw: string | null): string | null {
 	return text || null;
 }
 
+function cleanSummaryText(raw: string | null): string | null {
+	if (!raw) return raw;
+	const cleaned = cleanBoilerplateText(sanitizeScrapedContent(raw));
+	return cleaned || null;
+}
+
+function cleanContentText(raw: string | null): string | null {
+	if (!raw) return raw;
+	const cleaned = cleanBoilerplateText(raw);
+	if (!cleaned) return null;
+	return normalizeNewsArticleMarkdown(cleaned);
+}
+
 function looksPolluted(text: string | null): boolean {
 	if (!text) return false;
+	const formatting = assessNewsArticleFormatting(text);
 	const lower = text.toLowerCase();
 	return (
+		formatting.hasSourceBoilerplate ||
 		lower.includes('arxiv:') ||
 		lower.includes('submission history') ||
 		lower.includes('historial de env') ||
@@ -163,6 +183,12 @@ function looksPolluted(text: string | null): boolean {
 		lower.includes('show comments') ||
 		lower.includes('mostrar comentarios')
 	);
+}
+
+function needsFormattingRepair(text: string | null): boolean {
+	if (!text) return false;
+	const formatting = assessNewsArticleFormatting(text);
+	return formatting.hasOversizedParagraph || !formatting.hasEnoughParagraphs || formatting.hasSourceBoilerplate;
 }
 
 function hasAiSignal(text: string): boolean {
@@ -265,10 +291,10 @@ async function recoverOriginalImage(row: NewsRow): Promise<string | null> {
 function buildUpdatePatch(row: NewsRow, arxivOverride: string | null): Partial<NewsRow> {
 	const patch: Partial<NewsRow> = {};
 
-	const nextSummaryEn = cleanBoilerplateText(row.summary_en);
-	const nextSummaryEs = cleanBoilerplateText(row.summary_es);
-	const nextContentEn = arxivOverride || cleanBoilerplateText(row.content_en);
-	const nextContentEs = arxivOverride || cleanBoilerplateText(row.content_es);
+	const nextSummaryEn = cleanSummaryText(row.summary_en);
+	const nextSummaryEs = cleanSummaryText(row.summary_es);
+	const nextContentEn = arxivOverride ? normalizeNewsArticleMarkdown(arxivOverride) : cleanContentText(row.content_en);
+	const nextContentEs = arxivOverride ? normalizeNewsArticleMarkdown(arxivOverride) : cleanContentText(row.content_es);
 
 	if (nextSummaryEn !== row.summary_en && nextSummaryEn) patch.summary_en = nextSummaryEn;
 	if (nextSummaryEs !== row.summary_es && nextSummaryEs) patch.summary_es = nextSummaryEs;
@@ -295,8 +321,13 @@ async function fetchCandidateRows(db: SupabaseClient, maxRows: number): Promise<
 			looksPolluted(row.summary_es) ||
 			looksPolluted(row.content_en) ||
 			looksPolluted(row.content_es);
+		const textPoorlyFormatted =
+			needsFormattingRepair(row.content_en) ||
+			needsFormattingRepair(row.content_es) ||
+			needsFormattingRepair(row.summary_en) ||
+			needsFormattingRepair(row.summary_es);
 		const offTopic = isLikelyOffTopicConsumerTech(row);
-		return needsImageRepair || textPolluted || offTopic;
+		return needsImageRepair || textPolluted || textPoorlyFormatted || offTopic;
 	});
 }
 
