@@ -279,6 +279,18 @@ export function getFallbackImageUrl(identifier: string): string {
   return FALLBACK_IMAGES[index];
 }
 
+export function isUsableNewsImageUrl(imageUrl: string | null | undefined): imageUrl is string {
+  if (!imageUrl || imageUrl.trim() === '') return false;
+  if (imageUrl.startsWith('data:')) return false;
+
+  try {
+    const parsed = new URL(imageUrl, 'https://example.com');
+    return parsed.hostname !== 'source.unsplash.com';
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Image with fallback for a SINGLE article (e.g. the article detail hero, where
  * spacing is irrelevant). Uses the article's own photo, else a deterministic
@@ -291,7 +303,7 @@ export function getImageWithFallback(
   articleId?: string
 ): string {
   // A real, external photo (not an inline data-URL placeholder).
-  if (imageUrl && imageUrl.trim() !== '' && !imageUrl.startsWith('data:')) {
+  if (isUsableNewsImageUrl(imageUrl)) {
     return imageUrl;
   }
   if (FALLBACK_IMAGES.length > 0) {
@@ -331,11 +343,7 @@ export function assignFallbackImagesToArticles<T extends {
         seed: article.id,
       });
     }
-    const hasOwnImage = !!(
-      article.image_url &&
-      article.image_url.trim() !== '' &&
-      !article.image_url.startsWith('data:')
-    );
+    const hasOwnImage = isUsableNewsImageUrl(article.image_url);
     return {
       ...article,
       preferred_fallback_image_url: preferredFallback,

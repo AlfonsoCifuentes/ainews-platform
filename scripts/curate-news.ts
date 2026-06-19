@@ -29,6 +29,7 @@ import {
 	sanitizeScrapedContent,
 } from '../lib/utils/content-formatter';
 import { parseJSON, sanitizeAndFixJSON } from '../lib/utils/json-fixer';
+import fallbackImagesList from '../lib/fallback-images-list.json';
 import {
 	initializeImageHashCache,
 	registerImageHash,
@@ -1627,37 +1628,40 @@ async function ensureArticleContent(entry: ClassifiedArticleRecord): Promise<{
 	return entry.cachedContent;
 }
 
+const LOCAL_FALLBACK_IMAGES = (fallbackImagesList as string[]).filter(
+	(url) => typeof url === 'string' && url.trim() !== '',
+);
+
+function seededFallbackIndex(seed: string, modulo: number): number {
+	if (modulo <= 0) return 0;
+	let hash = 0;
+	for (let i = 0; i < seed.length; i += 1) {
+		hash = (hash << 5) - hash + seed.charCodeAt(i);
+		hash |= 0;
+	}
+	return Math.abs(hash) % modulo;
+}
+
 /**
- * Generate a fallback image URL from Unsplash based on article category
+ * Use a bundled local fallback image when the original article has no usable
+ * editorial image. Do not persist external stock/random URLs.
  */
-function generateFallbackImage(category: string, title: string): ResolvedImageData {
-	const categoryMap: Record<string, string> = {
-		machinelearning: 'machine-learning,neural-network',
-		nlp: 'language,text,communication',
-		computervision: 'vision,camera,recognition',
-		robotics: 'robot,automation',
-		ethics: 'ethics,justice,technology',
-		business: 'business,technology,startup',
-		research: 'science,laboratory,research',
-		tools: 'software,code,programming',
-		news: 'technology,digital,innovation',
-		other: 'technology,artificial-intelligence',
-	};
+function generateFallbackImage(category: string, title: string, articleId: string): ResolvedImageData {
+	const seed = `${articleId}:${category}:${title}`;
+	const url =
+		LOCAL_FALLBACK_IMAGES[seededFallbackIndex(seed, LOCAL_FALLBACK_IMAGES.length)] ||
+		'/images/news-placeholder.webp';
 
-	const keywords = categoryMap[category] || categoryMap.other;
-	const sig = Math.floor(Math.random() * 100000);
-	const url = `https://source.unsplash.com/1600x900/?${keywords}&sig=${sig}`;
-
-	console.log(`[Fallback] Using Unsplash image for category "${category}"`);
+	console.log(`[Fallback] Using local fallback image for category "${category}"`);
 
 	return {
 		url,
 		validation: {
 			isValid: true,
 			isDuplicate: false,
-			mime: 'image/jpeg',
-			width: 1600,
-			height: 900,
+			mime: url.endsWith('.webp') ? 'image/webp' : 'image/jpeg',
+			width: 1200,
+			height: 630,
 		},
 		enhancedAltText: `AI technology illustration related to ${title.slice(0, 50)}`,
 	};
@@ -2308,10 +2312,10 @@ async function processArticle(entry: ClassifiedArticleRecord, db: SupabaseClient
 		}
 	}
 
-	// Use fallback image from Unsplash if original image not found
+	// Use a bundled local fallback image if original image not found.
 	if (!imageData && USE_FALLBACK_IMAGES) {
 		console.log(`[ImageValidator] Using fallback image for ${entry.article.title.slice(0, 60)}...`);
-		imageData = generateFallbackImage(entry.classification.category, entry.article.title);
+		imageData = generateFallbackImage(entry.classification.category, entry.article.title, entry.article.link);
 	}
 
 	if (!imageData) {

@@ -5,7 +5,7 @@ import type { Locale } from '@/i18n';
 import { fetchLatestNews, fetchTopStories } from '@/lib/db/news';
 import { getLocalizedString } from '@/lib/utils/i18n';
 import { formatRelativeTimeFromNow } from '@/lib/utils/dates';
-import { getImageWithFallback, assignFallbackImagesToArticles } from '@/lib/utils/generate-fallback-image';
+import { getImageWithFallback, assignFallbackImagesToArticles, isUsableNewsImageUrl } from '@/lib/utils/generate-fallback-image';
 import { AI_NEWS_SOURCES } from '@/lib/ai/news-sources';
 import { SITE_NAME, siteTagline } from '@/lib/config/site';
 import { CorroborationBadge } from '@/components/news/CorroborationBadge';
@@ -47,8 +47,7 @@ export default async function HomePage({ params }: HomePageProps) {
 
   // The featured story is the most important one that actually has a real
   // (original, non-empty) photo — never a fallback image in the hero slot.
-  const hasRealImage = (a: INewsArticle) =>
-    typeof a.image_url === 'string' && a.image_url.trim() !== '' && !a.image_url.startsWith('data:');
+  const hasRealImage = (a: INewsArticle) => isUsableNewsImageUrl(a.image_url);
   const lead = ranked.find(hasRealImage) ?? ranked[0];
   const secondary = ranked.filter((a) => a.id !== lead?.id).slice(0, 2);
 
@@ -153,7 +152,7 @@ export default async function HomePage({ params }: HomePageProps) {
               </div>
             </Link>
 
-            {/* secondary stories — text-forward, stacked */}
+            {/* secondary stories */}
             <div className="grid grid-rows-2 gap-6">
               {secondary.map((article) => {
                 const title = getLocalizedString(article, 'title', locale);
@@ -161,21 +160,31 @@ export default async function HomePage({ params }: HomePageProps) {
                   <Link
                     key={article.id}
                     href={`/${locale}/news/${article.id}`}
-                    className="group flex min-h-[160px] flex-col justify-between border border-white/10 bg-white/[0.015] p-5 transition-colors hover:border-signal/60"
+                    className="group grid min-h-[160px] grid-cols-[132px_1fr] overflow-hidden border border-white/10 bg-white/[0.015] transition-colors hover:border-signal/60"
                   >
-                    <div>
-                      <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.2em] text-signal-soft">
-                        {article.category}
-                      </span>
-                      <h3 className="line-clamp-3 text-lg font-semibold leading-snug transition-colors group-hover:text-signal-soft">
-                        {title}
-                      </h3>
+                    <div className="relative h-full min-h-[160px] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageOf(article, title)}
+                        alt={title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                     </div>
-                    <div className="mt-4 flex items-center justify-between gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-white/40">
-                        {formatRelativeTimeFromNow(article.published_at, locale)}
-                      </span>
-                      <CorroborationBadge count={article.corroboration_count} locale={locale} variant="outline" />
+                    <div className="flex flex-col justify-between p-5">
+                      <div>
+                        <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.2em] text-signal-soft">
+                          {article.category}
+                        </span>
+                        <h3 className="line-clamp-3 text-lg font-semibold leading-snug transition-colors group-hover:text-signal-soft">
+                          {title}
+                        </h3>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-white/40">
+                          {formatRelativeTimeFromNow(article.published_at, locale)}
+                        </span>
+                        <CorroborationBadge count={article.corroboration_count} locale={locale} variant="outline" />
+                      </div>
                     </div>
                   </Link>
                 );
